@@ -13,6 +13,7 @@ import { deleteDb } from "../lib/idb";
 import { clearDrafts } from "../lib/drafts";
 import { clearSession, type Session } from "../lib/session-store";
 import { clearMediaCache } from "./media";
+import { clearAllCallPrefs } from "../calls/prefs";
 import { clearSecretStorageKeyCache, cryptoCallbacks } from "./secret-storage";
 
 export const CRYPTO_DB_PREFIX = "lumen-crypto";
@@ -27,11 +28,7 @@ export const LOCAL_DATABASES = [
 
 export type StartupStage = "store" | "crypto" | "sync";
 
-export async function createMatrixClient(
-  session: Session,
-  opts: { voip: boolean },
-  onStage?: (s: StartupStage) => void,
-): Promise<MatrixClient> {
+export async function createMatrixClient(session: Session, onStage?: (s: StartupStage) => void): Promise<MatrixClient> {
   onStage?.("store");
   let store: IndexedDBStore | MemoryStore;
   try {
@@ -51,8 +48,9 @@ export async function createMatrixClient(
     timelineSupport: true,
     cryptoCallbacks,
     verificationMethods: [VerificationMethod.Sas],
-    // Legacy 1:1 VoIP only when the deployment enables it (no TURN lookups otherwise).
-    disableVoip: !opts.voip,
+    // Calls are MatrixRTC (LiveKit) only: the legacy 1:1 VoIP stack (MatrixCall, TURN
+    // lookups) is never started. Incoming legacy invites get an "unsupported" notice.
+    disableVoip: true,
   });
   onStage?.("crypto");
   await client.initRustCrypto({ storagePassword: session.storagePassword, cryptoDatabasePrefix: CRYPTO_DB_PREFIX });
@@ -106,6 +104,7 @@ export async function wipeLocalData(client?: MatrixClient | null): Promise<void>
   clearSecretStorageKeyCache();
   clearMediaCache();
   clearDrafts();
+  clearAllCallPrefs();
   client?.stopClient();
   await clearSession();
   if (client) {

@@ -1,6 +1,7 @@
 /**
  * Runtime configuration, fetched from /config.json (rendered by the installer).
  * Everything brand- or deployment-specific comes from here, never from code.
+ * (The legacy `voip_enabled` flag of 1:1 Matrix VoIP is gone: calls are MatrixRTC only.)
  */
 
 export interface AppConfig {
@@ -9,7 +10,12 @@ export interface AppConfig {
   sso: { idpId: string; label: string } | null;
   portalUrl: string | null;
   allowCustomHomeserver: boolean;
-  voipEnabled: boolean;
+  /**
+   * MatrixRTC calls (LiveKit SFU, media end-to-end encrypted with per-participant keys).
+   * `rtcDomain` is the operator's SFU host, used only as a fallback when the homeserver
+   * doesn't advertise its transports (`/rtc/transports`).
+   */
+  calls: { enabled: boolean; rtcDomain: string | null };
   privacyUrl: string | null;
   helpUrl: string | null;
 }
@@ -99,13 +105,26 @@ export function parseConfig(raw: unknown): AppConfig {
     }
   };
 
+  let calls: AppConfig["calls"] = { enabled: false, rtcDomain: null };
+  if (isObject(raw.calls) && raw.calls.enabled === true) {
+    let domain: string | null;
+    try {
+      domain = str(raw.calls, "rtc_domain", "calls.", false);
+    } catch {
+      domain = null; // a malformed fallback must not break the app
+    }
+    // a host name (optionally with port); anything else is ignored rather than trusted
+    const rtcDomain = domain && /^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(domain) ? domain.toLowerCase() : null;
+    calls = { enabled: true, rtcDomain };
+  }
+
   return {
     brand: { name, shortName },
     homeserver: { baseUrl, serverName },
     sso,
     portalUrl: optionalUrl("portal_url"),
     allowCustomHomeserver: raw.allow_custom_homeserver === true,
-    voipEnabled: raw.voip_enabled === true,
+    calls,
     privacyUrl: optionalUrl("privacy_url"),
     helpUrl: optionalUrl("help_url"),
   };

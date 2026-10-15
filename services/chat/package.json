@@ -18,11 +18,12 @@
     "test:ui": "npm run build && node --test --test-force-exit --test-concurrency=1 --test-reporter=spec ../../tests/chat/ui.test.mjs",
     "devserver:up": "node ../../tests/chat/devserver.mjs up",
     "devserver:down": "node ../../tests/chat/devserver.mjs down",
-    "test:voip": "npm run build && node --test --test-force-exit --test-reporter=spec ../../tests/chat/voip.test.mjs",
+    "test:calls": "node ../../tests/calls/calls.test.mjs",
     "test:sso": "npm run build && node ../../tests/chat/sso.smoke.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
+    "livekit-client": "2.22.4",
     "loglevel": "^1.9.2",
     "lucide-react": "^1.57.0",
     "matrix-encrypt-attachment": "^1.0.3",

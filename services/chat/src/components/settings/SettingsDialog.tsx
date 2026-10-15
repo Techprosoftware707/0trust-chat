@@ -1,10 +1,11 @@
 import { useId, useState, type ReactNode } from "react";
-import { Bell, Info, MonitorSmartphone, Palette, ShieldCheck, UserRound } from "lucide-react";
+import { Bell, Info, MonitorSmartphone, Palette, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { Dialog } from "../primitives/Dialog";
 import type { SettingsTab } from "../UiContext";
 import { ProfileTab } from "./ProfileTab";
 import { AppearanceTab } from "./AppearanceTab";
 import { NotificationsTab } from "./NotificationsTab";
+import { CallsTab } from "./CallsTab";
 import { SecurityTab } from "./SecurityTab";
 import { SessionsTab } from "./SessionsTab";
 import { AboutTab } from "./AboutTab";
@@ -13,6 +14,7 @@ const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: "profile", label: "Profile", icon: <UserRound aria-hidden="true" /> },
   { id: "appearance", label: "Appearance", icon: <Palette aria-hidden="true" /> },
   { id: "notifications", label: "Notifications", icon: <Bell aria-hidden="true" /> },
+  { id: "calls", label: "Calls", icon: <Phone aria-hidden="true" /> },
   { id: "security", label: "Security & privacy", icon: <ShieldCheck aria-hidden="true" /> },
   { id: "sessions", label: "Sessions", icon: <MonitorSmartphone aria-hidden="true" /> },
   { id: "about", label: "About", icon: <Info aria-hidden="true" /> },
@@ -59,6 +61,7 @@ export function SettingsDialog({ initialTab = "profile", onClose }: { initialTab
           {tab === "profile" ? <ProfileTab /> : null}
           {tab === "appearance" ? <AppearanceTab /> : null}
           {tab === "notifications" ? <NotificationsTab /> : null}
+          {tab === "calls" ? <CallsTab /> : null}
           {tab === "security" ? <SecurityTab /> : null}
           {tab === "sessions" ? <SessionsTab /> : null}
           {tab === "about" ? <AboutTab /> : null}

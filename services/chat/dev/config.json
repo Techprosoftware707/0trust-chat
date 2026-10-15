@@ -4,7 +4,7 @@
   "sso": { "idp_id": "oidc-lumen", "label": "Continue with your Lumen account" },
   "portal_url": "https://lumen.test",
   "allow_custom_homeserver": true,
-  "voip_enabled": false,
+  "calls": { "enabled": true, "rtc_domain": null },
   "privacy_url": "https://lumen.test/privacy/",
   "help_url": "https://lumen.test/docs/"
 }

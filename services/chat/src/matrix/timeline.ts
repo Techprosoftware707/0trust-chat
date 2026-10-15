@@ -2,11 +2,13 @@
 import { EventType, type MatrixEvent } from "matrix-js-sdk";
 import { isSameDay } from "../lib/format";
 import { isMessageEvent } from "./rooms";
+import type { CallMarker } from "../calls/history";
 
 export type TimelineItem =
   | { kind: "day"; key: string; ts: number }
   | { kind: "message"; key: string; event: MatrixEvent; continuation: boolean }
-  | { kind: "notice"; key: string; event: MatrixEvent; text: string };
+  | { kind: "notice"; key: string; event: MatrixEvent; text: string }
+  | { kind: "call"; key: string; event: MatrixEvent; marker: CallMarker };
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
@@ -61,7 +63,11 @@ export function noticeText(ev: MatrixEvent, nameOf: NameOf): string | null {
   }
 }
 
-export function buildTimeline(events: MatrixEvent[], nameOf: NameOf): TimelineItem[] {
+/**
+ * @param callMarkers call items keyed by event id (see calls/history.ts): the first join of a
+ *   call, its end, declines and legacy call invites. Other call events stay hidden.
+ */
+export function buildTimeline(events: MatrixEvent[], nameOf: NameOf, callMarkers?: Map<string, CallMarker>): TimelineItem[] {
   const items: TimelineItem[] = [];
   let prevTs: number | null = null;
   let prevMessage: MatrixEvent | null = null;
@@ -70,7 +76,10 @@ export function buildTimeline(events: MatrixEvent[], nameOf: NameOf): TimelineIt
     const key = ev.getId() ?? ev.getTxnId() ?? `${ts}-${items.length}`;
     let item: TimelineItem | null = null;
     const msgtype = (ev.getContent() as { msgtype?: string }).msgtype;
-    if (ev.getType() === EventType.RoomMessage && msgtype === "m.key.verification.request" && !ev.isRedacted()) {
+    const marker = callMarkers?.get(ev.getId() ?? "");
+    if (marker) {
+      item = { kind: "call", key, event: ev, marker };
+    } else if (ev.getType() === EventType.RoomMessage && msgtype === "m.key.verification.request" && !ev.isRedacted()) {
       const to = (ev.getContent() as { to?: string }).to;
       item = { kind: "notice", key, event: ev, text: `${nameOf(ev.getSender() ?? "")} sent a verification request${to ? ` to ${nameOf(to)}` : ""}` };
     } else if (isMessageEvent(ev)) {

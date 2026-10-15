@@ -77,3 +77,76 @@ function subscribe(l: () => void) {
 export function usePrefs(): Prefs {
   return useSyncExternalStore(subscribe, getPrefs, getPrefs);
 }
+
+/**
+ * A typed, validated preference record in localStorage under `key` (non-secret data only).
+ * `parse` receives the stored JSON (or null) and must return a complete, valid record:
+ * anything unexpected falls back to defaults, so a corrupted or hand-edited entry can't
+ * break the app. Used for per-user preferences (e.g. `lumen-call-prefs:<user id>`).
+ */
+export interface PrefStore<T> {
+  get(): T;
+  set(patch: Partial<T>): void;
+  reset(): void;
+  subscribe(l: () => void): () => void;
+}
+
+const stores = new Map<string, PrefStore<unknown>>();
+
+export function prefStore<T>(key: string, parse: (raw: unknown) => T): PrefStore<T> {
+  const existing = stores.get(key);
+  if (existing) return existing as PrefStore<T>;
+  let value: T | null = null;
+  const ls = new Set<() => void>();
+  const read = (): T => {
+    let raw: unknown;
+    try {
+      const s = localStorage.getItem(key);
+      raw = s ? JSON.parse(s) : null;
+    } catch {
+      raw = null;
+    }
+    return parse(raw);
+  };
+  const store: PrefStore<T> = {
+    get: () => (value ??= read()),
+    set: (patch) => {
+      value = parse({ ...(store.get() as object), ...patch });
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        /* storage disabled: keep in memory */
+      }
+      ls.forEach((l) => l());
+    },
+    reset: () => {
+      value = null;
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+      ls.forEach((l) => l());
+    },
+    subscribe: (l) => {
+      ls.add(l);
+      return () => ls.delete(l);
+    },
+  };
+  stores.set(key, store as PrefStore<unknown>);
+  return store;
+}
+
+export function usePrefStore<T>(store: PrefStore<T>): T {
+  return useSyncExternalStore(store.subscribe, store.get, store.get);
+}
+
+/** Removes every per-user preference record whose key starts with `prefix` (sign-out). */
+export function clearPrefStores(prefix: string): void {
+  for (const [k, s] of stores) if (k.startsWith(prefix)) s.reset();
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith(prefix)) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+}

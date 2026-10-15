@@ -14,7 +14,6 @@ import { IdentityWarnings } from "./room/IdentityWarnings";
 import { Timeline } from "./room/Timeline";
 import { TypingIndicator } from "./room/TypingIndicator";
 import { Composer, type ComposerHandle } from "./room/Composer";
-import { placeCall } from "./calls/CallManager";
 
 function InvitePreview({ room }: { room: Room }) {
   const { client, userId } = useMatrix();
@@ -69,9 +68,8 @@ function InvitePreview({ room }: { room: Room }) {
   );
 }
 
-function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; panel: "info" | "search" | null }) {
+function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; panel: "info" | "search" | "calls" | null }) {
   const { client, userId, config } = useMatrix();
-  const ui = useUi();
   useDirectVersion(client);
   const encrypted = useRoomEncrypted(client, room);
   const [replyTo, setReplyTo] = useState<MatrixEvent | null>(null);
@@ -129,11 +127,7 @@ function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; 
         encrypted={encrypted}
         isMobile={isMobile}
         panel={panel}
-        onCall={
-          config.voipEnabled && client.supportsVoip() && dmUserId && room.getJoinedMemberCount() === 2
-            ? (video) => void placeCall(client, room.roomId, video).catch((e: unknown) => ui.reportError(e, "Couldn't start the call"))
-            : undefined
-        }
+        callsEnabled={config.calls.enabled}
       />
       <IdentityWarnings room={room} encrypted={encrypted} />
       <Timeline room={room} roomEncrypted={encrypted} onReply={onReply} onEdit={onEdit} />
@@ -158,7 +152,7 @@ function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; 
   );
 }
 
-export function RoomView({ roomId, isMobile, panel }: { roomId: string; isMobile: boolean; panel: "info" | "search" | null }) {
+export function RoomView({ roomId, isMobile, panel }: { roomId: string; isMobile: boolean; panel: "info" | "search" | "calls" | null }) {
   const { client } = useMatrix();
   const room = useRoom(client, roomId);
   const { state } = useSyncState(client);

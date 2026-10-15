@@ -10,6 +10,9 @@ import {
 import { ArrowDown, LockKeyhole } from "lucide-react";
 import { useClient } from "../../matrix/context";
 import { buildTimeline } from "../../matrix/timeline";
+import { buildCallHistory, callMarkers } from "../../calls/history";
+import { useRoomCall } from "../../calls/store";
+import { CallTimelineItem } from "../calls/CallTimelineItem";
 import { previewText } from "../../matrix/rooms";
 import { formatDayLabel } from "../../lib/format";
 import { getPrefs } from "../../lib/prefs";
@@ -71,7 +74,9 @@ export function Timeline({
     void version;
     return [...room.getLiveTimeline().getEvents(), ...room.getPendingEvents()];
   }, [room, version]);
-  const items = useMemo(() => buildTimeline(events, nameOf), [events, nameOf]);
+  const liveCall = useRoomCall(client, room);
+  const markers = useMemo(() => callMarkers(events, buildCallHistory(events, liveCall.devices)), [events, liveCall.devices]);
+  const items = useMemo(() => buildTimeline(events, nameOf, markers), [events, nameOf, markers]);
 
   // Who has read each of my recent messages: their read receipt (or a later message of
   // theirs) is at or after it. Only real receipt data from the server is used.
@@ -277,6 +282,13 @@ export function Timeline({
               return (
                 <div key={it.key} className="day-sep" data-item={it.key} role="separator" aria-label={formatDayLabel(it.ts)}>
                   <span>{formatDayLabel(it.ts)}</span>
+                </div>
+              );
+            }
+            if (it.kind === "call") {
+              return (
+                <div key={it.key} data-item={it.key}>
+                  <CallTimelineItem marker={it.marker} room={room} me={me} joinedHere={liveCall.joinedHere} />
                 </div>
               );
             }

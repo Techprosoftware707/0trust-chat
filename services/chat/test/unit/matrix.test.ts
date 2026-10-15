@@ -146,29 +146,3 @@ describe("timeline building", () => {
   });
 });
 
-describe("call media protection (from getStats)", async () => {
-  const { summariseTransportStats, formatDuration } = await import("../../src/matrix/calls");
-  it("reports protected media only with a connected DTLS transport and an SRTP cipher", () => {
-    const stats = [
-      { type: "transport", id: "T1", dtlsState: "connected", srtpCipher: "AES_CM_128_HMAC_SHA1_80", dtlsCipher: "TLS_ECDHE", tlsVersion: "FEFD", selectedCandidatePairId: "P1" },
-      { type: "candidate-pair", id: "P1", localCandidateId: "L1", state: "succeeded" },
-      { type: "local-candidate", id: "L1", candidateType: "relay" },
-    ];
-    expect(summariseTransportStats(stats)).toEqual({
-      dtlsState: "connected",
-      srtpCipher: "AES_CM_128_HMAC_SHA1_80",
-      dtlsCipher: "TLS_ECDHE",
-      tlsVersion: "FEFD",
-      relayed: true,
-      protectedMedia: true,
-    });
-    expect(summariseTransportStats([{ type: "transport", dtlsState: "connecting" }]).protectedMedia).toBe(false);
-    expect(summariseTransportStats([{ type: "transport", dtlsState: "connected" }]).protectedMedia).toBe(false);
-    expect(summariseTransportStats([]).protectedMedia).toBe(false);
-  });
-  it("formats call durations", () => {
-    expect(formatDuration(0)).toBe("0:00");
-    expect(formatDuration(75)).toBe("1:15");
-    expect(formatDuration(3725)).toBe("1:02:05");
-  });
-});

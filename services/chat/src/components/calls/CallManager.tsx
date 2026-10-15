@@ -1,262 +1,202 @@
-import { useEffect, useReducer, useRef, useState } from "react";
-import { CallEvent, type MatrixCall, type MatrixClient } from "matrix-js-sdk";
-import { CallErrorCode, CallState, CallType } from "matrix-js-sdk/lib/webrtc/call.js";
-import { CallEventHandlerEvent } from "matrix-js-sdk/lib/webrtc/callEventHandler.js";
-import { Lock, Mic, MicOff, Phone, PhoneOff, ShieldAlert, Video, VideoOff } from "lucide-react";
+/**
+ * App-level call plumbing (mounted when the deployment enables calls): incoming ring /
+ * notification cards with ringtone, the pre-join lobby, the active call, and a notice for
+ * legacy 1:1 VoIP invites (`m.call.invite`), which this app no longer supports.
+ */
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MatrixEventEvent, RoomEvent, type IRoomTimelineData, type MatrixEvent, type Room } from "matrix-js-sdk";
+import { MatrixRTCSessionEvent } from "matrix-js-sdk/lib/matrixrtc/index.js";
+import { Phone, PhoneOff, Video } from "lucide-react";
+import { startRingtone } from "../../calls/audio";
+import { startCall } from "../../calls/controller";
+import { getCallPrefs } from "../../calls/prefs";
+import { getActiveCall, useActiveCall, useLobby } from "../../calls/store";
+import { LEGACY_CALL_INVITE, roomSession, RTC_NOTIFICATION_EVENT, sendDecline, validateNotification, type IncomingNotification } from "../../calls/rtc";
+import { getPrefs } from "../../lib/prefs";
+import { roomHash } from "../../lib/matrix-id";
 import { useMatrix } from "../../matrix/context";
-import { formatDuration, readMediaProtection, type MediaProtection } from "../../matrix/calls";
-import { errorMessage } from "../../lib/errors";
+import { notificationPermission } from "../../matrix/notifications";
 import { Avatar } from "../primitives/Avatar";
-import { Dialog } from "../primitives/Dialog";
 import { useUi } from "../UiContext";
-import { getActiveCall, setActiveCall, useActiveCall } from "./callStore";
+import { CallLobby } from "./CallLobby";
+import { CallScreen } from "./CallScreen";
 
-/** Places a 1:1 call in a DM. */
-export async function placeCall(client: MatrixClient, roomId: string, video: boolean): Promise<void> {
-  if (getActiveCall()) throw new Error("You're already in a call.");
-  const call = client.createCall(roomId);
-  if (!call) throw new Error("Calls aren't supported in this browser.");
-  setActiveCall(call);
-  try {
-    if (video) await call.placeVideoCall();
-    else await call.placeVoiceCall();
-  } catch (e) {
-    setActiveCall(null);
-    throw e;
-  }
+const MAX_EVENT_AGE_MS = 2 * 60 * 1000;
+
+/** A room whose notifications the user muted (room push rule with no "notify" action). */
+function roomMuted(room: Room): boolean {
+  const rule = room.client.getRoomPushRule("global", room.roomId);
+  if (!rule) return false;
+  return !rule.actions.some((a) => a === "notify" || (typeof a === "object" && "set_tweak" in a && a.set_tweak === "sound"));
 }
 
-function useCallVersion(call: MatrixCall | null): number {
-  const [v, bump] = useReducer((x: number) => x + 1, 0);
-  useEffect(() => {
-    if (!call) return;
-    const events = [CallEvent.State, CallEvent.FeedsChanged, CallEvent.Hangup, CallEvent.LocalHoldUnhold, CallEvent.RemoteHoldUnhold];
-    for (const e of events) call.on(e as CallEvent.State, bump as never);
-    return () => {
-      for (const e of events) call.off(e as CallEvent.State, bump as never);
-    };
-  }, [call]);
-  return v;
-}
-
-function MediaEl({ stream, kind, muted, className }: { stream: MediaStream | undefined; kind: "video" | "audio"; muted?: boolean; className?: string }) {
-  const ref = useRef<HTMLVideoElement & HTMLAudioElement>(null);
-  useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream ?? null;
-  }, [stream]);
-  return kind === "video" ? (
-    <video ref={ref} className={className} autoPlay playsInline muted={muted} />
-  ) : (
-    <audio ref={ref} autoPlay muted={muted} />
-  );
-}
-
-const STATE_TEXT: Partial<Record<CallState, string>> = {
-  [CallState.Fledgling]: "Starting…",
-  [CallState.WaitLocalMedia]: "Waiting for your microphone/camera…",
-  [CallState.CreateOffer]: "Calling…",
-  [CallState.InviteSent]: "Calling…",
-  [CallState.Ringing]: "Ringing…",
-  [CallState.CreateAnswer]: "Connecting…",
-  [CallState.Connecting]: "Connecting…",
-  [CallState.Ended]: "Call ended",
-};
-
-function ProtectionBadge({ call }: { call: MatrixCall }) {
-  const [p, setP] = useState<MediaProtection | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const tick = () =>
-      void readMediaProtection(call.peerConn)
-        .then((r) => alive && setP(r))
-        .catch(() => undefined);
-    tick();
-    const t = setInterval(tick, 2000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [call]);
-  if (p?.protectedMedia) {
-    return (
-      <span className="badge badge-success badge-plain" title={`DTLS ${p.tlsVersion ?? ""} ${p.dtlsCipher ?? ""}`.trim()}>
-        <Lock aria-hidden="true" /> Media encrypted · DTLS-SRTP ({p.srtpCipher}){p.relayed ? " · via relay" : ""}
-      </span>
-    );
-  }
-  if (p?.dtlsState === "failed") {
-    return (
-      <span className="badge badge-danger badge-plain">
-        <ShieldAlert aria-hidden="true" /> Media connection failed
-      </span>
-    );
-  }
-  return <span className="badge badge-plain">Checking media protection…</span>;
-}
-
-function CallView({ call }: { call: MatrixCall }) {
-  const { client } = useMatrix();
-  useCallVersion(call);
-  const [length, setLength] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const room = client.getRoom(call.roomId);
-  const name = room?.name ?? "Call";
-  const video = call.type === CallType.Video;
-  const remote = call.remoteUsermediaFeed?.stream;
-  const local = call.localUsermediaFeed?.stream;
-  const ended = call.state === CallState.Ended;
-
-  useEffect(() => {
-    const onLength = (l: number) => setLength(l);
-    const onError = (e: Error) => setError(errorMessage(e));
-    call.on(CallEvent.LengthChanged, onLength);
-    call.on(CallEvent.Error, onError);
-    return () => {
-      call.off(CallEvent.LengthChanged, onLength);
-      call.off(CallEvent.Error, onError);
-    };
-  }, [call]);
-
-  useEffect(() => {
-    if (!ended) return;
-    const t = setTimeout(() => getActiveCall() === call && setActiveCall(null), 2500);
-    return () => clearTimeout(t);
-  }, [ended, call]);
-
-  const status = call.state === CallState.Connected ? formatDuration(length) : (STATE_TEXT[call.state] ?? call.state);
-  const reason = ended && call.hangupReason && call.hangupReason !== CallErrorCode.UserHangup ? ` (${call.hangupReason.replace(/_/g, " ")})` : "";
-
-  return (
-    <section className={`call-view${video ? " video" : ""}`} aria-label={`Call with ${name}`}>
-      <div className="call-stage">
-        {video && remote ? (
-          <MediaEl stream={remote} kind="video" className="call-remote" />
-        ) : (
-          <div className="call-avatar">
-            <Avatar name={name} seed={call.roomId} mxc={room?.getMxcAvatarUrl()} size={88} />
-          </div>
-        )}
-        {!video && remote ? <MediaEl stream={remote} kind="audio" /> : null}
-        {video && local ? <MediaEl stream={local} kind="video" muted className="call-local" /> : null}
-      </div>
-      <div className="call-info">
-        <p className="call-name">{name}</p>
-        <p className="call-status" role="status" aria-live="polite">
-          {status}
-          {reason}
-        </p>
-        {call.state === CallState.Connected ? <ProtectionBadge call={call} /> : null}
-        {error ? (
-          <p className="form-error small" role="alert">
-            {error}
-          </p>
-        ) : null}
-      </div>
-      <div className="call-controls">
-        {!ended ? (
-          <>
-            <button
-              type="button"
-              className="call-btn"
-              aria-pressed={call.isMicrophoneMuted()}
-              aria-label={call.isMicrophoneMuted() ? "Unmute microphone" : "Mute microphone"}
-              onClick={() => void call.setMicrophoneMuted(!call.isMicrophoneMuted())}
-            >
-              {call.isMicrophoneMuted() ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}
-            </button>
-            {video ? (
-              <button
-                type="button"
-                className="call-btn"
-                aria-pressed={call.isLocalVideoMuted()}
-                aria-label={call.isLocalVideoMuted() ? "Turn camera on" : "Turn camera off"}
-                onClick={() => void call.setLocalVideoMuted(!call.isLocalVideoMuted())}
-              >
-                {call.isLocalVideoMuted() ? <VideoOff aria-hidden="true" /> : <Video aria-hidden="true" />}
-              </button>
-            ) : null}
-            <button type="button" className="call-btn hangup" aria-label="Hang up" onClick={() => call.hangup(CallErrorCode.UserHangup, false)}>
-              <PhoneOff aria-hidden="true" />
-            </button>
-          </>
-        ) : (
-          <button type="button" className="btn btn-sm" onClick={() => setActiveCall(null)}>
-            Close
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function IncomingCall({ call, onDone }: { call: MatrixCall; onDone: () => void }) {
-  const { client } = useMatrix();
+function IncomingCallCard({ n, onDone }: { n: IncomingNotification; onDone: () => void }) {
+  const { client, config } = useMatrix();
   const ui = useUi();
-  useCallVersion(call);
-  const room = client.getRoom(call.roomId);
-  const name = room?.name ?? "Someone";
-  const video = call.type === CallType.Video;
-  useEffect(() => {
-    if (call.state === CallState.Ended) onDone();
-  }, [call.state, onDone]);
+  const room = client.getRoom(n.roomId);
+  const [busy, setBusy] = useState(false);
+  const caller = room?.getMember(n.sender);
+  const callerName = caller?.name ?? n.sender;
+  const isRing = n.type === "ring";
+  const title = isRing ? `${callerName} is calling` : `${callerName} started a call`;
+  const sub = isRing ? (n.intent === "video" ? "Video call" : "Voice call") : `in ${room?.name ?? "a group"}`;
+
+  const accept = async (intent: "audio" | "video") => {
+    if (!room) return;
+    setBusy(true);
+    onDone();
+    try {
+      await startCall(client, config, room, { intent, notify: false });
+      window.location.hash = roomHash(room.roomId);
+    } catch (e) {
+      ui.reportError(e, "Couldn't join the call");
+    }
+  };
+
   return (
-    <Dialog title={`${name} is calling`} description={video ? "Video call" : "Voice call"} icon={video ? <Video /> : <Phone />} onClose={() => {
-      call.reject();
-      onDone();
-    }} size="sm">
-      <div className="verify-state">
-        <Avatar name={name} seed={call.roomId} mxc={room?.getMxcAvatarUrl()} size={72} />
-        <div className="dialog-actions">
+    <div className={`incoming-call${isRing ? " ring" : ""}`} role="alertdialog" aria-label={title} aria-describedby={`ic-${n.eventId}`}>
+      <Avatar name={callerName} seed={n.sender} mxc={caller?.getMxcAvatarUrl()} size={48} />
+      <div className="incoming-main">
+        <p className="incoming-title">{title}</p>
+        <p className="incoming-sub" id={`ic-${n.eventId}`}>
+          {sub}
+          {getActiveCall() && getActiveCall()!.getSnapshot().phase !== "ended" ? " · accepting ends your current call" : ""}
+        </p>
+        <div className="incoming-actions">
           <button
             type="button"
-            className="btn btn-danger"
+            className="btn btn-sm btn-danger"
+            disabled={busy}
             onClick={() => {
-              call.reject();
               onDone();
+              if (isRing) void sendDecline(client, n.roomId, n.eventId).catch((e: unknown) => ui.reportError(e, "Couldn't decline the call"));
             }}
           >
-            <PhoneOff aria-hidden="true" /> Decline
+            <PhoneOff aria-hidden="true" /> {isRing ? "Decline" : "Dismiss"}
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setActiveCall(call);
-              onDone();
-              void Promise.resolve(call.answer(true, video)).catch((e: unknown) => ui.reportError(e, "Couldn't answer the call"));
-            }}
-          >
-            <Phone aria-hidden="true" /> Answer
+          <button type="button" className="btn btn-sm btn-success" disabled={busy} onClick={() => void accept("audio")}>
+            <Phone aria-hidden="true" /> {isRing ? "Accept" : "Join"}
+          </button>
+          <button type="button" className="btn btn-sm btn-success" disabled={busy} onClick={() => void accept("video")}>
+            <Video aria-hidden="true" /> {isRing ? "Video" : "Join with video"}
           </button>
         </div>
       </div>
-    </Dialog>
+    </div>
   );
 }
 
-/** Listens for incoming calls and shows the active call. Only mounted when VoIP is enabled. */
 export function CallManager() {
-  const { client } = useMatrix();
+  const { client, userId } = useMatrix();
+  const ui = useUi();
   const active = useActiveCall();
-  const [incoming, setIncoming] = useState<MatrixCall | null>(null);
+  const lobby = useLobby();
+  const [incoming, setIncoming] = useState<IncomingNotification[]>([]);
+  const seen = useRef(new Set<string>());
+
+  const remove = useCallback((id: string) => setIncoming((xs) => xs.filter((x) => x.eventId !== id)), []);
+
+  // --- incoming notifications and legacy invites ---
   useEffect(() => {
-    const onIncoming = (call: MatrixCall) => {
-      if (getActiveCall()) {
-        // Already in a call: tell the caller we're busy.
-        call.reject();
+    const consider = async (ev: MatrixEvent, room: Room) => {
+      await client.decryptEventIfNeeded(ev);
+      const id = ev.getId();
+      if (!id || seen.current.has(id)) return;
+      if (Date.now() - ev.getTs() > MAX_EVENT_AGE_MS) return;
+      const type = ev.getType();
+      if (type === LEGACY_CALL_INVITE && ev.getSender() !== userId) {
+        seen.current.add(id);
+        const who = room.getMember(ev.getSender() ?? "")?.name ?? ev.getSender();
+        ui.toast({
+          kind: "info",
+          title: "Unsupported call type",
+          body: `${who} tried to call you with an older calling method this app doesn't support. Ask them to start the call again from an up-to-date app, or call them from here.`,
+          timeoutMs: 15000,
+        });
         return;
       }
-      setIncoming(call);
+      if (type !== RTC_NOTIFICATION_EVENT) return;
+      const n = validateNotification(ev, room, userId, roomSession(client, room));
+      if (!n) return;
+      seen.current.add(id);
+      setIncoming((xs) => [...xs.filter((x) => x.roomId !== n.roomId), n]);
+      // Desktop notification while the tab is in the background (same opt-in as messages).
+      if (document.hidden && getPrefs().notifications && notificationPermission() === "granted" && !roomMuted(room)) {
+        try {
+          const who = room.getMember(n.sender)?.name ?? n.sender;
+          const note = new Notification(n.type === "ring" ? `${who} is calling` : `Call in ${room.name}`, { tag: `call-${room.roomId}`, icon: "/brand/logo.svg" });
+          note.onclick = () => {
+            window.focus();
+            window.location.hash = roomHash(room.roomId);
+            note.close();
+          };
+        } catch {
+          /* not available */
+        }
+      }
     };
-    client.on(CallEventHandlerEvent.Incoming, onIncoming);
+    const onTimeline = (ev: MatrixEvent, room: Room | undefined, toStart: boolean | undefined, removed: boolean, data: IRoomTimelineData) => {
+      if (!room || toStart || removed || !data?.liveEvent) return;
+      void consider(ev, room);
+    };
+    client.on(RoomEvent.Timeline, onTimeline);
+    // events that were still encrypted when they arrived
+    const onDecrypted = (ev: MatrixEvent) => {
+      const room = client.getRoom(ev.getRoomId());
+      if (room && (ev.getType() === RTC_NOTIFICATION_EVENT || ev.getType() === LEGACY_CALL_INVITE)) void consider(ev, room);
+    };
+    client.on(MatrixEventEvent.Decrypted, onDecrypted);
     return () => {
-      client.off(CallEventHandlerEvent.Incoming, onIncoming);
+      client.off(RoomEvent.Timeline, onTimeline);
+      client.off(MatrixEventEvent.Decrypted, onDecrypted);
     };
-  }, [client]);
+  }, [client, userId, ui]);
+
+  // --- expire / withdraw incoming cards: lifetime over, call ended, answered elsewhere, declined elsewhere ---
+  useEffect(() => {
+    if (!incoming.length) return;
+    const check = () => {
+      for (const n of incoming) {
+        const room = client.getRoom(n.roomId);
+        const s = room ? roomSession(client, room) : null;
+        const ev = room?.findEventById(n.eventId);
+        const stillValid = room && ev ? validateNotification(ev, room, userId, s) : null;
+        if (!stillValid || Date.now() >= n.expiresAt || (active && active.roomId === n.roomId && active.getSnapshot().phase !== "ended")) remove(n.eventId);
+      }
+    };
+    const t = setInterval(check, 1000);
+    const unsubs = incoming.map((n) => {
+      const room = client.getRoom(n.roomId);
+      if (!room) return () => undefined;
+      const s = roomSession(client, room);
+      s.on(MatrixRTCSessionEvent.MembershipsChanged, check);
+      return () => s.off(MatrixRTCSessionEvent.MembershipsChanged, check);
+    });
+    return () => {
+      clearInterval(t);
+      unsubs.forEach((u) => u());
+    };
+  }, [incoming, client, userId, active, remove]);
+
+  // --- ringtone for 1:1 rings (respects the setting and muted rooms) ---
+  const ringing = incoming.find((n) => n.type === "ring" && !roomMuted(client.getRoom(n.roomId)!));
+  const inCall = !!active && active.getSnapshot().phase !== "ended";
+  useEffect(() => {
+    if (!ringing || inCall || !getCallPrefs().ringtone) return;
+    return startRingtone(getCallPrefs().speakerDeviceId);
+  }, [ringing, inCall]);
+
   return (
     <>
-      {incoming ? <IncomingCall call={incoming} onDone={() => setIncoming(null)} /> : null}
-      {active ? <CallView call={active} /> : null}
+      {incoming.length ? (
+        <section className="incoming-calls" aria-label="Incoming calls">
+          {incoming.map((n) => (
+            <IncomingCallCard key={n.eventId} n={n} onDone={() => remove(n.eventId)} />
+          ))}
+        </section>
+      ) : null}
+      {lobby ? <CallLobby key={`${lobby.roomId}-${lobby.intent}`} request={lobby} /> : null}
+      {active ? <CallScreen key={active.roomId} session={active} /> : null}
     </>
   );
 }

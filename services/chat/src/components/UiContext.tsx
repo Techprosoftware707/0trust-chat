@@ -2,7 +2,7 @@ import { createContext, useContext } from "react";
 import type { VerificationRequest } from "matrix-js-sdk/lib/crypto-api/index.js";
 import type { SecurityState } from "../hooks/security";
 
-export type SettingsTab = "profile" | "appearance" | "notifications" | "security" | "sessions" | "about";
+export type SettingsTab = "profile" | "appearance" | "notifications" | "calls" | "security" | "sessions" | "about";
 
 export type DialogSpec =
   | { type: "settings"; tab?: SettingsTab }
@@ -44,7 +44,7 @@ export interface UiContextValue {
   verifyUser: (userId: string) => Promise<void>;
   /** Starts verifying this device against your other devices, or a specific device of yours. */
   verifyOwnDevice: (deviceId?: string) => Promise<void>;
-  openPanel: (panel: "info" | "search" | null) => void;
+  openPanel: (panel: "info" | "search" | "calls" | null) => void;
 }
 
 export const UiContext = createContext<UiContextValue | null>(null);

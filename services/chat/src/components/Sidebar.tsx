@@ -2,6 +2,8 @@ import { useId, useMemo, useState } from "react";
 import {
   Check,
   LogOut,
+  PhoneCall,
+  PhoneMissed,
   MessageSquarePlus,
   Plus,
   Search,
@@ -17,6 +19,7 @@ import { acceptInvite, declineInvite, type RoomSummary } from "../matrix/rooms";
 import { formatListTimestamp } from "../lib/format";
 import { roomHash } from "../lib/matrix-id";
 import { usePresence, useUserProfile } from "../hooks/matrix";
+import { useRoomCall } from "../calls/store";
 import { navigate } from "../hooks/useRoute";
 import { errorMessage } from "../lib/errors";
 import { Avatar, type PresenceDot } from "./primitives/Avatar";
@@ -42,7 +45,12 @@ function RoomAvatar({ s, size = 44 }: { s: RoomSummary; size?: number }) {
 }
 
 function RoomListItem({ s, active }: { s: RoomSummary; active: boolean }) {
-  const unreadLabel = s.unread > 0 ? `, ${s.unread} unread${s.highlight > 0 ? ", mentions you" : ""}` : "";
+  const { config } = useMatrix();
+  const client = useClient();
+  const callInfo = useRoomCall(client, config.calls.enabled ? s.room : null);
+  const callLabel = callInfo.userIds.length ? `, call in progress with ${callInfo.userIds.length} ${callInfo.userIds.length === 1 ? "person" : "people"}` : "";
+  const missedLabel = s.missedCall ? ", missed call" : "";
+  const unreadLabel = `${s.unread > 0 ? `, ${s.unread} unread${s.highlight > 0 ? ", mentions you" : ""}` : ""}${callLabel}${missedLabel}`;
   return (
     <li>
       <a
@@ -55,10 +63,21 @@ function RoomListItem({ s, active }: { s: RoomSummary; active: boolean }) {
         <span className="room-item-main">
           <span className="room-item-top">
             <span className="room-name">{s.name}</span>
+            {callInfo.userIds.length ? (
+              <span className="room-call-badge" aria-hidden="true" title={`${callInfo.userIds.length} in a call${callInfo.joinedHere ? " (including you)" : ""}`}>
+                <PhoneCall /> {callInfo.userIds.length}
+              </span>
+            ) : null}
             {s.lastTs ? <time dateTime={new Date(s.lastTs).toISOString()}>{formatListTimestamp(s.lastTs)}</time> : null}
           </span>
           <span className="room-item-bottom">
-            <span className="room-preview">{s.preview || (s.isDm ? "Direct message" : "Group")}</span>
+            {s.missedCall ? (
+              <span className="room-preview missed-call">
+                <PhoneMissed aria-hidden="true" /> Missed {s.missedCall.video ? "video call" : "call"}
+              </span>
+            ) : (
+              <span className="room-preview">{s.preview || (s.isDm ? "Direct message" : "Group")}</span>
+            )}
             {s.unread > 0 ? (
               <span className={`unread-badge${s.highlight > 0 ? " highlight" : ""}`} aria-hidden="true">
                 {s.unread > 99 ? "99+" : s.unread}

@@ -1,6 +1,7 @@
-import { ArrowLeft, BadgeCheck, Info, Lock, Phone, Search, ShieldAlert, ShieldOff, Video } from "lucide-react";
+import { ArrowLeft, BadgeCheck, History, Info, Lock, Phone, PhoneCall, Search, ShieldAlert, ShieldOff, Video } from "lucide-react";
 import type { Room } from "matrix-js-sdk";
 import { useMatrix } from "../../matrix/context";
+import { openLobby, setCallView, useActiveCall, useCallSnapshot, useRoomCall } from "../../calls/store";
 import { usePresence, useUserTrust } from "../../hooks/matrix";
 import { formatRelative } from "../../lib/format";
 import { Avatar } from "../primitives/Avatar";
@@ -50,20 +51,59 @@ export function TrustBadge({ userId, onVerify }: { userId: string; onVerify: () 
   );
 }
 
+/** Start / join / return-to call, with the live participant count from MatrixRTC memberships. */
+function CallButtons({ room }: { room: Room }) {
+  const { client } = useMatrix();
+  const info = useRoomCall(client, room);
+  const active = useActiveCall();
+  const snap = useCallSnapshot(active);
+  const inThisCall = !!active && active.roomId === room.roomId && snap?.phase !== "ended";
+  const n = info.userIds.length;
+  if (inThisCall) {
+    return (
+      <button type="button" className="btn btn-sm btn-success call-pill" onClick={() => setCallView("full")} aria-label={`Return to the call (${n} in call)`}>
+        <PhoneCall aria-hidden="true" /> In call{n ? ` · ${n}` : ""}
+      </button>
+    );
+  }
+  if (n > 0) {
+    return (
+      <button
+        type="button"
+        className="btn btn-sm btn-success call-pill"
+        onClick={() => openLobby({ roomId: room.roomId, intent: info.intent ?? "audio", joining: true })}
+        aria-label={`Join the call (${n} ${n === 1 ? "person" : "people"} in it)`}
+      >
+        <span className="live-dot" aria-hidden="true" /> Join call · {n}
+      </button>
+    );
+  }
+  return (
+    <>
+      <button type="button" className="icon-btn" aria-label="Voice call" title="Voice call" onClick={() => openLobby({ roomId: room.roomId, intent: "audio", joining: false })}>
+        <Phone aria-hidden="true" />
+      </button>
+      <button type="button" className="icon-btn" aria-label="Video call" title="Video call" onClick={() => openLobby({ roomId: room.roomId, intent: "video", joining: false })}>
+        <Video aria-hidden="true" />
+      </button>
+    </>
+  );
+}
+
 export function RoomHeader({
   room,
   dmUserId,
   encrypted,
   isMobile,
   panel,
-  onCall,
+  callsEnabled,
 }: {
   room: Room;
   dmUserId: string | null;
   encrypted: boolean | null;
   isMobile: boolean;
-  panel: "info" | "search" | null;
-  onCall?: (video: boolean) => void;
+  panel: "info" | "search" | "calls" | null;
+  callsEnabled: boolean;
 }) {
   const { client } = useMatrix();
   const ui = useUi();
@@ -88,15 +128,18 @@ export function RoomHeader({
         {dmUserId ? <TrustBadge userId={dmUserId} onVerify={() => void ui.verifyUser(dmUserId)} /> : null}
       </div>
       <div className="room-header-actions">
-        {onCall ? (
-          <>
-            <button type="button" className="icon-btn" aria-label="Voice call" title="Voice call" onClick={() => onCall(false)}>
-              <Phone aria-hidden="true" />
-            </button>
-            <button type="button" className="icon-btn" aria-label="Video call" title="Video call" onClick={() => onCall(true)}>
-              <Video aria-hidden="true" />
-            </button>
-          </>
+        {callsEnabled ? <CallButtons room={room} /> : null}
+        {callsEnabled ? (
+          <button
+            type="button"
+            className="icon-btn hide-narrow"
+            aria-label="Call history"
+            title="Call history"
+            aria-pressed={panel === "calls"}
+            onClick={() => ui.openPanel(panel === "calls" ? null : "calls")}
+          >
+            <History aria-hidden="true" />
+          </button>
         ) : null}
         <button
           type="button"

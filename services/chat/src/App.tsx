@@ -40,7 +40,6 @@ export function App() {
   const [phase, setPhase] = useState<Phase>({ kind: "config" });
   const booted = useRef(false);
   const clientRef = useRef<MatrixClient | null>(null);
-  const configRef = useRef<AppConfig | null>(null);
 
   const handleLoggedOut = useCallback(async (notice: string) => {
     const client = clientRef.current;
@@ -54,9 +53,7 @@ export function App() {
       setPhase({ kind: "starting", stage: "store" });
       let client: MatrixClient | null = null;
       try {
-        client = await createMatrixClient(session, { voip: !!configRef.current?.voipEnabled }, (stage) =>
-          setPhase({ kind: "starting", stage }),
-        );
+        client = await createMatrixClient(session, (stage) => setPhase({ kind: "starting", stage }));
         clientRef.current = client;
         const thisClient = client;
         client.on(HttpApiEvent.SessionLoggedOut, () => {
@@ -123,7 +120,6 @@ export function App() {
         return;
       }
       setConfig(cfg);
-      configRef.current = cfg;
       document.title = cfg.brand.name;
 
       // Only one tab may run the client (shared encrypted crypto store).

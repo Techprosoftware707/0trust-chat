@@ -7,7 +7,7 @@ const valid = {
   sso: { idp_id: "oidc-lumen", label: "Continue with your Lumen account" },
   portal_url: "https://example.com",
   allow_custom_homeserver: true,
-  voip_enabled: false,
+  calls: { enabled: true, rtc_domain: "rtc.example.com" },
   privacy_url: "https://example.com/privacy/",
   help_url: "https://example.com/docs/",
 };
@@ -20,7 +20,7 @@ describe("parseConfig", () => {
       sso: { idpId: "oidc-lumen", label: "Continue with your Lumen account" },
       portalUrl: "https://example.com/",
       allowCustomHomeserver: true,
-      voipEnabled: false,
+      calls: { enabled: true, rtcDomain: "rtc.example.com" },
       privacyUrl: "https://example.com/privacy/",
       helpUrl: "https://example.com/docs/",
     });
@@ -55,9 +55,17 @@ describe("parseConfig", () => {
   });
 
   it("only enables flags when explicitly true", () => {
-    const c = parseConfig({ ...valid, allow_custom_homeserver: "yes", voip_enabled: 1 });
+    const c = parseConfig({ ...valid, allow_custom_homeserver: "yes", calls: { enabled: 1, rtc_domain: "rtc.example.com" } });
     expect(c.allowCustomHomeserver).toBe(false);
-    expect(c.voipEnabled).toBe(false);
+    expect(c.calls).toEqual({ enabled: false, rtcDomain: null });
+    // the legacy 1:1 VoIP flag no longer enables anything
+    expect(parseConfig({ ...valid, calls: undefined, voip_enabled: true }).calls.enabled).toBe(false);
+  });
+
+  it("validates the calls section", () => {
+    expect(parseConfig({ ...valid, calls: { enabled: true } }).calls).toEqual({ enabled: true, rtcDomain: null });
+    expect(parseConfig({ ...valid, calls: { enabled: true, rtc_domain: "wss://evil/x" } }).calls.rtcDomain).toBeNull();
+    expect(parseConfig({ ...valid, calls: { enabled: true, rtc_domain: "RTC.Example.com:7443" } }).calls.rtcDomain).toBe("rtc.example.com:7443");
   });
 
   it("falls back to sane brand names", () => {

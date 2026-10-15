@@ -11,6 +11,7 @@ import {
   type Room,
 } from "matrix-js-sdk";
 import { parseMessage, stripReplyFallback, toPlainText } from "../lib/markdown";
+import { unseenMissedCall } from "../calls/history";
 
 export const MEGOLM_ALGORITHM = "m.megolm.v1.aes-sha2";
 
@@ -106,6 +107,8 @@ export interface RoomSummary {
   highlight: number;
   preview: string;
   inviter: string | null;
+  /** the latest call here was missed and not seen yet */
+  missedCall: { video: boolean; ts: number } | null;
 }
 
 export function summarise(client: MatrixClient): RoomSummary[] {
@@ -134,10 +137,18 @@ export function summarise(client: MatrixClient): RoomSummary[] {
       highlight: room.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
       preview: previewText(last, me),
       inviter,
+      missedCall: missedCallOf(client, room, me),
     });
   }
   out.sort((a, b) => b.lastTs - a.lastTs);
   return out;
+}
+
+function missedCallOf(client: MatrixClient, room: Room, me: string): RoomSummary["missedCall"] {
+  if (room.getMyMembership() !== KnownMembership.Join) return null;
+  const devices = client.matrixRTC?.getActiveRoomSession(room)?.memberships.length ?? 0;
+  const c = unseenMissedCall(room.getLiveTimeline().getEvents(), me, devices, room.getEventReadUpTo(me));
+  return c ? { video: c.intent === "video", ts: c.startTs } : null;
 }
 
 export async function addToDmMap(client: MatrixClient, userId: string, roomId: string): Promise<void> {

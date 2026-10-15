@@ -33,6 +33,8 @@ import { DialogHost } from "./DialogHost";
 import { UiaDialog } from "./dialogs/UiaDialog";
 import { SecretKeyPromptDialog } from "./dialogs/SecretKeyPromptDialog";
 import { CallManager } from "./calls/CallManager";
+import { CallHistoryPanel } from "./calls/CallHistoryPanel";
+import { setCallPrefsUser } from "../calls/prefs";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 interface Props {
@@ -45,6 +47,7 @@ interface Props {
 const PROMPT_DISMISSED_KEY = "lumen-security-prompt-dismissed";
 
 export function ChatApp({ config, client, session, onSignedOut }: Props) {
+  setCallPrefsUser(session.userId);
   const matrix = useMemo<MatrixContextValue>(
     () => ({ client, config, userId: session.userId, deviceId: session.deviceId }),
     [client, config, session.userId, session.deviceId],
@@ -55,7 +58,7 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
   const [dialogs, setDialogs] = useState<{ id: number; spec: DialogSpec }[]>([]);
   const dialogSeq = useRef(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [panel, setPanel] = useState<"info" | "search" | null>(null);
+  const [panel, setPanel] = useState<"info" | "search" | "calls" | null>(null);
   const [uiaReq, setUiaReq] = useState<{ req: UiaPromptRequest; resolve: (v: string | true | null) => void } | null>(null);
   const [keyReq, setKeyReq] = useState<{
     keyId: string;
@@ -247,7 +250,7 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
 
   const roomId = route.kind === "room" ? route.roomId : null;
   useEffect(() => {
-    setPanel((p) => (p === "info" && !roomId ? null : p));
+    setPanel((p) => ((p === "info" || p === "calls") && !roomId ? null : p));
   }, [roomId]);
 
   const view = roomId ? "room" : "list";
@@ -272,16 +275,18 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
               </ErrorBoundary>
             </main>
             {panel ? (
-              <aside className="right-panel" aria-label={panel === "info" ? "Conversation details" : "Search messages"}>
+              <aside className="right-panel" aria-label={panel === "info" ? "Conversation details" : panel === "calls" ? "Call history" : "Search messages"}>
                 {panel === "info" && roomId ? (
                   <RoomInfoPanel roomId={roomId} onClose={() => setPanel(null)} />
+                ) : panel === "calls" && roomId ? (
+                  <CallHistoryPanel roomId={roomId} onClose={() => setPanel(null)} />
                 ) : panel === "search" ? (
                   <SearchPanel onClose={() => setPanel(null)} currentRoomId={roomId} />
                 ) : null}
               </aside>
             ) : null}
           </div>
-          {config.voipEnabled && client.supportsVoip() ? <CallManager /> : null}
+          {config.calls.enabled ? <CallManager /> : null}
           <ToastRegion toasts={toasts} onDismiss={dismissToast} />
         </div>
         <DialogHost
