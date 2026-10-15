@@ -94,7 +94,10 @@ port_owner() {
 check_ports() {
   local spec proto port owner ours
   local specs=("tcp:80" "tcp:443" "udp:443" "tcp:$(conf_get LUMEN_OPS_PORT 8443)")
-  truthy "$(conf_get VOIP_ENABLED false)" && specs+=("udp:3478" "tcp:3478")
+  if calls_enabled; then
+    local lo hi udp; udp="$(conf_get CALLS_UDP_PORTS 7882-7889)"; lo="${udp%-*}"; hi="${udp#*-}"
+    specs+=("udp:$lo" "udp:$hi" "tcp:$(conf_get CALLS_TCP_PORT 7881)" "udp:$(conf_get CALLS_TURN_UDP_PORT 3478)" "tcp:$(conf_get CALLS_TURN_TLS_PORT 5349)")
+  fi
   truthy "$(conf_get WIREGUARD_ENABLED false)" && specs+=("udp:$(conf_get WG_PORT 51820)")
   for spec in "${specs[@]}"; do
     proto="${spec%%:*}"; port="${spec#*:}"

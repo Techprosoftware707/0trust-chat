@@ -190,7 +190,7 @@ fi
 
 data="$(conf_get LUMEN_DATA_DIR /var/lib/lumen)"
 step "Stopping services"
-run compose stop caddy portal ops worker synapse coturn || true
+run compose stop caddy portal ops worker synapse livekit lkjwt || true
 run compose up -d postgres
 wait_health postgres healthy 120 || die "PostgreSQL not healthy"
 

@@ -2,7 +2,8 @@
 # lumenctl — day-to-day operations for a Lumen server.
 #
 #   sudo ./lumenctl status                          containers, health, versions
-#   sudo ./lumenctl logs <service> [-f]             service logs (portal|ops|worker|synapse|caddy|postgres|coturn)
+#   sudo ./lumenctl logs <service> [-f]             service logs (portal|ops|worker|synapse|caddy|postgres|livekit|lkjwt)
+#   sudo ./lumenctl rtc-cert                        install a renewed calls TURN/TLS certificate (restarts LiveKit if changed)
 #   sudo ./lumenctl restart <service>
 #   sudo ./lumenctl compose <args...>               raw docker compose with the right env/files
 #   sudo ./lumenctl create-operator <user> <email> [role]
@@ -32,6 +33,8 @@ require_root
 apply_config() {
   log_init lumenctl
   with_lock
+  ensure_dirs
+  ensure_secrets
   ensure_ca_bundle_file
   render_staging
   validate_staging
@@ -164,6 +167,18 @@ case "$cmd" in
     mv -f "$LUMEN_SECRETS_DIR/$name.new" "$LUMEN_SECRETS_DIR/$name"
     unset value
     ok "$name stored in $LUMEN_SECRETS_DIR (not printed). Run 'sudo ./lumenctl apply' to use it."
+    ;;
+  rtc-cert)
+    log_init lumenctl
+    calls_enabled || { ok "calls are disabled"; exit 0; }
+    if sync_rtc_cert; then
+      refresh_livekit_config
+      ok "TURN/TLS certificate updated; LiveKit restarted (active calls reconnect automatically)"
+    elif [[ -z "$(rtc_cert_path)" ]]; then
+      warn "Caddy has no certificate for $(rtc_domain) yet; check DNS and 'lumenctl logs caddy'"
+    else
+      ok "TURN/TLS certificate is current"
+    fi
     ;;
   apply)
     apply_config

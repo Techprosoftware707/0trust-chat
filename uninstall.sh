@@ -79,7 +79,7 @@ fi
 step "Stopping and removing containers"
 if [[ -f "$LUMEN_RENDERED_DIR/compose.env" ]]; then
   run docker compose --project-directory "$LUMEN_REPO_DIR" --env-file "$LUMEN_RENDERED_DIR/compose.env" \
-    -f "$LUMEN_REPO_DIR/docker-compose.yml" --profile voip --profile tools down --remove-orphans || warn "compose down reported errors"
+    -f "$LUMEN_REPO_DIR/docker-compose.yml" --profile calls --profile tools down --remove-orphans || warn "compose down reported errors"
 fi
 ok "containers and networks removed"
 

@@ -80,7 +80,7 @@ configure_firewall() {
     return
   fi
   if has_systemd && systemctl is-active --quiet firewalld 2>/dev/null; then
-    warn "firewalld is active; not touching it. Required: 80/tcp, 443/tcp, 443/udp$(truthy "$(conf_get VOIP_ENABLED false)" && echo ", 3478/udp+tcp, $(conf_get TURN_MIN_PORT 49160)-$(conf_get TURN_MAX_PORT 49200)/udp")"
+    warn "firewalld is active; not touching it. Required: 80/tcp, 443/tcp, 443/udp$(calls_enabled && echo ", $(calls_ports_human)")"
     return
   fi
   local port added=()
@@ -90,10 +90,17 @@ configure_firewall() {
   run ufw allow 80/tcp comment 'lumen: http (ACME + redirect)' && added+=(80/tcp)
   run ufw allow 443/tcp comment 'lumen: https' && added+=(443/tcp)
   run ufw allow 443/udp comment 'lumen: http3' && added+=(443/udp)
-  if truthy "$(conf_get VOIP_ENABLED false)"; then
-    run ufw allow 3478/udp comment 'lumen: turn' && added+=(3478/udp)
-    run ufw allow 3478/tcp comment 'lumen: turn' && added+=(3478/tcp)
-    run ufw allow "$(conf_get TURN_MIN_PORT 49160):$(conf_get TURN_MAX_PORT 49200)/udp" comment 'lumen: turn relay' && added+=("turn-relay/udp")
+  # Legacy coturn rules (Lumen 1.0 1:1 calls) are no longer needed.
+  ufw status | grep -q "lumen: turn relay" && run ufw delete allow "$(conf_get TURN_MIN_PORT 49160):$(conf_get TURN_MAX_PORT 49200)/udp" || true
+  ufw status | grep -qE "^3478/tcp .*lumen: turn" && run ufw delete allow 3478/tcp || true
+  if calls_enabled; then
+    local udp tcp tturn tls
+    udp="$(conf_get CALLS_UDP_PORTS 7882-7889)"; tcp="$(conf_get CALLS_TCP_PORT 7881)"
+    tturn="$(conf_get CALLS_TURN_UDP_PORT 3478)"; tls="$(conf_get CALLS_TURN_TLS_PORT 5349)"
+    run ufw allow "${udp/-/:}/udp" comment 'lumen: calls media (webrtc udp)' && added+=("$udp/udp")
+    run ufw allow "$tcp/tcp" comment 'lumen: calls media (ice tcp)' && added+=("$tcp/tcp")
+    run ufw allow "$tturn/udp" comment 'lumen: calls turn udp' && added+=("$tturn/udp")
+    run ufw allow "$tls/tcp" comment 'lumen: calls turn tls' && added+=("$tls/tcp")
   fi
   local ops_port wg_if; ops_port="$(conf_get LUMEN_OPS_PORT 8443)"
   if truthy "$(conf_get WIREGUARD_ENABLED false)"; then
@@ -164,7 +171,7 @@ EOF
   fi
   run systemctl daemon-reload
   run systemctl enable --now lumen-agent.service || die "lumen-agent failed to start; see journalctl -u lumen-agent"
-  run systemctl enable --now lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer
+  run systemctl enable --now lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer lumen-rtc-cert.timer
   ok "systemd units installed: lumen-agent, lumen-backup.timer ($backup_time daily), lumen-healthcheck.timer"
 }
 

@@ -48,7 +48,7 @@ WG_IF = "wg0"
 ALLOWED_UIDS = {0, 10001}
 SOCKET_GID = 10300
 MAX_REQUEST = 64 * 1024
-RESTARTABLE = {"portal", "worker", "synapse", "caddy", "coturn", "ops"}
+RESTARTABLE = {"portal", "worker", "synapse", "caddy", "livekit", "lkjwt", "ops"}
 
 log = logging.getLogger("lumen-agent")
 
@@ -139,8 +139,8 @@ def compose_argv(*args: str) -> list[str]:
     rendered = Path(c.get("LUMEN_CONFIG_DIR", "/etc/lumen")) / "rendered" / "compose.env"
     repo = repo_dir()
     argv = ["docker", "compose", "--project-directory", str(repo), "--env-file", str(rendered), "-f", str(repo / "docker-compose.yml")]
-    if c.get("VOIP_ENABLED", "false").lower() in {"1", "true", "yes", "on"}:
-        argv += ["--profile", "voip"]
+    if c.get("CALLS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}:
+        argv += ["--profile", "calls"]
     return argv + list(args)
 
 

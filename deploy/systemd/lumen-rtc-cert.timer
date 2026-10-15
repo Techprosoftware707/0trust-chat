@@ -1,0 +1,11 @@
+[Unit]
+Description=Check daily whether Caddy renewed the calls (rtc) certificate
+
+[Timer]
+OnBootSec=10min
+OnCalendar=*-*-* 04:41:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -7,7 +7,9 @@
 # Network exposure (by design):
 #   * caddy  — host network, ports 80/443 (TCP+UDP) and the private operator
 #              port (default 8443, IP-allow-listed in Caddy + firewall).
-#   * coturn — host network, 3478 + relay range (only with the `voip` profile).
+#   * livekit — host network (`calls` profile): WebRTC media on the UDP mux ports and
+#              ICE/TCP, embedded TURN (UDP + TLS). Its HTTP port (signalling/API)
+#              listens on 127.0.0.1 only; clients reach it through Caddy.
 #   * everything else — no published ports. Caddy reaches portal, ops and
 #     synapse through Unix sockets in ${LUMEN_SOCKET_DIR}; postgres is on an
 #     internal-only network.
@@ -109,7 +111,7 @@ services:
       - synapse_registration_secret
       - synapse_oidc_client_secret
       - internal_api_token
-      - turn_shared_secret
+      - lkjwt_registration
     volumes:
       - ${LUMEN_DATA_DIR}/synapse:/data
       - ${LUMEN_RENDERED_DIR}/synapse:/config:ro
@@ -200,7 +202,6 @@ services:
       STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
       LUMEN_PORTAL_INTERNAL_URL: http://portal:8000
       LUMEN_OPS_INTERNAL_URL: http://ops:8000
-      TURN_PROBE_HOST: lumen-host
     secrets:
       - django_secret_key
       - postgres_app_password
@@ -215,10 +216,13 @@ services:
       - "${LUMEN_PRIMARY_DOMAIN}:${EXTRA_HOSTS_IP}"
       - "${LUMEN_APP_DOMAIN}:${EXTRA_HOSTS_IP}"
       - "${LUMEN_MATRIX_DOMAIN}:${EXTRA_HOSTS_IP}"
+      - "${LUMEN_RTC_DOMAIN}:${RTC_GATEWAY_IP}"
       - "lumen-host:${EXTRA_HOSTS_IP}"
     networks:
-      - backend
-      - egress
+      backend: {}
+      egress: {}
+      rtc:
+        ipv4_address: ${RTC_WORKER_IP}
     healthcheck:
       test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/worker-heartbeat') < 180 else 1)"]
       interval: 60s
@@ -274,26 +278,76 @@ services:
     pids_limit: 256
     stop_grace_period: 30s
 
-  coturn:
+  # WebRTC SFU for 1:1 and group calls (MatrixRTC / Element Call protocol) with
+  # embedded TURN. Media is end-to-end encrypted by the clients; the SFU forwards it.
+  livekit:
     <<: *hardening
-    image: ${COTURN_IMAGE}
-    profiles: ["voip"]
-    user: "65534:65534"
-    # The upstream binary carries a file capability (cap_net_bind_service); the kernel
-    # refuses to exec it unless that capability is in the bounding set. Nothing else
-    # is granted, and it runs as nobody.
-    cap_add:
-      - NET_BIND_SERVICE
+    image: ${LIVEKIT_IMAGE}
+    profiles: ["calls"]
+    user: "${UID_LIVEKIT}:${UID_LIVEKIT}"
     group_add:
       - "${GID_SECRETS}"
     network_mode: host
-    command: ["-c", "/etc/coturn/turnserver.conf", "--pidfile=/tmp/turnserver.pid"]
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+    secrets:
+      - livekit_keys
     volumes:
-      - ${LUMEN_RENDERED_DIR}/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ${LUMEN_RENDERED_DIR}/livekit/livekit.yaml:/etc/livekit/livekit.yaml:ro
+      - ${LUMEN_DATA_DIR}/livekit/tls:/etc/livekit/tls:ro
     tmpfs:
-      - /tmp
-      - /var/tmp
-    pids_limit: 256
+      - /tmp:size=64m
+    pids_limit: 512
+    stop_grace_period: 20s
+    healthcheck:
+      # The image has no shell tools; LiveKit's own binary cannot probe, so the
+      # host-side healthcheck.sh and the worker probe check http://127.0.0.1:7880/.
+      disable: true
+
+  # MatrixRTC authorization service (element-hq/lk-jwt-service) as an application
+  # service: Synapse proxies /rtc/livekit requests to it (MSC4512); it verifies room
+  # membership (MSC4502) and mints short-lived, room-scoped LiveKit tokens.
+  lkjwt:
+    <<: *hardening
+    image: ${LKJWT_IMAGE}
+    profiles: ["calls"]
+    user: "${UID_LKJWT}:${UID_LKJWT}"
+    group_add:
+      - "${GID_SECRETS}"
+    environment:
+      LIVEKIT_URL: wss://${LUMEN_RTC_DOMAIN}
+      LIVEKIT_KEY_FILE: /run/secrets/livekit_keys
+      LIVEKIT_JWT_BIND: 0.0.0.0:8080
+      LIVEKIT_HS_SERVER_NAME: ${MATRIX_SERVER_NAME}
+      LIVEKIT_FULL_ACCESS_HOMESERVERS: ${MATRIX_SERVER_NAME}
+      LIVEKIT_AS_REGISTRATION_FILE: /run/secrets/lkjwt_registration
+      LIVEKIT_CS_API_URL_OVERRIDES: ${MATRIX_SERVER_NAME}=http://synapse:8008
+      LIVEKIT_SANITY_CHECK_INTERVAL_SECONDS: "60"
+      # warn: INFO lines name the Matrix user and room of every call (metadata stays out of logs).
+      LIVEKIT_LOG_LEVEL: warn
+      SSL_CERT_FILE: ${LKJWT_SSL_CERT_FILE}
+    secrets:
+      - livekit_keys
+      - lkjwt_registration
+    volumes:
+      - ${CA_BUNDLE_HOST_PATH}:/etc/lumen-ca/ca.crt:ro
+    extra_hosts:
+      # LiveKit's API is reached through Caddy on the host (allowed only from this network).
+      - "${LUMEN_RTC_DOMAIN}:${RTC_GATEWAY_IP}"
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "/lk-jwt-service-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      backend: {}
+      rtc:
+        ipv4_address: ${RTC_LKJWT_IP}
+    depends_on:
+      synapse:
+        condition: service_healthy
+
 
 networks:
   backend:
@@ -301,6 +355,14 @@ networks:
     internal: true
   egress:
     driver: bridge
+  # Fixed addresses so LiveKit (host network) can send webhooks to the authorization
+  # service and Caddy can allow LiveKit's API only from this subnet.
+  rtc:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${RTC_NETWORK_SUBNET}
+          gateway: ${RTC_GATEWAY_IP}
 
 secrets:
   django_secret_key:
@@ -329,8 +391,10 @@ secrets:
     file: ${LUMEN_SECRETS_DIR}/internal_api_token
   ops_gateway_secret:
     file: ${LUMEN_SECRETS_DIR}/ops_gateway_secret
-  turn_shared_secret:
-    file: ${LUMEN_SECRETS_DIR}/turn_shared_secret
+  livekit_keys:
+    file: ${LUMEN_SECRETS_DIR}/livekit_keys
+  lkjwt_registration:
+    file: ${LUMEN_SECRETS_DIR}/lkjwt_registration
   smtp_password:
     file: ${LUMEN_SECRETS_DIR}/smtp_password
   stripe_secret_key:

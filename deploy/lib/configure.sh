@@ -48,12 +48,13 @@ interactive_configure() {
   local out="$1"
   [[ -t 0 || -e /dev/tty ]] || die "No configuration file and no terminal for questions. Provide one: sudo bash install.sh --config lumen.conf (see lumen.conf.example)."
   printf '\n%sLumen configuration%s — press Enter to accept the [default].\n' "$C_BOLD" "$C_RESET"
-  printf '%sDNS: create A/AAAA records for all four hostnames pointing at this server first.%s\n\n' "$C_DIM" "$C_RESET"
-  local primary app matrix ops server_name email opuser regmode fedmode allow voip wg tls smtp_host smtp_port smtp_user smtp_from billing backup_dir
+  printf '%sDNS: create A/AAAA records for all five hostnames pointing at this server first.%s\n\n' "$C_DIM" "$C_RESET"
+  local primary app matrix ops rtc server_name email opuser regmode fedmode allow calls wg tls smtp_host smtp_port smtp_user smtp_from billing backup_dir
   ask primary "Primary domain (website, portal, Matrix IDs)" "" "$DOMAIN_RE" "e.g. example.com (lowercase)"
   ask app "Chat app domain" "app.$primary" "$DOMAIN_RE"
   ask matrix "Homeserver domain" "matrix.$primary" "$DOMAIN_RE"
   ask ops "Operator console domain (private; needs a DNS record for its certificate)" "ops.$primary" "$DOMAIN_RE"
+  ask rtc "Calls (SFU and TURN) domain" "rtc.$primary" "$DOMAIN_RE"
   ask server_name "Matrix server name (user IDs look like @alice:<name>)" "$primary" "$DOMAIN_RE"
   ask email "Administrator email (Let's Encrypt + security contact)" "" "$EMAIL_RE" "enter a valid email"
   ask opuser "Initial operator username" "operator-$(printf '%s' "${email%%@*}" | tr -cd 'a-z0-9' | cut -c1-12)" "$USER_RE" "3-32 chars: a-z 0-9 . _ -"
@@ -61,7 +62,7 @@ interactive_configure() {
   ask fedmode "Federation: open, allowlist or closed" "open" '^(open|allowlist|closed)$'
   allow=""
   [[ "$fedmode" == allowlist ]] && ask allow "Allowed servers (comma-separated server names)" "" '^[a-z0-9.,:-]+$'
-  ask_yn voip "Enable 1:1 voice/video calls (runs a TURN relay, opens UDP 3478 + 49160-49200)?" n
+  ask_yn calls "Enable voice/video calls (LiveKit SFU; opens UDP 7882-7889, TCP 7881, UDP 3478, TCP 5349)?" y
   ask_yn wg "Enable WireGuard for private operator access (opens UDP 51820)?" n
   ask tls "TLS: acme (Let's Encrypt, production) or internal (test CA, testing only)" "acme" '^(acme|internal)$'
   ask smtp_host "SMTP server for account emails (empty = no email)" "" '^[a-z0-9.-]*$'
@@ -85,6 +86,7 @@ LUMEN_PRIMARY_DOMAIN=$primary
 LUMEN_APP_DOMAIN=$app
 LUMEN_MATRIX_DOMAIN=$matrix
 LUMEN_OPS_DOMAIN=$ops
+LUMEN_RTC_DOMAIN=$rtc
 MATRIX_SERVER_NAME=$server_name
 ADMIN_EMAIL=$email
 OPERATOR_USERNAME=$opuser
@@ -92,7 +94,7 @@ TLS_MODE=$tls
 REGISTRATION_MODE=$regmode
 FEDERATION_MODE=$fedmode
 FEDERATION_ALLOWLIST=$allow
-VOIP_ENABLED=$voip
+CALLS_ENABLED=$calls
 WIREGUARD_ENABLED=$wg
 SMTP_HOST=$smtp_host
 SMTP_PORT=$smtp_port

@@ -37,12 +37,12 @@ add() { # status component message
 
 step "Containers"
 services=(postgres synapse portal ops worker caddy)
-truthy "$(conf_get VOIP_ENABLED false)" && services+=(coturn)
+calls_enabled && services+=(lkjwt livekit)
 for s in "${services[@]}"; do
   st="$(container_health "$s")"
   case "$st" in
     healthy) add ok "$s" "healthy" ;;
-    running) [[ "$s" == caddy || "$s" == coturn ]] && add ok "$s" "running" || add warn "$s" "running (health check pending)" ;;
+    running) [[ "$s" == caddy || "$s" == livekit ]] && add ok "$s" "running" || add warn "$s" "running (health check pending)" ;;
     starting) add warn "$s" "starting" ;;
     *) add fail "$s" "$st" ;;
   esac

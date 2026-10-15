@@ -46,10 +46,19 @@ DEFAULTS: dict[str, str] = {
     "FEDERATION_CUSTOM_CA": "",  # path inside synapse container, test environments only
     "SYNAPSE_IP_RANGE_WHITELIST": "",  # test environments only: allow federation to private ranges
     "PRESENCE_ENABLED": "true",
-    "VOIP_ENABLED": "false",
-    "TURN_EXTERNAL_IP": "",
-    "TURN_MIN_PORT": "49160",
-    "TURN_MAX_PORT": "49200",
+    # Voice/video calls: MatrixRTC + LiveKit SFU (with its embedded TURN) + lk-jwt-service.
+    "CALLS_ENABLED": "true",
+    "LUMEN_RTC_DOMAIN": "",  # default rtc.<primary>: SFU signalling, TURN/TLS certificate name
+    "CALLS_PUBLIC_IP": "",  # IP advertised in ICE candidates; empty = discover with STUN
+    "CALLS_UDP_PORTS": "7882-7889",  # WebRTC media over UDP (LiveKit UDP mux), one port or a range
+    "CALLS_TCP_PORT": "7881",  # ICE over TCP when UDP is blocked
+    "CALLS_TURN_UDP_PORT": "3478",  # TURN/UDP
+    "CALLS_TURN_TLS_PORT": "5349",  # TURN over TLS (needs the rtc certificate)
+    "CALLS_MAX_PARTICIPANTS": "0",  # per call; 0 = no fixed limit (bounded by server capacity)
+    "CALLS_ALLOW_PRIVATE_NODE_IP": "false",  # test labs only: TURN may relay to a private node IP
+    "RTC_NETWORK_SUBNET": "172.30.42.0/28",  # Docker network: authorization service <-> host
+    "VOIP_ENABLED": "",  # deprecated (legacy 1:1 calls via coturn were replaced by CALLS_*)
+    "TURN_EXTERNAL_IP": "",  # deprecated alias of CALLS_PUBLIC_IP
     "WIREGUARD_ENABLED": "false",
     "WG_SUBNET": "10.77.0.0/24",
     "WG_PORT": "51820",
@@ -88,7 +97,7 @@ DEFAULTS: dict[str, str] = {
     "LUMEN_BUILD_EXTRA_CA": "",
 }
 
-BOOL_KEYS = {"PRESENCE_ENABLED", "VOIP_ENABLED", "WIREGUARD_ENABLED", "PUBLIC_STATUS_PAGE"}
+BOOL_KEYS = {"PRESENCE_ENABLED", "CALLS_ENABLED", "CALLS_ALLOW_PRIVATE_NODE_IP", "WIREGUARD_ENABLED", "PUBLIC_STATUS_PAGE"}
 DOMAIN_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -98,6 +107,8 @@ UID_CADDY = 10200
 GID_SECRETS = 10100
 GID_SOCKETS = 10300
 UID_SYNAPSE = 991
+UID_LIVEKIT = 10400
+UID_LKJWT = 10401
 UID_POSTGRES = 70
 
 
@@ -138,6 +149,8 @@ def load_config(conf_path: Path) -> dict[str, str]:
     cfg["LUMEN_APP_DOMAIN"] = (cfg["LUMEN_APP_DOMAIN"] or f"app.{p}").lower()
     cfg["LUMEN_MATRIX_DOMAIN"] = (cfg["LUMEN_MATRIX_DOMAIN"] or f"matrix.{p}").lower()
     cfg["LUMEN_OPS_DOMAIN"] = (cfg["LUMEN_OPS_DOMAIN"] or f"ops.{p}").lower()
+    cfg["LUMEN_RTC_DOMAIN"] = (cfg["LUMEN_RTC_DOMAIN"] or f"rtc.{p}").lower()
+    cfg["CALLS_PUBLIC_IP"] = cfg["CALLS_PUBLIC_IP"] or cfg["TURN_EXTERNAL_IP"]
     cfg["MATRIX_SERVER_NAME"] = (cfg["MATRIX_SERVER_NAME"] or p).lower()
     cfg["OPS_TLS_MODE"] = cfg["OPS_TLS_MODE"] or cfg["TLS_MODE"]
     cfg["BRAND_LEGAL_NAME"] = cfg["BRAND_LEGAL_NAME"] or f"The operator of {p}"
@@ -154,12 +167,12 @@ def load_config(conf_path: Path) -> dict[str, str]:
 
 def validate(cfg: dict[str, str]) -> None:
     errors = []
-    for key in ("LUMEN_PRIMARY_DOMAIN", "LUMEN_APP_DOMAIN", "LUMEN_MATRIX_DOMAIN", "LUMEN_OPS_DOMAIN", "MATRIX_SERVER_NAME"):
+    for key in ("LUMEN_PRIMARY_DOMAIN", "LUMEN_APP_DOMAIN", "LUMEN_MATRIX_DOMAIN", "LUMEN_OPS_DOMAIN", "LUMEN_RTC_DOMAIN", "MATRIX_SERVER_NAME"):
         if not DOMAIN_RE.match(cfg[key]):
             errors.append(f"{key}={cfg[key]!r} is not a valid domain name")
-    hosts = [cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"], cfg["LUMEN_OPS_DOMAIN"]]
+    hosts = [cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"], cfg["LUMEN_OPS_DOMAIN"], cfg["LUMEN_RTC_DOMAIN"]]
     if len(set(hosts)) != len(hosts):
-        errors.append("primary, app, matrix and ops domains must all be different")
+        errors.append("primary, app, matrix, ops and rtc domains must all be different")
     if cfg["MATRIX_SERVER_NAME"] not in {cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"]}:
         errors.append("MATRIX_SERVER_NAME must be the primary domain (recommended) or the matrix domain")
     if not EMAIL_RE.match(cfg["ADMIN_EMAIL"]):
@@ -192,25 +205,57 @@ def validate(cfg: dict[str, str]) -> None:
             errors.append("WG_SUBNET must be a private IPv4 network of /29 or larger")
     except ValueError:
         errors.append("WG_SUBNET is not a valid network (e.g. 10.77.0.0/24)")
-    for k in ("TURN_MIN_PORT", "TURN_MAX_PORT", "WG_PORT", "LUMEN_OPS_PORT", "SMTP_PORT", "BILLING_GRACE_DAYS", "DEFAULT_MAX_UPLOAD_MB"):
+    num_keys = ("CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "CALLS_TURN_TLS_PORT", "CALLS_MAX_PARTICIPANTS", "WG_PORT",
+                "LUMEN_OPS_PORT", "SMTP_PORT", "BILLING_GRACE_DAYS", "DEFAULT_MAX_UPLOAD_MB")
+    for k in num_keys:
         if not cfg[k].isdigit():
             errors.append(f"{k} must be a number")
-    if cfg["TURN_MIN_PORT"].isdigit() and cfg["TURN_MAX_PORT"].isdigit():
-        lo, hi = int(cfg["TURN_MIN_PORT"]), int(cfg["TURN_MAX_PORT"])
-        if not (1024 < lo < hi <= 65535) or hi - lo > 2000:
-            errors.append("TURN port range must be within 1025-65535 and at most 2000 ports")
+    try:
+        lo, hi = udp_port_range(cfg["CALLS_UDP_PORTS"])
+        if not (1024 < lo <= hi <= 65535) or hi - lo > 63:
+            raise ValueError
+    except ValueError:
+        errors.append("CALLS_UDP_PORTS must be a port or a range of at most 64 ports above 1024 (e.g. 7882-7889)")
+    call_ports = [cfg[k] for k in ("CALLS_TCP_PORT", "CALLS_TURN_TLS_PORT", "LUMEN_OPS_PORT") if cfg[k].isdigit()]
+    if len(set(call_ports)) != len(call_ports) or {"80", "443"} & set(call_ports):
+        errors.append("CALLS_TCP_PORT, CALLS_TURN_TLS_PORT and LUMEN_OPS_PORT must differ from each other and from 80/443")
+    if cfg["CALLS_PUBLIC_IP"]:
+        try:
+            ipaddress.ip_address(cfg["CALLS_PUBLIC_IP"])
+        except ValueError:
+            errors.append("CALLS_PUBLIC_IP must be an IP address")
+    try:
+        rtc_net = ipaddress.ip_network(cfg["RTC_NETWORK_SUBNET"], strict=True)
+        if not rtc_net.is_private or rtc_net.version != 4 or not 24 <= rtc_net.prefixlen <= 28:
+            raise ValueError
+    except ValueError:
+        errors.append("RTC_NETWORK_SUBNET must be a private IPv4 network between /24 and /28 (e.g. 172.30.42.0/28)")
     if cfg["LUMEN_OPS_PORT"] in {"80", "443"}:
         errors.append("LUMEN_OPS_PORT must not be 80 or 443")
     for k in BOOL_KEYS:
         if cfg[k].lower() not in {"true", "false", "yes", "no", "1", "0", "on", "off"}:
             errors.append(f"{k} must be true or false")
-    if truthy(cfg["VOIP_ENABLED"]) and cfg["TURN_EXTERNAL_IP"]:
-        try:
-            ipaddress.ip_address(cfg["TURN_EXTERNAL_IP"])
-        except ValueError:
-            errors.append("TURN_EXTERNAL_IP must be an IP address")
     if errors:
         raise ConfigError("\n".join(f"  - {e}" for e in errors))
+
+
+def udp_port_range(value: str) -> tuple[int, int]:
+    lo, _, hi = value.strip().partition("-")
+    return int(lo), int(hi or lo)
+
+
+def rtc_ips(cfg) -> dict[str, str]:
+    """Fixed addresses on the rtc network: gateway (host), authorization service, worker."""
+    net = ipaddress.ip_network(cfg["RTC_NETWORK_SUBNET"])
+    return {"gateway": str(net[1]), "lkjwt": str(net[2]), "worker": str(net[3])}
+
+
+def livekit_key_id(secrets: Path) -> str:
+    """The API key *name* (not secret) from the `livekit_keys` secret ("<name>: <secret>")."""
+    try:
+        return (secrets / "livekit_keys").read_text().split(":", 1)[0].strip() or "RENDER_PLACEHOLDER"
+    except OSError:
+        return "RENDER_PLACEHOLDER"
 
 
 def split_list(value: str) -> list[str]:
@@ -422,15 +467,38 @@ def render_synapse(cfg, out: Path) -> None:
         # Synapse blocks outbound federation to private ranges (SSRF protection);
         # only test networks should ever whitelist any.
         hs["ip_range_whitelist"] = split_list(cfg["SYNAPSE_IP_RANGE_WHITELIST"])
-    if truthy(cfg["VOIP_ENABLED"]):
-        turn_host = cfg["LUMEN_MATRIX_DOMAIN"]
-        hs["turn_uris"] = [
-            f"turn:{turn_host}:3478?transport=udp",
-            f"turn:{turn_host}:3478?transport=tcp",
-        ]
-        hs["turn_shared_secret_path"] = "/run/secrets/turn_shared_secret"
-        hs["turn_user_lifetime"] = "1h"
-        hs["turn_allow_guests"] = False
+    hs["default_room_version"] = "12"
+    if truthy(cfg["CALLS_ENABLED"]):
+        # MatrixRTC (Element Call protocol) with a LiveKit SFU, per Element Call's
+        # self-hosting requirements and MSC4195: clients ask *this* homeserver for an
+        # SFU token; Synapse proxies the request (MSC4512) to lk-jwt-service, which
+        # checks that the user is joined to the room (MSC4502) before minting it.
+        hs["experimental_features"] = {
+            "msc3266_enabled": True,  # room summary API
+            "msc4143_enabled": True,  # /rtc/transports endpoint (MSC4519)
+            "msc4222_enabled": True,  # sync state_after (reliable call membership state)
+            "msc4502_enabled": True,  # appservice scope: rooms:is_joined
+            "msc4512_enabled": True,  # appservice request proxying for /rtc/livekit
+        }
+        hs["max_event_delay_duration"] = "24h"  # MSC4140 delayed leave events
+        # Call key distribution is bursty; heart-beats restart delayed events every ~5 s.
+        hs["rc_message"] = {"per_second": 0.5, "burst_count": 30}
+        hs["rc_delayed_event_mgmt"] = {"per_second": 1, "burst_count": 20}
+        hs["matrix_rtc"] = {"transports": [{"type": "livekit", "url": f"wss://{cfg['LUMEN_RTC_DOMAIN']}"}]}
+        hs["app_service_config_files"] = ["/run/secrets/lkjwt_registration"]
+        # Members of private rooms may join calls: the call membership and slot
+        # events are state events, which otherwise need power level 50. (Synapse
+        # replaces the whole `events` map, so the defaults are repeated here.)
+        call_events = {
+            "m.room.name": 50, "m.room.power_levels": 100, "m.room.history_visibility": 100,
+            "m.room.canonical_alias": 50, "m.room.avatar": 50, "m.room.tombstone": 150,
+            "m.room.server_acl": 100, "m.room.encryption": 100,
+            "org.matrix.msc3401.call.member": 0, "org.matrix.msc4143.rtc.member": 0,
+            "org.matrix.msc4143.rtc.slot": 0,
+        }
+        hs["default_power_level_content_override"] = {
+            preset: {"events": call_events} for preset in ("private_chat", "trusted_private_chat")
+        }
     header = (
         "# Generated by Lumen (deploy/lib/render.py) from /etc/lumen/lumen.conf.\n"
         "# Do not edit: changes are overwritten by install.sh / update.sh.\n"
@@ -504,6 +572,8 @@ SECURITY_HEADERS = """(lumen_headers) {
 
 def render_caddy(cfg, out: Path) -> None:
     p, app, mx, ops = cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"], cfg["LUMEN_OPS_DOMAIN"]
+    rtc = cfg["LUMEN_RTC_DOMAIN"]
+    calls = truthy(cfg["CALLS_ENABLED"])
     sock = "/sockets"
     acme = ""
     if cfg["TLS_MODE"] == "acme" or cfg["OPS_TLS_MODE"] == "acme":
@@ -587,7 +657,7 @@ def render_caddy(cfg, out: Path) -> None:
         "\tlog_skip /_synapse/client/oidc/callback*",
         "}",
         "",
-        f"http://{p}, http://{app}, http://{mx} {{",
+        f"http://{p}, http://{app}, http://{mx}" + (f", http://{rtc}" if calls else "") + " {",
         "\tredir https://{host}{uri} 308",
         "}",
         "",
@@ -673,6 +743,7 @@ def render_caddy(cfg, out: Path) -> None:
         "\t}",
         "}",
         "",
+        *(rtc_site(cfg) if calls else []),
         f"{ops}:{cfg['LUMEN_OPS_PORT']} {{",
         caddy_tls(cfg["OPS_TLS_MODE"], cfg).rstrip("\n"),
         "\timport lumen_headers",
@@ -702,52 +773,109 @@ def render_caddy(cfg, out: Path) -> None:
     write(out / "caddy" / "Caddyfile", text, 0o640)
 
 
-def render_coturn(cfg, out: Path, secrets: Path) -> None:
-    if not truthy(cfg["VOIP_ENABLED"]):
+def rtc_site(cfg) -> list[str]:
+    """LiveKit signalling (WebSocket) for clients. The LiveKit server API (/twirp) and
+    metrics are only reachable from the rtc Docker network (authorization service and
+    worker); TURN and WebRTC media use their own ports and never pass through Caddy."""
+    subnet = cfg["RTC_NETWORK_SUBNET"]
+    return [
+        f"{cfg['LUMEN_RTC_DOMAIN']} {{",
+        caddy_tls(cfg["TLS_MODE"], cfg).rstrip("\n"),
+        "\timport lumen_headers",
+        "\tlog",
+        "\trequest_body {",
+        "\t\tmax_size 1MB",
+        "\t}",
+        "\troute {",
+        f"\t\t@api_internal {{",
+        "\t\t\tpath /twirp/*",
+        f"\t\t\tremote_ip {subnet}",
+        "\t\t}",
+        "\t\thandle @api_internal {",
+        "\t\t\treverse_proxy 127.0.0.1:7880",
+        "\t\t}",
+        f"\t\t@metrics_internal {{",
+        "\t\t\tpath /metrics",
+        f"\t\t\tremote_ip {subnet}",
+        "\t\t}",
+        "\t\thandle @metrics_internal {",
+        "\t\t\treverse_proxy 127.0.0.1:6789",
+        "\t\t}",
+        "\t\t@private path /twirp/* /metrics /debug/* /sfu_webhook*",
+        "\t\trespond @private 404",
+        "\t\treverse_proxy 127.0.0.1:7880 {",
+        "\t\t\theader_up X-Real-IP {remote_host}",
+        "\t\t}",
+        "\t}",
+        "}",
+        "",
+    ]
+
+
+def render_livekit(cfg, out: Path, secrets: Path) -> None:
+    if not truthy(cfg["CALLS_ENABLED"]):
         return
-    secret_file = secrets / "turn_shared_secret"
-    turn_secret = secret_file.read_text().strip() if secret_file.exists() else "RENDER_PLACEHOLDER"
-    ext = cfg["TURN_EXTERNAL_IP"]
-    conf = f"""# Generated by Lumen. TURN relay for 1:1 calls (credentials are time-limited HMACs issued by Synapse).
-listening-port=3478
-min-port={cfg['TURN_MIN_PORT']}
-max-port={cfg['TURN_MAX_PORT']}
-realm={cfg['LUMEN_MATRIX_DOMAIN']}
-use-auth-secret
-static-auth-secret={turn_secret}
-{"external-ip=" + ext if ext else ""}
-fingerprint
-no-cli
-no-tls
-no-dtls
-no-multicast-peers
-no-tcp-relay
-stale-nonce=600
-user-quota=12
-total-quota=1200
-bps-capacity=0
-log-file=stdout
-no-software-attribute
-# Never relay into private/internal networks (prevents SSRF through TURN).
-denied-peer-ip=0.0.0.0-0.255.255.255
-denied-peer-ip=10.0.0.0-10.255.255.255
-denied-peer-ip=100.64.0.0-100.127.255.255
-denied-peer-ip=127.0.0.0-127.255.255.255
-denied-peer-ip=169.254.0.0-169.254.255.255
-denied-peer-ip=172.16.0.0-172.31.255.255
-denied-peer-ip=192.0.0.0-192.0.0.255
-denied-peer-ip=192.0.2.0-192.0.2.255
-denied-peer-ip=192.88.99.0-192.88.99.255
-denied-peer-ip=192.168.0.0-192.168.255.255
-denied-peer-ip=198.18.0.0-198.19.255.255
-denied-peer-ip=198.51.100.0-198.51.100.255
-denied-peer-ip=203.0.113.0-203.0.113.255
-denied-peer-ip=240.0.0.0-255.255.255.255
-denied-peer-ip=::1
-denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
-"""
-    write(out / "coturn" / "turnserver.conf", conf, 0o640)
+    data_dir = Path(cfg["LUMEN_DATA_DIR"])
+    lo, hi = udp_port_range(cfg["CALLS_UDP_PORTS"])
+    rtc: dict = {
+        "tcp_port": int(cfg["CALLS_TCP_PORT"]),
+        "udp_port": f"{lo}-{hi}" if hi > lo else str(lo),
+        "allow_tcp_fallback": True,
+        "congestion_control": {"enabled": True, "allow_pause": True},
+        "enable_loopback_candidate": False,
+    }
+    if cfg["CALLS_PUBLIC_IP"]:
+        rtc["use_external_ip"] = False
+        rtc["node_ip"] = cfg["CALLS_PUBLIC_IP"]
+    else:
+        rtc["use_external_ip"] = True
+    tls_ok = (data_dir / "livekit" / "tls" / "tls.crt").is_file() and (data_dir / "livekit" / "tls" / "tls.key").is_file()
+    turn: dict = {
+        "enabled": True,
+        "domain": cfg["LUMEN_RTC_DOMAIN"],
+        "udp_port": int(cfg["CALLS_TURN_UDP_PORT"]),
+        # Relay sockets live on this host and only talk to the SFU's own media ports.
+        "relay_range_start": 40000,
+        "relay_range_end": 40999,
+        "ttl_seconds": 300,
+        "per_user_relay_allocation_limit": 12,
+        # Never relay into the admin VPN or the Docker networks.
+        "deny_peer_cidrs": [cfg["WG_SUBNET"], cfg["RTC_NETWORK_SUBNET"], "172.16.0.0/12"],
+    }
+    if tls_ok:
+        turn["tls_port"] = int(cfg["CALLS_TURN_TLS_PORT"])
+        turn["cert_file"] = "/etc/livekit/tls/tls.crt"
+        turn["key_file"] = "/etc/livekit/tls/tls.key"
+    if truthy(cfg["CALLS_ALLOW_PRIVATE_NODE_IP"]) and cfg["CALLS_PUBLIC_IP"]:
+        # Test labs where the SFU's address is private: allow relaying to exactly it.
+        turn["allow_restricted_peer_cidrs"] = [f"{cfg['CALLS_PUBLIC_IP']}/32"]
+        turn["deny_peer_cidrs"] = [c for c in turn["deny_peer_cidrs"]
+                                   if ipaddress.ip_address(cfg["CALLS_PUBLIC_IP"]) not in ipaddress.ip_network(c)]
+    conf = {
+        "port": 7880,
+        "bind_addresses": ["127.0.0.1"],
+        "prometheus": {"port": 6789},
+        "rtc": rtc,
+        "key_file": "/run/secrets/livekit_keys",
+        "room": {
+            # Rooms are created by the authorization service for authorised local users only.
+            "auto_create": False,
+            "empty_timeout": 300,
+            "departure_timeout": 20,
+            "max_participants": int(cfg["CALLS_MAX_PARTICIPANTS"]),
+        },
+        "turn": turn,
+        "webhook": {
+            "api_key": livekit_key_id(secrets),
+            "urls": [f"http://{rtc_ips(cfg)['lkjwt']}:8080/sfu_webhook"],
+        },
+        "audio": {"active_red_encoding": True},
+        "logging": {"level": "info", "pion_level": "error", "json": True},
+    }
+    header = ("# Generated by Lumen (deploy/lib/render.py). Do not edit.\n"
+              "# API keys are read from /run/secrets/livekit_keys; TURN/TLS is enabled once the\n"
+              f"# certificate for {cfg['LUMEN_RTC_DOMAIN']} has been copied from Caddy (lumenctl rtc-cert).\n")
+    write(out / "livekit" / "livekit.yaml", header + to_yaml(conf), 0o644)
 
 
 def render_chat_config(cfg, out: Path) -> None:
@@ -757,7 +885,12 @@ def render_chat_config(cfg, out: Path) -> None:
         "sso": {"idp_id": "oidc-lumen", "label": f"Continue with your {cfg['BRAND_SHORT_NAME']} account"},
         "portal_url": f"https://{cfg['LUMEN_PRIMARY_DOMAIN']}",
         "allow_custom_homeserver": True,
-        "voip_enabled": truthy(cfg["VOIP_ENABLED"]),
+        "calls": {
+            "enabled": truthy(cfg["CALLS_ENABLED"]),
+            # The SFU is discovered through the homeserver (MSC4143 /rtc/transports);
+            # this is only shown in the app's call diagnostics.
+            "rtc_domain": cfg["LUMEN_RTC_DOMAIN"],
+        },
         "privacy_url": f"https://{cfg['LUMEN_PRIMARY_DOMAIN']}/privacy/",
         "help_url": f"https://{cfg['LUMEN_PRIMARY_DOMAIN']}/docs/",
     }
@@ -793,8 +926,14 @@ def render_compose_env(cfg, out: Path, repo: Path) -> None:
         "UID_CADDY": str(UID_CADDY),
         "GID_SECRETS": str(GID_SECRETS),
         "GID_SOCKETS": str(GID_SOCKETS),
-        "TURN_MIN_PORT": cfg["TURN_MIN_PORT"],
-        "TURN_MAX_PORT": cfg["TURN_MAX_PORT"],
+        "UID_LIVEKIT": str(UID_LIVEKIT),
+        "UID_LKJWT": str(UID_LKJWT),
+        "LUMEN_RTC_DOMAIN": cfg["LUMEN_RTC_DOMAIN"],
+        "RTC_NETWORK_SUBNET": cfg["RTC_NETWORK_SUBNET"],
+        "RTC_GATEWAY_IP": rtc_ips(cfg)["gateway"],
+        "RTC_LKJWT_IP": rtc_ips(cfg)["lkjwt"],
+        "RTC_WORKER_IP": rtc_ips(cfg)["worker"],
+        "LKJWT_SSL_CERT_FILE": "/etc/lumen-ca/ca.crt" if cfg["TLS_MODE"] == "internal" else "/etc/ssl/certs/ca-certificates.crt",
     }
     if cfg["TLS_MODE"] == "internal":
         # Test/staging only: trust the bundle that includes Caddy's local CA.
@@ -811,7 +950,8 @@ def render_app_env(cfg, out: Path) -> None:
     keys = [
         "LUMEN_PRIMARY_DOMAIN", "LUMEN_APP_DOMAIN", "LUMEN_MATRIX_DOMAIN", "LUMEN_OPS_DOMAIN", "LUMEN_OPS_PORT",
         "MATRIX_SERVER_NAME", "REGISTRATION_MODE", "FEDERATION_MODE", "FEDERATION_ALLOWLIST",
-        "FEDERATION_PROBE_NOTARY", "PRESENCE_ENABLED", "VOIP_ENABLED", "WIREGUARD_ENABLED", "SMTP_HOST",
+        "FEDERATION_PROBE_NOTARY", "PRESENCE_ENABLED", "CALLS_ENABLED", "LUMEN_RTC_DOMAIN", "CALLS_PUBLIC_IP",
+        "CALLS_UDP_PORTS", "CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "CALLS_TURN_TLS_PORT", "WIREGUARD_ENABLED", "SMTP_HOST",
         "SMTP_PORT", "SMTP_USER", "SMTP_SECURITY", "SMTP_FROM", "BILLING_PROVIDER", "BILLING_CURRENCY",
         "BILLING_GRACE_DAYS", "STRIPE_PUBLISHABLE_KEY", "BRAND_NAME", "BRAND_SHORT_NAME", "BRAND_TAGLINE",
         "BRAND_LEGAL_NAME", "BRAND_JURISDICTION", "SUPPORT_EMAIL", "SECURITY_EMAIL", "PRIVACY_EMAIL",
@@ -865,7 +1005,7 @@ def main(argv=None) -> int:
     copy_synapse_templates(args.repo, out, cfg)
     render_postgres(cfg, out)
     render_caddy(cfg, out)
-    render_coturn(cfg, out, args.secrets)
+    render_livekit(cfg, out, args.secrets)
     render_chat_config(cfg, out)
     render_compose_env(cfg, out, args.repo)
     render_app_env(cfg, out)

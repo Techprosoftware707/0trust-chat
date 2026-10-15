@@ -21,6 +21,8 @@ UID_CADDY=10200
 GID_SECRETS=10100
 GID_SOCKETS=10300
 UID_SYNAPSE=991
+UID_LIVEKIT=10400
+UID_LKJWT=10401
 UID_POSTGRES=70
 
 if [[ -t 1 ]]; then
@@ -107,11 +109,20 @@ conf_set() {
 
 truthy() { case "${1,,}" in 1 | true | yes | on) return 0 ;; *) return 1 ;; esac }
 
+# Voice/video calling (LiveKit SFU + authorization service) is on unless disabled.
+calls_enabled() { truthy "$(conf_get CALLS_ENABLED true)"; }
+rtc_domain() { conf_get LUMEN_RTC_DOMAIN "rtc.$(conf_get LUMEN_PRIMARY_DOMAIN)"; }
+calls_ports_human() {
+  printf '%s/udp (media), %s/tcp (ICE/TCP), %s/udp (TURN), %s/tcp (TURN/TLS)' \
+    "$(conf_get CALLS_UDP_PORTS 7882-7889)" "$(conf_get CALLS_TCP_PORT 7881)" \
+    "$(conf_get CALLS_TURN_UDP_PORT 3478)" "$(conf_get CALLS_TURN_TLS_PORT 5349)"
+}
+
 compose_env_file() { printf '%s' "$LUMEN_RENDERED_DIR/compose.env"; }
 
 compose() {
   local profiles=()
-  if truthy "$(conf_get VOIP_ENABLED false)"; then profiles+=(--profile voip); fi
+  if calls_enabled; then profiles+=(--profile calls); fi
   docker compose --project-directory "$LUMEN_REPO_DIR" \
     --env-file "$(compose_env_file)" \
     -f "$LUMEN_REPO_DIR/docker-compose.yml" "${profiles[@]}" "$@"

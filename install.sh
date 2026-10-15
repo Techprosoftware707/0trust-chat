@@ -239,7 +239,7 @@ Encryption:         end-to-end encryption on by default for all new rooms (Olm/M
 Backups:            $(conf_get BACKUP_DIR /var/backups/lumen), daily at $(conf_get BACKUP_SCHEDULE 03:17), age-encrypted
                     Copy the backup key OFF this server: $LUMEN_CONFIG_DIR/backup/identity.txt
 WireGuard:          $(truthy "$(conf_get WIREGUARD_ENABLED false)" && echo "enabled on wg0 (add devices in the console)" || echo disabled)
-Voice/video:        $(truthy "$(conf_get VOIP_ENABLED false)" && echo "TURN relay enabled" || echo disabled)
+Voice/video:        $(calls_enabled && echo "enabled — SFU wss://$(rtc_domain), ports $(calls_ports_human)" || echo disabled)
 Email:              $( [[ -n "$(conf_get SMTP_HOST)" ]] && echo "SMTP $(conf_get SMTP_HOST)" || echo "not configured — email verification and reset-by-email are off")
 Payments:           $(conf_get BILLING_PROVIDER none)
 
