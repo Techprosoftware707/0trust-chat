@@ -5,6 +5,9 @@
     <issue id="GradleDependency" severity="informational" />
     <issue id="NewerVersionAvailable" severity="ignore" />
     <issue id="AndroidGradlePluginVersion" severity="informational" />
+    <!-- targetSdk 36 is deliberate (ADR 0003 / build requirements; API 37 needs AGP 9.1 and
+         Gradle 9). Hosts with the API 37 platform installed would otherwise warn. -->
+    <issue id="OldTargetApi" severity="informational" />
     <!-- AAPT2 here does not resolve <adaptive-icon> from an unversioned mipmap-anydpi folder. -->
     <issue id="ObsoleteSdkInt">
         <ignore path="src/main/res/mipmap-anydpi-v26" />
