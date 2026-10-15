@@ -644,6 +644,39 @@ test("appearance: theme switch is stored like the website's", async () => {
   await closeDialog(p);
 });
 
+test("blocking: Ada blocks Grace; Grace's messages stop arriving; unblocking in Settings restores delivery", async () => {
+  const a = ada.page;
+  const g = grace.page;
+  await a.locator(".room-item", { hasText: "Grace Hopper" }).click();
+  await g.locator(".room-item", { hasText: "Ada Lovelace" }).click();
+  await a.locator(".room-header").getByRole("button", { name: "Conversation details" }).click();
+  await a.getByRole("button", { name: "Block Grace Hopper" }).click({ timeout: T });
+  const confirm = a.getByRole("dialog", { name: "Block Grace Hopper?" });
+  await confirm.getByText("They aren't told").waitFor();
+  await confirm.getByRole("button", { name: "Block", exact: true }).click();
+  await a.locator(".member-row", { hasText: "Grace Hopper" }).locator(".badge", { hasText: "Blocked" }).waitFor({ timeout: T });
+  await shot(a, "desktop-light-blocked-member");
+  await a.getByRole("button", { name: "Close details" }).click();
+
+  // Grace's message is accepted by the server (her client shows it sent), but Ada's server no longer delivers it.
+  await g.locator("#composer").fill("Sent while blocked");
+  await g.keyboard.press("Enter");
+  await msg(g, "Sent while blocked").getByRole("img", { name: /^Sent$|^Seen by/ }).waitFor({ timeout: T });
+
+  await openSettings(a, "Security & privacy");
+  const row = a.locator(".blocked-row", { hasText: B.user_id });
+  await row.waitFor({ timeout: T });
+  await row.getByRole("button", { name: "Unblock" }).click();
+  await a.getByText("You haven't blocked anyone.").waitFor({ timeout: T });
+  await closeDialog(a);
+
+  await g.locator("#composer").fill("Sent after unblock");
+  await g.keyboard.press("Enter");
+  await msg(a, "Sent after unblock").waitFor({ timeout: T });
+  // Ada has synced past Grace's earlier message, which was never delivered to her.
+  assert.equal(await msg(a, "Sent while blocked").count(), 0, "a message sent while blocked must not be shown");
+});
+
 test("sign out wipes local data", async () => {
   const g = grace.page;
   await g.locator(".user-chip").getByRole("button", { name: "Sign out" }).click();

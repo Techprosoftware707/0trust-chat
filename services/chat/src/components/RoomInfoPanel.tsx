@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
 import { EventType, KnownMembership, RoomStateEvent, type RoomMember } from "matrix-js-sdk";
-import { BadgeCheck, DoorOpen, Lock, ShieldAlert, ShieldOff, UserPlus, X } from "lucide-react";
+import { Ban, BadgeCheck, DoorOpen, Lock, ShieldAlert, ShieldOff, UserPlus, X } from "lucide-react";
 import { useMatrix } from "../matrix/context";
 import { dmPartner, MEGOLM_ALGORITHM } from "../matrix/rooms";
-import { usePresence, useRoom, useRoomEncrypted, useUserTrust } from "../hooks/matrix";
+import { canBlock, unblockUser } from "../matrix/block";
+import { useBlockedUsers, usePresence, useRoom, useRoomEncrypted, useUserTrust } from "../hooks/matrix";
 import { useEmitterVersion } from "../hooks/useEmitter";
 import { errorMessage } from "../lib/errors";
 import { Avatar } from "./primitives/Avatar";
 import { Dialog } from "./primitives/Dialog";
+import { BlockUserDialog } from "./dialogs/BlockUserDialog";
 import { Spinner } from "./primitives/Spinner";
 import { presenceDot } from "./Sidebar";
 import { useUi } from "./UiContext";
 
-function MemberRow({ member, isMe }: { member: RoomMember; isMe: boolean }) {
+function MemberRow({ member, isMe, blocked }: { member: RoomMember; isMe: boolean; blocked: boolean }) {
   const { client } = useMatrix();
   const ui = useUi();
+  const [confirmBlock, setConfirmBlock] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
   const presence = usePresence(client, member.userId);
   const { status } = useUserTrust(client, isMe ? null : member.userId);
   let badge = null;
@@ -41,6 +45,13 @@ function MemberRow({ member, isMe }: { member: RoomMember; isMe: boolean }) {
   } else if (status) {
     badge = <span className="badge badge-plain">Not verified</span>;
   }
+  if (blocked) {
+    badge = (
+      <span className="badge badge-danger badge-plain">
+        <Ban aria-hidden="true" /> Blocked
+      </span>
+    );
+  }
   const canVerify = !isMe && !!status && !status.isCrossSigningVerified() && member.membership === KnownMembership.Join;
   return (
     <li className="member-row">
@@ -53,11 +64,37 @@ function MemberRow({ member, isMe }: { member: RoomMember; isMe: boolean }) {
         </span>
         <span className="member-badges">{badge}</span>
       </div>
-      {canVerify ? (
-        <button type="button" className="btn btn-sm" onClick={() => void ui.verifyUser(member.userId)}>
-          Verify
-        </button>
-      ) : null}
+      <div className="member-actions">
+        {canVerify && !blocked ? (
+          <button type="button" className="btn btn-sm" onClick={() => void ui.verifyUser(member.userId)}>
+            Verify
+          </button>
+        ) : null}
+        {blocked ? (
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={unblocking}
+            onClick={async () => {
+              setUnblocking(true);
+              try {
+                await unblockUser(client, member.userId);
+              } catch (e) {
+                ui.toast({ kind: "error", title: "Couldn't unblock", body: errorMessage(e) });
+              } finally {
+                setUnblocking(false);
+              }
+            }}
+          >
+            {unblocking ? <Spinner size="sm" /> : null} Unblock
+          </button>
+        ) : !isMe && canBlock(client, member.userId) ? (
+          <button type="button" className="btn btn-sm btn-ghost" aria-label={`Block ${member.name}`} onClick={() => setConfirmBlock(true)}>
+            <Ban aria-hidden="true" /> Block
+          </button>
+        ) : null}
+      </div>
+      {confirmBlock ? <BlockUserDialog userId={member.userId} name={member.name} onClose={() => setConfirmBlock(false)} /> : null}
     </li>
   );
 }
@@ -71,6 +108,7 @@ export function RoomInfoPanel({ roomId, onClose }: { roomId: string; onClose: ()
   const [confirmEnc, setConfirmEnc] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const blockedUsers = useBlockedUsers(client);
   useEffect(() => {
     if (!room || room.membersLoaded()) return;
     setLoadingMembers(true);
@@ -130,7 +168,7 @@ export function RoomInfoPanel({ roomId, onClose }: { roomId: string; onClose: ()
           {loadingMembers ? <Spinner size="sm" label="Loading members…" /> : null}
           <ul className="list-plain member-list">
             {members.map((m) => (
-              <MemberRow key={m.userId} member={m} isMe={m.userId === userId} />
+              <MemberRow key={m.userId} member={m} isMe={m.userId === userId} blocked={blockedUsers.includes(m.userId)} />
             ))}
           </ul>
         </section>

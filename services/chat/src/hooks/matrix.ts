@@ -37,6 +37,13 @@ export function useRoomSummaries(client: MatrixClient): RoomSummary[] {
   return useMemo(() => summarise(client), [client, v]);
 }
 
+/** People this account has blocked (`m.ignored_user_list`), updated from sync. */
+export function useBlockedUsers(client: MatrixClient): string[] {
+  const v = useEmitterVersion(client, [ClientEvent.AccountData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => client.getIgnoredUsers(), [client, v]);
+}
+
 export function useRoom(client: MatrixClient, roomId: string | null): Room | null {
   const v = useEmitterVersion(client, [ClientEvent.Room, ClientEvent.DeleteRoom, RoomEvent.MyMembership]);
   // eslint-disable-next-line react-hooks/exhaustive-deps

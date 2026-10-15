@@ -5,6 +5,7 @@ import { editContent, reactionContent, textContent } from "../../src/matrix/send
 import { chooseStage, setUiaPrompt, ssoFallbackUrl, UiaCancelledError, withUia } from "../../src/matrix/uia";
 import { buildTimeline, noticeText } from "../../src/matrix/timeline";
 import { inlineKind, msgtypeFor } from "../../src/matrix/media";
+import { blockUser, canBlock, unblockUser } from "../../src/matrix/block";
 
 describe("SSO login URLs", () => {
   it("builds the homeserver SSO redirect URL for the configured IdP", () => {
@@ -136,6 +137,24 @@ describe("timeline building", () => {
     ]);
   });
 
+  it("hides messages from blocked senders but keeps their membership changes", () => {
+    const d = new Date(2026, 9, 14, 10, 0).getTime();
+    const items = buildTimeline(
+      [
+        ev("m.room.message", "@a:x", d, { msgtype: "m.text", body: "from a" }),
+        ev("m.room.message", "@spam:x", d + 1, { msgtype: "m.text", body: "from spam" }),
+        ev("m.reaction", "@spam:x", d + 2, { "m.relates_to": { rel_type: "m.annotation", event_id: `$${d}`, key: "x" } }),
+        ev("m.room.member", "@spam:x", d + 3, { membership: "leave" }, { state_key: "@spam:x" }),
+        ev("m.room.message", "@a:x", d + 4, { msgtype: "m.text", body: "again a" }),
+      ],
+      nameOf,
+      undefined,
+      new Set(["@spam:x"]),
+    );
+    const shown = items.filter((i) => i.kind !== "day").map((i) => (i.kind === "message" ? (i.event.getContent() as { body: string }).body : i.kind));
+    expect(shown).toEqual(["from a", "notice", "again a"]);
+  });
+
   it("describes membership and encryption state events", () => {
     const m = ev("m.room.member", "@a:x", 1, { membership: "invite", displayname: "Bob" }, { state_key: "@b:x" });
     expect(noticeText(m, nameOf)).toBe("A invited Bob");
@@ -146,3 +165,38 @@ describe("timeline building", () => {
   });
 });
 
+
+describe("blocking (m.ignored_user_list)", () => {
+  const fakeClient = (initial: string[]) => {
+    let list = [...initial];
+    return {
+      getUserId: () => "@me:x",
+      getIgnoredUsers: () => list,
+      setIgnoredUsers: vi.fn(async (next: string[]) => {
+        list = next;
+        return {};
+      }),
+    };
+  };
+
+  it("adds and removes one user, keeping the others", async () => {
+    const c = fakeClient(["@old:x"]);
+    await blockUser(c as never, "@spam:x");
+    expect(c.setIgnoredUsers).toHaveBeenLastCalledWith(["@old:x", "@spam:x"]);
+    await blockUser(c as never, "@spam:x"); // already blocked: no second write
+    expect(c.setIgnoredUsers).toHaveBeenCalledTimes(1);
+    await unblockUser(c as never, "@spam:x");
+    expect(c.setIgnoredUsers).toHaveBeenLastCalledWith(["@old:x"]);
+    await unblockUser(c as never, "@nobody:x");
+    expect(c.setIgnoredUsers).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses to block yourself or something that isn't a user ID", async () => {
+    const c = fakeClient([]);
+    expect(canBlock(c as never, "@me:x")).toBe(false);
+    expect(canBlock(c as never, "!room:x")).toBe(false);
+    expect(canBlock(c as never, "@bob:x")).toBe(true);
+    await expect(blockUser(c as never, "@me:x")).rejects.toThrow();
+    expect(c.setIgnoredUsers).not.toHaveBeenCalled();
+  });
+});

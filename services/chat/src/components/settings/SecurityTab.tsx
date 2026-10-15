@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck, CircleAlert, CircleCheck, CloudDownload, KeyRound, RefreshCw, ShieldAlert, TriangleAlert } from "lucide-react";
+import type { MatrixClient } from "matrix-js-sdk";
 import type { OwnDeviceKeys } from "matrix-js-sdk/lib/crypto-api/index.js";
 import { useMatrix } from "../../matrix/context";
 import { restoreFromBackup, type RestoreProgress } from "../../matrix/security";
+import { unblockUser } from "../../matrix/block";
+import { useBlockedUsers } from "../../hooks/matrix";
 import { setPrefs, usePrefs } from "../../lib/prefs";
 import { errorMessage } from "../../lib/errors";
 import { ProgressBar, Spinner } from "../primitives/Spinner";
@@ -16,6 +19,42 @@ function Row({ ok, label, value }: { ok: boolean | null; label: string; value: s
       <span className="status-label">{label}</span>
       <span className="status-value">{value}</span>
     </li>
+  );
+}
+
+function BlockedPeople({ client }: { client: MatrixClient }) {
+  const ui = useUi();
+  const blocked = useBlockedUsers(client);
+  const [busy, setBusy] = useState<string | null>(null);
+  if (blocked.length === 0) return <p className="small muted">You haven't blocked anyone.</p>;
+  return (
+    <ul className="list-plain blocked-list">
+      {blocked.map((u) => (
+        <li key={u} className="blocked-row">
+          <span className="blocked-name">
+            {client.getUser(u)?.displayName ?? u}
+            <span className="small muted mono break">{u}</span>
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={busy !== null}
+            onClick={async () => {
+              setBusy(u);
+              try {
+                await unblockUser(client, u);
+              } catch (e) {
+                ui.toast({ kind: "error", title: "Couldn't unblock", body: errorMessage(e) });
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            {busy === u ? <Spinner size="sm" /> : null} Unblock
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -159,6 +198,14 @@ export function SecurityTab() {
           checked={prefs.sendTypingNotifications}
           onChange={(on) => setPrefs({ sendTypingNotifications: on })}
         />
+      </section>
+
+      <section className="stack">
+        <h3>Blocked people</h3>
+        <p className="small muted">
+          You don't receive messages or invites from blocked people. Messages they sent while blocked aren't shown after you unblock them.
+        </p>
+        <BlockedPeople client={client} />
       </section>
 
       <section className="stack danger-zone">

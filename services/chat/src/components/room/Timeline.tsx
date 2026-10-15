@@ -17,6 +17,7 @@ import { previewText } from "../../matrix/rooms";
 import { formatDayLabel } from "../../lib/format";
 import { getPrefs } from "../../lib/prefs";
 import { useEmitterVersion } from "../../hooks/useEmitter";
+import { useBlockedUsers } from "../../hooks/matrix";
 import { consumeHighlight, subscribeHighlight } from "../../lib/highlight";
 import { Spinner } from "../primitives/Spinner";
 import { MessageTile } from "./MessageTile";
@@ -76,7 +77,9 @@ export function Timeline({
   }, [room, version]);
   const liveCall = useRoomCall(client, room);
   const markers = useMemo(() => callMarkers(events, buildCallHistory(events, liveCall.devices)), [events, liveCall.devices]);
-  const items = useMemo(() => buildTimeline(events, nameOf, markers), [events, nameOf, markers]);
+  const blockedList = useBlockedUsers(client);
+  const blocked = useMemo(() => new Set(blockedList), [blockedList]);
+  const items = useMemo(() => buildTimeline(events, nameOf, markers, blocked), [events, nameOf, markers, blocked]);
 
   // Who has read each of my recent messages: their read receipt (or a later message of
   // theirs) is at or after it. Only real receipt data from the server is used.

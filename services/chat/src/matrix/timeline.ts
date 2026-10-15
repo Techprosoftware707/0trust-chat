@@ -66,12 +66,20 @@ export function noticeText(ev: MatrixEvent, nameOf: NameOf): string | null {
 /**
  * @param callMarkers call items keyed by event id (see calls/history.ts): the first join of a
  *   call, its end, declines and legacy call invites. Other call events stay hidden.
+ * @param blocked senders whose messages are hidden: the server stops sending them once they are
+ *   blocked, this also hides the ones already loaded. Membership changes stay visible.
  */
-export function buildTimeline(events: MatrixEvent[], nameOf: NameOf, callMarkers?: Map<string, CallMarker>): TimelineItem[] {
+export function buildTimeline(
+  events: MatrixEvent[],
+  nameOf: NameOf,
+  callMarkers?: Map<string, CallMarker>,
+  blocked?: ReadonlySet<string>,
+): TimelineItem[] {
   const items: TimelineItem[] = [];
   let prevTs: number | null = null;
   let prevMessage: MatrixEvent | null = null;
   for (const ev of events) {
+    if (blocked?.size && !ev.isState() && blocked.has(ev.getSender() ?? "")) continue;
     const ts = ev.getTs();
     const key = ev.getId() ?? ev.getTxnId() ?? `${ts}-${items.length}`;
     let item: TimelineItem | null = null;

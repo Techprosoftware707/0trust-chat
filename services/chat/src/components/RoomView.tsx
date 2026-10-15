@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { KnownMembership, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { Check, DoorOpen, FileUp, X } from "lucide-react";
+import { Ban, Check, DoorOpen, FileUp, X } from "lucide-react";
 import { useMatrix } from "../matrix/context";
 import { acceptInvite, declineInvite, dmPartner, isMessageEvent } from "../matrix/rooms";
+import { blockUser, canBlock } from "../matrix/block";
 import { useDirectVersion, useRoom, useRoomEncrypted, useSyncState } from "../hooks/matrix";
 import { navigate } from "../hooks/useRoute";
 import { errorMessage } from "../lib/errors";
@@ -62,6 +63,27 @@ function InvitePreview({ room }: { room: Room }) {
           >
             <X aria-hidden="true" /> Decline
           </button>
+          {inviter && canBlock(client, inviter) ? (
+            <button
+              type="button"
+              className="btn btn-outline-danger"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await declineInvite(client, room);
+                  await blockUser(client, inviter);
+                  ui.toast({ kind: "success", title: `Declined and blocked ${inviterName}` });
+                  navigate("#/");
+                } catch (e) {
+                  ui.toast({ kind: "error", title: "Couldn't decline and block", body: errorMessage(e) });
+                  setBusy(false);
+                }
+              }}
+            >
+              <Ban aria-hidden="true" /> Decline and block
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
