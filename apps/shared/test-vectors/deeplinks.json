@@ -1,0 +1,24 @@
+{
+  "description": "routeDeepLink(url, pendingSsoNonce) -> route. Routes: {type: 'sso_callback', loginToken} only when a sign-in is pending AND the nonce query parameter n matches; {type: 'room', id} for room IDs/aliases; {type: 'user', id} for user IDs; {type: 'reject'} for everything else (including SSO callbacks without a pending attempt or with a wrong nonce). Joining/opening always asks the user first; this function only parses.",
+  "cases": [
+    {"url": "io.lumen.secure:/sso-callback?n=abc123&loginToken=syt_test", "pending": "abc123", "expect": {"type": "sso_callback", "loginToken": "syt_test"}},
+    {"url": "io.lumen.secure:/sso-callback?loginToken=syt_test&n=abc123", "pending": "abc123", "expect": {"type": "sso_callback", "loginToken": "syt_test"}},
+    {"url": "io.lumen.secure:/sso-callback?n=abc123&loginToken=syt_test", "pending": null, "expect": {"type": "reject"}, "why": "no sign-in in progress"},
+    {"url": "io.lumen.secure:/sso-callback?n=zzz&loginToken=syt_test", "pending": "abc123", "expect": {"type": "reject"}, "why": "nonce mismatch"},
+    {"url": "io.lumen.secure:/sso-callback?n=abc123", "pending": "abc123", "expect": {"type": "reject"}, "why": "no token"},
+    {"url": "io.lumen.secure://sso-callback?n=abc123&loginToken=syt_test", "pending": "abc123", "expect": {"type": "sso_callback", "loginToken": "syt_test"}, "why": "some platforms add an authority form"},
+    {"url": "io.lumen.secure:/other?n=abc123&loginToken=syt_test", "pending": "abc123", "expect": {"type": "reject"}},
+    {"url": "https://matrix.to/#/!abc:example.com", "pending": null, "expect": {"type": "room", "id": "!abc:example.com"}},
+    {"url": "https://matrix.to/#/%23lounge:example.com", "pending": null, "expect": {"type": "room", "id": "#lounge:example.com"}},
+    {"url": "https://matrix.to/#/#lounge:example.com", "pending": null, "expect": {"type": "room", "id": "#lounge:example.com"}},
+    {"url": "https://matrix.to/#/@alice:example.com", "pending": null, "expect": {"type": "user", "id": "@alice:example.com"}},
+    {"url": "https://matrix.to/#/!abc:example.com/$event?via=example.com", "pending": null, "expect": {"type": "room", "id": "!abc:example.com"}},
+    {"url": "matrix:u/alice:example.com", "pending": null, "expect": {"type": "user", "id": "@alice:example.com"}},
+    {"url": "matrix:r/lounge:example.com", "pending": null, "expect": {"type": "room", "id": "#lounge:example.com"}},
+    {"url": "matrix:roomid/abc:example.com?via=example.com", "pending": null, "expect": {"type": "room", "id": "!abc:example.com"}},
+    {"url": "https://matrix.to/#/@alice", "pending": null, "expect": {"type": "reject"}, "why": "no server part"},
+    {"url": "https://evil.example/#/@alice:example.com", "pending": null, "expect": {"type": "reject"}},
+    {"url": "http://matrix.to/#/@alice:example.com", "pending": null, "expect": {"type": "reject"}, "why": "plain http"},
+    {"url": "javascript:alert(1)", "pending": null, "expect": {"type": "reject"}}
+  ]
+}

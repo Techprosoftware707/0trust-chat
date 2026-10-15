@@ -1,0 +1,26 @@
+{
+  "description": "validateEndpointUrl(raw, {debug}) -> normalised URL string or null. Normalisation: lowercase scheme and host, no trailing slash, no query or fragment for homeserver base URLs.",
+  "cases": [
+    {"input": "https://matrix.example.com", "debug": false, "expect": "https://matrix.example.com"},
+    {"input": "https://matrix.example.com/", "debug": false, "expect": "https://matrix.example.com"},
+    {"input": "HTTPS://Matrix.Example.COM/", "debug": false, "expect": "https://matrix.example.com"},
+    {"input": "https://matrix.example.com:8448", "debug": false, "expect": "https://matrix.example.com:8448"},
+    {"input": "https://example.com/matrix/", "debug": false, "expect": "https://example.com/matrix"},
+    {"input": "https://matrix.example.com/?x=1#frag", "debug": false, "expect": "https://matrix.example.com"},
+    {"input": "http://matrix.example.com", "debug": false, "expect": null, "why": "plain http to a remote host"},
+    {"input": "http://matrix.example.com", "debug": true, "expect": null, "why": "plain http is never allowed for non-loopback hosts"},
+    {"input": "http://localhost:8008", "debug": true, "expect": "http://localhost:8008"},
+    {"input": "http://127.0.0.1:8008", "debug": true, "expect": "http://127.0.0.1:8008"},
+    {"input": "http://localhost:8008", "debug": false, "expect": null, "why": "loopback http only in debug builds"},
+    {"input": "https://user:pass@matrix.example.com", "debug": false, "expect": null, "why": "credentials in URL"},
+    {"input": "https://user@matrix.example.com", "debug": false, "expect": null, "why": "user-info in URL"},
+    {"input": "javascript:alert(1)", "debug": false, "expect": null},
+    {"input": "file:///etc/passwd", "debug": false, "expect": null},
+    {"input": "ftp://matrix.example.com", "debug": false, "expect": null},
+    {"input": "io.lumen.secure:/sso-callback", "debug": false, "expect": null, "why": "app scheme is not a server URL"},
+    {"input": "https://", "debug": false, "expect": null},
+    {"input": "", "debug": false, "expect": null},
+    {"input": "matrix.example.com", "debug": false, "expect": null, "why": "a bare host is a server name, not a URL (discovery handles it)"},
+    {"input": " https://matrix.example.com ", "debug": false, "expect": "https://matrix.example.com", "why": "surrounding whitespace is trimmed"}
+  ]
+}
