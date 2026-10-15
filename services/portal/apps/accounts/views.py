@@ -59,6 +59,8 @@ def _security_summary(user) -> dict:
         ("No recent failed sign-ins", failed == 0),
     ]
     score = round(100 * sum(1 for _, ok in checks if ok) / len(checks))
+    actions = ["turn on two-factor", "save recovery codes", "verify your email", "review failed sign-ins"]
+    todo = [action for (_, ok), action in zip(checks, actions) if not ok]
     return {
         "mfa_enabled": is_mfa_enabled(user),
         "totp": Authenticator.Type.TOTP in types,
@@ -68,6 +70,7 @@ def _security_summary(user) -> dict:
         "failed_logins_7d": failed,
         "sessions": sessions,
         "checks": checks,
+        "todo": todo,
         "score": score,
     }
 

@@ -26,7 +26,7 @@ class SignupForm(AllauthSignupForm):
                 f"This becomes your chat address @username:{settings.MATRIX_SERVER_NAME}. It cannot be changed later."
             )
             self.fields["username"].widget.attrs.update(
-                {"autocapitalize": "none", "spellcheck": "false", "pattern": "[a-z0-9._-]{3,32}"}
+                {"autocapitalize": "none", "spellcheck": "false", "pattern": r"[a-z0-9._\-]{3,32}"}
             )
 
 

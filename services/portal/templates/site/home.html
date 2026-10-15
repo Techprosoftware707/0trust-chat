@@ -17,6 +17,7 @@
         <span>{% icon "server" %} One-command self-hosting</span>
       </div>
     </div>
+    <figure class="hero-figure">
     <div class="device" aria-hidden="true">
       <div class="device-screen">
         <div class="mock-head"><span># design-review</span><span class="mock-shield">{% icon "shield-check" %} Encrypted · 3 verified</span></div>
@@ -27,6 +28,8 @@
         </div>
       </div>
     </div>
+      <figcaption>Illustration of the web chat app</figcaption>
+    </figure>
   </div>
 </section>
 
@@ -57,7 +60,7 @@
         </ul>
       </div>
     </div>
-    <p class="center small muted mt-0"><a href="{% url 'site:privacy' %}">Read the full privacy model</a></p>
+    <p class="center small muted section-foot"><a href="{% url 'site:privacy' %}">Read the full privacy model</a></p>
   </div>
 </section>
 
@@ -91,7 +94,7 @@
       </div>
       <div class="cluster"><a class="btn btn-primary" href="{% url 'site:doc' 'getting-started' %}">Read the getting-started guide</a></div>
     </div>
-    <div class="card stack">
+    <div class="card stack align-self-start">
       <p class="eyebrow">Zero-trust architecture</p>
       <h3>Every boundary authenticates</h3>
       <p class="muted">The website, customer portal, homeserver, database and operator console run as separate services with separate credentials. The operator console is not on the public internet at all. Billing never touches conversations.</p>
@@ -118,7 +121,7 @@
       </div>
       {% endwith %}{% endfor %}
     </div>
-    <p class="small muted"><a href="{% url 'site:pricing' %}">Compare all plans and limits</a></p>
+    <p class="small muted section-foot"><a href="{% url 'site:pricing' %}">Compare all plans and limits</a></p>
   </div>
 </section>
 {% endif %}
@@ -131,15 +134,14 @@
       <p class="lead">Everything that powers this service — website, portal, homeserver, web chat, backups and monitoring — installs on a fresh Ubuntu 24.04 server with one command. It's open-source software built on open standards.</p>
       <div class="cluster"><a class="btn btn-gradient" href="{% url 'site:doc' 'self-hosting' %}">Self-hosting guide</a><a class="btn" href="{% url 'site:federation' %}">How federation works</a></div>
     </div>
-    <div class="card"><pre class="mb-0"><code>$ git clone &lt;your Lumen repository&gt; lumen
+    <pre class="terminal mb-0" aria-label="Installation commands"><code>$ git clone &lt;your Lumen repository&gt; lumen
 $ cd lumen
 $ sudo bash install.sh
 
-✔ preflight: Ubuntu 24.04, 4 vCPU, 8 GB RAM
-✔ DNS: example.com, app., matrix. → this server
-✔ TLS certificates issued
-✔ homeserver healthy · federation reachable
-✔ backups scheduled (encrypted)</code></pre></div>
+<span class="t-comment"># Checks the server, asks for your domain and email,
+# installs Docker, issues TLS certificates, starts every
+# service, verifies them, schedules encrypted backups and
+# prints your URLs and next steps (never your secrets).</span></code></pre>
   </div>
 </section>
 

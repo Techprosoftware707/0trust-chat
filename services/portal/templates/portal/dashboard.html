@@ -14,7 +14,7 @@
 {% endif %}
 
 <div class="grid grid-4">
-  <div class="card stat"><span class="stat-label">Account security</span><span class="stat-value">{{ summary.score }}%</span><span class="stat-note">{% for label, ok in summary.checks %}{% if not ok %}{{ label }} · {% endif %}{% endfor %}{% if summary.score == 100 %}All checks passing{% endif %}</span></div>
+  <div class="card stat"><span class="stat-label">Account security</span><span class="stat-value">{{ summary.score }}%</span><span class="stat-note">{% if summary.todo %}To do: {{ summary.todo|join:", " }}{% else %}All checks passing{% endif %}</span></div>
   <div class="card stat"><span class="stat-label">Two-factor</span><span class="stat-value">{% if summary.mfa_enabled %}On{% else %}Off{% endif %}</span><span class="stat-note">{% if summary.totp %}Authenticator app {% endif %}{% if summary.webauthn %}· Security key {% endif %}{% if summary.recovery_codes_left is not None %}· {{ summary.recovery_codes_left }} recovery codes{% endif %}</span></div>
   <div class="card stat"><span class="stat-label">Portal sessions</span><span class="stat-value">{{ summary.sessions }}</span><span class="stat-note"><a href="{% url 'usersessions_list' %}">Review sessions</a></span></div>
   <div class="card stat"><span class="stat-label">File limits</span><span class="stat-value">{{ entitlements.upload_max_mb }} MB</span><span class="stat-note">per file · {{ entitlements.media_quota_mb_30d|intcomma }} MB per 30 days</span></div>

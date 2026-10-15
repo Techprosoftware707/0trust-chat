@@ -33,7 +33,7 @@
   <h2>Add an operator device</h2>
   <form class="form" method="post" action="{% url 'ops:wg_add' %}">{% csrf_token %}
     <div class="grid grid-2">
-      <div class="field"><label for="wg-name">Device name</label><input id="wg-name" name="name" pattern="[A-Za-z0-9._-]{1,32}" required placeholder="alice-laptop"></div>
+      <div class="field"><label for="wg-name">Device name</label><input id="wg-name" name="name" pattern="[A-Za-z0-9._\-]{1,32}" required placeholder="alice-laptop"></div>
       <div class="field"><label for="wg-pub">Your public key (recommended)</label><input id="wg-pub" name="public_key" placeholder="Leave empty to generate a key pair here"><span class="help">Generate keys on your device with <code>wg genkey | tee priv | wg pubkey</code> so the private key never exists on the server.</span></div>
     </div>
     <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "plus" %} Add peer</button></div>

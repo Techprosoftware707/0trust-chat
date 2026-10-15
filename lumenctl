@@ -12,6 +12,7 @@
 #   sudo ./lumenctl rotate <secret>                 rotate: ops-gateway|internal-api|synapse-admin|oidc-client|db-passwords|django
 #   sudo ./lumenctl reconcile-db                    re-apply database roles/passwords from secrets
 #   sudo ./lumenctl config                          print resolved configuration (no secrets)
+#   sudo ./lumenctl apply                           apply edits to lumen.conf (invalid config is never activated)
 #   sudo ./lumenctl admin-tunnel                    how to reach the operator console
 #   sudo ./lumenctl manage <django manage.py args>  run a portal management command
 
@@ -150,6 +151,10 @@ case "$cmd" in
   reconcile-db)
     log_init lumenctl
     reconcile_db_roles && ok "database roles reconciled"
+    ;;
+  apply)
+    apply_config
+    ok "configuration applied"
     ;;
   config)
     python3 "$LUMEN_REPO_DIR/deploy/lib/render.py" --conf "$LUMEN_CONF" --secrets "$LUMEN_SECRETS_DIR" --repo "$LUMEN_REPO_DIR" --out /nonexistent --print-config

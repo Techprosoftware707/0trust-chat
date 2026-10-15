@@ -7,7 +7,7 @@
 <div class="grid grid-2">
   <section class="card stack">
     <h2>Details</h2>
-    {% if not plan.pk %}<div class="field"><label for="code">Code</label><input id="code" name="code" pattern="[a-z0-9-]+" required></div>{% endif %}
+    {% if not plan.pk %}<div class="field"><label for="code">Code</label><input id="code" name="code" pattern="[a-z0-9\-]+" required></div>{% endif %}
     <div class="field"><label for="name">Name</label><input id="name" name="name" value="{{ plan.name }}" required></div>
     <div class="field"><label for="tagline">Tagline</label><input id="tagline" name="tagline" value="{{ plan.tagline }}"></div>
     <div class="grid grid-2"><div class="field"><label for="pm">Monthly price</label><input id="pm" name="price_monthly_cents" type="number" min="0" value="{{ plan.price_monthly_cents|default_if_none:'' }}"></div><div class="field"><label for="py">Yearly price</label><input id="py" name="price_yearly_cents" type="number" min="0" value="{{ plan.price_yearly_cents|default_if_none:'' }}"></div></div>

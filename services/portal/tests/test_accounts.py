@@ -10,7 +10,7 @@ from apps.accounts.models import AccountStatus, RetiredUsername, User
 from apps.accounts.validators import USERNAME_RE, validate_username_available, validate_username_format
 from apps.core.models import SecurityEvent
 
-from .factories import PASSWORD, ensure_plans, make_user
+from .factories import PASSWORD, ensure_plans, make_user, mark_recent_auth
 
 pytestmark = pytest.mark.django_db
 
@@ -157,6 +157,27 @@ class TestSignupAndLogin:
         assert u.is_superuser is False
         with pytest.raises(RuntimeError):
             User.objects.create_superuser("root2", "r@example.org", PASSWORD)
+
+    @pytest.mark.parametrize("email_enabled", [False, True])
+    def test_mfa_enrolment_and_email_verification(self, settings, email_enabled):
+        """Without SMTP no email can be verified, which must not block MFA enrolment.
+        With SMTP, allauth's verified-email guard stays in place."""
+        from allauth.account.models import EmailAddress
+
+        from lumen import settings as lumen_settings
+
+        assert lumen_settings.MFA_ALLOW_UNVERIFIED_EMAIL is (not lumen_settings.EMAIL_ENABLED)
+        settings.MFA_ALLOW_UNVERIFIED_EMAIL = not email_enabled
+        u = make_user(f"hana{int(email_enabled)}")
+        EmailAddress.objects.filter(user=u).update(verified=False)
+        c = Client()
+        c.force_login(u)
+        mark_recent_auth(c)
+        r = c.get("/accounts/2fa/totp/activate/")
+        if email_enabled:
+            assert r.status_code == 302 and r["Location"] == "/accounts/2fa/"
+        else:
+            assert r.status_code == 200 and b'id="authenticator_secret"' in r.content
 
 
 class TestPrivacy:

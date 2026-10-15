@@ -16,7 +16,7 @@
 <div class="grid grid-2">
   <section class="card">
     <div class="card-header"><h2>Service health</h2><a class="btn btn-sm btn-ghost" href="{% url 'ops:health' %}">Details</a></div>
-    <ul class="list-plain list-rows">{% for row in health %}<li><span class="cluster"><span class="status-dot status-{{ row.status }}"></span>{{ row.label }}</span><span class="small muted text-right">{% if row.snapshot %}{{ row.snapshot.summary|truncatechars:60 }}{% else %}no data yet{% endif %}</span></li>{% endfor %}</ul>
+    <ul class="list-plain list-rows">{% for row in health %}<li><span class="row-label"><span class="status-dot status-{{ row.status }}"></span>{{ row.label }}</span><span class="small muted text-right" title="{{ row.snapshot.summary }}">{% if row.snapshot %}{{ row.snapshot.summary|truncatechars:60 }}{% else %}no data yet{% endif %}</span></li>{% endfor %}</ul>
   </section>
   <section class="card">
     <div class="card-header"><h2>Recent operator activity</h2><a class="btn btn-sm btn-ghost" href="{% url 'ops:audit' %}">Audit log</a></div>

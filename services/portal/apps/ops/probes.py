@@ -111,37 +111,50 @@ def probe_chat_app() -> ProbeResult:
 # --- TLS ---------------------------------------------------------------------------
 
 
-def _cert_days_left(host: str, port: int = 443) -> tuple[int, str]:
+def _cert_seconds_left(host: str, port: int = 443) -> tuple[int, str]:
     ctx = ssl.create_default_context(cafile=os.environ.get("LUMEN_PROBE_CA_BUNDLE") or None)
     with socket.create_connection((os.environ.get("LUMEN_PROBE_CONNECT_HOST", host), port), timeout=8) as sock:
         with ctx.wrap_socket(sock, server_hostname=host) as tls:
             cert = tls.getpeercert()
             version = tls.version() or ""
     not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
-    return (not_after - datetime.now(UTC)).days, version
+    return int((not_after - datetime.now(UTC)).total_seconds()), version
+
+
+def _human(seconds: int) -> str:
+    return f"{seconds // 86400}d" if seconds >= 86400 else f"{max(seconds, 0) // 3600}h"
 
 
 def probe_tls() -> ProbeResult:
     hosts = sorted({settings.PRIMARY_DOMAIN, settings.APP_DOMAIN, settings.MATRIX_DOMAIN})
-    detail, worst, problems = {}, "ok", []
+    # Public (ACME) certificates last ~90 days and renew 30 days early, so less than
+    # 14 days left means renewal is failing. Caddy's internal CA (TLS_MODE=internal,
+    # labs only) issues 12-hour certificates renewed continuously.
+    if settings.TLS_MODE == "internal":
+        fail_below, warn_below = 3600, 3 * 3600
+    else:
+        fail_below, warn_below = 3 * 86400, 14 * 86400
+    detail, worst, problems = {"mode": settings.TLS_MODE}, "ok", []
+    left: list[int] = []
     for host in hosts:
         try:
-            days, version = _cert_days_left(host)
+            secs, version = _cert_seconds_left(host)
         except (OSError, ssl.SSLError, ValueError) as exc:
             detail[host] = {"error": f"{type(exc).__name__}: {str(exc)[:120]}"}
             worst = "failed"
             problems.append(f"{host}: {type(exc).__name__}")
             continue
-        detail[host] = {"days_left": days, "tls_version": version}
-        if days < 3:
+        detail[host] = {"days_left": secs // 86400, "seconds_left": secs, "tls_version": version}
+        left.append(secs)
+        if secs < fail_below:
             worst = "failed"
-            problems.append(f"{host} expires in {days}d")
-        elif days < 14 and worst == "ok":
+            problems.append(f"{host} expires in {_human(secs)}")
+        elif secs < warn_below and worst == "ok":
             worst = "degraded"
-            problems.append(f"{host} expires in {days}d")
+            problems.append(f"{host} expires in {_human(secs)}")
     if worst == "ok":
-        min_days = min(v["days_left"] for v in detail.values())
-        return ProbeResult("ok", f"valid on {len(hosts)} hostnames; earliest expiry in {min_days} days", detail)
+        note = " (internal test CA)" if settings.TLS_MODE == "internal" else ""
+        return ProbeResult("ok", f"valid on {len(hosts)} hostnames; earliest expiry in {_human(min(left))}{note}", detail)
     return ProbeResult(worst, "; ".join(problems), detail)
 
 

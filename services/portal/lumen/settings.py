@@ -233,6 +233,10 @@ ACCOUNT_RATE_LIMITS = {
 }
 
 MFA_SUPPORTED_TYPES = ["totp", "recovery_codes", "webauthn"]
+# allauth only lets users with a verified email enrol MFA. Without SMTP no address can
+# ever be verified (and email is not used for sign-in or recovery), so MFA must not
+# depend on it; with SMTP, verification is mandatory and the guard stays in place.
+MFA_ALLOW_UNVERIFIED_EMAIL = not EMAIL_ENABLED
 MFA_ADAPTER = "apps.accounts.adapter.MFAAdapter"
 MFA_TOTP_ISSUER = BRAND["name"]
 MFA_RECOVERY_CODE_COUNT = 10
@@ -327,6 +331,7 @@ OPS_GATEWAY_SECRET = secret("OPS_GATEWAY_SECRET") if SURFACE in {"ops", "test"} 
 FEDERATION_MODE = env("FEDERATION_MODE", "open")  # open | allowlist | closed
 FEDERATION_ALLOWLIST = env_list("FEDERATION_ALLOWLIST")
 FEDERATION_PROBE_NOTARY = env("FEDERATION_PROBE_NOTARY", "")
+TLS_MODE = env("TLS_MODE", "acme")  # acme (public CA) | internal (Caddy local CA, test/lab only)
 VOIP_ENABLED = env_bool("VOIP_ENABLED", False)
 PRESENCE_ENABLED = env_bool("PRESENCE_ENABLED", True)
 DEFAULT_MAX_UPLOAD_MB = env_int("DEFAULT_MAX_UPLOAD_MB", 50)
