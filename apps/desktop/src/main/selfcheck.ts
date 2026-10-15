@@ -104,7 +104,18 @@ export async function runSelfCheck(reportPath: string | null): Promise<void> {
     const pid = wc.getOSProcessId();
     const metric = app.getAppMetrics().find((m) => m.pid === pid);
     if (typeof metric?.sandboxed === "boolean") push("renderer process sandboxed by the OS", metric.sandboxed, `pid ${pid}`);
-    else push("renderer process sandboxed by the OS", true, "not reported by Electron on this platform", false);
+    else if (process.platform === "linux") {
+      // Linux: Chromium's renderer sandbox installs a seccomp-bpf filter (Seccomp: 2) and sets no_new_privs.
+      let status = "";
+      try {
+        status = fs.readFileSync(`/proc/${pid}/status`, "utf8");
+      } catch {
+        /* not readable */
+      }
+      const seccomp = /^Seccomp:\s*(\d)/m.exec(status)?.[1];
+      const nnp = /^NoNewPrivs:\s*(\d)/m.exec(status)?.[1];
+      push("renderer process sandboxed by the OS (seccomp-bpf)", seccomp === "2", `pid ${pid}: Seccomp=${seccomp ?? "?"} NoNewPrivs=${nnp ?? "?"}`, app.isPackaged);
+    } else push("renderer process sandboxed by the OS", true, "not reported by Electron on this platform", false);
 
     const perm = await js<string[]>(`Promise.all([
       navigator.mediaDevices.getUserMedia({ audio: true }).then(() => "granted", (e) => e.name),
