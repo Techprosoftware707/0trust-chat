@@ -112,4 +112,7 @@ test("safeEqual and routeDeepLink edge cases", () => {
   assert.deepEqual(routeDeepLink("matrix:u/bob", null), { type: "reject" });
   assert.deepEqual(routeDeepLink("matrix:x/bob:example.org", null), { type: "reject" });
   assert.deepEqual(routeDeepLink("x".repeat(5000), null), { type: "reject" });
+  // room version 12: room IDs have no server part
+  assert.deepEqual(routeDeepLink("https://matrix.to/#/!-MOADax__CI4aq6hI_3NCx71nCQaGGqteq4OqMXcY64", null), { type: "room", id: "!-MOADax__CI4aq6hI_3NCx71nCQaGGqteq4OqMXcY64" });
+  assert.deepEqual(routeDeepLink("https://matrix.to/#/!a", null), { type: "reject" });
 });

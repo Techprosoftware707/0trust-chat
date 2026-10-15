@@ -1,7 +1,7 @@
 import Foundation
 import LumenCore
 import UIKit
-import UserNotifications
+@preconcurrency import UserNotifications
 
 /// Local notifications (foreground and background refresh) and the
 /// notification-centre delegate. Remote notifications are rendered by the
@@ -46,8 +46,9 @@ final class NotificationCoordinator: NSObject, UNUserNotificationCenterDelegate 
     }
 
     func clearDelivered(roomId: String) {
-        let center = UNUserNotificationCenter.current()
-        center.getDeliveredNotifications { list in
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let list = await center.deliveredNotifications()
             let ids = list.filter { ($0.request.content.userInfo["room_id"] as? String) == roomId }.map(\.request.identifier)
             center.removeDeliveredNotifications(withIdentifiers: ids)
         }

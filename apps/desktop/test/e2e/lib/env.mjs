@@ -201,8 +201,14 @@ export async function portalSignUp(page, acct) {
  * at the portal when asked, and returns the first redirect to `scheme:` it sees (the browser
  * would hand that to the OS).
  */
+export const browserNotes = [];
+
 export async function browserSso(page, url, acct, scheme = "io.lumen.secure:") {
   let callback = null;
+  let formActionBlocked = false;
+  page.on("console", (m) => {
+    if (/form-action/.test(m.text())) formActionBlocked = true;
+  });
   const onResponse = (r) => {
     const loc = r.headers()["location"];
     if (loc && loc.startsWith(scheme) && !callback) callback = loc;
@@ -216,7 +222,16 @@ export async function browserSso(page, url, acct, scheme = "io.lumen.secure:") {
       if (await page.locator("input[name=login]").count()) {
         await page.fill("input[name=login]", acct.username);
         await page.fill("input[name=password]", acct.password);
-        await Promise.all([page.waitForNavigation({ timeout: 20_000 }).catch(() => undefined), page.locator("form button[type=submit]").last().click()]);
+        // The redirect chain ends at the app's scheme, a navigation the browser hands to the OS
+        // and never "completes": don't wait for it.
+        await page.locator("form button[type=submit]").last().click({ noWaitAfter: true });
+        for (let j = 0; j < 40 && !callback; j++) await page.waitForTimeout(250);
+        if (!callback && formActionBlocked) {
+          // The portal's CSP form-action must allow the app scheme: Chromium enforces it on the
+          // redirects that follow the login POST (fixed on the server on 2026-10-15).
+          throw new Error(`the portal's CSP form-action blocked the redirect to ${scheme} after signing in`);
+        }
+        browserNotes.push("signed in at the portal during SSO (fresh login: login form POST → … → app scheme)");
         continue;
       }
       const link = page.locator(`a[href^="${scheme}"]`);
@@ -225,12 +240,72 @@ export async function browserSso(page, url, acct, scheme = "io.lumen.secure:") {
         break;
       }
       const next = page.locator("a:has-text('Continue'), button:has-text('Continue'), button:has-text('Allow'), button:has-text('Authorize')");
-      if (await next.count()) await Promise.all([page.waitForNavigation({ timeout: 20_000 }).catch(() => undefined), next.first().click()]);
-      else await page.waitForTimeout(1000);
+      if (await next.count()) await next.first().click({ noWaitAfter: true });
+      await page.waitForTimeout(1000);
     }
   } finally {
     page.off("response", onResponse);
   }
   if (!callback) throw new Error(`no ${scheme} redirect; browser ended at ${page.url()}`);
   return callback;
+}
+
+// ---- Linux notification service (session D-Bus + org.freedesktop.Notifications) ----
+
+function pythonWithDbus() {
+  for (const py of ["python3", "python3.12", "python3.11", "python3.13"]) {
+    try {
+      execFileSync(py, ["-c", "import dbus, dbus.service, dbus.mainloop.glib; from gi.repository import GLib"], { stdio: "ignore" });
+      return py;
+    } catch {
+      /* try the next one */
+    }
+  }
+  return null;
+}
+
+/**
+ * Starts a private session bus and a notification server on it (test double of the desktop's
+ * notification daemon). Returns env additions for the app, the recorded notifications and
+ * `click(id)`, which emits ActionInvoked("default") like a desktop shell does on a click.
+ */
+export async function startNotificationService(dir) {
+  const py = pythonWithDbus();
+  if (!py) throw new Error("no Python with dbus-python and PyGObject for the test notification server");
+  const sock = path.join(dir, "session-bus");
+  const address = `unix:path=${sock}`;
+  const bus = spawn("dbus-daemon", ["--config-file=/usr/share/dbus-1/session.conf", `--address=${address}`, "--nofork", "--nopidfile"], { stdio: "ignore" });
+  for (let i = 0; i < 50 && !fs.existsSync(sock); i++) await new Promise((r) => setTimeout(r, 100));
+  const records = path.join(dir, "notifications.jsonl");
+  fs.writeFileSync(records, "");
+  const server = spawn(py, [path.join(HERE, "notification_server.py"), records], { env: { ...process.env, DBUS_SESSION_BUS_ADDRESS: address }, stdio: ["ignore", "pipe", "inherit"] });
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("notification server didn't start")), 10_000);
+    server.stdout.on("data", (d) => {
+      if (String(d).includes("ready")) {
+        clearTimeout(t);
+        resolve();
+      }
+    });
+  });
+  const libDir = path.join(APP_DIR, "test-output/deps/root/usr/lib/x86_64-linux-gnu");
+  const env = { DBUS_SESSION_BUS_ADDRESS: address, ...(fs.existsSync(libDir) ? { LD_LIBRARY_PATH: [libDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":") } : {}) };
+  return {
+    env,
+    notifications: () =>
+      fs
+        .readFileSync(records, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l)),
+    click: (id, action = "default") =>
+      execFileSync("gdbus", ["call", "--session", "--dest", "org.freedesktop.Notifications", "--object-path", "/org/freedesktop/Notifications", "--method", "org.lumen.Test.Invoke", String(id), action], {
+        env: { ...process.env, DBUS_SESSION_BUS_ADDRESS: address },
+        stdio: "ignore",
+      }),
+    stop: () => {
+      server.kill();
+      bus.kill();
+    },
+  };
 }

@@ -127,13 +127,16 @@ const SIGNED_OUT_NOTICE = "lumen-signed-out-notice";
 
 /** Reloads the app on the sign-in screen, dropping everything held in memory. */
 export function reloadSignedOut(notice: string): void {
-  try {
-    sessionStorage.setItem(SIGNED_OUT_NOTICE, notice);
-  } catch {
-    /* ignore */
-  }
-  const reload = () => window.location.replace(`${window.location.origin}/`);
-  // Desktop app: it also deletes its store key and clears the app origin's browser storage first.
+  const reload = () => {
+    try {
+      sessionStorage.setItem(SIGNED_OUT_NOTICE, notice);
+    } catch {
+      /* ignore */
+    }
+    window.location.replace(`${window.location.origin}/`);
+  };
+  // Desktop app: it also deletes its store key and clears the app origin's browser storage
+  // (session storage included) before the reload.
   const desktop = desktopApi();
   if (desktop) void desktop.signedOut().catch(() => undefined).finally(reload);
   else reload();

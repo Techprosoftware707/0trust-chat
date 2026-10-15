@@ -1,0 +1,36 @@
+/* The call widget page (mobile apps). Everything else comes from the web app's stylesheet. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  overscroll-behavior: none;
+}
+.call-widget {
+  height: 100%;
+}
+/* the phone's notch / home indicator */
+.call-widget .call-screen {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.call-widget-status {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  text-align: center;
+}
+.call-widget-title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+.call-widget-detail {
+  margin: 0;
+  color: var(--text-muted);
+  max-width: 32rem;
+}

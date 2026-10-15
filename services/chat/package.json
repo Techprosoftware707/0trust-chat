@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build:widget": "tsc -p tsconfig.json --noEmit && vite build --config vite.widget.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test": "vitest run",
@@ -28,6 +29,7 @@
     "lucide-react": "^1.57.0",
     "matrix-encrypt-attachment": "^1.0.3",
     "matrix-js-sdk": "^44.0.0",
+    "matrix-widget-api": "1.20.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

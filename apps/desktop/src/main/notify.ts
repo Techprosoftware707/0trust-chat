@@ -12,12 +12,17 @@ import { getSettings, updateSettings } from "./store.ts";
 import { brandName, showMainWindow } from "./windows.ts";
 
 const live = new Set<Notification>();
-const ROOM_ID = /^![^\s:]{1,255}:[A-Za-z0-9.\-:[\]]{1,255}$/;
+// "!opaque:server" (room versions ≤ 11) or "!opaque" (room version 12: no server part).
+const ROOM_ID = /^![^\s:/?#]{1,255}(:[A-Za-z0-9.\-:[\]]{1,255})?$/;
+
+export function isRoomId(s: string): boolean {
+  return s.length <= 300 && ROOM_ID.test(s);
+}
 
 export function parseNotification(raw: unknown): DesktopNotification | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
-  if (typeof r.title !== "string" || typeof r.body !== "string" || typeof r.roomId !== "string" || !ROOM_ID.test(r.roomId)) return null;
+  if (typeof r.title !== "string" || typeof r.body !== "string" || typeof r.roomId !== "string" || !isRoomId(r.roomId)) return null;
   return { title: r.title.slice(0, 200), body: r.body.slice(0, 1000), roomId: r.roomId, silent: r.silent === true };
 }
 

@@ -75,7 +75,14 @@ async function step(name, fn, { always = false } = {}) {
 const appHome = env.makeHome("app");
 const browserHome = env.makeHome("browser");
 const opener = env.fakeOpener(appHome);
-const appEnv = env.appEnv(appHome, opener.bin);
+if (process.platform === "linux") spawnSync("sh", [path.join(APP_DIR, "test/e2e/setup-linux-deps.sh")], { stdio: "inherit" });
+let notifyService = null;
+try {
+  notifyService = await env.startNotificationService(appHome);
+} catch (e) {
+  console.log(`(no Linux notification service for the test: ${e.message})`);
+}
+const appEnv = { ...env.appEnv(appHome, opener.bin), ...(notifyService?.env ?? {}) };
 const userData = env.userDataDir(appHome);
 const mainLog = () => {
   try {
@@ -107,6 +114,10 @@ await app.context().addInitScript(instrument);
 app.process().stdout?.on("data", (d) => fs.appendFileSync(path.join(OUT, "app-stdout.log"), d));
 app.process().stderr?.on("data", (d) => fs.appendFileSync(path.join(OUT, "app-stdout.log"), d));
 let win = await app.firstWindow();
+// Playwright occasionally attaches to the window after its first navigation committed and then
+// reports an empty URL for it; a reload resynchronises it (first run: the server picker).
+for (let i = 0; i < 50 && !win.url(); i++) await new Promise((r) => setTimeout(r, 200));
+if (!win.url()) await win.reload();
 const cspProblems = [];
 const watchPage = (p, who) => {
   p.on("console", (m) => {
@@ -123,8 +134,10 @@ const browser = await chromium.launch({
   env: { ...process.env, HOME: browserHome, no_proxy: env.noProxy(), NO_PROXY: env.noProxy() },
 });
 async function shot(name) {
-  if (win && !win.isClosed()) await win.screenshot({ path: path.join(SHOTS, `${name}.png`) });
+  // (a hidden window renders no frames: don't let a screenshot fail a step)
+  if (win && !win.isClosed()) await win.screenshot({ path: path.join(SHOTS, `${name}.png`), timeout: 5000 }).catch(() => undefined);
 }
+const showAppWindow = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith("app://lumen"))?.show());
 
 // accounts: A = desktop user, B = web user
 const A = env.account("a", "Desktop Dana");
@@ -227,6 +240,7 @@ try {
       const callback = await env.browserSso(sysPage, ssoUrl, A);
       assert.ok(callback.startsWith(`io.lumen.secure:/sso-callback?n=${nonce}&loginToken=`), `callback ${callback.replace(/loginToken=.*/, "loginToken=…")}`);
       log("  browser was redirected to io.lumen.secure:/sso-callback?n=<nonce>&loginToken=<…>");
+      for (const n of env.browserNotes) log(`  ${n}`);
       const delivered = await env.deliverAsOs(appEnv, callback);
       log(`  callback delivered as the OS would (second instance exit code ${delivered.code})`);
       await win.locator(".user-chip-id").waitFor({ timeout: T });
@@ -316,6 +330,14 @@ try {
   });
 
   await step("(e) OS notification from the main process; click opens the room", async () => {
+    try {
+      await notificationTest();
+    } finally {
+      await showAppWindow();
+    }
+  });
+
+  async function notificationTest() {
     // Turn notifications on in the web client's settings (permission via the app's handler).
     await win.getByRole("button", { name: "Settings" }).click();
     await win.getByRole("tab", { name: "Notifications" }).click();
@@ -334,35 +356,53 @@ try {
         return orig.call(this);
       };
     });
-    // Close the window: the app keeps running in the tray (window hidden, page hidden).
+    // Playwright makes pages believe they are always focused (focus emulation): turn that off
+    // so the web client sees the real window state, as it would outside the test.
+    const cdp = await win.context().newCDPSession(win);
+    await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: false });
+    // Close the window: the app keeps running in the tray (window hidden, not focused).
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith("app://lumen"))?.close());
-    await win.waitForFunction(() => document.visibilityState === "hidden", null, { timeout: 10_000 });
+    await win.waitForFunction(() => !document.hasFocus(), null, { timeout: 10_000 });
+    assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith("app://lumen"))?.isVisible()), false, "window hidden");
     const stillRunning = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
     assert.ok(stillRunning >= 1, "closing the window keeps the app running");
 
+    assert.ok(notifyService, "test notification service running");
+    const supported = await app.evaluate(({ Notification }) => Notification.isSupported());
+    assert.equal(supported, true, "Electron sees an OS notification service");
+    const before = notifyService.notifications().length;
     const text = `Ping for a notification ${Date.now()}`;
     await bPage.locator("#composer").fill(text);
     await bPage.keyboard.press("Enter");
-    await win.waitForFunction(() => true);
     let shown = [];
+    let all = [];
     for (let i = 0; i < 60 && !shown.length; i++) {
-      shown = await app.evaluate(() => globalThis.__shown.map((n) => ({ title: n.title, body: n.body, silent: n.silent })));
+      all = await app.evaluate(() => globalThis.__shown.map((n) => ({ title: n.title, body: n.body, silent: n.silent })));
+      shown = all.filter((n) => !/still running/.test(n.title));
       if (!shown.length) await new Promise((r) => setTimeout(r, 500));
     }
+    const hintShown = all.find((n) => /still running/.test(n.title));
+    log(`  first close to the tray showed the hint: "${hintShown?.title ?? "(none)"}"`);
     log("  notification(s) created by the main process:", shown);
     assert.ok(shown.length >= 1, "a notification was created");
     assert.equal(shown[0].title, B.displayName);
     assert.equal(shown[0].body, "New encrypted message", "previews are hidden by default");
     assert.ok(!JSON.stringify(shown).includes(text), "message text not in the notification");
-    const hint = mainLog().includes("still running") || true;
-    void hint;
-    // Click (emitted on the real Notification object, as the OS would)
-    await app.evaluate(() => globalThis.__shown.at(-1).emit("click"));
+    let osSide = [];
+    for (let i = 0; i < 20 && osSide.length <= before; i++) {
+      osSide = notifyService.notifications();
+      if (osSide.length <= before) await new Promise((r) => setTimeout(r, 250));
+    }
+    const delivered = osSide.slice(before).filter((n) => !/still running/.test(n.summary));
+    log("  received by the OS notification service (D-Bus):", delivered);
+    assert.ok(delivered.some((n) => n.summary === B.displayName && n.body === "New encrypted message"), "delivered over D-Bus");
+    // The user clicks it: the notification service emits ActionInvoked("default").
+    notifyService.click(delivered.at(-1).id);
     await win.waitForFunction((id) => decodeURIComponent(location.hash) === `#/room/${id}`, roomId, { timeout: 10_000 });
     const visible = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith("app://lumen"))?.isVisible());
     assert.equal(visible, true, "click shows the window again");
     log("  click on the notification showed the window and opened the room");
-  });
+  }
 
   async function hangUp() {
     for (const p of [win, bPage]) {
@@ -552,6 +592,7 @@ try {
   });
 
   await step("(g) sign-out wipes the store key and the app's browser storage; the token is revoked", async () => {
+    await showAppWindow();
     assert.ok(fs.existsSync(path.join(userData, "store-key.bin")));
     await win.getByRole("button", { name: "Sign out" }).click();
     await win.getByRole("dialog").getByRole("button", { name: "Sign out" }).click();
@@ -584,6 +625,7 @@ try {
   if (tokenB) await env.request(`${HS}/_matrix/client/v3/logout`, { method: "POST", headers: { Authorization: `Bearer ${tokenB}` } }).catch(() => undefined);
   await app.close().catch(() => undefined);
   await browser.close().catch(() => undefined);
+  notifyService?.stop();
   if (!KEEP) for (const d of [appHome, browserHome]) fs.rmSync(d, { recursive: true, force: true });
   log(`\n${passed} passed, ${failed} failed`);
   fs.writeFileSync(path.join(OUT, "e2e-report.txt"), lines.join("\n") + "\n");

@@ -1,8 +1,14 @@
 import AVFoundation
-import CallKit
+@preconcurrency import CallKit
 import Foundation
 import LumenCore
-import PushKit
+@preconcurrency import PushKit
+
+/// Carries a main-actor-only value through a `@Sendable` system callback
+/// that is used only to hop back to the main actor.
+struct MainActorBox<T>: @unchecked Sendable {
+    let value: T
+}
 
 /// CallKit and PushKit. Calls are reported to the system so they ring on the
 /// lock screen, work with Bluetooth headsets and CarPlay, and get the audio
@@ -93,15 +99,17 @@ final class CallKitController: NSObject {
         update.supportsGrouping = false
         update.supportsUngrouping = false
         update.supportsDTMF = false
+        let done = MainActorBox(value: completion)
         provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
+            let message = error?.localizedDescription
             Task { @MainActor in
-                if let error {
-                    Diagnostics.log("CallKit incoming call refused: \(error.localizedDescription)")
+                if let message {
+                    Diagnostics.log("CallKit incoming call refused: \(message)")
                     self?.calls[uuid] = nil
-                    completion?(false)
+                    done.value?(false)
                 } else {
                     self?.scheduleRingTimeout(uuid: uuid, ring: ring)
-                    completion?(true)
+                    done.value?(true)
                 }
             }
         }
@@ -161,7 +169,7 @@ final class CallKitController: NSObject {
     /// switches between them.
     static func configureAudioSession(video: Bool) {
         let s = AVAudioSession.sharedInstance()
-        var options: AVAudioSession.CategoryOptions = [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay]
+        var options: AVAudioSession.CategoryOptions = [.allowBluetoothHFP, .allowBluetoothA2DP, .allowAirPlay]
         if video { options.insert(.defaultToSpeaker) }
         do {
             try s.setCategory(.playAndRecord, mode: video ? .videoChat : .voiceChat, options: options)
@@ -244,9 +252,10 @@ extension CallKitController: PKPushRegistryDelegate {
                 let uuid = UUID()
                 let u = CXCallUpdate()
                 u.localizedCallerName = "Call"
-                provider.reportNewIncomingCall(with: uuid, update: u) { [provider] _ in
-                    provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
-                    completion()
+                let box = MainActorBox(value: (provider: provider, completion: completion))
+                provider.reportNewIncomingCall(with: uuid, update: u) { _ in
+                    box.value.provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
+                    box.value.completion()
                 }
                 return
             }

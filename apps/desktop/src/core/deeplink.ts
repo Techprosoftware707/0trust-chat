@@ -36,6 +36,8 @@ function serverPartOk(id: string): boolean {
 /** Validates a Matrix identifier and returns its route. */
 export function routeIdentifier(id: string): DeepLinkRoute {
   if (!id || id.length > 255 || /\s/.test(id)) return REJECT;
+  // Room version 12 room IDs have no server part ("!<hash>").
+  if (id[0] === "!" && !id.includes(":")) return /^![A-Za-z0-9_-]{8,255}$/.test(id) ? { type: "room", id } : REJECT;
   if (!serverPartOk(id)) return REJECT;
   const local = id.slice(1, id.indexOf(":"));
   switch (id[0]) {

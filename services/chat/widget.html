@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      The call widget runs in the mobile apps' WebView, served from the app bundle without
+      HTTP headers, so its Content-Security-Policy is here: same-origin scripts only (no inline
+      script, no eval), media keys and tokens never leave through anything but the widget API.
+      connect-src allows the deployment's LiveKit SFU (wss:) and its HTTPS API.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https: wss:; worker-src 'self' blob:; child-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex" />
+    <title>Call</title>
+    <!-- no favicon request (there is no server to ask) -->
+    <link rel="icon" href="data:," />
+    <script type="module" src="/src/widget/main.tsx"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>The call needs JavaScript.</noscript>
+  </body>
+</html>

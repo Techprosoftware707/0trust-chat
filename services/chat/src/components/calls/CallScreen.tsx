@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import type { CallParticipant, CallSession, CallSnapshot } from "../../calls/CallSession";
 import { dismissEndedCall } from "../../calls/controller";
+import { callEncryptionLabel } from "../../calls/e2ee";
 import { setCallView, useCallSnapshot, useCallView } from "../../calls/store";
 import { formatDuration } from "../../lib/format";
 import { useMatrix } from "../../matrix/context";
@@ -150,47 +151,46 @@ export function CallTile({ p, large, screen, avatarMxc }: { p: CallParticipant; 
 }
 
 function EncryptionStatus({ s }: { s: CallSnapshot }) {
-  if (s.phase === "ended") return null;
-  if (!s.e2ee.enabled) {
-    return s.phase === "connected" ? (
-      <span className="badge badge-danger call-badge">
-        <ShieldAlert aria-hidden="true" /> Not encrypted
-      </span>
-    ) : null;
+  switch (callEncryptionLabel(s)) {
+    case "none":
+      return null;
+    case "not-encrypted":
+      return (
+        <span className="badge badge-danger call-badge">
+          <ShieldAlert aria-hidden="true" /> Not encrypted
+        </span>
+      );
+    case "setting-up":
+      return (
+        <span className="badge call-badge">
+          <Lock aria-hidden="true" /> Setting up encryption…
+        </span>
+      );
+    case "ready":
+      return (
+        <span className="badge call-badge" title="Your media is encrypted on this device. The badge turns green once others' media is being decrypted.">
+          <Lock aria-hidden="true" /> Encryption ready
+        </span>
+      );
+    case "exchanging-keys":
+      return (
+        <span className="badge call-badge" title="Keys are being exchanged with the people who just joined.">
+          <Lock aria-hidden="true" /> Exchanging encryption keys…
+        </span>
+      );
+    case "encrypted":
+      return (
+        <span className="badge badge-success call-badge" data-testid="call-e2ee" title="Your media is encrypted on this device, and every other participant's media is being decrypted with keys exchanged over encrypted Matrix messages.">
+          <Lock aria-hidden="true" /> End-to-end encrypted
+        </span>
+      );
+    case "incomplete":
+      return (
+        <span className="badge badge-warning call-badge" data-testid="call-e2ee-warning">
+          <ShieldAlert aria-hidden="true" /> Encryption incomplete: {s.e2ee.remoteEncrypted} of {s.e2ee.remoteTotal} decrypting
+        </span>
+      );
   }
-  if (!s.e2ee.ownKey) {
-    return (
-      <span className="badge call-badge">
-        <Lock aria-hidden="true" /> Setting up encryption…
-      </span>
-    );
-  }
-  if (s.e2ee.remoteTotal === 0) {
-    return (
-      <span className="badge call-badge" title="Your media is encrypted on this device. The badge turns green once others' media is being decrypted.">
-        <Lock aria-hidden="true" /> Encryption ready
-      </span>
-    );
-  }
-  if (s.e2ee.remoteEncrypted < s.e2ee.remoteTotal && s.e2ee.remoteEncrypted + s.e2ee.remoteWaiting === s.e2ee.remoteTotal) {
-    return (
-      <span className="badge call-badge" title="Keys are being exchanged with the people who just joined.">
-        <Lock aria-hidden="true" /> Exchanging encryption keys…
-      </span>
-    );
-  }
-  if (s.e2ee.remoteEncrypted === s.e2ee.remoteTotal) {
-    return (
-      <span className="badge badge-success call-badge" data-testid="call-e2ee" title="Your media is encrypted on this device, and every other participant's media is being decrypted with keys exchanged over encrypted Matrix messages.">
-        <Lock aria-hidden="true" /> End-to-end encrypted
-      </span>
-    );
-  }
-  return (
-    <span className="badge badge-warning call-badge" data-testid="call-e2ee-warning">
-      <ShieldAlert aria-hidden="true" /> Encryption incomplete: {s.e2ee.remoteEncrypted} of {s.e2ee.remoteTotal} decrypting
-    </span>
-  );
 }
 
 function CtlButton({ label, pressed, onClick, children, variant, disabled, title }: { label: string; pressed?: boolean; onClick: () => void; children: ReactNode; variant?: "off" | "danger" | "warn"; disabled?: boolean; title?: string }) {
@@ -401,9 +401,14 @@ function Banners({ session, s }: { session: CallSession; s: CallSnapshot }) {
   );
 }
 
-export function CallScreen({ session }: { session: CallSession }) {
+/**
+ * `embedded`: the screen fills a native app's call view (the mobile call widget), which owns the
+ * window: no full-screen or minimise controls, always the full view.
+ */
+export function CallScreen({ session, embedded = false }: { session: CallSession; embedded?: boolean }) {
   const s = useCallSnapshot(session)!;
-  const view = useCallView();
+  const storedView = useCallView();
+  const view = embedded ? "full" : storedView;
   const { client } = useMatrix();
   const ui = useUi();
   const [panel, setPanel] = useState<Panel>(null);
@@ -476,12 +481,16 @@ export function CallScreen({ session }: { session: CallSession }) {
           {panelBtn("people", `Participants (${s.participants.length})`, <Users aria-hidden="true" />)}
           {panelBtn("diagnostics", "Call diagnostics", <Activity aria-hidden="true" />)}
           {panelBtn("settings", "Audio and video settings", <Settings aria-hidden="true" />)}
-          <button type="button" className="icon-btn call-top-btn" aria-label={fullscreen ? "Exit full screen" : "Full screen"} title={fullscreen ? "Exit full screen" : "Full screen"} onClick={toggleFullscreen}>
-            {fullscreen ? <Minimize aria-hidden="true" /> : <Maximize aria-hidden="true" />}
-          </button>
-          <button type="button" className="icon-btn call-top-btn" aria-label="Minimise call (keep chatting)" title="Minimise call" onClick={() => setCallView("mini")}>
-            <Minimize2 aria-hidden="true" />
-          </button>
+          {embedded ? null : (
+            <>
+              <button type="button" className="icon-btn call-top-btn" aria-label={fullscreen ? "Exit full screen" : "Full screen"} title={fullscreen ? "Exit full screen" : "Full screen"} onClick={toggleFullscreen}>
+                {fullscreen ? <Minimize aria-hidden="true" /> : <Maximize aria-hidden="true" />}
+              </button>
+              <button type="button" className="icon-btn call-top-btn" aria-label="Minimise call (keep chatting)" title="Minimise call" onClick={() => setCallView("mini")}>
+                <Minimize2 aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       </header>
       <Banners session={session} s={s} />

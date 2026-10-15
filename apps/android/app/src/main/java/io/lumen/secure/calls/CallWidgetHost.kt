@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -157,21 +158,7 @@ class CallWidgetHost(
     }
 
     private fun installBridge() {
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                assetLoader.shouldInterceptRequest(request.url)
-
-            // The widget never navigates; anything else is refused.
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-                !request.url.toString().startsWith(CallWidgetUrl.ASSET_ORIGIN + "/call-widget/")
-
-            // The renderer crashed or was killed for memory: end the call instead of crashing the app.
-            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
-                LumenLog.w("call", "WebView renderer gone (crash=${detail.didCrash()})")
-                listener.onFatal(Failure.RENDERER_GONE)
-                return true
-            }
-        }
+        webView.webViewClient = WidgetWebViewClient()
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 val fromWidget = request.origin.toString().trimEnd('/') == CallWidgetUrl.ASSET_ORIGIN
@@ -205,6 +192,25 @@ class CallWidgetHost(
                 }
                 is BridgeInbound.Drop -> LumenLog.d("call", "dropped widget message: ${m.reason}")
             }
+        }
+    }
+
+    // onRenderProcessGone is implemented below; the androidx.webkit detector flags the Kotlin
+    // supertype constructor call `WebViewClient()` itself.
+    @SuppressLint("MissingOnRenderProcessGone")
+    private inner class WidgetWebViewClient : WebViewClient() {
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+            assetLoader.shouldInterceptRequest(request.url)
+
+        // The widget never navigates; anything else is refused.
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+            !request.url.toString().startsWith(CallWidgetUrl.ASSET_ORIGIN + "/call-widget/")
+
+        // The renderer crashed or was killed for memory: end the call instead of crashing the app.
+        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+            LumenLog.w("call", "WebView renderer gone (crash=${detail.didCrash()})")
+            listener.onFatal(Failure.RENDERER_GONE)
+            return true
         }
     }
 

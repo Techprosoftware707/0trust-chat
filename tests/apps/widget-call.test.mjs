@@ -33,7 +33,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { acceptIncoming, hangUpAll, remoteTiles, waitE2EE, waitPhase } from "../calls/lib/callui.mjs";
-import { BASE, ensureLab, hearRemoteTones, HS, launchClient, mx, NO_NETNS, openRoom, REPO, RESULTS, sampleRates, signIn, signOutServer, T } from "../calls/lib/lab.mjs";
+import { BASE, hearRemoteTones, HS, lab, launchClient, mx, NO_NETNS, openRoom, REPO, RESULTS, sampleRates, signIn, signOutServer, T } from "../calls/lib/lab.mjs";
 import { startHarness } from "./lib/harness.mjs";
 
 const CA = process.env.LUMEN_CA_BUNDLE || "/etc/lumen/ca/bundle.crt";
@@ -102,10 +102,38 @@ const MSC4533_GET_TOKEN = "org.matrix.msc4533.rtc_livekit_get_token";
 const livekitIdentity = (userId, memberId) => createHash("sha256").update(JSON.stringify([userId, memberId])).digest("base64").replace(/=+$/, "");
 const jwtClaims = (jwt) => JSON.parse(Buffer.from(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"));
 
-/** Portal sign-up + SSO with the apps' redirect URI (tests/apps/lib/app_login_token.py). */
-function appLoginTokens(count, existing) {
-  const args = [path.join(REPO, "tests/apps/lib/app_login_token.py"), "--base", BASE, "--ca", CA, "--count", String(count)];
-  if (existing) args.push("--username", existing.username, "--password", existing.password);
+/**
+ * The native user's portal account. Sign-ups are rate-limited per IP (10/h), so, like the call
+ * suites, the account is created once from a lab namespace with the shared signIn() helper
+ * and cached (tests/calls/output/accounts.json, key "appwidgetnative"); the web session that
+ * creates it is signed out again.
+ */
+const CALL_ACCOUNTS = path.join(REPO, "tests/calls/output/accounts.json");
+async function nativeAccount() {
+  const read = () => {
+    try {
+      return JSON.parse(fs.readFileSync(CALL_ACCOUNTS, "utf8")).appwidgetnative ?? null;
+    } catch {
+      return null;
+    }
+  };
+  if (!read()) {
+    const c = await launchClient({ ns: "lab-c", label: "signup" });
+    try {
+      await signIn(c, "appwidgetnative", "Phone Lumen");
+      await signOutServer(c);
+    } finally {
+      await c.browser.close();
+    }
+  }
+  const acct = read();
+  assert.ok(acct, "native account created");
+  return acct;
+}
+
+/** Login tokens from SSO with the apps' redirect URI (tests/apps/lib/app_login_token.py). */
+function appLoginTokens(acct, count) {
+  const args = [path.join(REPO, "tests/apps/lib/app_login_token.py"), "--base", BASE, "--ca", CA, "--count", String(count), "--username", acct.username, "--password", acct.password];
   return JSON.parse(execFileSync("python3", args, { encoding: "utf8", timeout: 120_000 }));
 }
 
@@ -146,18 +174,34 @@ async function connectBridge(client, harness, origin) {
       /* about:blank etc. */
     }
     if (o !== origin || source.frame !== source.page.mainFrame()) return;
+    // WidgetBridge.classify (apps/android/core/.../calls/WidgetBridge.kt), same rules on iOS
     let msg;
     try {
       msg = JSON.parse(json);
     } catch {
+      msg = null;
+    }
+    if (!msg || typeof msg !== "object" || Array.isArray(msg)) {
       bridge.other.push({ invalid: String(json).slice(0, 80) });
       return;
     }
-    if ((msg.api === "fromWidget" && msg.response === undefined) || (msg.api === "toWidget" && msg.response !== undefined)) {
+    if (msg.type === "io.lumen.call_state") {
+      const body = msg.data && typeof msg.data === "object" ? msg.data : msg;
+      if (["connecting", "connected", "reconnecting", "ended"].includes(body.state)) bridge.callStates.push({ at: Date.now(), ...body, type: undefined });
+      else bridge.other.push({ invalidCallState: true });
+      return;
+    }
+    const forDriver =
+      typeof msg.api === "string" &&
+      msg.widgetId === harness.info.widget_id &&
+      typeof msg.requestId === "string" &&
+      msg.requestId !== "" &&
+      typeof msg.action === "string" &&
+      msg.action !== "" &&
+      ((msg.api === "fromWidget" && !("response" in msg)) || (msg.api === "toWidget" && msg.response && typeof msg.response === "object" && !Array.isArray(msg.response)));
+    if (forDriver) {
       bridge.fromWidget.push(msg);
       harness.send(json); // WidgetDriverHandle.send(json), verbatim
-    } else if (msg.type === "io.lumen.call_state") {
-      bridge.callStates.push({ at: Date.now(), ...msg.data });
     } else {
       bridge.other.push(msg);
     }
@@ -176,7 +220,8 @@ async function connectBridge(client, harness, origin) {
       }
     });
   });
-  bridge.action = (action) => client.page.evaluate(([m, o]) => window.postMessage(m, o), [{ type: "io.lumen.call_action", data: { action } }, origin]);
+  // WidgetBridge.actionMessage: {"type":"io.lumen.call_action","action":…}, via postMessage
+  bridge.action = (action) => client.page.evaluate(([m, o]) => window.postMessage(m, o), [{ type: "io.lumen.call_action", action }, origin]);
   bridge.lastState = () => bridge.callStates[bridge.callStates.length - 1] ?? null;
   bridge.waitState = async (pred, timeout = T, what = "call state") => {
     const t0 = Date.now();
@@ -228,7 +273,19 @@ function assertInbound(rows, label) {
 
 // ---------------------------------------------------------------------------------------------
 
-log(`lab: ${ensureLab().replace(/\n/g, " | ")}`);
+/**
+ * The lab namespaces (tests/calls/lab.sh), created if missing. Unlike the call suites'
+ * ensureLab() this does not reset shaping or blocks in the namespaces, so it can't disturb a
+ * call suite running at the same time; this test uses lab-a (phone), lab-b (web), lab-c.
+ */
+function checkLab() {
+  if (NO_NETNS) return "no network namespaces (--no-netns): all clients share the host network";
+  let status = lab("status");
+  if (!/lab-a: 10\.200\.0\.11/.test(status) || !/lab-c: 10\.200\.0\.13/.test(status)) status = (lab("up"), lab("status"));
+  return status;
+}
+
+log(`lab: ${checkLab().replace(/\n/g, " | ")}`);
 log(`widget bundle: ${WIDGET_DIR} (${fs.existsSync(path.join(WIDGET_DIR, "index.html")) ? "present" : "MISSING — run npm run build:widget"})`);
 let web = null;
 let phone = null;
@@ -247,8 +304,10 @@ try {
     log(`web user ${web.userId}, device ${web.deviceId}`);
   });
 
-  await step("native user: portal sign-up, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens", async () => {
-    nativeAcct = appLoginTokens(2);
+  await step("native user: portal account, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens", async () => {
+    const acct = await nativeAccount();
+    nativeAcct = appLoginTokens(acct, 2);
+    assert.equal(nativeAcct.user_id, acct.userId);
     assert.equal(nativeAcct.login_tokens.length, 2);
     log(`native user ${nativeAcct.user_id}; got ${nativeAcct.login_tokens.length} single-use login tokens from the app-scheme callback`);
   });
