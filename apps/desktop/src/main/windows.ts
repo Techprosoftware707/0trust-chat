@@ -201,6 +201,11 @@ export function hideLockView(): void {
 // ---------------------------------------------------------------------------------------
 
 export function openSettingsWindow(): void {
+  if (ctx.locked) {
+    // Unlock first: the settings window would bypass the lock (server, PIN, preferences).
+    showMainWindow();
+    return;
+  }
   if (ctx.settingsWindow && !ctx.settingsWindow.isDestroyed()) {
     ctx.settingsWindow.show();
     ctx.settingsWindow.focus();

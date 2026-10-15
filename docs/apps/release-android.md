@@ -91,7 +91,7 @@ receive this data unless it operates the server, e.g. the hosted service):
 |---|---|
 | Does the app collect or share user data? | **Yes, collected** (sent to the user's chosen Matrix server to provide the service). Not shared with third parties, except push metadata to Google (below). |
 | Encrypted in transit? | Yes (TLS; message content additionally end-to-end encrypted). |
-| Can users request deletion? | Yes: sign-out deletes local data; account deletion/data requests through the server operator's portal (`account_url`). |
+| Can users request deletion? | Yes: sign-out deletes local data; Settings → "Delete account…" opens the operator's account-deletion page (`account_delete_url`, shown when the server advertises it), which also serves as the "account deletion" link Play requires (enter the same URL in the Data safety form). |
 | Personal info | Name (display name), user IDs — collected, required, app functionality. E-mail is handled by the portal in the browser, not by the app. |
 | Messages | "Other in-app messages" — collected (stored on the server **end-to-end encrypted**; the server cannot read them), app functionality. |
 | Photos/videos, files | collected only when the user sends them, end-to-end encrypted, app functionality. |

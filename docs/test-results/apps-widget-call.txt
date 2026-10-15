@@ -2,31 +2,40 @@ lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdis
 widget bundle: /home/user/0trust-chat/services/chat/dist-widget (present)
 
 --- web user signs in to https://app.lumen.test (lab-b) through portal SSO
-web user @callappwidgetweb2c534a:lumen.test, device GXSMLQKZHH
-PASS web user signs in to https://app.lumen.test (lab-b) through portal SSO (7.5 s)
+web user @callappwidgetweb2c534a:lumen.test, device GYKLTVDVCK
+PASS web user signs in to https://app.lumen.test (lab-b) through portal SSO (7.8 s)
 
 --- native user: portal account, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens
 native user @callappwidgetnative812576:lumen.test; got 2 single-use login tokens from the app-scheme callback
-PASS native user: portal account, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens (1.4 s)
+PASS native user: portal account, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens (1.6 s)
 
 --- web user opens an encrypted DM with the native user (normal web client UI)
 DM !SnKdfraoOpmPUdZ7Ozob1we-nLI3n_Pg8tkvEr_19sM, encryption m.megolm.v1.aes-sha2
-PASS web user opens an encrypted DM with the native user (normal web client UI) (0.9 s)
+PASS web user opens an encrypted DM with the native user (normal web client UI) (1.0 s)
 
 --- negative: the harness grants exactly the apps' capability set and refuses everything beyond it
      [probe] INFO lumen_widget_harness: trusting additional root certificate(s) count=135 file=/etc/lumen/ca/bundle.crt
-     [probe] INFO lumen_widget_harness: logged in user_id=@callappwidgetnative812576:lumen.test device_id=POLZCMXLPQ
-     [probe] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="POLZCMXLPQ" curve25519_key="curve25519:tYEw/++WkJ7f8pifx9ycAO9kgLTur8PqVt6a4cWe2Co" ed25519_key="ed25519:dEIYS8BKQeURcV5xBmpuP4MHFBMEIL8eB5qlhQdWk8Y"
+     [probe] INFO lumen_widget_harness: logged in user_id=@callappwidgetnative812576:lumen.test device_id=VOKSEWBZZZ
+     [probe] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="VOKSEWBZZZ" curve25519_key="curve25519:S5PLTJ3T+2VbxjbT3+szidrfxi0fXotjaDC40438xAY" ed25519_key="ed25519:4yfxdefNgDGOURvbnOyM4nBhlvl37GjHf2nYAp/6rQo"
      [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [probe] WARN lumen_widget_harness: cross-signing not complete: Some(CrossSigningStatus { has_master: false, has_self_signing: false, has_user_signing: false })
-     [probe] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="POLZCMXLPQ" curve25519_key="curve25519:tYEw/++WkJ7f8pifx9ycAO9kgLTur8PqVt6a4cWe2Co" ed25519_key="ed25519:dEIYS8BKQeURcV5xBmpuP4MHFBMEIL8eB5qlhQdWk8Y"
+     [probe] INFO lumen_widget_harness: joining the room
+     [probe] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="VOKSEWBZZZ" curve25519_key="curve25519:S5PLTJ3T+2VbxjbT3+szidrfxi0fXotjaDC40438xAY" ed25519_key="ed25519:4yfxdefNgDGOURvbnOyM4nBhlvl37GjHf2nYAp/6rQo"
      [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [probe] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!VmZ9UkpIWQUK-qjDdHXuX5EDknlRWF6nU9jHKQGT9po" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!eo476Dy8PP4lwYFxxWqscuv5kWLMigY0h6o-Zyh5GYI" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!jhDDY4zjPlLtOzXgNnNWdHPhVvXZ7IOYFqvM4PNdvzg" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!oqa6k_nHEr7M8OlJfG9qz8zBiwAPpn2Mago9nlV6ET4" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!wRXXmKUDKVWzeBPBF60IFLDEkXWWEneZlY4G9jH2QD4" }
      [probe] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [probe] INFO lumen_widget_harness: room joined encrypted=true
+     [probe] INFO lumen_widget_harness: room joined encrypted=true sync=Running
      [probe] INFO lumen_widget_harness: ready: widget driver running (widget id lumen-call-probe)
-probe harness: @callappwidgetnative812576:lumen.test device POLZCMXLPQ, room encrypted=true, matrix-rust-sdk 2a3db80e99fe322b9849325a182dc8a634fb20d4
+     [probe] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
+     [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+probe harness: @callappwidgetnative812576:lumen.test device VOKSEWBZZZ, room encrypted=true, matrix-rust-sdk 2a3db80e99fe322b9849325a182dc8a634fb20d4
 driver API versions: 0.0.1, 0.0.2, org.matrix.msc2762, org.matrix.msc2762_update_state, org.matrix.msc2871, org.matrix.msc3819, org.matrix.msc4039, org.matrix.msc4515, org.matrix.msc4533
      [probe] INFO lumen_widget_harness: capabilities negotiated (Element Call required set) requested=40 granted=31
      [probe] INFO lumen_widget_harness: capabilities refused (not in the required set): ["org.matrix.msc2762.receive.event:m.room.message", "org.matrix.msc2762.receive.state_event:m.room.power_levels", "org.matrix.msc3819.receive.to_device:m.room_key", "org.matrix.msc2762.send.event:m.room.message", "org.matrix.msc2762.send.event:m.room.message#m.text", "org.matrix.msc2762.send.state_event:m.room.name", "org.matrix.msc2762.send.state_event:m.room.power_levels", "org.matrix.msc2762.send.state_event:org.matrix.msc3401.call.member#_@someone:lumen.test_OTHER_m.call", "org.matrix.msc3819.send.to_device:m.room_key_request"]
@@ -40,104 +49,93 @@ read m.room.message → error: Not allowed to read message-like event
      [probe] WARN lumen_widget_harness::native_rtc: native: refused org.matrix.msc4533.rtc_livekit_get_token: Tokens are only issued for the widget's own room
      [probe] WARN lumen_widget_harness::native_rtc: native: refused org.matrix.msc4533.rtc_livekit_get_token: Tokens are only issued for this device's call membership
      [probe] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4533.rtc_livekit_get_token
-own-room token: identity 8y/oHqQp… (pseudonymous hash), valid 60 min
+own-room token: identity rg+b/9Nm… (pseudonymous hash), valid 60 min
      [probe] INFO lumen_widget_harness: terminated
      [probe] INFO lumen_widget_harness: stdin closed (widget gone)
      [probe] INFO lumen_widget_harness: logged out (device deleted)
 probe harness stopped (exit {"code":0,"signal":null})
-PASS negative: the harness grants exactly the apps' capability set and refuses everything beyond it (1.1 s)
+PASS negative: the harness grants exactly the apps' capability set and refuses everything beyond it (1.8 s)
 
 --- native: the harness signs in (m.login.token), trusts the dev CA, joins the DM and builds the widget URL
      [native] INFO lumen_widget_harness: trusting additional root certificate(s) count=135 file=/etc/lumen/ca/bundle.crt
-     [native] INFO lumen_widget_harness: logged in user_id=@callappwidgetnative812576:lumen.test device_id=WAQFZAKBJF
-     [native] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="WAQFZAKBJF" curve25519_key="curve25519:Carx0Pzniaszh7C1xlo3ZDOlyxxbj/Zdkk58IGiLPyY" ed25519_key="ed25519:rooy9peZD0KkOJwecwxWfDa9pQqNIcQQ7rIHV6yxGZ8"
+     [native] INFO lumen_widget_harness: logged in user_id=@callappwidgetnative812576:lumen.test device_id=HFSKETFVFZ
+     [native] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="HFSKETFVFZ" curve25519_key="curve25519:qbFR177n36k1GN2bUBSlw4sIsy/z8yJrbZpLra+LQVk" ed25519_key="ed25519:NrxeTUCZ92cS/VSI7YVSTpaLvw0J3Vo8ho3B2LdN7nc"
      [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [native] WARN lumen_widget_harness: cross-signing not complete: Some(CrossSigningStatus { has_master: false, has_self_signing: false, has_user_signing: false })
-     [native] WARN matrix_sdk_crypto::identities::manager: Our own device might have been deleted user_id="@callappwidgetnative812576:lumen.test" device_id="WAQFZAKBJF" curve25519_key="curve25519:Carx0Pzniaszh7C1xlo3ZDOlyxxbj/Zdkk58IGiLPyY" ed25519_key="ed25519:rooy9peZD0KkOJwecwxWfDa9pQqNIcQQ7rIHV6yxGZ8"
+     [native] INFO lumen_widget_harness: joining the room
      [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] INFO lumen_widget_harness: room joined encrypted=true
+     [native] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [native] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!VmZ9UkpIWQUK-qjDdHXuX5EDknlRWF6nU9jHKQGT9po" }
+     [native] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!eo476Dy8PP4lwYFxxWqscuv5kWLMigY0h6o-Zyh5GYI" }
+     [native] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!jhDDY4zjPlLtOzXgNnNWdHPhVvXZ7IOYFqvM4PNdvzg" }
+     [native] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!oqa6k_nHEr7M8OlJfG9qz8zBiwAPpn2Mago9nlV6ET4" }
+     [native] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!wRXXmKUDKVWzeBPBF60IFLDEkXWWEneZlY4G9jH2QD4" }
+     [native] INFO lumen_widget_harness: room joined encrypted=true sync=Running
      [native] INFO lumen_widget_harness: ready: widget driver running (widget id lumen-call)
+     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
+     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
 widget URL params: widgetId, parentUrl, roomId, userId, deviceId, baseUrl, lang, theme, intent, video, notify
-PASS native: the harness signs in (m.login.token), trusts the dev CA, joins the DM and builds the widget URL (1.0 s)
+PASS native: the harness signs in (m.login.token), trusts the dev CA, joins the DM and builds the widget URL (1.4 s)
 
 --- widget page (lab-a, http://localhost) connects over the native bridge; capabilities negotiated
+     [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
      [native] INFO lumen_widget_harness: capabilities negotiated (Element Call required set) requested=15 granted=31
      [native] INFO lumen_widget_harness::native_rtc: native: granted org.matrix.msc4533.rtc_livekit_get_token (own room, own member ID only)
-widget requested 15, approved 32
-requested but not approved: []
-FAIL widget page (lab-a, http://localhost) connects over the native bridge; capabilities negotiated (0.9 s)
-     AssertionError [ERR_ASSERTION]: SFU token capability requested and approved
-         at file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:451:12
-         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-         at async step (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:63:5)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:436:3
+widget requested 17, approved 32
+requested but not approved: ["org.matrix.msc2762.timeline:!SnKdfraoOpmPUdZ7Ozob1we-nLI3n_Pg8tkvEr_19sM"]
+PASS widget page (lab-a, http://localhost) connects over the native bridge; capabilities negotiated (1.3 s)
 
 --- widget starts the call (ring) and joins it over MatrixRTC through the Rust SDK
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-FAIL widget starts the call (ring) and joins it over MatrixRTC through the Rust SDK (90.1 s)
-     Error: timed out waiting for call_state connected; states: [{"at":1792050319138,"state":"connecting","video":true,"muted":false,"e2ee":"unknown","e2eeLabel":"none","remoteTotal":0,"remoteEncrypted":0,"ringing":false,"reason":null,"error":false},{"at":1792050319346,"state":"ended","video":false,"muted":true,"e2ee":"unknown","e2eeLabel":"none","remoteTotal":0,"remoteEncrypted":0,"ringing":false,"reason":"You're not a member of this conversation.","error":true}]
-         at bridge.waitState (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:231:44)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:457:23
+     [native] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4515.get_rtc_transports
+     [native] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4533.rtc_livekit_get_token
+call_state sequence: connecting → connected; video=true muted=false
+FAIL widget starts the call (ring) and joins it over MatrixRTC through the Rust SDK (0.6 s)
+     AssertionError [ERR_ASSERTION]: membership state of the widget's device: {"errcode":"M_NOT_FOUND","error":"Event not found."}
+     
+     404 !== 200
+     
+         at file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:466:12
+         at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
          at async step (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:63:5)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:456:3
+         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:460:3
 
 --- web user answers the ring in the normal web client and joins the same call
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-FAIL web user answers the ring in the normal web client and joins the same call (60.0 s)
-     locator.waitFor: Timeout 60000ms exceeded.
-     Call log:
-     [2m  - waiting for locator('.incoming-call').first() to be visible[22m
-     
-         at acceptIncoming (/home/user/0trust-chat/tests/calls/lib/callui.mjs:27:14)
-         at /home/user/0trust-chat/tests/apps/widget-call.test.mjs:472:11
-         at async step (/home/user/0trust-chat/tests/apps/widget-call.test.mjs:63:5)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:470:3
+web call status: 0:00
+PASS web user answers the ring in the normal web client and joins the same call (2.3 s)
 
 --- E2EE on both sides, with media keys exchanged as Olm-encrypted to-device messages through the Rust SDK
+     [native] WARN matrix_sdk_crypto::machine: Received an unexpected encrypted to-device event
      [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-FAIL E2EE on both sides, with media keys exchanged as Olm-encrypted to-device messages through the Rust SDK (60.0 s)
-     locator.waitFor: Timeout 60000ms exceeded.
-     Call log:
-     [2m  - waiting for locator('[data-testid="call-e2ee"]') to be visible[22m
-     
-         at waitE2EE (/home/user/0trust-chat/tests/calls/lib/callui.mjs:39:58)
-         at /home/user/0trust-chat/tests/apps/widget-call.test.mjs:478:11
-         at step (/home/user/0trust-chat/tests/apps/widget-call.test.mjs:63:11)
-         at /home/user/0trust-chat/tests/apps/widget-call.test.mjs:477:9
+web UI: "End-to-end encrypted"; native tile encryption=encrypted key index=0
+widget call_state: e2ee=encrypted remoteEncrypted=1/1
+widget UI: "End-to-end encrypted"
+media keys: 1 received by the widget (encrypted flag: true, senders: @callappwidgetweb2c534a:lumen.test), 2 sent (encrypted flag: true)
+PASS E2EE on both sides, with media keys exchanged as Olm-encrypted to-device messages through the Rust SDK (9.3 s)
 
 --- media flows both ways: inbound RTP audio and video on both sides (getStats), tones identified by FFT
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-FAIL media flows both ways: inbound RTP audio and video on both sides (getStats), tones identified by FFT (4.0 s)
-     AssertionError [ERR_ASSERTION]: widget: no inbound audio with bytes and new packets ()
-         at assertInbound (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:269:10)
-         at file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:501:16
-         at async step (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:63:5)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:499:3
+widget inbound: audio audio/opus bytes=87639 packets=669 kbps=53; video video/VP8 bytes=541864 packets=599 kbps=369 640x360 framesDecoded=240
+widget outbound: audio audio/opus bytes=103713 packets=791 kbps=53; video video/VP8 bytes=1327055 packets=1411 kbps=850 640x360 framesDecoded=-; video video/VP8 bytes=309457 packets=399 kbps=150 320x180 framesDecoded=-; video video/VP8 bytes=123815 packets=145 kbps=248 1280x720 framesDecoded=-
+web inbound: audio audio/opus bytes=94189 packets=719 kbps=55; video video/VP8 bytes=628337 packets=655 kbps=368 1280x720 framesDecoded=228
+web outbound: audio audio/opus bytes=90234 packets=688 kbps=54; video video/VP8 bytes=449476 packets=529 kbps=351 320x180 framesDecoded=-; video video/VP8 bytes=800437 packets=946 kbps=719 640x360 framesDecoded=-; video video/VP8 bytes=0 packets=1 kbps=0 ?x? framesDecoded=-
+widget receives audio 53 kbit/s, video 640x360; web receives audio 55 kbit/s, video 1280x720
+web hears: [{"participant":"@callappwidgetnative812576:lumen.test","name":"Phone Lumen","source":"microphone","medianPeakHz":441,"audibleFraction":0.9,"meanRms":0.0201}]
+widget hears: [{"participant":"@callappwidgetweb2c534a:lumen.test","name":"Web Lumen","source":"microphone","medianPeakHz":662,"audibleFraction":1,"meanRms":0.023}]
+PASS media flows both ways: inbound RTP audio and video on both sides (getStats), tones identified by FFT (9.7 s)
 
 --- hang-up from the native side (io.lumen.call_action hangup) ends the widget's call; the web user sees the leave
-     [native] WARN matrix_sdk_crypto::backups: Trying to backup room keys but no backup key was found
-FAIL hang-up from the native side (io.lumen.call_action hangup) ends the widget's call; the web user sees the leave (30.1 s)
-     Error: timed out waiting for call_state ended; states: [{"at":1792050319138,"state":"connecting","video":true,"muted":false,"e2ee":"unknown","e2eeLabel":"none","remoteTotal":0,"remoteEncrypted":0,"ringing":false,"reason":null,"error":false},{"at":1792050319346,"state":"ended","video":false,"muted":true,"e2ee":"unknown","e2eeLabel":"none","remoteTotal":0,"remoteEncrypted":0,"ringing":false,"reason":"You're not a member of this conversation.","error":true}]
-         at bridge.waitState (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:231:44)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:521:19
-         at async step (file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:63:5)
-         at async file:///home/user/0trust-chat/tests/apps/widget-call.test.mjs:518:3
+widget call_state: ended (You left the call)
+web call status: The other person left the call
+widget membership state after hang-up: {}
+PASS hang-up from the native side (io.lumen.call_action hangup) ends the widget's call; the web user sees the leave (2.1 s)
 
 --- bridge hygiene: no CSP violations or page errors in the widget, nothing undeliverable
-bridge: 5 widget → driver messages, 5 driver → widget messages delivered, 2 call_state messages, 0 other
+bridge: 26 widget → driver messages, 26 driver → widget messages delivered, 13 call_state messages, 0 other
 PASS bridge hygiene: no CSP violations or page errors in the widget, nothing undeliverable (0.0 s)
+     [native] INFO lumen_widget_harness: terminated
      [native] INFO lumen_widget_harness: stdin closed (widget gone)
-     [native] INFO lumen_widget_harness: widget driver closed its channel
      [native] INFO lumen_widget_harness: logged out (device deleted)
 native harness stopped (exit {"code":0,"signal":null}): logged out, device deleted
 
-apps-widget-call: 6 passed, 6 failed (started 2026-10-15T07:45:06.216Z, finished 2026-10-15T07:49:25.256Z)
+apps-widget-call: 11 passed, 1 failed (started 2026-10-15T08:16:48.148Z, finished 2026-10-15T08:17:29.342Z)

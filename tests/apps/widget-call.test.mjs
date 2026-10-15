@@ -292,6 +292,7 @@ let phone = null;
 let server = null;
 let harness = null;
 let probe = null;
+let probeLog = null;
 let nativeAcct = null;
 let roomId = "";
 let bridge = null;
@@ -406,6 +407,7 @@ try {
     // no state was changed by the refused requests
     const msgs = await mx(web, "GET", `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/messages?dir=b&limit=50`);
     assert.ok(!JSON.stringify(msgs.json).includes("should never be sent"));
+    probeLog = probe.stderr;
     await probe.stop();
     log(`probe harness stopped (exit ${JSON.stringify(probe.exited)})`);
     probe = null;
@@ -461,8 +463,14 @@ try {
     const connected = await bridge.waitState((s) => s.state === "connected", 90_000, "call_state connected");
     log(`call_state sequence: ${bridge.callStates.map((s) => s.state).filter((s, i, a) => s !== a[i - 1]).join(" → ")}; video=${connected.video} muted=${connected.muted}`);
     for (const s of bridge.callStates) assert.ok(!JSON.stringify(s).match(/"key"|jwt|access_token/i), "call_state carries no keys or tokens");
+    // "connected" = media connected; the MembershipManager sends the membership right after
     const sk = `_${harness.info.user_id}_${harness.info.device_id}_m.call`;
-    const st = await mx(web, "GET", `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/org.matrix.msc3401.call.member/${encodeURIComponent(sk)}`);
+    let st = null;
+    for (let i = 0; i < 30; i++) {
+      st = await mx(web, "GET", `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/org.matrix.msc3401.call.member/${encodeURIComponent(sk)}`);
+      if (st.status === 200 && Object.keys(st.json ?? {}).length) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
     assert.equal(st.status, 200, `membership state of the widget's device: ${st.text}`);
     log(`widget membership (sent through the driver): application=${st.json.application} call_id=${JSON.stringify(st.json.call_id)} transport=${JSON.stringify(st.json.foci_preferred ?? st.json.focus_active ?? st.json.transports)}`);
     const sentMember = bridge.fromWidget.filter((m) => m.action === "send_event" && m.data?.type === "org.matrix.msc3401.call.member");
@@ -537,8 +545,8 @@ try {
     log(`bridge: ${bridge.fromWidget.length} widget → driver messages, ${bridge.delivered} driver → widget messages delivered, ${bridge.callStates.length} call_state messages, ${bridge.other.length} other`);
     assert.deepEqual(bridge.deliveryErrors, []);
     assert.deepEqual(phone.problems, [], "widget page: no CSP violations or page errors");
-    const leaks = harness.stderr.filter((l) => /syt_|loginToken=|access_token|"key":/i.test(l));
-    assert.deepEqual(leaks, [], "harness log contains no tokens or keys");
+    const leaks = [...harness.stderr, ...(probeLog ?? [])].filter((l) => /syt_|loginToken=|access_token|"key":|curve25519|ed25519/i.test(l));
+    assert.deepEqual(leaks, [], "harness logs (both runs) contain no tokens or keys");
   });
 } finally {
   if (web) await hangUpAll(web).catch(() => undefined);

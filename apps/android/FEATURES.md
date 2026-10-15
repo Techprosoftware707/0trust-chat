@@ -21,7 +21,7 @@ Nothing below has been exercised against a live Lumen server from this app.
 | Auth | SSO via Custom Tabs, `startSsoLogin(redirectUrl, idpId)` → `SsoHandler.finish` | Builds, unverified | `SessionManager.startSso/finishSso`, `SsoCallbackActivity` |
 | Auth | Per-attempt nonce in the redirect (`io.lumen.secure:/sso-callback?n=<nonce>`), stray/replayed callbacks ignored, single use, 15 min expiry, survives process death | Tested (routing, nonce, expiry) / Builds, unverified (end-to-end) | `DeepLinkRouter`, `SsoRedirect`, `deeplinks.json` (19 cases) |
 | Auth | Password login only when the server offers it and no SSO | Builds, unverified | `AuthScreens.PasswordForm` |
-| Auth | Sign-up button → `signup_url`; "Manage account" → `account_url` (browser) | Builds, unverified | |
+| Auth | Sign-up button → `signup_url`; "Manage account" → `account_url`; "Delete account…" → `account_delete_url` (browser, shown only when the server advertises it) | Tested (parsing/validation, incl. shared vectors) / Builds, unverified (UI) | `SettingsScreen` |
 | Auth | Device display name "Lumen on <model>" (PUT /devices after SSO; `SsoHandler.finish` takes no name) | Builds, unverified | `SessionManager.nameThisDevice` |
 | Storage | Session JSON + 32-byte SQLite store key sealed with AES-256-GCM in Android Keystore (StrongBox when present, no user-auth binding) | Tested (vault logic with a software AES-GCM stand-in) / instrumented test written (`KeystoreTest`) | `KeystoreKeyWrapper`, `SecretVault`, `SessionStore` |
 | Storage | Rust SDK stores in `noBackupFilesDir/sessions/<random>`; `allowBackup=false`; data-extraction rules exclude everything | Builds, unverified (instrumented `backupIsDisabled` written) | manifest, `xml/data_extraction_rules.xml` |
@@ -72,6 +72,6 @@ Nothing below has been exercised against a live Lumen server from this app.
 | UI | TalkBack: content descriptions on icon buttons, badges, reactions, delivery state; headings | Builds, unverified (no TalkBack pass done) | |
 | UI | Avatars | initials only (no remote avatar images fetched) | |
 | Logging | Redacting logger; release builds: no debug logs, Rust SDK logs off; no crash/analytics SDKs | Tested (redactor) | `Redactor`, `LumenLog`, `RustPlatform` |
-| Release | Env-var signing, R8 + keep rules for JNA/uniffi, AAB + per-ABI APKs + universal | Built locally (see release doc for sizes); signed build **unverified** here (no keystore) | |
+| Release | Env-var signing, R8 code shrinking + keep rules for JNA/uniffi (resource shrinking off, see README), AAB + per-ABI APKs + universal | Built locally and in CI (unsigned); signed build **unverified** here (no keystore); the R8-processed release build has not been run on a device | |
 | Policy | `disableSslVerification` never referenced (Gradle check + unit test) | Tested | `checkNoTlsBypass`, `TlsPolicyTest` |
 | Tests | Instrumented: launch → server picker, invalid input, Keystore round trip, manifest/FGS/channels, runtime permissions; server test only with `LUMEN_TEST_SERVER` | Written and compiled; **not run here** (no emulator) | `app/src/androidTest` |

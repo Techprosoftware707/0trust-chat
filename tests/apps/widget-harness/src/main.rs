@@ -499,7 +499,7 @@ fn main() -> ExitCode {
         .with_ansi(false)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_env("LUMEN_HARNESS_LOG")
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn,lumen_widget_harness=info")),
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn,matrix_sdk_crypto=error,lumen_widget_harness=info")),
         )
         .init();
     let args = match Args::parse() {

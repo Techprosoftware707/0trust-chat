@@ -41,6 +41,8 @@ export function lock(reason: string): boolean {
   if (ctx.locked || !lockEnabled() || !ctx.mainWindow) return false;
   ctx.locked = true;
   log.info(`locked (${reason})`);
+  if (ctx.settingsWindow && !ctx.settingsWindow.isDestroyed()) ctx.settingsWindow.close();
+  if (ctx.pickerWindow && !ctx.pickerWindow.isDestroyed()) ctx.pickerWindow.close();
   showLockView();
   emit();
   return true;
