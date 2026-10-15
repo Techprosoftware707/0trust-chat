@@ -137,7 +137,9 @@ final class WidgetBridgeTests: XCTestCase {
         XCTAssertFalse(script.contains("</script>"))
         XCTAssertFalse(script.contains("\u{2028}"))
         XCTAssertNil(JavaScriptBridge.postMessageScript(json: "alert(1)", targetOrigin: "x"))
-        XCTAssertEqual(JavaScriptBridge.targetOrigin(expected: "lumen-widget://call", reported: "null"), "lumen-widget://call")
+        XCTAssertEqual(JavaScriptBridge.targetOrigin(expected: "lumen-widget://call", reported: "null"), "*")
+        XCTAssertEqual(JavaScriptBridge.targetOrigin(expected: "lumen-widget://call", reported: "lumen-widget://call"), "lumen-widget://call")
+        XCTAssertEqual(JavaScriptBridge.targetOrigin(expected: "lumen-widget://call", reported: nil), "lumen-widget://call")
         XCTAssertEqual(JavaScriptBridge.targetOrigin(expected: "https://app.example.com", reported: "https://evil.example"), "https://app.example.com")
     }
 
@@ -264,6 +266,14 @@ final class DevicesAPITests: XCTestCase {
         }
         let body = try XCTUnwrap(http.requests.last?.body)
         XCTAssertEqual(String(data: body, encoding: .utf8), "{}")
+    }
+
+    func testRenameAndPathEncoding() async throws {
+        let http = FakeHTTP(["PUT https://m.example.com/_matrix/client/v3/devices/AB%2FC": (200, "{}")])
+        let api = DevicesAPI(http: http, homeserverURL: URL(string: "https://m.example.com")!, accessToken: { "tok" })
+        try await api.rename(deviceId: "AB/C", displayName: "Lumen on iPhone")
+        let body = try XCTUnwrap(http.requests.last?.body)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: body) as? [String: String], ["display_name": "Lumen on iPhone"])
     }
 
     func testPasswordOnlyUIAIsUnsupported() throws {

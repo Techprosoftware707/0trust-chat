@@ -52,5 +52,6 @@ jobs:
             apps/ios/build/*.xcresult
             apps/ios/build/SHA256SUMS-ios.txt
             apps/ios/build/Lumen.xcodeproj.zip
+            apps/ios/build/logs/*.log
           if-no-files-found: warn
           retention-days: 14

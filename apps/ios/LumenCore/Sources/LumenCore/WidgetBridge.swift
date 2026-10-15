@@ -177,11 +177,17 @@ public enum JavaScriptBridge {
             .replacingOccurrences(of: "</", with: "<\\/")
     }
 
-    /// The origin to post to: the page's reported origin when it is a real
-    /// tuple origin matching the expected one, otherwise the expected origin.
+    /// The `targetOrigin` for `window.postMessage`:
+    /// - the expected widget origin when the page reports exactly that origin;
+    /// - "*" when the page has an opaque origin ("null"), which WebKit may give
+    ///   pages served by a custom URL scheme handler. The script is evaluated
+    ///   by the native side in its own top-level page after checking the page
+    ///   URL, so no other window can receive it;
+    /// - otherwise the expected origin, so a navigated-away page gets nothing.
     public static func targetOrigin(expected: String, reported: String?) -> String {
-        guard let r = reported, r != "null", r.lowercased() == expected.lowercased() else { return expected }
-        return r
+        guard let r = reported else { return expected }
+        if r == "null" { return "*" }
+        return r.lowercased() == expected.lowercased() ? r : expected
     }
 }
 

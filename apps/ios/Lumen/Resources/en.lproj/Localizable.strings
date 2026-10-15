@@ -1,0 +1,3 @@
+/* The APNs alert used by the Lumen pusher default_payload (loc-key). The
+   notification service extension replaces it after decrypting the event. */
+"NEW_MESSAGE" = "New message";

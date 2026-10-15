@@ -1,0 +1,140 @@
+import LumenCore
+import MatrixRustSDK
+import SwiftUI
+
+/// Search the user directory or enter a Matrix ID.
+struct UserSearchField: View {
+    let session: SessionModel
+    @Binding var picked: [String]
+    var single = false
+    @State private var query = ""
+    @State private var results: [UserProfile] = []
+    @State private var searching = false
+
+    var body: some View {
+        Section {
+            TextField("Name or Matrix ID", text: $query)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityLabel("Search people")
+                .onSubmit { addTyped() }
+                .task(id: query) {
+                    let q = query.trimmingCharacters(in: .whitespaces)
+                    guard q.count >= 2 else { results = []; return }
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    guard !Task.isCancelled else { return }
+                    searching = true
+                    results = (try? await RoomActions(client: session.client).searchUsers(q)) ?? []
+                    searching = false
+                }
+            if let typed = MatrixID.normaliseUserIdInput(query, defaultServer: session.serverName), !results.contains(where: { $0.userId == typed }) {
+                Button { addTyped() } label: { Label(typed, systemImage: "at") }
+            }
+            if searching { ProgressView() }
+            ForEach(results, id: \.userId) { user in
+                Button {
+                    add(user.userId)
+                } label: {
+                    HStack {
+                        AvatarView(name: user.displayName ?? user.userId, size: 32)
+                        VStack(alignment: .leading) {
+                            Text(user.displayName ?? user.userId)
+                            Text(user.userId).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if picked.contains(user.userId) { Image(systemName: "checkmark").accessibilityLabel("Selected") }
+                    }
+                }
+            }
+        }
+    }
+
+    private func addTyped() {
+        if let id = MatrixID.normaliseUserIdInput(query, defaultServer: session.serverName) { add(id) }
+    }
+
+    private func add(_ id: String) {
+        if single { picked = [id]; return }
+        if let i = picked.firstIndex(of: id) { picked.remove(at: i) } else { picked.append(id) }
+    }
+}
+
+struct NewChatView: View {
+    let session: SessionModel
+    let onCreated: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var picked: [String] = []
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                UserSearchField(session: session, picked: $picked, single: true)
+                if let user = picked.first {
+                    Section {
+                        AsyncButton {
+                            do {
+                                let id = try await RoomActions(client: session.client).startDirectMessage(with: user)
+                                onCreated(id)
+                                dismiss()
+                            } catch { self.error = "The chat couldn't be created." }
+                        } label: { Text("Start encrypted chat with \(user)") }
+                    } footer: {
+                        Text("Direct chats are end-to-end encrypted. Verify the other person to be sure it's really them.")
+                    }
+                }
+                if let error { Text(error).foregroundStyle(.red) }
+            }
+            .navigationTitle("New chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+    }
+}
+
+struct NewGroupView: View {
+    let session: SessionModel
+    let onCreated: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var topic = ""
+    @State private var picked: [String] = []
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Group") {
+                    TextField("Name", text: $name)
+                    TextField("Topic (optional)", text: $topic)
+                }
+                Section {
+                    ForEach(picked, id: \.self) { Text($0) }
+                        .onDelete { picked.remove(atOffsets: $0) }
+                } header: {
+                    Text("Members")
+                } footer: {
+                    Text("Invite-only and end-to-end encrypted. The group's name and topic are not encrypted: the server can see them.")
+                }
+                UserSearchField(session: session, picked: $picked)
+                if let error { Text(error).foregroundStyle(.red) }
+            }
+            .navigationTitle("New group")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    AsyncButton {
+                        do {
+                            let t = topic.trimmingCharacters(in: .whitespaces)
+                            let id = try await RoomActions(client: session.client).createGroup(name: name.trimmingCharacters(in: .whitespaces), topic: t.isEmpty ? nil : t, invite: picked)
+                            onCreated(id)
+                            dismiss()
+                        } catch { self.error = "The group couldn't be created." }
+                    } label: { Text("Create") }
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+    }
+}

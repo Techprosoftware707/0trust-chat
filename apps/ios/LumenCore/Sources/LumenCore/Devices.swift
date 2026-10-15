@@ -56,8 +56,7 @@ public struct DevicesAPI: Sendable {
     /// Deletes a device. Without `uiaSession` the server normally answers 401
     /// with a UIA session, surfaced as `.authRequired`.
     public func delete(deviceId: String, uiaSession: String?) async throws {
-        let encoded = deviceId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))) ?? deviceId
-        guard let url = URL(string: homeserverURL.absoluteString + "/_matrix/client/v3/devices/" + encoded) else { throw DevicesError.invalidResponse }
+        let url = try deviceURL(deviceId)
         var body: [String: Any] = [:]
         if let s = uiaSession { body["auth"] = ["session": s] }
         let data = try JSONSerialization.data(withJSONObject: body)
@@ -69,6 +68,22 @@ public struct DevicesAPI: Sendable {
         case 401: throw DevicesAPI.authError(fromBody: r.body, homeserverURL: homeserverURL)
         default: throw DevicesError.http(r.status, DevicesAPI.errcode(r.body))
         }
+    }
+
+    /// `PUT /devices/{id}` with a new display name.
+    public func rename(deviceId: String, displayName: String) async throws {
+        let url = try deviceURL(deviceId)
+        let data = try JSONSerialization.data(withJSONObject: ["display_name": displayName])
+        var h = try await headers()
+        h["Content-Type"] = "application/json"
+        let r = try await http.send(HTTPRequest(method: "PUT", url: url, headers: h, body: data))
+        guard r.status == 200 else { throw DevicesError.http(r.status, DevicesAPI.errcode(r.body)) }
+    }
+
+    private func deviceURL(_ deviceId: String) throws -> URL {
+        let encoded = deviceId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/?#"))) ?? deviceId
+        guard let url = URL(string: homeserverURL.absoluteString + "/_matrix/client/v3/devices/" + encoded) else { throw DevicesError.invalidResponse }
+        return url
     }
 
     private func headers() async throws -> [String: String] {

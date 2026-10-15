@@ -1,0 +1,9 @@
+# CI and local build output (apps/ios/scripts/ci-build.sh)
+/build/
+# SwiftPM build directory of the LumenCore package (`swift test`)
+/LumenCore/.build/
+/LumenCore/.swiftpm/
+# Xcode per-user state (the generated Lumen.xcodeproj itself is committed)
+xcuserdata/
+*.xcuserstate
+DerivedData/
