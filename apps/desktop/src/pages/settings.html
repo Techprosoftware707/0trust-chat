@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Desktop settings</title>
+    <link rel="stylesheet" href="pages.css" />
+    <script src="settings.js" defer></script>
+  </head>
+  <body>
+    <main class="settings">
+      <h1>Desktop settings</h1>
+      <p class="muted small">Settings of this desktop app on this computer. Chat settings (notifications, privacy, devices) are in the app's own Settings.</p>
+
+      <section class="section" aria-labelledby="h-lock">
+        <h2 id="h-lock">App lock</h2>
+        <p id="lock-status" class="small"></p>
+        <form id="pin-form" class="stack" novalidate>
+          <div class="field" id="current-field" hidden>
+            <label for="pin-current">Current PIN</label>
+            <input id="pin-current" type="password" autocomplete="off" maxlength="64" />
+          </div>
+          <div class="field" id="new-field">
+            <label for="pin-new">New PIN (at least 6 characters)</label>
+            <input id="pin-new" type="password" autocomplete="off" maxlength="64" />
+          </div>
+          <div class="field" id="repeat-field">
+            <label for="pin-repeat">Repeat the new PIN</label>
+            <input id="pin-repeat" type="password" autocomplete="off" maxlength="64" />
+          </div>
+          <div id="pin-msg" class="alert" role="status" hidden></div>
+          <div class="row">
+            <button id="pin-save" class="btn btn-primary" type="submit">Set PIN</button>
+            <button id="pin-remove" class="btn" type="button" hidden>Remove PIN</button>
+            <button id="lock-now" class="btn" type="button" hidden>Lock now</button>
+          </div>
+        </form>
+        <div id="lock-options" hidden>
+          <div class="toggle">
+            <div><label for="auto-lock">Lock after inactivity</label><p class="desc">No keyboard or mouse input in the app for this long.</p></div>
+            <select id="auto-lock"></select>
+          </div>
+          <div class="toggle">
+            <div><label for="lock-suspend">Lock when the computer locks or sleeps</label></div>
+            <input id="lock-suspend" type="checkbox" />
+          </div>
+          <div class="toggle" id="touchid-row" hidden>
+            <div><label for="touchid">Unlock with Touch ID</label><p class="desc">Your PIN still works.</p></div>
+            <input id="touchid" type="checkbox" />
+          </div>
+        </div>
+        <p class="alert alert-info small">The app lock keeps people who use your unlocked computer out of your conversations. It doesn't protect against malware or anyone who controls your operating system account.</p>
+      </section>
+
+      <section class="section" aria-labelledby="h-storage">
+        <h2 id="h-storage">Key storage</h2>
+        <p id="storage" class="small"></p>
+      </section>
+
+      <section class="section" aria-labelledby="h-general">
+        <h2 id="h-general">General</h2>
+        <div class="toggle">
+          <div><label for="close-to-tray">Keep running when the window is closed</label><p class="desc">You keep getting notifications and calls. Quit from the tray or menu-bar icon.</p></div>
+          <input id="close-to-tray" type="checkbox" />
+        </div>
+        <div class="toggle">
+          <div><label for="open-at-login">Open at login</label><p class="desc" id="open-at-login-desc">Starts in the background when you sign in to your computer.</p></div>
+          <input id="open-at-login" type="checkbox" />
+        </div>
+        <div class="toggle">
+          <div><label for="dnd">Do not disturb</label><p class="desc">No notifications from this app until you turn this off.</p></div>
+          <input id="dnd" type="checkbox" />
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="h-server">
+        <h2 id="h-server">Server</h2>
+        <dl class="facts" id="server-facts"></dl>
+        <div class="row">
+          <button id="account" class="btn" type="button" hidden>Manage account</button>
+          <button id="change-server" class="btn" type="button">Change server…</button>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="h-updates">
+        <h2 id="h-updates">Updates</h2>
+        <p id="update-msg" class="small"></p>
+        <div class="row">
+          <button id="update-check" class="btn" type="button" hidden>Check for updates</button>
+          <button id="update-install" class="btn btn-primary" type="button" hidden>Restart and update</button>
+        </div>
+      </section>
+
+      <p class="small muted" id="about"></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+
+--- sign in A (lab-a) and B (lab-b) through portal SSO; A opens an encrypted DM with B
+DM !4Vnk5hKxxudAFlRBA09SRmSwa8QNMOi6aDjpkRKob20
+PASS sign in A (lab-a) and B (lab-b) through portal SSO; A opens an encrypted DM with B (14.1 s)
+
+--- 7: 1:1 video call at 720p: negotiated resolution and frame rate from outbound/inbound-rtp
+A outbound video layers: ["q video/VP8 320x180@12 77 kbit/s limit=none","h video/VP8 640x360@12 697 kbit/s limit=none","f video/VP8 1280x720@11 481 kbit/s limit=none"]
+B inbound video: ["video/VP8 960x540@18 352 kbit/s decoded+48"]
+A camera capture: 1280x720@30; encodings: q: ÷4 max 160 kbit/s 20fps | h: ÷2 max 450 kbit/s 20fps | f: ÷1 max 1700 kbit/s 30fps
+NOTE: B received 960x540 at that moment (A's encoder adapting to CPU load: 12/12/11 fps)
+NOTE: 18 fps received; host load average 10.07 8.96 7.93 on 4 cores (the encoders of every test browser share them)
+PASS 7: 1:1 video call at 720p: negotiated resolution and frame rate from outbound/inbound-rtp (32.9 s)
+
+--- camera switching: A picks another camera in the call settings; the sender track's deviceId changes, B keeps decoding
+A camera: 8d7c679c1610… → d56676383d96…
+A outbound after switch: ["q 240x135@10 86 kbit/s active=true","h 480x270@11 257 kbit/s active=true","f 960x540@10 544 kbit/s active=true"]
+B inbound after switch: ["960x540@11 650 kbit/s decoded+38"]
+PASS camera switching: A picks another camera in the call settings; the sender track's deviceId changes, B keeps decoding (9.9 s)
+
+--- 8: 1080p: A picks 'Highest available' → 1920×1080 capture and a 1080p simulcast layer; B (1920×1080 screen) decodes the layer the SFU forwards (logged)
+A outbound video layers (highest): ["f 1280x720@10 270 kbit/s limit=cpu","h 853x480@9 1536 kbit/s limit=cpu","q 427x240@9 303 kbit/s limit=cpu"]
+B inbound video (1920×1080 viewport): ["427x240@6 63 kbit/s decoded+21"]
+A camera capture: 1920x1080@30
+NOTE: the encoder scaled the 1080p layer down: qualityLimitationReason=cpu (software VP8 on 4 shared cores)
+NOTE: B receives 427x240; the SFU/adaptive stream chose a lower layer
+PASS 8: 1080p: A picks 'Highest available' → 1920×1080 capture and a 1080p simulcast layer; B (1920×1080 screen) decodes the layer the SFU forwards (logged) (71.2 s)
+CSP violations / page errors: none
+
+core: 4 passed, 0 failed, 0 skipped (started 2026-10-15T07:28:45.057Z, finished 2026-10-15T07:30:54.112Z) — partial rerun, --only ^(7|camera switching|8):? 

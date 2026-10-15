@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Connect to your server</title>
+    <link rel="stylesheet" href="pages.css" />
+    <script src="setup.js" defer></script>
+  </head>
+  <body>
+    <main class="center">
+      <div class="card">
+        <div class="brand"><img src="logo.svg" alt="" /> <span id="brand">Lumen Secure</span></div>
+
+        <section id="step-input">
+          <h1>Connect to your server</h1>
+          <p class="muted">Enter the name of your organisation's server — the part after the colon in your Matrix ID — for example <span class="mono">example.com</span>.</p>
+          <div id="keyring-warning" class="alert alert-warning" role="alert" hidden></div>
+          <form id="form" novalidate>
+            <div class="field">
+              <label for="server-input">Server name</label>
+              <input id="server-input" name="server" type="text" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="example.com" required />
+            </div>
+            <div id="error" class="alert alert-error" role="alert" hidden></div>
+            <button id="continue" class="btn btn-primary btn-block" type="submit">Continue</button>
+          </form>
+        </section>
+
+        <section id="step-confirm" hidden>
+          <h1 id="confirm-title">Connect?</h1>
+          <dl class="facts">
+            <dt>Server</dt><dd id="f-server" class="mono"></dd>
+            <dt>Homeserver</dt><dd id="f-homeserver" class="mono"></dd>
+            <dt>Sign-in</dt><dd id="f-signin"></dd>
+            <dt>Calls</dt><dd id="f-calls"></dd>
+          </dl>
+          <p class="small muted">The connection uses your system's certificate checks. The app only talks to this server; you can change it later from the menu (File → Change server…).</p>
+          <div class="row end">
+            <button id="back" class="btn" type="button">Back</button>
+            <button id="connect" class="btn btn-primary" type="button">Connect</button>
+          </div>
+          <p id="signup-row" class="small muted" hidden>New here? <a href="#" id="signup">Create an account</a> (opens your browser).</p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

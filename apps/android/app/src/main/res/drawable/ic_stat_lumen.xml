@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification small icon: the logo glyph in white (status-bar icons must be single-colour). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:translateX="-6.84" android:translateY="-6" android:scaleX="0.5625" android:scaleY="0.5625">
+        <path
+            android:pathData="M 21 16 V 38.5 A 9.5 9.5 0 0 0 30.5 48 H 46"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="7"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M 36.5 22 A 5.5 5.5 0 1 0 47.5 22 A 5.5 5.5 0 1 0 36.5 22 Z" />
+    </group>
+</vector>

@@ -1,19 +1,23 @@
-import { useEffect, useId, useState, type FormEvent } from "react";
-import { ArrowLeft, Fingerprint, Info, KeyRound, LockKeyhole, LogIn, Server, ShieldCheck, TriangleAlert, Users } from "lucide-react";
+import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import { ArrowLeft, ExternalLink, Fingerprint, Info, KeyRound, LockKeyhole, LogIn, Server, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import type { LoginResponse } from "matrix-js-sdk";
 import type { AppConfig } from "../config";
 import { errorMessage } from "../lib/errors";
 import {
+  cancelDesktopSso,
   deviceDisplayName,
   discoverHomeserver,
   getLoginOptions,
   loginWithPassword,
+  loginWithToken,
+  startDesktopSso,
   startSso,
   type LoginOptions,
 } from "../matrix/login";
 import { BrandLogo } from "./BrandLogo";
 import { Spinner } from "./primitives/Spinner";
 import { ThemeToggle } from "./ThemeToggle";
+import { DesktopStorageNotice } from "../platform/DesktopNotice";
 
 interface Props {
   config: AppConfig;
@@ -80,7 +84,9 @@ function PasswordForm({ baseUrl, config, onLoggedIn }: { baseUrl: string; config
   );
 }
 
-function OptionsView({ options, config, onLoggedIn }: { options: LoginOptions; config: AppConfig; onLoggedIn: Props["onLoggedIn"] }) {
+type BeginSso = (baseUrl: string, idpId: string | null) => void;
+
+function OptionsView({ options, config, onLoggedIn, onSso }: { options: LoginOptions; config: AppConfig; onLoggedIn: Props["onLoggedIn"]; onSso: BeginSso }) {
   if (!options.password && options.sso.length === 0) {
     return (
       <div className="alert alert-warning" role="alert">
@@ -92,7 +98,7 @@ function OptionsView({ options, config, onLoggedIn }: { options: LoginOptions; c
   return (
     <div className="stack">
       {options.sso.map((p) => (
-        <button key={p.id ?? "sso"} type="button" className="btn btn-primary btn-block btn-lg" onClick={() => startSso(options.baseUrl, p.id)}>
+        <button key={p.id ?? "sso"} type="button" className="btn btn-primary btn-block btn-lg" onClick={() => onSso(options.baseUrl, p.id)}>
           <Fingerprint aria-hidden="true" /> Continue with {p.name}
         </button>
       ))}
@@ -110,6 +116,33 @@ export function LoginScreen({ config, notice, noticeKind = "info", onLoggedIn }:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const serverId = useId();
+  // Desktop app only: SSO runs in the system browser while this screen waits for the callback.
+  const [ssoWaiting, setSsoWaiting] = useState(false);
+  const [ssoError, setSsoError] = useState<string | null>(null);
+
+  const beginSso = useCallback<BeginSso>(
+    (baseUrl, idpId) => {
+      const pending = startDesktopSso(baseUrl, idpId);
+      if (!pending) {
+        startSso(baseUrl, idpId);
+        return;
+      }
+      setSsoWaiting(true);
+      setSsoError(null);
+      void (async () => {
+        try {
+          const token = await pending;
+          const res = await loginWithToken(baseUrl, token, deviceDisplayName(config.brand.shortName));
+          await onLoggedIn(baseUrl, res);
+        } catch (e) {
+          setSsoWaiting(false);
+          const msg = errorMessage(e, "Sign-in didn't complete.");
+          if (!/cancelled|newer sign-in/i.test(msg)) setSsoError(`Sign-in didn't complete: ${msg}`);
+        }
+      })();
+    },
+    [config.brand.shortName, onLoggedIn],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -177,18 +210,36 @@ export function LoginScreen({ config, notice, noticeKind = "info", onLoggedIn }:
             <>
               <h1>Sign in</h1>
               <p className="muted">Sign in to {config.brand.name} to continue to your conversations.</p>
+              <DesktopStorageNotice />
               {notice ? (
                 <div className={`alert ${noticeKind === "error" ? "alert-danger" : "alert-info"}`} role={noticeKind === "error" ? "alert" : "status"}>
                   {noticeKind === "error" ? <TriangleAlert aria-hidden="true" /> : <Info aria-hidden="true" />}
                   <p>{notice}</p>
                 </div>
               ) : null}
-              <div className="stack">
+              {ssoError ? (
+                <div className="alert alert-danger" role="alert">
+                  <TriangleAlert aria-hidden="true" />
+                  <p>{ssoError}</p>
+                </div>
+              ) : null}
+              {ssoWaiting ? (
+                <div className="stack" role="status">
+                  <div className="alert alert-info">
+                    <ExternalLink aria-hidden="true" />
+                    <p>Continue in your web browser. When you've signed in there, you'll come back here automatically.</p>
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-block" onClick={() => cancelDesktopSso()}>
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
+              <div className="stack" hidden={ssoWaiting}>
                 {ssoAvailable ? (
                   <button
                     type="button"
                     className="btn btn-gradient btn-block btn-lg"
-                    onClick={() => startSso(config.homeserver.baseUrl, config.sso!.idpId)}
+                    onClick={() => beginSso(config.homeserver.baseUrl, config.sso!.idpId)}
                   >
                     <KeyRound aria-hidden="true" /> {config.sso!.label}
                   </button>
@@ -256,7 +307,7 @@ export function LoginScreen({ config, notice, noticeKind = "info", onLoggedIn }:
                   <p className="small muted">
                     Signing in to <strong className="break">{custom.baseUrl}</strong>
                   </p>
-                  <OptionsView options={custom} config={config} onLoggedIn={onLoggedIn} />
+                  <OptionsView options={custom} config={config} onLoggedIn={onLoggedIn} onSso={beginSso} />
                 </section>
               ) : null}
             </>

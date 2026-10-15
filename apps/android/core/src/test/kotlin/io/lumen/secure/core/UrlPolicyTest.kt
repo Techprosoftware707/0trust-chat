@@ -65,9 +65,9 @@ class UrlPolicyTest {
         val r = WellKnownParser.parse(
             """{"m.homeserver":{"base_url":"https://m.example.com"},"io.lumen.app":{"version":1,"brand":{"name":"A\u0000B${"x".repeat(100)}","short_name":"  "}}}""",
         ) as WellKnownResult.Ok
-        assertEquals(64, r.lumen!!.brandName!!.length)
-        assertFalse(r.lumen!!.brandName!!.contains('\u0000'))
-        assertNull(r.lumen!!.brandShortName)
+        assertEquals(64, r.lumen?.brandName?.length)
+        assertFalse(r.lumen?.brandName.orEmpty().contains('\u0000'))
+        assertNull(r.lumen?.brandShortName)
     }
 
     @Test

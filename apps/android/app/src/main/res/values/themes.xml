@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Lumen" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/lumen_bg_light</item>
+        <item name="android:colorAccent">@color/lumen_accent_light</item>
+    </style>
+
+    <!-- SplashScreen API (core-splashscreen backports it to API 26). -->
+    <style name="Theme.Lumen.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/lumen_midnight_950</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Lumen</item>
+    </style>
+
+    <!-- Call screen: dark, full-screen capable, shown over the lock screen for incoming calls. -->
+    <style name="Theme.Lumen.Call" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/lumen_midnight_950</item>
+    </style>
+</resources>

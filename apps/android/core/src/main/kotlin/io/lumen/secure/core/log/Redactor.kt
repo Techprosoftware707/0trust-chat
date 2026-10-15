@@ -24,7 +24,7 @@ object Redactor {
         Regex("@[A-Za-z0-9._=\\-/+]+:[A-Za-z0-9.\\-]+(?::\\d+)?") to "@<user>",
         Regex("![A-Za-z0-9._=\\-/+]+(?::[A-Za-z0-9.\\-]+(?::\\d+)?)?") to "!<room>",
         Regex("#[A-Za-z0-9._=\\-/+]+:[A-Za-z0-9.\\-]+(?::\\d+)?") to "#<alias>",
-        Regex("\\$[A-Za-z0-9._=\\-/+]{8,}(?::[A-Za-z0-9.\\-]+)?") to "\$<event>",
+        Regex("\\$[A-Za-z0-9._=\\-/+]{8,}(?::[A-Za-z0-9.\\-]+)?") to Regex.escapeReplacement("$<event>"),
         // E-mail addresses
         Regex("[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}") to "<email>",
         // Long base64/hex runs (keys, signatures, nonces)

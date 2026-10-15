@@ -11,6 +11,8 @@
 #   sudo bash tests/calls/lab.sh block-port <ns> udp|tcp <port[:port]> drop outbound traffic to
 #                                         those ports (e.g. udp 7882:7889 + tcp 7881 = no direct
 #                                         media path, only TURN is left)
+#   sudo bash tests/calls/lab.sh block-udp-except <ns> <port[,port]> drop all outbound UDP except
+#                                         to those ports (3478 = only TURN/UDP is left)
 #   sudo bash tests/calls/lab.sh unblock-all <ns>                    remove every block in <ns>
 #   sudo bash tests/calls/lab.sh status
 #
@@ -116,11 +118,19 @@ case "$cmd" in
     ip netns exec "$ns" iptables -C OUTPUT -p "$proto" --dport "$ports" -j DROP 2>/dev/null \
       || ip netns exec "$ns" iptables -A OUTPUT -p "$proto" --dport "$ports" -j DROP
     echo "$ns: outbound $proto to port $ports dropped" ;;
+  block-udp-except)
+    # every outbound UDP packet except to the given port(s) (e.g. 3478 = TURN/UDP only). Port
+    # blocks alone aren't enough: an SFU that also sends from other host addresses can appear
+    # behind the host's NAT on random ports (peer-reflexive candidates).
+    ns="$1" ports="$2"
+    ip netns exec "$ns" iptables -C OUTPUT -p udp -m multiport ! --dports "$ports" -j DROP 2>/dev/null \
+      || ip netns exec "$ns" iptables -A OUTPUT -p udp -m multiport ! --dports "$ports" -j DROP
+    echo "$ns: outbound udp dropped except to port(s) $ports" ;;
   unblock-all) ip netns exec "$1" iptables -F OUTPUT; echo "$1: all blocks removed" ;;
   status)
     ip -br addr show "$BR" 2>/dev/null || echo "bridge $BR absent"
     for ns in "${NSES[@]}"; do
       ip netns list | grep -qw "$ns" && echo "$ns: $(ip -n "$ns" -br addr show eth0 | awk '{print $3}') qdisc: $(ip netns exec "$ns" tc qdisc show dev eth0 | head -n1)"
     done ;;
-  *) sed -n '2,20p' "$0"; exit 64 ;;
+  *) sed -n '2,22p' "$0"; exit 64 ;;
 esac

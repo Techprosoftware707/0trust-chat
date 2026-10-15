@@ -1,0 +1,21 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+
+--- sign in A and B; open their DM
+PASS sign in A and B; open their DM (22.7 s)
+
+--- 15a: no direct media path for B (all UDP except TURN/UDP 3478, and ICE/TCP 7881 blocked) → TURN relay over UDP, media flows
+lab-b: outbound udp dropped except to port(s) 3478
+lab-b: outbound tcp to port 7881 dropped
+B's ICE candidate pairs after 10 s: ["in-progress: host/udp 10.200.0.12:36920 → host/udp 10.200.0.1:7883 checks sent 77, answered 0, received 8","in-progress: relay/udp via udp 10.200.0.1:40587 → host/udp 10.200.0.1:7883 checks sent 72, answered 0, received 0","waiting: host/tcp 10.200.0.12:9 → host/tcp 10.200.0.1:7881 checks sent 0, answered 0, received 0"]
+FAIL 15a: no direct media path for B (all UDP except TURN/UDP 3478, and ICE/TCP 7881 blocked) → TURN relay over UDP, media flows (77.5 s)
+     locator.waitFor: Timeout 60000ms exceeded.
+     Call log:
+     [2m  - waiting for locator('[data-testid="call-e2ee"]') to be visible[22m
+     
+         at waitE2EE (/home/user/0trust-chat/tests/calls/lib/callui.mjs:39:58)
+         at /home/user/0trust-chat/tests/calls/network.test.mjs:159:11
+         at async step (/home/user/0trust-chat/tests/calls/lib/lab.mjs:627:7)
+         at async file:///home/user/0trust-chat/tests/calls/network.test.mjs:148:3
+CSP violations / page errors: none
+
+network: 1 passed, 1 failed, 0 skipped (started 2026-10-15T07:23:43.304Z, finished 2026-10-15T07:25:27.976Z) — partial rerun, --only ^15a

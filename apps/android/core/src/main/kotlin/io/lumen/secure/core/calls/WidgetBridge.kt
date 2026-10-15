@@ -114,14 +114,16 @@ object WidgetBridge {
      * JavaScript that delivers [message] (a JSON string from the driver) to the widget page:
      * `window.postMessage(<json>, '<origin>')`. The message is re-serialised from its parsed form,
      * so only JSON reaches the script (no injection through a malformed string), and U+2028/U+2029
-     * are escaped for older JavaScript engines. Returns null if [message] is not JSON.
+     * are escaped for older JavaScript engines. Returns null if [message] is not a JSON object.
      */
     fun postMessageScript(message: String, targetOrigin: String): String? {
+        // Widget-API messages are JSON objects. Anything else (including bare literals, which the
+        // JSON parser accepts) is refused, so nothing but an object literal reaches the script.
         val element: JsonElement = try {
-            json.parseToJsonElement(message)
+            json.parseToJsonElement(message) as? JsonObject
         } catch (_: Exception) {
-            return null
-        }
+            null
+        } ?: return null
         val payload = element.toString().replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
         val origin = JsonPrimitive(targetOrigin).toString()
         return "window.postMessage($payload, $origin);"
@@ -143,7 +145,12 @@ fun CallE2ee.label(): CallEncryptionLabel = when (this) {
     CallE2ee.UNKNOWN -> CallEncryptionLabel.UNKNOWN
 }
 
-/** Widget URL (integration.md §6.2): the Rust SDK fills the `$…` placeholders in `generateWebviewUrl`. */
+/**
+ * Widget URL (integration.md §6.2): the Rust SDK fills the `$…` placeholders in
+ * `generateWebviewUrl`. Placeholder names are the ones compiled into sdk-android 26.09.28
+ * (checked in libmatrix_sdk_ffi.so): the device ID is `$org.matrix.msc2873.matrix_device_id`;
+ * the `msc3819` spelling in integration.md is not substituted by this SDK.
+ */
 object CallWidgetUrl {
     const val ASSET_ORIGIN = "https://appassets.androidplatform.net"
     const val INDEX = "$ASSET_ORIGIN/call-widget/index.html"
@@ -159,7 +166,7 @@ object CallWidgetUrl {
             "&parentUrl=" + java.net.URLEncoder.encode(ASSET_ORIGIN, Charsets.UTF_8) +
             "&roomId=\$matrix_room_id" +
             "&userId=\$matrix_user_id" +
-            "&deviceId=\$org.matrix.msc3819.matrix_device_id" +
+            "&deviceId=\$org.matrix.msc2873.matrix_device_id" +
             "&baseUrl=\$org.matrix.msc4039.matrix_base_url" +
             "&lang=$safeLang" +
             "&theme=$theme" +

@@ -1,6 +1,7 @@
 /** Sign-in: SSO redirect + token exchange, homeserver discovery, password login. */
 import { AutoDiscovery, AutoDiscoveryAction, createClient, type LoginResponse } from "matrix-js-sdk";
 import { normaliseBaseUrl } from "../config";
+import { desktopApi } from "../platform/desktop";
 
 const PENDING_SSO_KEY = "lumen-sso-pending-homeserver";
 
@@ -30,6 +31,19 @@ export function startSso(baseUrl: string, idpId: string | null): void {
   window.location.assign(ssoRedirectUrl(baseUrl, idpId, appRedirectUrl()));
 }
 
+/**
+ * Desktop app: SSO runs in the system browser (RFC 8252). The app opens the homeserver's SSO
+ * page with an `io.lumen.secure:/sso-callback` redirect and resolves with the login token when
+ * the OS hands that callback back (checked against a per-attempt nonce). Null in a browser.
+ */
+export function startDesktopSso(baseUrl: string, idpId: string | null): Promise<string> | null {
+  return desktopApi()?.sso.start(baseUrl, idpId) ?? null;
+}
+
+export function cancelDesktopSso(): void {
+  desktopApi()?.sso.cancel();
+}
+
 export function takePendingSsoHomeserver(): string | null {
   try {
     const v = sessionStorage.getItem(PENDING_SSO_KEY);
@@ -54,6 +68,11 @@ export function extractLoginToken(href: string): { token: string | null; cleaned
 }
 
 export function deviceDisplayName(brandShortName: string, ua: string = navigator.userAgent): string {
+  const desktop = desktopApi();
+  if (desktop) {
+    const os = { win32: "Windows", darwin: "macOS", linux: "Linux" }[desktop.platform] ?? "";
+    return `${brandShortName} Desktop${os ? ` (${os})` : ""}`;
+  }
   const browser = /Edg\//.test(ua)
     ? "Edge"
     : /Firefox\//.test(ua)

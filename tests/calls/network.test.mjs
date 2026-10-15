@@ -8,7 +8,7 @@
  * 9  bandwidth limit on A's uplink → encoder limited by bandwidth, fewer/lower simulcast
  *    layers, B receives a lower resolution, audio continues; recovery after the limit is lifted
  * 10 10 % packet loss on B's uplink → voice continues, loss/concealment/FEC numbers
- * 15 TURN: no direct media path (UDP 7882-7889 and ICE/TCP 7881 blocked) → relay over TURN/UDP;
+ * 15 TURN: no direct media path (all UDP but TURN/UDP 3478, and ICE/TCP 7881 blocked) → relay over TURN/UDP;
  *    all UDP blocked → ICE/TCP; all UDP and ICE/TCP blocked → TURN/TLS (relay over TLS)
  * 16 link down for ~5 s → reconnecting state shown → media resumes
  */
@@ -145,10 +145,12 @@ try {
     await B.page.locator(".call-screen").waitFor({ state: "detached", timeout: T });
   });
 
-  await step("15a: no direct media path for B (UDP 7882-7889 and ICE/TCP 7881 blocked) → TURN relay over UDP, media flows", async () => {
+  await step("15a: no direct media path for B (all UDP except TURN/UDP 3478, and ICE/TCP 7881 blocked) → TURN relay over UDP, media flows", async () => {
     await hangUpAll(A, B);
     resetNet();
-    log(lab("block-port", "lab-b", "udp", "7882:7889"));
+    // Blocking only the SFU's media ports isn't enough: the SFU also sends from its other host
+    // addresses, which the host masquerades to random ports (peer-reflexive candidates).
+    log(lab("block-udp-except", "lab-b", "3478"));
     log(lab("block-port", "lab-b", "tcp", "7881"));
     await startFromHeader(A, "audio");
     await acceptIncoming(B, "audio");

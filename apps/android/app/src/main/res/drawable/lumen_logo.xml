@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- branding/logo.svg as a VectorDrawable (in-app logo). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <path android:fillColor="#FF0A1630" android:pathData="M 20 2 H 44 A 18 18 0 0 1 62 20 V 44 A 18 18 0 0 1 44 62 H 20 A 18 18 0 0 1 2 44 V 20 A 18 18 0 0 1 20 2 Z" />
+    <path android:pathData="M 26 22 A 16 16 0 1 0 58 22 A 16 16 0 1 0 26 22 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="42" android:centerY="22" android:gradientRadius="16">
+                <item android:offset="0" android:color="#8C8BE3F0" />
+                <item android:offset="1" android:color="#008BE3F0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 21 16 V 38.5 A 9.5 9.5 0 0 0 30.5 48 H 46"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:type="linear" android:startX="10" android:startY="8" android:endX="56" android:endY="58">
+                <item android:offset="0" android:color="#FF5CD0E6" />
+                <item android:offset="0.55" android:color="#FF3CCFB6" />
+                <item android:offset="1" android:color="#FF8676F4" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M 36.5 22 A 5.5 5.5 0 1 0 47.5 22 A 5.5 5.5 0 1 0 36.5 22 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="10" android:startY="8" android:endX="56" android:endY="58">
+                <item android:offset="0" android:color="#FF5CD0E6" />
+                <item android:offset="0.55" android:color="#FF3CCFB6" />
+                <item android:offset="1" android:color="#FF8676F4" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

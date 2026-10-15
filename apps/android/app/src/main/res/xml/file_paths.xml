@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Decrypted attachments the user chose to open are written here and shared read-only with
+     the chosen viewer app; the directory is cleared on start and on sign-out. -->
+<paths>
+    <cache-path name="opened" path="opened/" />
+</paths>

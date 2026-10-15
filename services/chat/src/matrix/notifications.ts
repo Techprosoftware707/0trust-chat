@@ -6,6 +6,7 @@
 import { RoomEvent, type IRoomTimelineData, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
 import { getPrefs } from "../lib/prefs";
 import { roomHash } from "../lib/matrix-id";
+import { desktopApi } from "../platform/desktop";
 import { isMessageEvent, previewText } from "./rooms";
 
 export function notificationsSupported(): boolean {
@@ -26,6 +27,11 @@ const MAX_AGE_MS = 5 * 60 * 1000;
 
 export function startDesktopNotifications(client: MatrixClient, brandName: string): () => void {
   const me = client.getUserId();
+  // Desktop app: notifications are OS notifications posted by the app; clicking one opens the room.
+  const desktop = desktopApi();
+  const offClick = desktop?.notifications.onClick((roomId) => {
+    window.location.hash = roomHash(roomId);
+  });
   const onTimeline = async (
     ev: MatrixEvent,
     room: Room | undefined,
@@ -39,7 +45,8 @@ export function startDesktopNotifications(client: MatrixClient, brandName: strin
     if (ev.getLocalAge() > MAX_AGE_MS) return;
     const prefs = getPrefs();
     if (!prefs.notifications || notificationPermission() !== "granted") return;
-    if (!document.hidden) return;
+    // Browser: only while the tab is hidden. Desktop app: also while the window is in the background.
+    if (!document.hidden && !(desktop && !document.hasFocus())) return;
     await client.decryptEventIfNeeded(ev);
     if (!isMessageEvent(ev) || ev.isRedacted()) return;
     const actions = client.getPushActionsForEvent(ev, true);
@@ -51,6 +58,10 @@ export function startDesktopNotifications(client: MatrixClient, brandName: strin
       if (room.getJoinedMemberCount() > 2) body = `${sender}: ${body}`;
     } else {
       body = ev.isEncrypted() ? "New encrypted message" : "New message";
+    }
+    if (desktop) {
+      desktop.notifications.show({ title: room.name || brandName, body, roomId: room.roomId, silent: !actions.tweaks?.sound });
+      return;
     }
     try {
       const n = new Notification(room.name || brandName, {
@@ -72,5 +83,6 @@ export function startDesktopNotifications(client: MatrixClient, brandName: strin
   client.on(RoomEvent.Timeline, handler);
   return () => {
     client.off(RoomEvent.Timeline, handler);
+    offClick?.();
   };
 }

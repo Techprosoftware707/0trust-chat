@@ -6,12 +6,26 @@
   "description": "Lumen Secure desktop app (Windows, macOS): the bundled Lumen web client in a hardened Electron shell",
   "license": "AGPL-3.0-or-later",
   "author": "Lumen",
-  "homepage": "https://lumen.test",
   "main": "dist/main/index.cjs",
   "engines": {
     "node": ">=22.12.0"
   },
-  "scripts": {},
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "build:icons": "node scripts/gen-icons.mjs",
+    "build:app": "node scripts/build-app.mjs",
+    "build": "npm run build:web && npm run build:icons && npm run build:app",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run typecheck && node --test \"test/unit/*.test.ts\"",
+    "test:e2e": "node scripts/ensure-electron.mjs && node test/e2e/run.mjs",
+    "test:smoke": "node test/smoke/packaged.mjs",
+    "dist:linux": "npm run build && electron-builder --config electron-builder.config.cjs --linux --publish never",
+    "dist:win": "npm run build && electron-builder --config electron-builder.config.cjs --win --publish never",
+    "dist:win:appx": "npm run build && electron-builder --config electron-builder.config.cjs --win appx --publish never",
+    "dist:mac": "npm run build && electron-builder --config electron-builder.config.cjs --mac --publish never",
+    "checksums": "node scripts/checksums.mjs"
+  },
   "dependencies": {
     "electron-updater": "6.8.10"
   },

@@ -2,9 +2,13 @@
  * Persistent login session.
  *
  *  - localStorage "lumen-session": user ID, device ID, homeserver URL (not secret).
- *  - IndexedDB "lumen-session": a non-extractable AES-GCM CryptoKey plus the
- *    access token and the crypto-store password, both sealed with that key.
+ *  - IndexedDB "lumen-session": the access token and the crypto-store password, both
+ *    sealed (AES-GCM) with the session key.
+ *  - The session key: in a browser, a non-extractable CryptoKey kept in the same IndexedDB
+ *    database. In the desktop app, the app's store key, which the app keeps encrypted by the
+ *    OS (DPAPI / Keychain via Electron safeStorage) and never writes to browser storage.
  */
+import { desktopApi, importDesktopStoreKey } from "../platform/desktop";
 import { deleteDb, idbDelete, idbGet, idbPut, openDb } from "./idb";
 import { generatePickleKey, randomSecret, seal, unseal, type SealedSecret } from "./session-crypto";
 
@@ -68,16 +72,32 @@ async function withDb<T>(fn: (db: IDBDatabase) => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * The desktop app's store key (a new one for a new session), or null in a browser or when
+ * the desktop has no OS-protected storage (then the browser key below is used).
+ */
+async function desktopKey(mode: "create" | "get"): Promise<CryptoKey | null> {
+  const d = desktopApi();
+  if (!d) return null;
+  try {
+    return await importDesktopStoreKey(mode === "create" ? await d.storeKey.create() : await d.storeKey.get());
+  } catch {
+    return null;
+  }
+}
+
 export async function saveSession(meta: Omit<SessionMeta, "v">, accessToken: string): Promise<Session> {
   const m: SessionMeta = { v: 1, ...meta };
-  const key = await generatePickleKey();
+  const desktop = await desktopKey("create");
+  const key = desktop ?? (await generatePickleKey());
   const storagePassword = randomSecret(32);
   const secrets: StoredSecrets = {
     accessToken: await seal(key, accessToken, ctx(m, "access-token")),
     storagePassword: await seal(key, storagePassword, ctx(m, "storage-password")),
   };
   await withDb(async (db) => {
-    await idbPut(db, KEYS, recordId(m), key);
+    // The desktop store key is never put in browser storage.
+    if (!desktop) await idbPut(db, KEYS, recordId(m), key);
     await idbPut(db, SECRETS, recordId(m), secrets);
   });
   localStorage.setItem(SESSION_LS_KEY, JSON.stringify(m));
@@ -93,7 +113,7 @@ export async function loadSession(): Promise<Session | null> {
   const m = readMeta();
   if (!m) return null;
   return withDb(async (db) => {
-    const key = await idbGet<CryptoKey>(db, KEYS, recordId(m));
+    const key = (await idbGet<CryptoKey>(db, KEYS, recordId(m))) ?? (await desktopKey("get"));
     const secrets = await idbGet<StoredSecrets>(db, SECRETS, recordId(m));
     if (!key || !secrets) throw new SessionUnavailableError("This browser no longer has the keys for your saved session.");
     try {
@@ -110,9 +130,12 @@ export async function loadSession(): Promise<Session | null> {
   });
 }
 
-/** Removes the session metadata, the sealed secrets and the pickle key. */
+/** Removes the session metadata, the sealed secrets and the pickle key (desktop: the store key). */
 export async function clearSession(): Promise<void> {
   const m = readMeta();
+  await desktopApi()
+    ?.storeKey.destroy()
+    .catch(() => undefined);
   try {
     localStorage.removeItem(SESSION_LS_KEY);
   } catch {

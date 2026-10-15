@@ -35,6 +35,10 @@ import { SecretKeyPromptDialog } from "./dialogs/SecretKeyPromptDialog";
 import { CallManager } from "./calls/CallManager";
 import { CallHistoryPanel } from "./calls/CallHistoryPanel";
 import { setCallPrefsUser } from "../calls/prefs";
+import { useDesktopIntegration } from "../platform/desktop";
+import { DesktopStorageNotice } from "../platform/DesktopNotice";
+import { signOut } from "../matrix/client";
+import { resetPrefs } from "../lib/prefs";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 interface Props {
@@ -243,10 +247,18 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
 
   // --- Unread count in the tab title ---
   const summaries = useRoomSummaries(client);
+  const unreadConversations = summaries.reduce((acc, s) => acc + (s.membership === "invite" ? 1 : s.unread > 0 ? 1 : 0), 0);
   useEffect(() => {
-    const n = summaries.reduce((acc, s) => acc + (s.membership === "invite" ? 1 : s.unread > 0 ? 1 : 0), 0);
+    const n = unreadConversations;
     document.title = n > 0 ? `(${n}) ${config.brand.name}` : config.brand.name;
-  }, [summaries, config.brand.name]);
+  }, [unreadConversations, config.brand.name]);
+
+  // --- Desktop app: badge, "Change server…" sign-out, call transports (no-op in a browser) ---
+  const signOutForDesktop = useCallback(async () => {
+    await signOut(client);
+    resetPrefs();
+  }, [client]);
+  useDesktopIntegration(client, unreadConversations, signOutForDesktop);
 
   const roomId = route.kind === "room" ? route.roomId : null;
   useEffect(() => {
@@ -267,6 +279,7 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
           data-panel={panel ?? "none"}
         >
           <ConnectionBanner />
+          <DesktopStorageNotice />
           <div className="shell">
             <Sidebar summaries={summaries} activeRoomId={roomId} onSignOut={() => openDialog({ type: "sign-out" })} />
             <main className="room-pane" id="main">

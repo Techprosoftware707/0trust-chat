@@ -1,0 +1,7 @@
+# Chat regression suites after the calls work — 2026-10-15T07:31:01Z
+## npm run typecheck
+> lumen-chat@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit
+
+exit=0
+## npm run lint

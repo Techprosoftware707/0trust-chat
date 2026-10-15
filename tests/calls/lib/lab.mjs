@@ -641,8 +641,9 @@ export function makeReporter(name) {
     log(`\n--- ${title}\nSKIP ${title}: ${why}`);
   }
   function finish() {
-    log(`\n${name}: ${passed} passed, ${failed} failed, ${skipped.length} skipped (started ${started.toISOString()}, finished ${new Date().toISOString()})`);
-    const file = path.join(RESULTS, `calls-${name}.txt`);
+    log(`\n${name}: ${passed} passed, ${failed} failed, ${skipped.length} skipped (started ${started.toISOString()}, finished ${new Date().toISOString()})${ONLY ? ` — partial rerun, --only ${ONLY.source}` : ""}`);
+    // a partial rerun (--only) never overwrites the full run's file
+    const file = path.join(RESULTS, ONLY ? `calls-${name}-rerun.txt` : `calls-${name}.txt`);
     fs.writeFileSync(file, lines.join("\n") + "\n");
     console.log(`raw output saved to ${path.relative(REPO, file)}`);
     return { passed, failed, skipped };

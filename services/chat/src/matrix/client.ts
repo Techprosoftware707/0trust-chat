@@ -15,6 +15,7 @@ import { clearSession, type Session } from "../lib/session-store";
 import { clearMediaCache } from "./media";
 import { clearAllCallPrefs } from "../calls/prefs";
 import { clearSecretStorageKeyCache, cryptoCallbacks } from "./secret-storage";
+import { desktopApi } from "../platform/desktop";
 
 export const CRYPTO_DB_PREFIX = "lumen-crypto";
 const SYNC_DB_NAME = "lumen-sync";
@@ -131,7 +132,11 @@ export function reloadSignedOut(notice: string): void {
   } catch {
     /* ignore */
   }
-  window.location.replace(`${window.location.origin}/`);
+  const reload = () => window.location.replace(`${window.location.origin}/`);
+  // Desktop app: it also deletes its store key and clears the app origin's browser storage first.
+  const desktop = desktopApi();
+  if (desktop) void desktop.signedOut().catch(() => undefined).finally(reload);
+  else reload();
 }
 
 export function takeSignedOutNotice(): string | null {

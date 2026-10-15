@@ -77,8 +77,8 @@ class SecurityTest {
 
     @Test
     fun `postMessage script contains only re-serialised JSON`() {
-        val js = WidgetBridge.postMessageScript("""{"a":"</script> ","b":[1]}""", CallWidgetUrl.ASSET_ORIGIN)!!
-        assertEquals("""window.postMessage({"a":"</script> ","b":[1]}, "https://appassets.androidplatform.net");""", js)
+        val js = WidgetBridge.postMessageScript("{\"a\":\"</script>\u2028\",\"b\":[1]}", CallWidgetUrl.ASSET_ORIGIN)!!
+        assertEquals("window.postMessage({\"a\":\"</script>\\u2028\",\"b\":[1]}, \"https://appassets.androidplatform.net\");", js)
         assertNull(WidgetBridge.postMessageScript("alert(1)", CallWidgetUrl.ASSET_ORIGIN))
         assertNull(WidgetBridge.postMessageScript("{}); alert(1); ({", CallWidgetUrl.ASSET_ORIGIN))
         assertEquals("""{"type":"io.lumen.call_action","action":"switch_camera"}""", WidgetBridge.actionMessage(CallAction.SWITCH_CAMERA))
@@ -88,7 +88,7 @@ class SecurityTest {
     fun `widget URL carries the documented parameters`() {
         val url = CallWidgetUrl.rawUrl(CallWidgetUrl.Intent.START_CALL, video = true, notify = CallWidgetUrl.Notify.RING, theme = "dark", lang = "de-DE")
         assertTrue(url.startsWith("https://appassets.androidplatform.net/call-widget/index.html?widgetId=\$matrix_widget_id"))
-        for (p in listOf("roomId=\$matrix_room_id", "userId=\$matrix_user_id", "deviceId=\$org.matrix.msc3819.matrix_device_id",
+        for (p in listOf("roomId=\$matrix_room_id", "userId=\$matrix_user_id", "deviceId=\$org.matrix.msc2873.matrix_device_id",
             "baseUrl=\$org.matrix.msc4039.matrix_base_url", "lang=de-DE", "theme=dark", "intent=start_call", "video=true", "notify=ring",
             "parentUrl=https%3A%2F%2Fappassets.androidplatform.net")) {
             assertTrue(p, url.contains(p))

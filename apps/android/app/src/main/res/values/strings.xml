@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lumen</string>
+
+    <!-- Generic actions -->
+    <string name="action_close">Close</string>
+
+    <!-- Timeline and previews -->
+    <string name="room_unnamed">Unnamed chat</string>
+    <string name="timeline_deleted">Message deleted</string>
+    <string name="timeline_utd">Unable to decrypt this message</string>
+    <string name="timeline_image">Image</string>
+    <string name="timeline_file">File</string>
+    <string name="timeline_video">Video</string>
+    <string name="timeline_audio">Audio</string>
+    <string name="timeline_sticker">Sticker</string>
+    <string name="timeline_poll">Poll: %1$s (open on the web app to vote)</string>
+    <string name="timeline_unsupported">This message type is not supported in this app yet</string>
+    <string name="timeline_call">Call</string>
+    <string name="timeline_joined">%1$s joined</string>
+    <string name="timeline_left">%1$s left</string>
+    <string name="timeline_invited">%1$s was invited</string>
+    <string name="timeline_membership">Membership of %1$s changed</string>
+    <string name="timeline_name_changed">Display name changed to %1$s</string>
+    <string name="timeline_room_named">Chat renamed to %1$s</string>
+    <string name="timeline_topic_changed">Topic changed</string>
+    <string name="timeline_encryption_enabled">End-to-end encryption turned on</string>
+    <string name="timeline_room_created">Chat created</string>
+
+    <!-- Notifications -->
+    <string name="notification_new_message">New message</string>
+    <string name="notification_new_message_in">New message in %1$s</string>
+    <string name="notification_incoming_call">Incoming call</string>
+    <string name="notification_incoming_call_from">Call from %1$s</string>
+    <string name="notification_invite">New invitation</string>
+    <string name="notification_checking_messages">Checking for new messages</string>
+    <string name="channel_messages">Messages</string>
+    <string name="channel_messages_desc">New messages and invitations. Previews are hidden unless you choose otherwise in Settings.</string>
+    <string name="channel_calls">Incoming calls</string>
+    <string name="channel_calls_desc">Ringing for incoming calls</string>
+    <string name="channel_ongoing_call">Ongoing call</string>
+    <string name="channel_sync">Connection</string>
+    <string name="channel_sync_desc">Shown while the app keeps its connection open (Stay connected) or fetches a new message</string>
+    <string name="keep_connected_notification">Staying connected for new messages</string>
+
+    <!-- Calls -->
+    <string name="call_ongoing">Lumen call</string>
+    <string name="call_unavailable_title">Calls unavailable in this build</string>
+    <string name="call_unavailable_body">This build of the app does not include the call component. You can still answer and make calls in the web or desktop app.</string>
+    <string name="call_unavailable_incoming">Incoming call. Calls are unavailable in this build: answer it in the web or desktop app.</string>
+    <string name="call_missed">Missed call</string>
+    <string name="call_route_earpiece">Phone</string>
+    <string name="call_route_speaker">Speaker</string>
+    <string name="call_route_bluetooth">Bluetooth</string>
+    <string name="call_route_wired">Headset</string>
+    <string name="call_route_other">Other audio device</string>
+    <string name="call_permission_title">Microphone access needed</string>
+    <string name="call_permission_body">Calls need the microphone (and the camera for video). You can allow it in the system settings for this app.</string>
+    <string name="call_ended">Call ended</string>
+    <string name="call_failed">The call could not start</string>
+    <string name="call_failed_webview">Calls need a newer version of Android System WebView. Update it from the Play Store and try again.</string>
+    <string name="call_failed_room">The chat for this call is not available on this device.</string>
+    <string name="call_failed_generic">Something went wrong while starting the call component.</string>
+    <string name="call_pip">Picture in picture</string>
+    <string name="call_hang_up">Hang up</string>
+    <string name="call_connecting">Connecting…</string>
+    <string name="call_e2ee_encrypted">End-to-end encrypted</string>
+    <string name="call_e2ee_waiting">Waiting for encryption keys</string>
+    <string name="call_e2ee_not_encrypted">Not end-to-end encrypted</string>
+    <string name="call_e2ee_error">Encryption problem: some media cannot be decrypted</string>
+    <string name="call_e2ee_unknown">Encryption status unknown</string>
+    <string name="call_audio_route">Audio output: %1$s</string>
+    <string name="call_incoming_video">Incoming video call</string>
+    <string name="call_incoming_voice">Incoming voice call</string>
+    <string name="call_decline">Decline</string>
+    <string name="call_answer_video">Video</string>
+    <string name="call_answer">Answer</string>
+</resources>

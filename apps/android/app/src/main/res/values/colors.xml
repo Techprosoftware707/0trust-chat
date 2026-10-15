@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window-level colours only (before Compose draws). Values from design/tokens.css; the Compose
+     theme uses the generated LumenTokens.kt. -->
+<resources>
+    <color name="lumen_midnight_950">#FF050B1A</color>
+    <color name="lumen_bg_light">#FFF6F8FB</color>
+    <color name="lumen_accent_light">#FF0E8FB0</color>
+</resources>

@@ -905,3 +905,10 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 @media print {
   .sidebar, .composer-wrap, .room-header-actions, .toasts, .conn-region { display: none !important; }
 }
+
+/* Desktop app only (src/platform/DesktopNotice.tsx): OS keyring warning, in the page flow. */
+.desktop-notice { align-items: center; }
+.desktop-notice p { flex: 1; margin: 0; }
+.desktop-notice .btn { margin-top: 0; }
+.app > .desktop-notice { border-radius: 0; flex: none; }
+.auth-panel .desktop-notice { margin-bottom: var(--space-4); }

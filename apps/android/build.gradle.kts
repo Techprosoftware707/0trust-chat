@@ -32,8 +32,13 @@ val checkNoTlsBypass by tasks.registering {
         roots.forEach { root ->
             root.asFileTree.matching { include("**/*.kt", "**/*.java", "**/*.xml") }.forEach scan@{ f ->
                 if (f.name in allowList) return@scan
+                // Debug builds may talk plain http to loopback hosts only (network_security_config
+                // in src/debug); that file is the single allowed cleartext switch.
+                val debugNetworkConfig = f.invariantSeparatorsPath.endsWith("app/src/debug/res/xml/network_security_config.xml")
                 f.readLines().forEachIndexed { i, line ->
-                    forbidden.filter { line.contains(it) }.forEach { hits += "${f.relativeTo(rootDir)}:${i + 1}: $it" }
+                    forbidden.filter { line.contains(it) }
+                        .filterNot { debugNetworkConfig && it == "cleartextTrafficPermitted=\"true\"" }
+                        .forEach { hits += "${f.relativeTo(rootDir)}:${i + 1}: $it" }
                 }
             }
         }
