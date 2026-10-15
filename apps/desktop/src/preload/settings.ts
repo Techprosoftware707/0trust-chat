@@ -12,6 +12,7 @@ if (window.location.href.split(/[?#]/)[0] === "app://desktop/settings.html") {
     checkForUpdates: () => ipcRenderer.invoke("settings:check-updates"),
     installUpdate: () => ipcRenderer.invoke("settings:install-update"),
     openAccount: () => ipcRenderer.send("settings:open-account"),
+    openAccountDelete: () => ipcRenderer.send("settings:open-account-delete"),
     onChanged: (cb: (view: unknown) => void) => {
       const l = (_e: unknown, v: unknown) => cb(v);
       ipcRenderer.on("settings:changed", l);

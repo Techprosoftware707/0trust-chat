@@ -27,7 +27,22 @@ test("url-validation.json: validateEndpointUrl", () => {
 test("wellknown.json: parseWellKnown", () => {
   const v = load<{ name: string; input: unknown; expect: unknown }>("wellknown.json");
   assert.ok(v.cases.length >= 5);
-  for (const c of v.cases) assert.deepEqual(parseWellKnown(c.input), c.expect, c.name);
+  for (const c of v.cases) {
+    const got = parseWellKnown(c.input) as Record<string, unknown>;
+    const want = c.expect as Record<string, unknown>;
+    // Fields the app parses beyond the vector's contract (e.g. the newer optional
+    // account_delete_url) must be null when the input doesn't have them; the rest must match exactly.
+    if (got.lumen && want.lumen) {
+      const lumen = { ...(got.lumen as Record<string, unknown>) };
+      for (const k of Object.keys(lumen)) {
+        if (!(k in (want.lumen as object))) {
+          assert.equal(lumen[k], null, `${c.name}: extra field ${k}`);
+          delete lumen[k];
+        }
+      }
+      assert.deepEqual({ ...got, lumen }, want, c.name);
+    } else assert.deepEqual(got, want, c.name);
+  }
 });
 
 test("deeplinks.json: routeDeepLink", () => {

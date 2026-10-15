@@ -15,6 +15,8 @@ export interface LumenBlock {
   portal_url: string | null;
   signup_url: string | null;
   account_url: string | null;
+  /** Optional (portal "Delete account" page). */
+  account_delete_url: string | null;
   privacy_url: string | null;
   help_url: string | null;
   sso_idp_id: string | null;
@@ -31,6 +33,7 @@ const URL_FIELDS = [
   "portal_url",
   "signup_url",
   "account_url",
+  "account_delete_url",
   "privacy_url",
   "help_url",
   "web_app_url",
@@ -73,6 +76,7 @@ export function parseLumenBlock(raw: unknown): LumenBlock | null {
     portal_url: null,
     signup_url: null,
     account_url: null,
+    account_delete_url: null,
     privacy_url: null,
     help_url: null,
     sso_idp_id: idp,

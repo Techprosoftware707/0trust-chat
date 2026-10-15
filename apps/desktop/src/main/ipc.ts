@@ -99,7 +99,9 @@ export function settingsView() {
     electronVersion: process.versions.electron,
     packaged: app.isPackaged,
     brand: brandOf(p),
-    server: p ? { serverName: p.serverName, homeserverUrl: p.homeserverUrl, accountUrl: p.lumen?.account_url ?? null } : null,
+    server: p
+      ? { serverName: p.serverName, homeserverUrl: p.homeserverUrl, accountUrl: p.lumen?.account_url ?? null, accountDeleteUrl: p.lumen?.account_delete_url ?? null }
+      : null,
     settings: {
       closeToTray: s.closeToTray,
       openAtLogin: s.openAtLogin,
@@ -211,6 +213,10 @@ export function registerIpc(): void {
   handle("settings:install-update", isFromSettings, () => installUpdateNow());
   on("settings:open-account", isFromSettings, () => {
     const u = getServerProfile()?.lumen?.account_url;
+    if (u && isSafeExternalUrl(u)) void shell.openExternal(u);
+  });
+  on("settings:open-account-delete", isFromSettings, () => {
+    const u = getServerProfile()?.lumen?.account_delete_url;
     if (u && isSafeExternalUrl(u)) void shell.openExternal(u);
   });
   onUpdateState(() => pushSettingsView());

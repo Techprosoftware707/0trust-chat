@@ -146,6 +146,14 @@ test("toWebClientConfig output is accepted by the web client's own parser rules"
   assert.ok(cfg.homeserver.base_url.startsWith("https://") && !cfg.homeserver.base_url.endsWith("/"));
 });
 
+test("io.lumen.app account_delete_url is parsed and validated like the other links", async () => {
+  const { parseWellKnown } = await import("../../src/core/discovery.ts");
+  const ok = parseWellKnown({ "m.homeserver": { base_url: HS }, "io.lumen.app": { version: 1, account_delete_url: "https://example.com/portal/privacy/delete/" } });
+  assert.ok("lumen" in ok && ok.lumen?.account_delete_url === "https://example.com/portal/privacy/delete/");
+  const bad = parseWellKnown({ "m.homeserver": { base_url: HS }, "io.lumen.app": { version: 1, account_delete_url: "http://example.com/delete/" } });
+  assert.ok("lumen" in bad && bad.lumen?.account_delete_url === null);
+});
+
 test("parseRtcTransports keeps at most 4 valid wss URLs", () => {
   const many = Array.from({ length: 6 }, (_, i) => ({ type: "livekit", url: `wss://rtc${i}.example.com` }));
   assert.equal(parseRtcTransports({ rtc_transports: many }, { debug: false }).length, 4);

@@ -5,7 +5,7 @@ interface View {
   electronVersion: string;
   packaged: boolean;
   brand: { name: string; shortName: string };
-  server: { serverName: string; homeserverUrl: string; accountUrl: string | null } | null;
+  server: { serverName: string; homeserverUrl: string; accountUrl: string | null; accountDeleteUrl: string | null } | null;
   settings: { closeToTray: boolean; openAtLogin: boolean; doNotDisturb: boolean; autoLockMinutes: number; lockOnSuspend: boolean; touchId: boolean };
   autoLockChoices: number[];
   lockEnabled: boolean;
@@ -24,6 +24,7 @@ interface SettingsApi {
   checkForUpdates(): Promise<void>;
   installUpdate(): Promise<void>;
   openAccount(): void;
+  openAccountDelete(): void;
   onChanged(cb: (v: View) => void): () => void;
 }
 const api = (window as unknown as { lumenSettings: SettingsApi }).lumenSettings;
@@ -99,6 +100,8 @@ function render(v: View) {
     add("Homeserver", v.server.homeserverUrl);
   } else add("Server", "not set up");
   $("account").hidden = !v.server?.accountUrl;
+  $("account-delete").hidden = !v.server?.accountDeleteUrl;
+  $("account-delete-note").hidden = !v.server?.accountDeleteUrl;
 
   $("update-msg").textContent = v.update.message;
   $("update-check").hidden = ["disabled", "checking", "downloading", "downloaded"].includes(v.update.status);
@@ -136,6 +139,7 @@ for (const [id, key] of [["lock-suspend", "lockOnSuspend"], ["touchid", "touchId
 }
 $("change-server").addEventListener("click", () => void api.changeServer());
 $("account").addEventListener("click", () => api.openAccount());
+$("account-delete").addEventListener("click", () => api.openAccountDelete());
 $("update-check").addEventListener("click", () => void api.checkForUpdates());
 $("update-install").addEventListener("click", () => void api.installUpdate());
 
