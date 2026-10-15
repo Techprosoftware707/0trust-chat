@@ -49,6 +49,7 @@ import {
 } from "./media";
 import { getCallPrefs, type CallPrefs } from "./prefs";
 import {
+  CALL_MEMBER_EVENT,
   CallSetupError,
   discoverOwnTransport,
   getSfuToken,
@@ -187,6 +188,8 @@ export class CallSession {
   private decryptErrors = new Map<string, number>();
   private noDecodeStreak = new Map<string, number>();
   private firstSeen = new Map<string, number>();
+  /** remote identities whose media we stopped receiving (no Matrix call membership) */
+  private blocked = new Set<string>();
   private keyWaitTimer: ReturnType<typeof setTimeout> | null = null;
   private prevReports = new Map<string, StatRecord[]>();
   private statsTimer: ReturnType<typeof setInterval> | null = null;
@@ -298,6 +301,7 @@ export class CallSession {
       this.log(`Media server: ${new URL(focus.url).host}`);
 
       await this.connectMedia(prefs);
+      await this.clearStaleOwnMembership();
       this.joinMatrix();
       await this.publishInitialTracks(prefs);
       this.startStats();
@@ -372,6 +376,27 @@ export class CallSession {
     this.set({ localIdentity: lk.localParticipant.identity, e2ee: { ...this.snapshot.e2ee, enabled: lk.isE2EEEnabled } });
     if (lk.localParticipant.identity !== token.identity) this.log("Warning: the media server assigned an unexpected identity");
     if (prefs.speakerDeviceId) await lk.switchActiveDevice("audiooutput", prefs.speakerDeviceId).catch(() => undefined);
+  }
+
+  /**
+   * A membership of this very device can still be in the room state (tab closed before the
+   * delayed leave fired, removed from the room and invited back, …). Re-sending identical
+   * content is a no-op for the homeserver, so the others would never see us "join" again and
+   * would not send us their media keys. End the stale membership first, so our join is a
+   * real state change for everyone's key distribution.
+   */
+  private async clearStaleOwnMembership(): Promise<void> {
+    const me = this.client.getUserId();
+    const dev = this.client.getDeviceId();
+    if (!this.rtc.memberships.some((m) => m.userId === me && m.deviceId === dev)) return;
+    const prefix = /^org\.matrix\.msc(3757|3779)\b/.test(this.room.getVersion()) ? "" : "_";
+    const stateKey = `${prefix}${me}_${dev}_m.call`;
+    try {
+      await this.client.sendStateEvent(this.roomId, CALL_MEMBER_EVENT as never, {} as never, stateKey);
+      this.log("Ended a stale call membership of this device");
+    } catch (e) {
+      this.log(`Couldn't end a stale call membership: ${errorMessage(e)}`);
+    }
   }
 
   private joinMatrix(): void {
@@ -670,6 +695,7 @@ export class CallSession {
         seen.add(p.identity);
         if (!this.firstSeen.has(p.identity)) this.firstSeen.set(p.identity, Date.now());
         const m = this.identityToMembership.get(p.identity) ?? null;
+        this.gateSubscriptions(p, m !== null);
         const t = (s: Track.Source) => p.getTrackPublication(s) as RemoteTrackPublication | undefined;
         const mic2 = t(Track.Source.Microphone);
         const cam2 = t(Track.Source.Camera);
@@ -741,6 +767,26 @@ export class CallSession {
     this.refreshDeviceState();
   }
 
+  /**
+   * Media is only received from participants with a current Matrix call membership. Anyone
+   * else on the SFU (a member removed from the room who keeps the media connection open, a
+   * connection the server operator added, a participant whose membership hasn't arrived yet)
+   * is not subscribed to: their audio is never played, even if their frames could still be
+   * decrypted with a key from before they left. Subscriptions resume when a membership appears.
+   */
+  private gateSubscriptions(p: RemoteParticipant, member: boolean): void {
+    for (const pub of p.trackPublications.values()) {
+      const rp = pub as RemoteTrackPublication;
+      if (!member && rp.isDesired) {
+        rp.setSubscribed(false);
+        this.blocked.add(p.identity);
+      } else if (member && this.blocked.has(p.identity) && !rp.isDesired) {
+        rp.setSubscribed(true);
+      }
+    }
+    if (member && this.blocked.has(p.identity)) this.blocked.delete(p.identity);
+  }
+
   private refreshDeviceState(): void {
     const lk = this.lk;
     const a = this.audioTrack;
@@ -780,7 +826,7 @@ export class CallSession {
     try {
       // The device disappeared (unplugged, disabled, taken over): fall back to the system default.
       if (t instanceof LocalAudioTrack) await t.restartTrack({ ...audioCaptureOptions(getCallPrefs(), null), deviceId: undefined });
-      else if (t instanceof LocalVideoTrack) await t.restartTrack({ ...videoCaptureOptions(this.profile, null) });
+      else if (t instanceof LocalVideoTrack) await t.restartTrack(videoCaptureOptions(this.profile, null));
       this.set({ notice: `Your ${kind} stopped working (disconnected?). Switched to the system default ${kind}.` });
       this.log(`${kind} lost — switched to default device`);
     } catch (e) {
@@ -882,8 +928,11 @@ export class CallSession {
   async switchDevice(kind: "audioinput" | "videoinput", deviceId: string): Promise<string | null> {
     const t = kind === "audioinput" ? this.audioTrack : this.videoTrack;
     if (!t) return null;
+    // LiveKit restarts the capture on the new device and swaps it into the sender (replaceTrack):
+    // no renegotiation, the others see no interruption beyond a key frame.
     if (this.lk) await this.lk.switchActiveDevice(kind, deviceId, true);
     else await t.setDeviceId({ exact: deviceId });
+    this.log(kind === "audioinput" ? "Microphone switched" : "Camera switched");
     this.refreshDeviceState();
     return (t.mediaStreamTrack.getSettings().deviceId as string | undefined) ?? null;
   }

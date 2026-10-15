@@ -67,11 +67,13 @@ export function CallTimelineItem({ marker, room, me, joinedHere }: { marker: Cal
       );
     case "legacy-call":
       return (
-        <div className="call-item missed" data-call="legacy">
+        <div className={`call-item${marker.sender === me ? "" : " missed"}`} data-call="legacy">
           <span className="call-item-icon">
             <PhoneOff aria-hidden="true" />
           </span>
-          <span className="call-item-text">{nameOf(marker.sender)} tried to call with an older call type this app doesn't support</span>
+          <span className="call-item-text">
+            {marker.sender === me ? "You tried to call with an older call type, which this app doesn't support" : `${nameOf(marker.sender)} tried to call with an older call type this app doesn't support`}
+          </span>
         </div>
       );
   }

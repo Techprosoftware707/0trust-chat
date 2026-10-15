@@ -1,0 +1,25 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+
+--- sign in A and B; open their DM
+PASS sign in A and B; open their DM (9.7 s)
+
+--- 10: 10 % packet loss on B's uplink: voice continues; loss, concealment and FEC from A's inbound-rtp
+lab-b: no netem in this kernel; tbf rate=none, iptables random loss=10% (ignored: delay 30ms)
+A inbound audio from B under 10 % loss: {"packets":370,"lost":30,"lossPct":7.5,"concealedSamples":25465,"totalSamples":384480,"concealedPct":6.6,"fecPacketsReceived":0,"jitterMs":1}
+B outbound audio under its 10 % uplink loss (SFU's receiver reports, retransmissions): {"packetsSent":301,"retransmittedPacketsSent":0,"nackCount":0,"sfuReportedLoss":{"packetsLost":88,"fractionLost":0.1171875,"rtt":0.001083,"jitter":0.0007909999999999999}}
+note: Chrome counts only FlexFEC/ULPFEC in fecPacketsReceived; Opus in-band FEC recovery isn't exposed in getStats, and the SFU's NACK retransmissions repair most of the uplink loss before it reaches A
+A hears B under loss: [{"participant":"@callbob3c0b91:lumen.test","name":"Bob Lumen","source":"microphone","medianPeakHz":662,"audibleFraction":1,"meanRms":0.023}]
+A call status under loss: 0:38 · Poor network
+lab-b: unshaped
+PASS 10: 10 % packet loss on B's uplink: voice continues; loss, concealment and FEC from A's inbound-rtp (43.8 s)
+
+--- 16: B's link down for ~5 s → B shows 'Reconnecting', then media resumes in both directions
+lab-b: eth0 down
+lab-b: eth0 up
+'Reconnecting' banner shown on B after 5397 ms
+B back to connected 7845 ms after the outage began
+B connection events: 06:30 AM Reconnected | 06:30 AM Signalling connection interrupted — reconnecting | 06:30 AM Network changed (4g) | 06:30 AM Network changed (4g) | 06:30 AM Network: back online | 06:30 AM Network changed (4g) | 06:30 AM Network changed (4g) | 06:30 AM Network: offline | 06:30 AM Connected | 06:30 AM Media server: rtc.lumen.test
+PASS 16: B's link down for ~5 s → B shows 'Reconnecting', then media resumes in both directions (33.2 s)
+CSP violations / page errors: none
+
+network: 3 passed, 0 failed, 0 skipped (started 2026-10-15T06:29:30.484Z, finished 2026-10-15T06:30:58.156Z)

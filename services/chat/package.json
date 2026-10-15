@@ -18,7 +18,7 @@
     "test:ui": "npm run build && node --test --test-force-exit --test-concurrency=1 --test-reporter=spec ../../tests/chat/ui.test.mjs",
     "devserver:up": "node ../../tests/chat/devserver.mjs up",
     "devserver:down": "node ../../tests/chat/devserver.mjs down",
-    "test:calls": "node ../../tests/calls/calls.test.mjs",
+    "test:calls": "node ../../tests/calls/run.mjs",
     "test:sso": "npm run build && node ../../tests/chat/sso.smoke.mjs",
     "lint": "eslint ."
   },

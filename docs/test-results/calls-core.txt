@@ -1,0 +1,113 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+
+--- sign in A (lab-a) and B (lab-b) through portal SSO; A opens an encrypted DM with B
+DM !4Vnk5hKxxudAFlRBA09SRmSwa8QNMOi6aDjpkRKob20
+PASS sign in A (lab-a) and B (lab-b) through portal SSO; A opens an encrypted DM with B (10.2 s)
+
+--- ring → decline: B declines A's 1:1 ring (RTC decline event); A's call ends with the reason
+A sees: Bob Lumen declined the call
+PASS ring → decline: B declines A's 1:1 ring (RTC decline event); A's call ends with the reason (6.6 s)
+
+--- missed call: A rings, B doesn't answer, A hangs up → B gets a missed-call indicator, timeline item and history entry
+B room list: AAlice Lumen06:47 AM Missed call1
+B history: Missed voice call Today, 06:47 AM · 0:03 · started by Alice Lumen Declined voice call Today, 06:47 AM · 0:01 · started by Alice Lumen · declined by you Outgoing voice call Today, 06:46 AM · 0:00 · started by you You didn't join video call Today, 06:46 AM · 0:01 · started by Alice Lumen Incoming voic
+PASS missed call: A rings, B doesn't answer, A hangs up → B gets a missed-call indicator, timeline item and history entry (8.9 s)
+
+--- legacy m.call.invite from an old client → clear 'unsupported call type' notice
+FAIL legacy m.call.invite from an old client → clear 'unsupported call type' notice (0.3 s)
+     locator.waitFor: Error: strict mode violation: locator('.call-item[data-call="legacy"]') resolved to 2 elements:
+         1) <div data-call="legacy" class="call-item missed">…</div> aka locator('div').filter({ hasText: /^Bob Lumen tried to call with an older call type this app doesn't support$/ }).nth(1)
+         2) <div data-call="legacy" class="call-item missed">…</div> aka locator('div').filter({ hasText: /^Bob Lumen tried to call with an older call type this app doesn't support$/ }).nth(3)
+     
+     Call log:
+     [2m  - waiting for locator('.call-item[data-call="legacy"]') to be visible[22m
+     
+         at /home/user/0trust-chat/tests/calls/calls.test.mjs:137:60
+         at async step (/home/user/0trust-chat/tests/calls/lib/lab.mjs:627:7)
+         at async file:///home/user/0trust-chat/tests/calls/calls.test.mjs:128:3
+
+--- 1–2: 1:1 voice call A → B; each hears the other's tone (FFT of the received track)
+A hears: [{"participant":"@callbob3c0b91:lumen.test","name":"Bob Lumen","source":"microphone","medianPeakHz":662,"audibleFraction":1,"meanRms":0.023}]
+B hears: [{"participant":"@callalicec1a8e3:lumen.test","name":"Alice Lumen","source":"microphone","medianPeakHz":441,"audibleFraction":1,"meanRms":0.0226}]
+A ICE: ["host/udp → SFU:7885 rtt=0.001s dtls=connected srtp=AES_CM_128_HMAC_SHA1_80"]
+PASS 1–2: 1:1 voice call A → B; each hears the other's tone (FFT of the received track) (19.1 s)
+
+--- 3: HD Voice negotiated: Opus 48 kHz, in-band FEC, DTX; bitrate within the 40 kbit/s preset; RED status
+A outbound audio: {"codec":"audio/opus","clockRate":48000,"fmtp":"minptime=10;usedtx=1;useinbandfec=1","kbpsOnWire":53,"pps":50.2,"opusKbpsExclE2EE":41}
+B inbound audio codecs: ["audio/opus/48000 fmtp=minptime=10;stereo=1;useinbandfec=1"]
+audio/red negotiated: false (livekit-client disables RED whenever frame encryption is on)
+audio/red offered in A's SDP: true
+A diagnostics panel: [{"k":"codec","v":"audio/opus · 48 kHz · mono","dir":"send","kind":"audio"},{"k":"fmtp","v":"in-band FEC, DTX","dir":"send","kind":"audio"},{"k":"kbps","v":"52.3 kbit/s","dir":"send","kind":"audio"},{"k":"loss","v":"0 %","dir":"send","kind":"audio"},{"k":"jitter","v":"0.4 ms","dir":"send","kind":"audio"}]
+PASS 3: HD Voice negotiated: Opus 48 kHz, in-band FEC, DTX; bitrate within the 40 kbit/s preset; RED status (5.3 s)
+
+--- 4 + DTX: A mutes → B sees muted state and the tone stops; packet rate drops (DTX); unmute → tone returns
+A packets/s: unmuted 50.3, muted 4.5; B hears while A muted: [{"participant":"@callalicec1a8e3:lumen.test","name":"Alice Lumen","source":"microphone","medianPeakHz":null,"audibleFraction":0,"meanRms":0}]
+PASS 4 + DTX: A mutes → B sees muted state and the tone stops; packet rate drops (DTX); unmute → tone returns (16.4 s)
+
+--- 5: microphone and speaker selection apply to the live call (track deviceId, audio element sinkId)
+A mic deviceId: default → c82bf3518268be34b50e432bf046f3903bd454ae242a78c29ae801075645fdb6 (picked "Fake Audio Input 1")
+A remote audio sinkId(s): 36743c8e6796319cc92facc4c7d1950576f3ab13f58bfe1913e9f527f7d971b5 (picked "Fake Audio Output 1" = 36743c8e6796319cc92facc4c7d1950576f3ab13f58bfe1913e9f527f7d971b5)
+PASS 5: microphone and speaker selection apply to the live call (track deviceId, audio element sinkId) (3.1 s)
+
+--- device lost mid-call: the active microphone's track ends → switch to the system default + notice (simulated 'ended' event)
+A mic: c82bf3518268… → default; notice: Your microphone stopped working (disconnected?). Switched to the system default microphone.
+PASS device lost mid-call: the active microphone's track ends → switch to the system default + notice (simulated 'ended' event) (2.7 s)
+
+--- 6: voice processing applied (track.getSettings): HD Voice on; High-Fidelity off, stereo, no DTX, higher bitrate
+A HD Voice capture settings: {"echoCancellation":true,"noiseSuppression":true,"autoGainControl":true,"voiceIsolation":false,"channelCount":1,"sampleRate":48000}
+A High-Fidelity capture settings: {"echoCancellation":false,"noiseSuppression":false,"autoGainControl":false,"channelCount":2}
+A High-Fidelity outbound: {"codec":"audio/opus","fmtp":"maxaveragebitrate=510000;minptime=10;stereo=1;useinbandfec=1","kbpsOnWire":141,"opusKbpsExclE2EE":129,"pps":50.2}
+A High-Fidelity muted packets/s (DTX off): 50.3
+echo warning shown with AEC off on speakers: true
+note: acoustic echo/noise performance can't be measured headless (fake devices, no acoustic path); only the applied settings are verified.
+PASS 6: voice processing applied (track.getSettings): HD Voice on; High-Fidelity off, stereo, no DTX, higher bitrate (17.8 s)
+
+--- call ends for both when A hangs up (1:1); timeline shows 'Call ended' with duration
+B timeline: Call ended · 1:04 · 2 people
+PASS call ends for both when A hangs up (1:1); timeline shows 'Call ended' with duration (4.2 s)
+
+--- 7: 1:1 video call at 720p: negotiated resolution and frame rate from outbound/inbound-rtp
+A outbound video layers: ["q video/VP8 320x180@13 101 kbit/s limit=none","f video/VP8 1280x720@13 621 kbit/s limit=none","h video/VP8 640x360@13 550 kbit/s limit=none"]
+B inbound video: ["video/VP8 960x540@11 428 kbit/s decoded+44"]
+A camera capture: 1280x720@30; encodings: q: ÷4 max 160 kbit/s 20fps | h: ÷2 max 450 kbit/s 20fps | f: ÷1 max 1700 kbit/s 30fps
+FAIL 7: 1:1 video call at 720p: negotiated resolution and frame rate from outbound/inbound-rtp (27.3 s)
+     AssertionError [ERR_ASSERTION]: B decodes A's top layer
+         at file:///home/user/0trust-chat/tests/calls/calls.test.mjs:294:12
+         at async step (file:///home/user/0trust-chat/tests/calls/lib/lab.mjs:627:7)
+         at async file:///home/user/0trust-chat/tests/calls/calls.test.mjs:274:3
+
+--- camera switching: A picks another camera in the call settings; the sender track's deviceId changes, B keeps decoding
+A camera: 3f79ae9c69c1… → 76587206a8ec…
+A outbound after switch: ["q 240x135@9 81 kbit/s active=true","f 960x540@10 536 kbit/s active=true","h 480x270@9 291 kbit/s active=true"]
+B inbound after switch: ["960x540@8 470 kbit/s decoded+29"]
+PASS camera switching: A picks another camera in the call settings; the sender track's deviceId changes, B keeps decoding (9.8 s)
+
+--- 8: 1080p: A picks 'Highest available', B on a 1920×1080 screen receives 1920×1080
+A outbound video layers (highest): ["q 640x360@4 1927 kbit/s limit=none","f 1920x1080@3 504 kbit/s limit=none","h 1280x720@4 339 kbit/s limit=none"]
+B inbound video (1920×1080 viewport): ["1280x720@6 205 kbit/s decoded+23"]
+A camera capture: 1920x1080@30
+NOTE: B receives 1280x720; the SFU/adaptive stream chose a lower layer
+PASS 8: 1080p: A picks 'Highest available', B on a 1920×1080 screen receives 1920×1080 (42.2 s)
+
+--- phone-sized screens (390 px): lobby, incoming call, 1:1 voice call, mini call view
+PASS phone-sized screens (390 px): lobby, incoming call, 1:1 voice call, mini call view (10.6 s)
+
+--- 11: group call with 3 clients (A, B, C in separate namespaces): each hears the two others
+group !rI3fVSeTgbp_-QuPxPRo79BJ8IczZe-52giSSFHaPrk
+A hears: ["Bob Lumen: 662 Hz (100%)","Carol Lumen: 877 Hz (100%)"]
+B hears: ["Alice Lumen: 441 Hz (100%)","Carol Lumen: 877 Hz (100%)"]
+C hears: ["Alice Lumen: 441 Hz (100%)","Bob Lumen: 662 Hz (100%)"]
+PASS 11: group call with 3 clients (A, B, C in separate namespaces): each hears the two others (36.7 s)
+
+--- 12: screen sharing in the group call: B and C receive A's screen (and its audio track)
+B inbound video (screen): ["1280x720@5 125 kbit/s decoded+14"]
+screen-share audio element on B: true
+PASS 12: screen sharing in the group call: B and C receive A's screen (and its audio track) (9.9 s)
+
+--- group video layout: all three cameras on; active-speaker highlight, participants panel
+A inbound videos: ["640x360@16 decoded+58","640x360@17 decoded+60"]
+A tiles: [{"user":"@callalicec1a8e3:lumen.test","enc":"encrypted","key":"0","mic":"on","label":"Alice Lumen (you)"},{"user":"@callbob3c0b91:lumen.test","enc":"encrypted","key":"0","mic":"on","label":"Bob Lumen"},{"user":"@callcarole70cf6:lumen.test","enc":"encrypted","key":"0","mic":"on","label":"Carol Lumen"}]
+PASS group video layout: all three cameras on; active-speaker highlight, participants panel (26.1 s)
+CSP violations / page errors: none
+
+core: 16 passed, 2 failed, 0 skipped (started 2026-10-15T06:46:53.180Z, finished 2026-10-15T06:51:12.158Z)

@@ -1,0 +1,106 @@
+# Desktop app (Electron): Windows installer, macOS DMG/ZIP, Linux AppImage/deb.
+# Signing happens only when the repository has the signing secrets; otherwise the
+# artifacts are built unsigned and named as such (docs/apps/release-desktop.md).
+name: desktop
+
+on:
+  push:
+    paths:
+      - "apps/desktop/**"
+      - "services/chat/**"
+      - "design/**"
+      - "branding/**"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "services/chat/**"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: linux }
+          - { os: windows-2025, target: win }
+          - { os: macos-15, target: mac }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      LUMEN_DEFAULT_SERVER: ${{ vars.LUMEN_DEFAULT_SERVER }}
+      LUMEN_UPDATE_URL: ${{ vars.LUMEN_UPDATE_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: |
+            services/chat/package-lock.json
+            apps/desktop/package-lock.json
+      - name: Install web client dependencies
+        working-directory: services/chat
+        run: npm ci --ignore-scripts
+      - name: Install desktop dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Unit tests (main-process logic)
+        working-directory: apps/desktop
+        run: npm test
+      - name: Package (${{ matrix.target }})
+        working-directory: apps/desktop
+        shell: bash
+        env:
+          # Windows Authenticode (optional): base64 PFX + password
+          CSC_LINK: ${{ matrix.target == 'win' && secrets.WINDOWS_CSC_LINK || matrix.target == 'mac' && secrets.MACOS_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.target == 'win' && secrets.WINDOWS_CSC_KEY_PASSWORD || matrix.target == 'mac' && secrets.MACOS_CSC_KEY_PASSWORD || '' }}
+          # macOS notarization (optional): App Store Connect API key
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then export CSC_IDENTITY_AUTO_DISCOVERY=false; echo "::notice::building UNSIGNED ${{ matrix.target }} packages (no signing secret)"; fi
+          if [ -n "$APPLE_API_KEY_BASE64" ]; then
+            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/apple-api-key.p8"; export APPLE_API_KEY="$RUNNER_TEMP/apple-api-key.p8"
+          fi
+          npm run dist:${{ matrix.target }}
+      - name: Smoke test of the packaged app
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = linux ]; then xvfb-run -a npm run --if-present test:smoke; else npm run --if-present test:smoke; fi
+      - name: Checksums
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          cd release 2>/dev/null || cd dist
+          find . -maxdepth 1 -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.msix' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.yml' -o -name '*.blockmap' \) -print0 \
+            | xargs -0 shasum -a 256 | tee SHA256SUMS-${{ matrix.target }}.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lumen-desktop-${{ matrix.target }}
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.msi
+            apps/desktop/release/*.msix
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.yml
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/SHA256SUMS-*.txt
+          if-no-files-found: error
+          retention-days: 14

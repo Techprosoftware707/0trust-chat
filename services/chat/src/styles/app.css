@@ -624,10 +624,11 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .call-person .ok { display: inline-flex; gap: 4px; align-items: center; }
 
 /* Timeline call items */
-.call-item { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--space-2); margin: 8px auto; padding: 6px 8px 6px 6px; width: fit-content; max-width: calc(100% - 2rem); border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: var(--text-sm); box-shadow: var(--shadow-sm); }
+.call-item { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin: 8px auto; padding: 6px 8px 6px 6px; width: fit-content; max-width: calc(100% - 2rem); border-radius: 22px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: var(--text-sm); box-shadow: var(--shadow-sm); }
 .call-item-icon { width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center; background: var(--success-soft); color: var(--success); flex: none; }
 .call-item-icon svg.lucide { width: 1rem; height: 1rem; }
-.call-item-text { padding-right: 4px; }
+.call-item-text { padding-right: 4px; min-width: 0; line-height: 1.35; }
+.call-item .btn, .call-item .badge { flex: none; }
 .call-item.missed { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
 .call-item.missed .call-item-icon { background: var(--danger-soft); color: var(--danger); }
 .call-item.missed .call-item-text { color: var(--danger); font-weight: 600; }
@@ -694,8 +695,9 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .call-badge { white-space: nowrap; }
 .call-top-actions { display: flex; gap: 2px; }
 .call-banners { display: grid; justify-items: center; gap: 6px; padding: 0 var(--space-4); }
-.call-banner { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: center; margin: 0; padding: 6px 8px 6px 14px; border-radius: var(--radius-pill); background: var(--info-soft); color: var(--text); font-size: var(--text-sm); max-width: min(760px, 100%); }
-.call-banner > svg.lucide { color: var(--info); }
+.call-banner { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; padding: 6px 8px 6px 14px; border-radius: 18px; background: var(--info-soft); color: var(--text); font-size: var(--text-sm); line-height: 1.4; max-width: min(760px, 100%); }
+.call-banner > svg.lucide { color: var(--info); flex: none; }
+.call-banner .btn, .call-banner .icon-btn { flex: none; }
 .call-banner.warn { background: var(--warning-soft); }
 .call-banner.warn > svg.lucide { color: var(--warning); }
 .call-body { display: flex; gap: var(--space-3); min-height: 0; padding: var(--space-2) clamp(var(--space-2), 2vw, var(--space-5)) var(--space-2); }
@@ -772,7 +774,7 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .lobby-toggles .call-btn.off { background: #fff; color: var(--lm-midnight-900); }
 .call-close-btn { margin-left: var(--space-2); }
 .sinks { display: none; }
-.call-mini { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 55; width: min(360px, calc(100vw - 2 * var(--space-4))); display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg); animation: fade-up var(--dur-med) var(--ease-out) both; }
+.call-mini { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + 5.5rem); z-index: 55; width: min(360px, calc(100vw - 2 * var(--space-4))); display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg); animation: fade-up var(--dur-med) var(--ease-out) both; }
 .call-mini.reconnecting { border-color: var(--warning); }
 .call-mini-main { display: flex; align-items: center; gap: var(--space-3); border: 0; background: transparent; text-align: left; cursor: pointer; padding: 2px; border-radius: var(--radius-md); }
 .call-mini-main:hover { background: var(--surface-2); }
@@ -834,6 +836,8 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
   .call-banner { border-radius: var(--radius-md); }
   .incoming-calls { left: var(--space-3); right: var(--space-3); top: var(--space-3); width: auto; }
   .call-pill { padding: 0.3rem 0.6rem; }
+  .call-mini { right: var(--space-2); left: var(--space-2); width: auto; bottom: calc(var(--space-2) + 4.6rem); }
+  .call-item { max-width: calc(100% - 1rem); font-size: var(--text-xs); }
 }
 @media (prefers-reduced-motion: reduce) {
   .live-dot, .incoming-call.ring { animation: none; }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Dependency version checks are informational here: versions are pinned deliberately
+         to the newest ones that support compileSdk 36 with AGP 8.13 (see libs.versions.toml). -->
+    <issue id="GradleDependency" severity="informational" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="informational" />
+    <!-- Security-relevant checks are errors. -->
+    <issue id="SetJavaScriptEnabled" severity="warning" />
+    <issue id="JavascriptInterface" severity="error" />
+    <issue id="AddJavascriptInterface" severity="error" />
+    <issue id="TrustAllX509TrustManager" severity="error" />
+    <issue id="BadHostnameVerifier" severity="error" />
+    <issue id="SSLCertificateSocketFactoryGetInsecure" severity="error" />
+    <issue id="AllowBackup" severity="error" />
+    <issue id="ExportedService" severity="error" />
+    <issue id="ExportedReceiver" severity="error" />
+    <issue id="UnsafeIntentLaunch" severity="error" />
+    <issue id="HardcodedDebugMode" severity="error" />
+</lint>

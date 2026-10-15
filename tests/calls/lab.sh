@@ -8,7 +8,7 @@
 #   sudo bash tests/calls/lab.sh unshape <ns>
 #   sudo bash tests/calls/lab.sh block-udp <ns> | unblock-udp <ns>   force TURN/TLS or ICE/TCP
 #   sudo bash tests/calls/lab.sh link <ns> down|up                    simulate a network outage
-#   sudo bash tests/calls/lab.sh block-port <ns> udp|tcp <port[:port]> drop traffic to the server on
+#   sudo bash tests/calls/lab.sh block-port <ns> udp|tcp <port[:port]> drop outbound traffic to
 #                                         those ports (e.g. udp 7882:7889 + tcp 7881 = no direct
 #                                         media path, only TURN is left)
 #   sudo bash tests/calls/lab.sh unblock-all <ns>                    remove every block in <ns>
@@ -55,12 +55,52 @@ down() {
   echo "lab down"
 }
 
+ns_ip() { ip -n "$1" -4 -o addr show eth0 | awk '{print $4}' | cut -d/ -f1; }
+
+# Removes the random-loss rules added by the netem-less `shape` fallback.
+clear_loss() {
+  local rules rule
+  rules="$(iptables -S INPUT | grep -- "--comment lab-loss-$1" || true)"
+  while read -r rule; do
+    [[ -n "$rule" ]] && eval "iptables ${rule/-A /-D }"
+  done <<<"$rules"
+  return 0
+}
+
 cmd="${1:-status}"; shift || true
 case "$cmd" in
   up) up ;;
   down) down ;;
-  shape) ns="$1"; shift; ip netns exec "$ns" tc qdisc replace dev eth0 root netem "$@"; echo "$ns: netem $*" ;;
-  unshape) ip netns exec "$1" tc qdisc del dev eth0 root 2>/dev/null || true; echo "$1: unshaped" ;;
+  shape)
+    ns="$1"; shift
+    if ip netns exec "$ns" tc qdisc replace dev eth0 root netem "$@" 2>/dev/null; then
+      echo "$ns: netem $*"
+    else
+      # Kernels without sch_netem (e.g. some VMs): rate limit with tbf, random loss with
+      # iptables' statistic match. Delay/jitter need netem and are skipped (reported).
+      rate="" loss="" ignored=""
+      while (($#)); do
+        case "$1" in
+          rate) rate="$2"; shift 2 ;;
+          loss) loss="${2%\%}"; shift 2 ;;
+          *) ignored="$ignored $1"; shift ;;
+        esac
+      done
+      ip netns exec "$ns" tc qdisc del dev eth0 root 2>/dev/null || true
+      clear_loss "$ns"
+      [[ -n "$rate" ]] && ip netns exec "$ns" tc qdisc replace dev eth0 root tbf rate "$rate" burst 16kb latency 300ms
+      if [[ -n "$loss" ]]; then
+        # Dropped where the client's packets arrive (host INPUT), not in the client's own OUTPUT
+        # chain: a local drop returns EPERM to the sender, which then just retries.
+        p="$(awk -v l="$loss" 'BEGIN { printf "%.4f", l / 100 }')"
+        iptables -I INPUT -s "$(ns_ip "$ns")" -m statistic --mode random --probability "$p" -m comment --comment "lab-loss-$ns" -j DROP
+      fi
+      echo "$ns: no netem in this kernel; tbf rate=${rate:-none}, iptables random loss=${loss:-0}%${ignored:+ (ignored:$ignored)}"
+    fi ;;
+  unshape)
+    ip netns exec "$1" tc qdisc del dev eth0 root 2>/dev/null || true
+    clear_loss "$1"
+    echo "$1: unshaped" ;;
   block-udp)
     ip netns exec "$1" iptables -C OUTPUT -p udp -j DROP 2>/dev/null || ip netns exec "$1" iptables -A OUTPUT -p udp -j DROP
     echo "$1: all outbound UDP dropped" ;;
@@ -72,9 +112,10 @@ case "$cmd" in
     echo "$1: eth0 $2" ;;
   block-port)
     ns="$1" proto="$2" ports="$3"
-    ip netns exec "$ns" iptables -C OUTPUT -p "$proto" -d "$NET.1" --dport "$ports" -j DROP 2>/dev/null \
-      || ip netns exec "$ns" iptables -A OUTPUT -p "$proto" -d "$NET.1" --dport "$ports" -j DROP
-    echo "$ns: $proto to $NET.1:$ports dropped" ;;
+    # any destination: the SFU also answers from its other host addresses (peer-reflexive)
+    ip netns exec "$ns" iptables -C OUTPUT -p "$proto" --dport "$ports" -j DROP 2>/dev/null \
+      || ip netns exec "$ns" iptables -A OUTPUT -p "$proto" --dport "$ports" -j DROP
+    echo "$ns: outbound $proto to port $ports dropped" ;;
   unblock-all) ip netns exec "$1" iptables -F OUTPUT; echo "$1: all blocks removed" ;;
   status)
     ip -br addr show "$BR" 2>/dev/null || echo "bridge $BR absent"

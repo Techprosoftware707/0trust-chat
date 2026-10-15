@@ -24,6 +24,7 @@ import {
   Video,
   VideoOff,
   Volume2,
+  VolumeX,
   WifiOff,
   X,
 } from "lucide-react";
@@ -100,7 +101,7 @@ function encryptionWarning(p: CallParticipant): string | null {
     case "not-encrypted":
       return "This person's media isn't end-to-end encrypted.";
     case "unknown":
-      return "Connected to the media server without joining the call over Matrix. It receives no encryption keys, so it can't decode anyone's media.";
+      return "Connected to the media server without a call membership (never joined over Matrix, or removed from the conversation). It gets no new encryption keys, and its audio and video are not played here.";
   }
 }
 
@@ -126,9 +127,15 @@ export function CallTile({ p, large, screen, avatarMxc }: { p: CallParticipant; 
         </div>
       )}
       <figcaption className="tile-caption">
-        {!screen ? p.micMuted ? <MicOff className="tile-icon muted" aria-label="Microphone off" /> : <Mic className="tile-icon" aria-label="Microphone on" /> : null}
+        {screen ? null : p.encryption === "unknown" ? (
+          <VolumeX className="tile-icon warn" aria-label="Not played" />
+        ) : p.micMuted ? (
+          <MicOff className="tile-icon muted" aria-label="Microphone off" />
+        ) : (
+          <Mic className="tile-icon" aria-label="Microphone on" />
+        )}
         <span className="tile-name">{label}</span>
-        {!screen && p.cameraMuted && !p.pending ? <VideoOff className="tile-icon" aria-label="Camera off" /> : null}
+        {!screen && p.cameraMuted && !p.pending && p.encryption !== "unknown" ? <VideoOff className="tile-icon" aria-label="Camera off" /> : null}
         {!p.pending ? <QualityBars q={p.quality} /> : null}
         {warn ? <ShieldAlert className="tile-icon warn" aria-label={warn} /> : null}
       </figcaption>

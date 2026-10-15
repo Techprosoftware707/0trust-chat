@@ -12,11 +12,33 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
+import https from "node:https";
+import tls from "node:tls";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { importChatDep } from "../../chat/lib/deps.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+
+// Matrix API calls from the test (Node side) must trust the stack's internal CA.
+const STACK_CA = process.env.LUMEN_CA || "/etc/lumen/ca/caddy-local-root.crt";
+const CA_LIST = [...tls.rootCertificates, ...(fs.existsSync(STACK_CA) ? [fs.readFileSync(STACK_CA, "utf8")] : [])];
+
+/** Minimal fetch-like HTTPS request trusting the stack CA: resolves { status, text }. */
+export function request(url, { method = "GET", headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, { method, headers, ca: CA_LIST }, (res) => {
+      let data = "";
+      res.setEncoding("utf8");
+      res.on("data", (c) => (data += c));
+      res.on("end", () => resolve({ status: res.statusCode, text: data }));
+    });
+    req.on("error", reject);
+    if (body !== undefined) req.write(body);
+    req.end();
+  });
+}
+
 export const REPO = path.resolve(HERE, "../../..");
 export const OUT = path.join(REPO, "tests/calls/output");
 export const SHOTS = path.join(REPO, "tests/calls/screenshots");
@@ -157,7 +179,7 @@ function instrument() {
 function profileHome(ns) {
   const home = path.join(OUT, `home-${ns}`);
   const db = path.join(home, ".pki", "nssdb");
-  const ca = process.env.LUMEN_CA || "/etc/lumen/ca/caddy-local-root.crt";
+  const ca = STACK_CA;
   try {
     if (!fs.existsSync(path.join(db, "cert9.db"))) {
       fs.mkdirSync(db, { recursive: true });
@@ -170,7 +192,7 @@ function profileHome(ns) {
   return home;
 }
 
-export async function launchClient({ ns, label, tone = 440, viewport = { width: 1280, height: 800 }, colorScheme = "light", permissions = ["microphone", "camera"], fakeDevices = true, fakeVideo = "fps=30,device-count=2", fakeUi = true, extraArgs = [] }) {
+export async function launchClient({ ns, label, tone = 440, viewport = { width: 1280, height: 800 }, colorScheme = "light", permissions = ["microphone", "camera"], fakeDevices = true, fakeVideo = "fps=30,device-count=3", fakeUi = true, extraArgs = [] }) {
   const args = [
     `--host-resolver-rules=MAP ${BASE} ${LAB_HOST_IP}, MAP *.${BASE} ${LAB_HOST_IP}`,
     "--no-proxy-server",
@@ -301,17 +323,17 @@ export async function signIn(client, key, displayName) {
 /** Ends the client's Matrix session on the server (keeps the account). */
 export async function signOutServer(client) {
   if (!client?.accessToken) return;
-  await fetch(`${HS}/_matrix/client/v3/logout`, { method: "POST", headers: { Authorization: `Bearer ${client.accessToken}` } }).catch(() => undefined);
+  await request(`${HS}/_matrix/client/v3/logout`, { method: "POST", headers: { Authorization: `Bearer ${client.accessToken}` } }).catch(() => undefined);
 }
 
 /** Matrix client-server API call with the client's access token (from the host). */
 export async function mx(client, method, p, body) {
-  const r = await fetch(`${HS}${p}`, {
+  const r = await request(`${HS}${p}`, {
     method,
     headers: { Authorization: `Bearer ${client.accessToken}`, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const text = await r.text();
+  const text = r.text;
   let json = null;
   try {
     json = JSON.parse(text);
@@ -333,7 +355,8 @@ export async function createDm(a, b) {
   await page.getByLabel("Find people").fill(b.userId);
   await page.locator(".user-result").first().click({ timeout: T });
   await page.getByRole("button", { name: "Start conversation" }).click();
-  await page.locator(".room-header").waitFor({ timeout: T });
+  // the app opens the existing DM with this person if there is one, else creates it
+  await page.locator(".room-header .room-title", { hasText: b.acct.displayName }).waitFor({ timeout: T });
   await page.waitForFunction(() => /#\/room\//.test(location.hash), null, { timeout: T });
   const roomId = await page.evaluate(() => decodeURIComponent(location.hash.replace(/^#\/room\//, "").split("/")[0]));
   await page.locator("#composer").fill(`Hi ${b.acct.displayName}`);
@@ -354,6 +377,7 @@ export async function createGroup(a, others, name) {
     await dialog.locator(".user-result").first().click({ timeout: T });
   }
   await dialog.getByRole("button", { name: /Create/ }).click();
+  await page.locator(".room-header .room-title", { hasText: name }).waitFor({ timeout: T });
   await page.waitForFunction(() => /#\/room\//.test(location.hash), null, { timeout: T });
   const roomId = await page.evaluate(() => decodeURIComponent(location.hash.replace(/^#\/room\//, "").split("/")[0]));
   for (const o of others) await acceptInvite(o, roomId);
@@ -363,10 +387,12 @@ export async function createGroup(a, others, name) {
 export async function acceptInvite(client, roomId) {
   const page = client.page;
   await page.goto(`${APP}/#/room/${encodeURIComponent(roomId)}`);
-  const accept = page.getByRole("button", { name: "Accept" }).first();
-  await accept.waitFor({ timeout: T });
-  await accept.click();
-  await page.locator(".room-header").waitFor({ timeout: T });
+  // (an existing DM is reused by the app: then there is no invite to accept)
+  const accept = page.locator(".empty-card").getByRole("button", { name: "Accept" });
+  const header = page.locator(".room-header");
+  await accept.or(header).first().waitFor({ timeout: T });
+  if (await accept.count()) await accept.click();
+  await header.waitFor({ timeout: T });
 }
 
 export async function openRoom(client, roomId) {
@@ -486,6 +512,12 @@ export function summariseRtp(pcs) {
         audioLevel: s.audioLevel,
         totalAudioEnergy: s.totalAudioEnergy,
         fecPacketsReceived: s.fecPacketsReceived,
+        retransmittedPacketsSent: s.retransmittedPacketsSent,
+        nackCount: s.nackCount,
+        remoteLoss: (() => {
+          const r = pc.stats.find((x) => x.type === "remote-inbound-rtp" && (x.localId === s.id || x.ssrc === s.ssrc));
+          return r ? { packetsLost: r.packetsLost, fractionLost: r.fractionLost, rtt: r.roundTripTime, jitter: r.jitter } : undefined;
+        })(),
         active: s.active,
         trackIdentifier: s.trackIdentifier,
         pcState: pc.connectionState,
@@ -524,6 +556,24 @@ export function selectedPairs(pcs) {
   return out;
 }
 
+/** Every ICE candidate pair of the client's peer connections, with check counters (evidence when ICE fails). */
+export async function icePairs(client) {
+  return client.page.evaluate(async () => {
+    const out = [];
+    for (const pc of window.__lumenTestPcs ?? []) {
+      if (pc.connectionState === "closed") continue;
+      const st = await pc.getStats();
+      st.forEach((s) => {
+        if (s.type !== "candidate-pair") return;
+        const l = st.get(s.localCandidateId);
+        const r = st.get(s.remoteCandidateId);
+        out.push(`${s.state}: ${l?.candidateType}/${l?.protocol}${l?.relayProtocol ? ` via ${l.relayProtocol}` : ""} ${l?.address ?? ""}:${l?.port ?? ""} → ${r?.candidateType}/${r?.protocol} ${r?.address || "?"}:${r?.port} checks sent ${s.requestsSent}, answered ${s.responsesReceived}, received ${s.requestsReceived}`);
+      });
+    }
+    return out;
+  });
+}
+
 /** Two stats samples `ms` apart → per-stream bitrate (kbit/s) and packet deltas. */
 export async function sampleRates(client, ms = 4000) {
   const a = summariseRtp(await rtcStats(client));
@@ -550,8 +600,13 @@ export async function sampleRates(client, ms = 4000) {
 // Reporting
 // ---------------------------------------------------------------------------------------
 
+const argvAll = process.argv.slice(2);
+/** `--only <regex>`: run only matching steps (plus steps marked `always`). */
+const ONLY = argvAll.includes("--only") ? new RegExp(argvAll[argvAll.indexOf("--only") + 1], "i") : null;
+
 export function makeReporter(name) {
   const lines = [];
+  const onFail = [];
   const started = new Date();
   let passed = 0;
   let failed = 0;
@@ -561,7 +616,11 @@ export function makeReporter(name) {
     lines.push(line);
     console.log(line);
   };
-  async function step(title, fn) {
+  /** step(title, fn) or step(title, { always }, fn) */
+  async function step(title, a, b) {
+    const fn = typeof a === "function" ? a : b;
+    const { always = false } = (typeof a === "function" ? b : a) ?? {};
+    if (ONLY && !always && !ONLY.test(title)) return null;
     log(`\n--- ${title}`);
     const t0 = Date.now();
     try {
@@ -572,6 +631,8 @@ export function makeReporter(name) {
     } catch (e) {
       failed++;
       log(`FAIL ${title} (${((Date.now() - t0) / 1000).toFixed(1)} s)\n     ${String(e?.stack || e).split("\n").slice(0, 10).join("\n     ")}`);
+      const slug = title.replace(/[^a-z0-9]+/gi, "-").slice(0, 40).toLowerCase();
+      for (const f of onFail) await f(slug).catch(() => undefined);
       return false;
     }
   }
@@ -586,5 +647,10 @@ export function makeReporter(name) {
     console.log(`raw output saved to ${path.relative(REPO, file)}`);
     return { passed, failed, skipped };
   }
-  return { log, step, skip, finish };
+  /** screenshots on failure go to tests/calls/output/fail-*.png (not committed) */
+  const failShots = (...clients) =>
+    onFail.push(async (slug) => {
+      for (const c of clients.flatMap((x) => (typeof x === "function" ? x() : [x])).flat()) if (c?.page && !c.page.isClosed()) await c.page.screenshot({ path: path.join(OUT, `fail-${name}-${slug}-${c.label}.png`) }).catch(() => undefined);
+    });
+  return { log, step, skip, finish, failShots };
 }

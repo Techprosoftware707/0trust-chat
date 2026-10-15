@@ -1,0 +1,23 @@
+# Gradle / Android build output
+build/
+.gradle/
+.kotlin/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.idsig
+
+# IDE
+.idea/
+*.iml
+
+# Signing material and Firebase config are never committed
+*.jks
+*.keystore
+*.p12
+google-services.json
+

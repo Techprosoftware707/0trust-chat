@@ -1,0 +1,73 @@
+# Release pipeline: on a version tag (v1.2.3), build every client on its native runner,
+# collect the artifacts, publish one SHA256SUMS file and create a DRAFT GitHub release.
+# A human reviews the draft (signing status, notes) before publishing it. Store
+# submission (Play, App Store, Microsoft Store) is a separate, documented manual step.
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.1.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    uses: ./.github/workflows/desktop.yml
+    secrets: inherit
+  android:
+    uses: ./.github/workflows/android.yml
+    secrets: inherit
+  ios:
+    uses: ./.github/workflows/ios.yml
+    secrets: inherit
+
+  publish:
+    needs: [desktop, android, ios]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      SIGNED_WIN: ${{ secrets.WINDOWS_CSC_LINK != '' }}
+      SIGNED_MAC: ${{ secrets.MACOS_CSC_LINK != '' }}
+      SIGNED_ANDROID: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: lumen-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums and release notes
+        run: |
+          cd dist
+          rm -f SHA256SUMS-*.txt
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          signed() { [ "$1" = true ] && echo "signed" || echo "**UNSIGNED** (no signing secret configured; for testing only)"; }
+          {
+            echo "## Lumen Secure ${TAG}"
+            echo
+            echo "| Platform | Artifacts | Signing |"
+            echo "|---|---|---|"
+            echo "| Windows | \`.exe\` installer | $(signed "$SIGNED_WIN") |"
+            echo "| macOS | \`.dmg\`, \`.zip\` | $(signed "$SIGNED_MAC") |"
+            echo "| Android | \`.apk\` (direct install), \`.aab\` (Play) | $(signed "$SIGNED_ANDROID") |"
+            echo "| iOS/iPadOS | unsigned \`.xcarchive\` (sign and upload with your Apple account, see docs/apps/release-ios.md) | unsigned |"
+            echo "| Linux | \`.AppImage\`, \`.deb\` | not signed; auto-update disabled |"
+            echo
+            echo "Verify downloads: \`sha256sum -c SHA256SUMS.txt\`."
+            echo
+            echo "What was tested for this release: see docs/test-report.md and docs/apps/feature-matrix.md at ${TAG}."
+          } > ../release-notes.md
+      - name: Create draft release
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 && gh release upload "$TAG" dist/* --clobber \
+            || gh release create "$TAG" dist/* --draft --verify-tag --title "Lumen Secure $TAG" --notes-file release-notes.md

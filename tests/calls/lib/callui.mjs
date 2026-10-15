@@ -81,3 +81,17 @@ export function expectTone(heard, userId, hz, label) {
   assert.ok(row.audibleFraction >= 0.6, `${label}: tone audible only ${row.audibleFraction * 100}% of the time`);
   return row;
 }
+
+/** Leaves any call left over from a failed step (and closes an ended-call view). */
+export async function hangUpAll(...clients) {
+  for (const c of clients) {
+    if (!c?.page || c.page.isClosed()) continue;
+    const leaveBtn = c.page.getByRole("button", { name: "Leave call" });
+    if (await leaveBtn.count()) await leaveBtn.click().catch(() => undefined);
+    const close = c.page.locator(".call-screen").getByRole("button", { name: "Close" });
+    if (await close.count()) await close.click().catch(() => undefined);
+    const lobbyCancel = c.page.getByRole("dialog").getByRole("button", { name: "Cancel" });
+    if (await lobbyCancel.count()) await lobbyCancel.click().catch(() => undefined);
+  }
+  for (const c of clients) await c?.page?.locator(".call-screen").waitFor({ state: "detached", timeout: 15_000 }).catch(() => undefined);
+}

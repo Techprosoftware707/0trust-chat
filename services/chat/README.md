@@ -9,12 +9,17 @@ site: Caddy serves `dist/` plus a `config.json` rendered by the installer.
 ```
 src/
   main.tsx, App.tsx        boot: config → SSO token exchange / stored session → client start
-  config.ts                /config.json loading + validation (brand, homeserver, SSO, links, voip)
+  config.ts                /config.json loading + validation (brand, homeserver, SSO, links, calls)
   lib/                     pure helpers: markdown (safe subset), formatting, routes, theme, prefs,
                            session-crypto (WebCrypto pickle key), session-store, idb, tab-lock
   matrix/                  SDK integration: client lifecycle, login/discovery, UIA (password + SSO
                            fallback), secret-storage callbacks, security flows, media
                            (encrypted attachments), rooms/DMs, timeline building, notifications, calls
+  calls/                   MatrixRTC calls: CallSession (membership + media keys via matrix-js-sdk,
+                           media via livekit-client with frame encryption), rtc (protocol glue),
+                           keys (per-participant key provider), media (audio/video presets, codec
+                           choice, device errors), stats (getStats → diagnostics), history,
+                           audio (meter, ringtone, test tone), prefs, store
   hooks/                   React hooks over SDK events (rooms, sync state, trust, presence, security)
   components/              UI (sidebar, room, timeline, composer, dialogs, settings, calls)
   styles/app.css           component styles on top of design/tokens.css
@@ -54,14 +59,17 @@ src/
 Works under `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; …`:
 no inline scripts (the pre-paint theme script is `/theme-init.js`), no runtime `<style>`
 injection (all CSS is one hashed file; React `style` props only via CSSOM), no `eval`, the
-crypto WASM is a hashed `.wasm` asset, no `data:` assets (inlining disabled), no source maps.
+crypto WASM is a hashed `.wasm` asset, the LiveKit frame-encryption worker is a hashed same-origin
+script (`worker-src 'self'`), the SFU is reached over `wss:`/`https:` (`connect-src`), no `data:`
+assets (inlining disabled), no source maps.
 Message bodies are rendered as React elements from a tiny parser (bold, italic, inline code,
 code blocks, http(s) links) — never `dangerouslySetInnerHTML`; received HTML is ignored.
 
 ### Runtime config and branding
 
 `/config.json` (installer output) supplies the brand names, homeserver, SSO provider, links and
-`voip_enabled`. `/brand/theme.css` (operator overrides, loaded last; a 404 is harmless) and
+`calls: {enabled, rtc_domain}` (`rtc_domain` is only a fallback when the homeserver doesn't
+advertise its LiveKit transport). `/brand/theme.css` (operator overrides, loaded last; a 404 is harmless) and
 `/brand/logo.svg` (falls back to the bundled `branding/logo.svg`) come from the operator's
 branding directory. Theme choice is shared with the website via `localStorage["lumen-theme"]`.
 
@@ -83,8 +91,42 @@ Sessions (rename, verify, sign out others with UIA by password or SSO popup). De
 notifications (permission only from the settings toggle; push-rule driven; previews off by
 default). On-device search (+ optional server search for unencrypted rooms). Presence, typing,
 connection banner (sync state + `navigator.onLine`). Settings: profile, appearance, notifications,
-security & privacy (read receipts / typing toggles), sessions, about. Optional legacy 1:1
-voice/video calls when `voip_enabled` (media protection shown only from `getStats()`).
+security & privacy (read receipts / typing toggles), calls, sessions, about.
+
+### Calls (MatrixRTC + LiveKit, end-to-end encrypted media)
+
+Protocol-compatible with Element Call's default ("compatibility") mode, implemented
+independently on matrix-js-sdk 44 (`MatrixRTCSession`) and livekit-client 2.22.4 (Apache-2.0):
+`org.matrix.msc3401.call.member` state memberships for slot `m.call#ROOM` with a delayed leave
+event (18 s), member id `@user:server:DEVICE`; the SFU is the oldest membership's LiveKit
+transport (else the homeserver's `/rtc/transports`); MSC4195 `get_token` through the homeserver;
+media keys generated, rotated on every membership change and sent over Olm to-device messages by
+the js-sdk (`manageMediaKeys`), handed to LiveKit's AES-GCM frame encryptor per participant
+(LiveKit identity = `base64(sha256(JSON([user, member id])))`). Rings: `rtc.notification`
+(`ring` in DMs, `notification` in groups); declines: `rtc.decline`.
+
+* Start/join from the room header (participant count in the header and the room list), pre-join
+  lobby (camera preview, mic meter, device pickers, first-call guidance; capture starts only after
+  a user action), incoming-call cards (Accept / Video / Decline) with a Web Audio ringtone
+  (setting; muted rooms never ring), missed-call indicator, timeline items, call history panel.
+* Audio: HD Voice (Opus 48 kHz mono ≤ 40 kbit/s, DTX, in-band FEC, AEC/NS/AGC/voice isolation) or
+  High-Fidelity (96 kbit/s, 128 kbit/s stereo with a 2-channel mic, no DTX, processing switchable);
+  mic test (record/play back), output test tone, speaker selection (`setSinkId`), echo warning,
+  device-loss recovery, permission errors in plain words. RED is requested but livekit-client
+  disables it under frame encryption.
+* Video: VP8 (capability-checked; AV1 excluded under E2EE, VP9/H.264 not chosen — see
+  `calls/media.ts`), simulcast 3 layers, adaptive stream + dynacast, Auto/Standard/HD/Highest,
+  camera switching, screen sharing with audio, 1:1 / grid / screen-share layouts, mini view,
+  full screen, participants panel.
+* Diagnostics panel from `getStats()` only (RTT, jitter, loss, bitrates, resolution/fps, codec and
+  options, ICE path incl. "TURN relay in use", reconnection log, key indices) and a network label
+  with stated thresholds (good < 150 ms / 2 % / 30 ms, fair < 300 ms / 5 % / 60 ms).
+* "End-to-end encrypted" is shown only when frame encryption is on, our key is set and every
+  remote participant's media is being decrypted (key received, no decryption errors, video frames
+  decode); otherwise a per-participant warning. Connections on the SFU without a Matrix membership
+  (removed members, an operator) are flagged and never played.
+* Leaves automatically when you leave/are removed from the room; LiveKit resume/ICE restart,
+  plus a full rejoin with a fresh token if the connection is lost.
 
 ## Development
 
@@ -105,7 +147,7 @@ any Matrix client. `npm run devserver:down` removes the container; `node
 | `npm test` | vitest unit tests: markdown/XSS safety, config parsing, formatting, routes, session encryption + store (fake-indexeddb), SSO URL/token handling, UIA, content builders, timeline grouping, call stats |
 | `npm run test:e2ee` | Node + Rust crypto against the dev homeserver: encrypted DM both ways, server never sees plaintext (`/messages`, admin API, `/sync`), encrypted attachment stored as ciphertext and decrypted by the receiver |
 | `npm run test:ui` | Playwright (Chromium) against the production build served with the production CSP: two users, backup set-up, DM, formatting, reply/reaction/edit, typing, receipts, encrypted image, SAS verification, delete, search, profile, groups, pagination, upload limit, deep links, reload, notifications, offline/retry, recovery-key verification with backup restore, self-verification, sessions + password UIA, identity reset warning, sign-out wipe; screenshots in `tests/chat/screenshots/` |
-| `npm run test:voip` | 1:1 voice + video calls with fake media devices, DTLS-SRTP badge from `getStats()` |
+| `npm run test:calls` | real calls against a deployed stack (`tests/calls/`, see its files): separate Chromium processes in separate network namespaces, tone-per-client audio analysis, getStats evidence, E2EE proof with a rogue SFU subscriber, revocation, impairment; raw output in `docs/test-results/calls-*.txt` |
 | `npm run test:sso` | smoke test against a running Lumen stack (`lumen.test`): portal sign-up → SSO → token login; SSO-fallback UIA popup to sign out another device; sign-out wipe |
 | `npm run typecheck` / `npm run lint` | TypeScript / minimal ESLint (recommended + hooks rules) |
 
@@ -147,6 +189,8 @@ docker build -f services/chat/Dockerfile --target dist \
 * Search is over messages loaded and decrypted on this device (encrypted search can't be done
   server-side); there is no persistent local search index.
 * Notifications only appear while the tab is open (no service-worker/web-push).
-* Group calls (MatrixRTC/Element Call) are not supported; 1:1 calls use legacy Matrix VoIP and
-  need a TURN server for most real networks.
+* Calls: legacy 1:1 Matrix VoIP (`m.call.invite`) is not supported (a notice is shown). Only the
+  one SFU of the call's focus is joined (members publishing on another homeserver's SFU are shown as
+  "connecting"). The delayed leave isn't delegated to the SFU (`delegate_delayed_leave`). Call
+  history only covers the loaded part of the timeline. Ringing needs the tab to be open.
 * One account per browser profile.
