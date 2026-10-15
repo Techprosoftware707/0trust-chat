@@ -1,0 +1,12 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">Your account and your encryption keys are recovered separately.</p>
+<h2>Forgot your password</h2>
+<p>{% if lumen.email_enabled %}Use <a href="{% url 'account_reset_password' %}">password reset</a>; we email you a link.{% else %}This server doesn't send email, so password reset by email isn't available. Contact support for assisted recovery.{% endif %}</p>
+<h2>Lost your MFA device</h2>
+<p>Sign in with one of your <strong>recovery codes</strong> instead of a code from the app, then set up MFA again. Without recovery codes, contact support: after verifying your identity, an operator can issue a one-time recovery link. Every such action is recorded in the audit log and shown in your security history.</p>
+<h2>Lost your recovery key</h2>
+<p>If you still have a signed-in, verified device, create a new recovery key from <strong>Settings → Security</strong> in the chat app. If you don't, encrypted history from before can't be recovered by anyone. You can reset your encryption identity to keep using chat; contacts will see an identity-change warning and should re-verify you.</p>
+<h2>Assisted recovery can't restore messages</h2>
+<p>Restoring access to your account does not restore your message keys. That's what keeps them private.</p>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "ops/base_ops.html" %}{% load lumen humanize %}
+{% block title %}{{ target.username }}{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>{{ target.username }}</h1><p class="mono">{{ target.matrix_id }}</p></div><span class="badge {% if target.status == 'active' %}badge-success{% elif target.status == 'suspended' %}badge-danger{% else %}badge-warning{% endif %}">{{ target.get_status_display }}</span></div>
+<div class="grid grid-2">
+  <section class="card stack">
+    <h2>Account</h2>
+    <dl class="kv">
+      <dt>Display name</dt><dd>{{ target.display_name|default:"—" }}</dd>
+      {% for e in emails %}<dt>Email</dt><dd>{{ e.email }} {% if e.verified %}<span class="badge badge-success">verified</span>{% endif %}</dd>{% endfor %}
+      <dt>Joined</dt><dd>{{ target.date_joined|date:"Y-m-d H:i" }}</dd>
+      <dt>Last portal sign-in</dt><dd>{{ target.last_login|date:"Y-m-d H:i"|default:"—" }}</dd>
+      <dt>Last chat sign-in</dt><dd>{{ target.chat_last_login_at|date:"Y-m-d H:i"|default:"—" }}</dd>
+      <dt>MFA</dt><dd>{% if mfa_enabled %}{% for a in mfa %}{{ a.get_type_display }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}<span class="badge badge-warning">not enabled</span>{% endif %}</dd>
+      <dt>Portal sessions</dt><dd>{{ sessions }}</dd>
+      <dt>Operator role</dt><dd>{{ target.get_staff_role_display|default:"none" }}</dd>
+      {% if target.status_reason %}<dt>Status note</dt><dd>{{ target.status_reason }}</dd>{% endif %}
+      {% if target.deletion_scheduled_for %}<dt>Deletion</dt><dd>{{ target.deletion_scheduled_for|date:"Y-m-d H:i" }}</dd>{% endif %}
+    </dl>
+    <h3>Workspaces</h3>
+    <ul class="list-plain list-rows">{% for m in memberships %}<li><a href="{% url 'ops:workspace' m.workspace.pk %}">{{ m.workspace.name }}</a><span class="badge badge-plain">{{ m.get_role_display }}</span></li>{% empty %}<li class="muted small">None</li>{% endfor %}</ul>
+  </section>
+  <section class="card stack">
+    <h2>Homeserver account</h2>
+    {% if matrix_error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>{{ matrix_error }}</div></div>
+    {% elif not matrix_user %}<p class="muted">No Matrix account yet — created on first chat sign-in.</p>
+    {% else %}
+    <dl class="kv"><dt>Deactivated</dt><dd>{{ matrix_user.deactivated|yesno:"yes,no" }}</dd><dt>Suspended</dt><dd>{{ matrix_user.suspended|yesno:"yes,no" }}</dd><dt>Created</dt><dd>{{ matrix_user.creation_ts|default:"—" }}</dd></dl>
+    <h3>Chat devices ({{ devices|length }})</h3>
+    <p class="xsmall subtle">Metadata the homeserver keeps for each session. Keys and messages are not available to operators.</p>
+    <ul class="list-plain list-rows">{% for d in devices %}<li><div><strong class="small">{{ d.display_name|default:d.device_id }}</strong><div class="xsmall muted mono">{{ d.device_id }}</div></div><span class="xsmall muted">{{ d.last_seen_ip|default:"" }}</span></li>{% empty %}<li class="muted small">No devices</li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+</div>
+<br>
+{% if perms.manage_users %}
+<section class="card stack">
+  <h2>Actions</h2>
+  <p class="xsmall subtle mb-0">Sensitive actions ask you to re-authenticate and are written to the audit log.</p>
+  <div class="grid grid-2">
+    <form class="form card card-tight" method="post" action="{% url 'ops:user_suspend' target.pk %}">{% csrf_token %}
+      {% if target.status == "suspended" %}<input type="hidden" name="action" value="unsuspend"><h3>Reactivate account</h3><button class="btn btn-primary" type="submit">Reactivate</button>
+      {% else %}<input type="hidden" name="action" value="suspend"><h3>Suspend account</h3><div class="field"><label for="reason">Reason (shown to operators only)</label><input id="reason" name="reason" type="text" maxlength="300" required></div><button class="btn btn-outline-danger" type="submit">Suspend and sign out everywhere</button>{% endif %}
+    </form>
+    <div class="card card-tight stack-sm">
+      <h3>Sessions &amp; recovery</h3>
+      <form method="post" action="{% url 'ops:user_logout' target.pk %}" data-confirm="Sign this user out of every chat device and portal session?">{% csrf_token %}<button class="btn" type="submit">{% icon "log-out" %} Sign out all devices</button></form>
+      <form method="post" action="{% url 'ops:user_recovery_link' target.pk %}" data-confirm="Issue a one-time password recovery link? Verify the person's identity first.">{% csrf_token %}<button class="btn" type="submit">{% icon "life-buoy" %} Issue recovery link</button></form>
+    </div>
+    {% if perms.delete_users %}
+    <form class="form card card-tight" method="post" action="{% url 'ops:user_reset_mfa' target.pk %}">{% csrf_token %}
+      <h3>Reset two-factor</h3><p class="xsmall muted mb-0">Only after verifying identity out of band. The user must re-enrol.</p>
+      <div class="field"><label for="c-mfa">Type <span class="mono">{{ target.username }}</span></label><input id="c-mfa" name="confirm" required autocomplete="off"></div>
+      <button class="btn btn-outline-danger" type="submit">Remove all authenticators</button>
+    </form>
+    <form class="form card card-tight danger-zone" method="post" action="{% url 'ops:user_delete' target.pk %}">{% csrf_token %}
+      <h3>Delete account</h3><p class="xsmall muted mb-0">Deactivates the Matrix account (with erasure) and deletes portal data.</p>
+      <label class="checkbox" for="imm"><input id="imm" type="checkbox" name="immediate"> <span>Skip the grace period (delete on next worker run)</span></label>
+      <div class="field"><label for="c-del">Type <span class="mono">{{ target.username }}</span></label><input id="c-del" name="confirm" required autocomplete="off"></div>
+      <button class="btn btn-danger" type="submit">Schedule deletion</button>
+    </form>
+    {% endif %}
+    {% if perms.manage_staff %}
+    <form class="form card card-tight" method="post" action="{% url 'ops:user_role' target.pk %}">{% csrf_token %}
+      <h3>Operator role</h3>
+      <div class="field"><label for="role">Role</label><select id="role" name="role">{% for v, l in staff_roles %}<option value="{{ v }}" {% if v == target.staff_role %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <button class="btn" type="submit">Save role</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+<br>
+{% endif %}
+<section class="card"><div class="card-header"><h2>Security events</h2></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Event</th><th>When</th><th>IP</th></tr></thead><tbody>{% for e in events %}<tr><td>{% include "portal/_event_label.html" with kind=e.kind %}</td><td class="small nowrap">{{ e.at|date:"Y-m-d H:i" }}</td><td class="mono small">{{ e.ip|default:"—" }}</td></tr>{% empty %}<tr><td colspan="3" class="muted">None</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

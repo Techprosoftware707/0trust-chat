@@ -1,0 +1,3 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Session expired{% endblock %}
+{% block main %}<section class="section"><div class="container-narrow card stack center"><span class="feature-icon violet">{% icon "refresh-cw" %}</span><h1>Please try that again</h1><p class="muted">Your form expired or was submitted from another site, so we didn't process it. Go back, reload the page and submit again.</p><p><a class="btn" href="/">Home</a></p></div></section>{% endblock %}

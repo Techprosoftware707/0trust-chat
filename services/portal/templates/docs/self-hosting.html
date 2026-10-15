@@ -1,0 +1,21 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">Install the whole {{ brand.short_name }} stack on your own Ubuntu 24.04 server.</p>
+<h2>Requirements</h2>
+<ul><li>A fresh Ubuntu Server 24.04 LTS (x86_64 or arm64) with a public IP.</li><li>At least 2 vCPU, 4 GB RAM and 40 GB disk for a small community; see the admin guide for sizing.</li><li>A domain with DNS records for <code>example.com</code>, <code>app.example.com</code>, <code>matrix.example.com</code> and <code>ops.example.com</code> pointing at the server.</li><li>Ports 80 and 443 reachable from the internet.</li></ul>
+<h2>Install</h2>
+<pre><code>git clone &lt;your Lumen repository&gt; lumen
+cd lumen
+sudo bash install.sh</code></pre>
+<p>The installer asks for your domains and operator email (or reads <code>lumen.conf</code> for unattended installs), checks the host and DNS, installs Docker from Docker's official repository, generates unique secrets, obtains certificates, configures the firewall, starts every service and verifies the public endpoints. At the end it shows a summary and how to obtain your one-time operator setup link.</p>
+<h2>Operate</h2>
+<table><thead><tr><th>Command</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>sudo ./update.sh</code></td><td>Back up, update images and code, migrate, health-check, roll back on failure</td></tr>
+<tr><td><code>sudo ./backup.sh</code></td><td>Encrypted backup of databases, media, keys and configuration</td></tr>
+<tr><td><code>sudo ./restore.sh</code></td><td>Verify and restore a backup</td></tr>
+<tr><td><code>sudo ./healthcheck.sh</code></td><td>Quick pass/fail of every component</td></tr>
+<tr><td><code>sudo ./diagnose.sh</code></td><td>Explain DNS, TLS, federation, database, SMTP and webhook problems</td></tr>
+<tr><td><code>sudo ./uninstall.sh</code></td><td>Remove the stack (asks before deleting any data)</td></tr>
+</tbody></table>
+<p>The full administration and disaster-recovery guides ship with the source code in <code>docs/</code>.</p>
+{% endblock %}

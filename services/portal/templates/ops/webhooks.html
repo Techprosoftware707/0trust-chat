@@ -1,0 +1,20 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Webhooks{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Payment webhooks</h1><p>Signed events from the payment provider. Payloads aren't stored (they contain customer data).</p></div></div>
+<div class="grid grid-4">
+  <div class="card stat"><span class="stat-label">Processed (24h)</span><span class="stat-value">{{ summary.processed }}</span></div>
+  <div class="card stat"><span class="stat-label">Ignored (24h)</span><span class="stat-value">{{ summary.ignored }}</span></div>
+  <div class="card stat"><span class="stat-label">Failed (24h)</span><span class="stat-value">{{ summary.failed }}</span></div>
+  <div class="card stat"><span class="stat-label">Rejected signature (24h)</span><span class="stat-value">{{ summary.rejected }}</span></div>
+</div><br>
+<section class="card stack-sm">
+  <h2>Configuration</h2>
+  <dl class="kv"><dt>Provider</dt><dd>{{ provider.label }}</dd><dt>Status</dt><dd>{% if provider.is_configured %}<span class="badge badge-success">configured</span>{% else %}<span class="badge badge-warning">not configured</span>{% endif %}</dd><dt>Endpoint</dt><dd class="mono small">{{ webhook_url }}</dd><dt>Events to enable</dt><dd class="small">checkout.session.completed, customer.subscription.created/updated/deleted, invoice.paid, invoice.payment_failed</dd><dt>Last good event</dt><dd>{{ last.received_at|date:"Y-m-d H:i"|default:"none yet" }}</dd></dl>
+</section><br>
+<div class="table-wrap"><table class="table"><thead><tr><th>Received</th><th>Event</th><th>Object</th><th>Outcome</th><th>Error</th></tr></thead><tbody>
+{% for e in page %}<tr><td class="small nowrap">{{ e.received_at|date:"Y-m-d H:i:s" }}</td><td class="mono small">{{ e.event_type|default:"—" }}</td><td class="mono small">{{ e.object_id|truncatechars:28|default:"—" }}</td><td><span class="badge {% if e.outcome == 'processed' %}badge-success{% elif e.outcome == 'ignored' %}badge-plain{% else %}badge-danger{% endif %}">{{ e.outcome }}</span></td><td class="small muted">{{ e.error|truncatechars:80 }}</td></tr>
+{% empty %}<tr><td colspan="5"><div class="empty">No webhook events received.</div></td></tr>{% endfor %}
+</tbody></table></div>
+{% include "includes/pagination.html" %}
+{% endblock %}

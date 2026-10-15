@@ -1,0 +1,9 @@
+{% extends "ops/base_ops.html" %}{% load lumen humanize %}
+{% block title %}Plans & entitlements{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Plans &amp; entitlements</h1><p>Changes apply immediately to every workspace on the plan.</p></div>{% if perms.manage_plans %}<a class="btn btn-primary" href="{% url 'ops:plan_new' %}">{% icon "plus" %} New plan</a>{% endif %}</div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Plan</th><th>Monthly</th><th>Yearly</th>{% for k, l in labels.items %}<th>{{ l }}</th>{% endfor %}<th>Subs</th><th></th></tr></thead><tbody>
+{% for p in plans %}<tr><td><strong>{{ p.name }}</strong><div class="xsmall muted mono">{{ p.code }}{% if not p.active %} · inactive{% endif %}{% if not p.is_public %} · hidden{% endif %}</div></td><td>{% if p.price_monthly_cents is None %}—{% else %}{{ p.price_monthly_cents|cents:p.currency }}{% endif %}</td><td>{% if p.price_yearly_cents is None %}—{% else %}{{ p.price_yearly_cents|cents:p.currency }}{% endif %}</td>
+{% for k, l in labels.items %}{% with v=p.entitlements|get_item:k %}<td>{% if v is True %}Yes{% elif v is False %}No{% else %}{{ v|intcomma }}{% endif %}</td>{% endwith %}{% endfor %}<td>{{ p.subs }}</td><td class="actions">{% if perms.manage_plans %}<a class="btn btn-sm" href="{% url 'ops:plan_edit' p.pk %}">Edit</a>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

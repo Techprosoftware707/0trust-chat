@@ -1,0 +1,10 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Workspaces{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Workspaces</h1><p>{{ page.paginator.count }} workspace{{ page.paginator.count|pluralize }}</p></div><form class="cluster" method="get"><input type="search" name="q" value="{{ q }}" placeholder="Name" aria-label="Search workspaces"><button class="btn" type="submit">{% icon "search" %} Search</button></form></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Workspace</th><th>Members</th><th>Plan</th><th>Status</th><th>Created</th></tr></thead><tbody>
+{% for w in page %}<tr><td><a href="{% url 'ops:workspace' w.pk %}"><strong>{{ w.name }}</strong></a><div class="xsmall muted">{{ w.slug }}</div></td><td>{{ w.member_count }}</td><td>{{ w.subscription.plan.name|default:"Free" }}</td><td><span class="badge">{{ w.subscription.get_status_display|default:"Free" }}</span></td><td class="small nowrap">{{ w.created_at|date:"Y-m-d" }}</td></tr>
+{% empty %}<tr><td colspan="5"><div class="empty">No workspaces.</div></td></tr>{% endfor %}
+</tbody></table></div>
+{% include "includes/pagination.html" %}
+{% endblock %}

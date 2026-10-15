@@ -1,0 +1,3 @@
+{% extends "allauth/layouts/entrance.html" %}{% load lumen %}
+{% block head_title %}Invitation not valid{% endblock %}
+{% block content %}<span class="feature-icon violet">{% icon "mail" %}</span><h1>This invitation can't be used</h1><p class="muted">It may have expired, been revoked, or already been accepted. Ask the person who invited you to send a new one.</p><a class="btn" href="/">Go to the homepage</a>{% endblock %}

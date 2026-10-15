@@ -1,0 +1,5 @@
+<nav class="tabs" aria-label="Workspace">
+  <a href="{% url 'portal:workspace' ws.pk %}" {% if tab == "members" %}aria-current="page"{% endif %}>Members</a>
+  <a href="{% url 'portal:workspace_billing' ws.pk %}" {% if tab == "billing" %}aria-current="page"{% endif %}>Plan &amp; billing</a>
+  {% if membership.can_manage %}<a href="{% url 'portal:workspace_settings' ws.pk %}" {% if tab == "settings" %}aria-current="page"{% endif %}>Settings</a>{% endif %}
+</nav>

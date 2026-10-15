@@ -1,0 +1,24 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Contact{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Contact</p>
+  <h1>Talk to a human</h1>
+  <p class="lead">Questions, sales, support or privacy requests. Security issues? Please follow the <a href="{% url 'site:disclosure' %}">disclosure policy</a>.</p>
+</div></header>
+<section class="section"><div class="container grid grid-2">
+  <div class="card">
+    {% include "includes/messages.html" %}
+    <form class="form" method="post" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_fields.html" with form=form %}
+      <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "send" %} Send message</button></div>
+      <p class="xsmall subtle mb-0">We store your message so our team can answer it. Don't include passwords or recovery keys — we will never ask for them.</p>
+    </form>
+  </div>
+  <div class="stack">
+    <div class="card stack-sm"><h3>{% icon "mail" %} Email</h3><p class="muted mb-0">Support: <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a><br>Privacy: <a href="mailto:{{ brand.privacy_email }}">{{ brand.privacy_email }}</a><br>Security: <a href="mailto:{{ brand.security_email }}">{{ brand.security_email }}</a></p></div>
+    <div class="card stack-sm"><h3>{% icon "book-open" %} Self-service</h3><p class="muted mb-0">Most questions are answered in the <a href="{% url 'site:docs' %}">documentation</a>. Account owners can export their data and delete their account from the portal.</p></div>
+  </div>
+</div></section>
+{% endblock %}

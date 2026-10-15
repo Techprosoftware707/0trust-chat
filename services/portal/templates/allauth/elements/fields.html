@@ -1,0 +1,13 @@
+{% load allauth %}{% if attrs.form.non_field_errors %}<div class="alert alert-danger" role="alert"><div>{% for e in attrs.form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div></div>{% endif %}
+{% for bound_field in attrs.form %}{% if bound_field.is_hidden %}{{ bound_field }}{% else %}
+<div class="field{% if bound_field.errors %} field-error{% endif %}">
+  {% if bound_field.widget_type == "checkbox" %}
+  <label class="checkbox" for="{{ bound_field.id_for_label }}">{{ bound_field }} <span>{{ bound_field.label }}{% if bound_field.name == "accept_terms" %} (<a href="/terms/" target="_blank" rel="noopener">terms</a>, <a href="/privacy/" target="_blank" rel="noopener">privacy</a>){% endif %}</span></label>
+  {% else %}
+  <label for="{{ bound_field.id_for_label }}">{{ bound_field.label }}</label>
+  {{ bound_field }}
+  {% endif %}
+  {% if bound_field.help_text %}<div class="help">{{ bound_field.help_text|safe }}</div>{% endif %}
+  {% if bound_field.errors %}<ul class="errorlist">{% for e in bound_field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}{% endfor %}

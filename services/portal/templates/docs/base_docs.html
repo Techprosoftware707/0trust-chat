@@ -1,0 +1,16 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}{{ doc_title }} · Docs{% endblock %}
+{% block main %}
+<section class="section"><div class="container docs-layout">
+  <nav class="docs-nav" aria-label="Documentation">
+    <p class="eyebrow">Documentation</p>
+    <ul>{% for s, t, d in docs %}<li><a href="{% url 'site:doc' s %}" {% if s == slug %}aria-current="page"{% endif %}>{{ t }}</a></li>{% endfor %}</ul>
+    <p class="small muted">Can't find it? <a href="{% url 'site:contact' %}?topic=support">Ask us</a>.</p>
+  </nav>
+  <article class="prose">
+    <p class="eyebrow"><a href="{% url 'site:docs' %}">Docs</a></p>
+    <h1>{{ doc_title }}</h1>
+    {% block article %}{% endblock %}
+  </article>
+</div></section>
+{% endblock %}

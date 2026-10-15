@@ -1,0 +1,36 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Terms of service{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Legal</p>
+  <h1>Terms of service</h1>
+  <p class="lead">The agreement between you and {{ brand.legal_name }} for using {{ brand.name }}.</p>
+</div></header>
+<section class="section"><div class="container-narrow prose">
+  <h2>1. The service</h2>
+  <p>{{ brand.name }} provides end-to-end encrypted messaging on the Matrix network, a web application, and account, workspace and billing management. Features available to you depend on your plan and on how the operator has configured this server.</p>
+  <h2>2. Your account</h2>
+  <ul>
+    <li>Keep your password, MFA devices and <strong>recovery key</strong> safe. We cannot recover encrypted messages if you lose all your devices and your recovery key.</li>
+    <li>Your username is permanent and cannot be reused after your account is deleted.</li>
+    <li>You are responsible for activity on your account.</li>
+  </ul>
+  <h2>3. Acceptable use</h2>
+  <p>Don't use the service to break the law, to harm others, to distribute malware, to send spam, or to attack the service or other servers. We may suspend accounts that do. Because we cannot read encrypted content, enforcement relies on reports from users and on metadata.</p>
+  <h2>4. Plans, payment and cancellation</h2>
+  <ul>
+    <li>Paid plans renew automatically until canceled. Cancellation takes effect at the end of the paid period.</li>
+    <li>If a payment fails, paid limits continue for a grace period; afterwards the workspace uses Free limits. We don't delete content because a subscription ends.</li>
+    <li>Prices and limits are shown on the <a href="{% url 'site:pricing' %}">pricing page</a> and may change with notice.</li>
+  </ul>
+  <h2>5. Federation</h2>
+  <p>Other Matrix servers are operated independently. We are not responsible for their content, availability or data handling.</p>
+  <h2>6. Availability</h2>
+  <p>We aim for high availability but provide the service "as is", without warranties except where the law does not allow them to be excluded. Current status is shown on the <a href="{% url 'site:status' %}">status page</a>.</p>
+  <h2>7. Liability</h2>
+  <p>To the extent permitted by law, our liability is limited to the amounts you paid us in the twelve months before the claim.</p>
+  <h2>8. Ending the agreement</h2>
+  <p>You can delete your account at any time from the portal. We may terminate accounts that violate these terms, with notice where reasonable.</p>
+  <p class="small subtle">Operators deploying {{ brand.short_name }} must review these terms with counsel and adapt them to their jurisdiction{% if brand.jurisdiction %} ({{ brand.jurisdiction }}){% endif %}.</p>
+</div></section>
+{% endblock %}

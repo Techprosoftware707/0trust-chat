@@ -1,0 +1,26 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Backups & updates{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Backups &amp; updates</h1><p>Encrypted backups of databases, media, signing keys and configuration.</p></div>
+{% if perms.manage_platform %}<div class="cluster"><form method="post" action="{% url 'ops:backup_run' %}">{% csrf_token %}<button class="btn btn-primary" type="submit">{% icon "archive" %} Back up now</button></form><form method="post" action="{% url 'ops:backup_verify' %}">{% csrf_token %}<button class="btn" type="submit">{% icon "archive-restore" %} Verify latest restore</button></form></div>{% endif %}</div>
+{% if status_error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>Host agent: {{ status_error }}. Showing the last status file instead.</div></div><br>{% endif %}
+<div class="grid grid-4">
+  <div class="card stat"><span class="stat-label">Last successful backup</span><span class="stat-value">{{ status.last_success_at|default:"never"|slice:":16" }}</span><span class="stat-note">{{ status.last_size_human|default:"" }}</span></div>
+  <div class="card stat"><span class="stat-label">Last result</span><span class="stat-value">{{ status.last_result|default:"—" }}</span><span class="stat-note">{{ status.last_error|default:""|truncatechars:80 }}</span></div>
+  <div class="card stat"><span class="stat-label">Restore verified</span><span class="stat-value">{{ status.last_verified_at|default:"never"|slice:":16" }}</span><span class="stat-note">{{ status.last_verify_result|default:"" }}</span></div>
+  <div class="card stat"><span class="stat-label">Running job</span><span class="stat-value">{{ status.running|default:"none" }}</span></div>
+</div><br>
+<div class="grid grid-2">
+<section class="card">
+  <div class="card-header"><h2>Archives</h2><span class="xsmall muted">{{ listing.destination|default:"" }}</span></div>
+  <ul class="list-plain list-rows">{% for b in listing.backups %}<li><span class="mono small">{{ b.name }}</span><span class="small muted">{{ b.size_human }}</span></li>{% empty %}<li class="muted small">No archives found.</li>{% endfor %}</ul>
+  <p class="xsmall subtle mb-0">Retention: {{ listing.retention|default:"see /etc/lumen/lumen.env" }}. Archives are encrypted with age; keep the identity file offline.</p>
+</section>
+<section class="card stack-sm">
+  <h2>Software version</h2>
+  <dl class="kv"><dt>Lumen</dt><dd>{{ lumen.version }}</dd><dt>Last update</dt><dd>{{ update.last_update_at|default:"—" }}</dd><dt>Result</dt><dd>{{ update.last_result|default:"—" }}</dd>{% if update.images %}<dt>Images</dt><dd class="small mono">{% for k, v in update.images.items %}{{ k }}: {{ v|truncatechars:60 }}<br>{% endfor %}</dd>{% endif %}</dl>
+  <p class="small muted mb-0">Updates run from the server with <code>sudo ./update.sh</code>: it backs up first, validates the new configuration, migrates, health-checks and rolls back on failure.</p>
+</section>
+</div><br>
+<section class="card stack-sm"><h2>Controlled recovery</h2><ol class="small muted"><li>Run “Verify latest restore” — it restores into an isolated, temporary database and checks integrity without touching production.</li><li>To restore production, run <code>sudo ./restore.sh &lt;archive&gt;</code> on the server. It verifies checksums, asks for typed confirmation, takes a safety backup, and explains which encryption data can and cannot be recovered.</li><li>See <code>docs/operations/disaster-recovery.md</code> for server replacement and DNS changes.</li></ol></section>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Maintenance{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Maintenance</h1><p>Safe, audited operations. Anything that touches the host goes through the host agent's allow-list.</p></div></div>
+<div class="grid grid-2">
+  <section class="card stack">
+    <h2>Site settings</h2>
+    <form class="form" method="post" action="{% url 'ops:maintenance_settings' %}">{% csrf_token %}
+      <label class="checkbox"><input type="checkbox" name="maintenance_mode" {% if maintenance_mode %}checked{% endif %} {% if not perms.manage_platform %}disabled{% endif %}> <span><strong>Maintenance mode</strong> — shows a banner and pauses sign-ups</span></label>
+      <div class="field"><label for="mm">Maintenance message</label><input id="mm" name="maintenance_message" value="{{ maintenance_message }}" maxlength="300"></div>
+      <div class="field"><label for="ann">Announcement banner (empty to hide)</label><input id="ann" name="announcement" value="{{ announcement }}" maxlength="300"></div>
+      <div class="field"><label for="reg">Registration</label><select id="reg" name="registration_mode"><option value="open" {% if registration_mode == "open" %}selected{% endif %}>Open — anyone can sign up</option><option value="invite" {% if registration_mode == "invite" %}selected{% endif %}>Invite only — workspace invitations</option><option value="closed" {% if registration_mode == "closed" %}selected{% endif %}>Closed</option></select></div>
+      {% if perms.manage_platform %}<div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>{% endif %}
+    </form>
+  </section>
+  <section class="card stack">
+    <h2>Diagnostics</h2>
+    <p class="muted small mb-0">Runs <code>diagnose.sh</code> on the host: DNS, TLS, discovery, federation, database, SMTP and webhook checks. Output never contains secrets.</p>
+    {% if perms.manage_platform %}<form method="post" action="{% url 'ops:diagnostics' %}">{% csrf_token %}<button class="btn" type="submit">{% icon "activity" %} Run diagnostics</button></form>{% endif %}
+    {% if diag %}{% if diag.error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>{{ diag.error }}</div></div>{% else %}<pre class="small diag-output">{{ diag.output }}</pre><p class="xsmall muted">Exit code {{ diag.exit_code }}</p>{% endif %}{% endif %}
+  </section>
+  {% if perms.manage_platform %}
+  <section class="card stack danger-zone">
+    <h2>Restart a service</h2>
+    <p class="muted small mb-0">Restarts one container and waits for its health check. Use when a service is stuck; data is not affected.</p>
+    <form class="form" method="post" action="{% url 'ops:service_restart' %}">{% csrf_token %}
+      <div class="field"><label for="svc">Service</label><select id="svc" name="service">{% for s in restartable %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="svc-c">Type the service name to confirm</label><input id="svc-c" name="confirm" required autocomplete="off"></div>
+      <div class="form-actions"><button class="btn btn-outline-danger" type="submit">Restart</button></div>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">Each browser or app you sign in with is a separate device with its own keys.</p>
+<h2>Signing in on a new device</h2>
+<ol><li>Sign in. The new device is <em>unverified</em>.</li><li>Verify it from a device you already trust (compare emoji), <strong>or</strong> enter your recovery key.</li><li>The device can now read your encrypted history and is trusted by your contacts.</li></ol>
+<h2>Reviewing devices</h2>
+<p>In the chat app open <strong>Settings → Sessions</strong> to see every signed-in device, when it was last active, and whether it's verified. Sign out any device you don't recognise. Signing out other devices asks you to confirm with your {{ brand.short_name }} account.</p>
+<h2>Portal sessions</h2>
+<p>Sessions on this website (portal) are separate. Review them under <strong>Security center → Active sessions</strong>.</p>
+<h2>Lost device</h2>
+<p>Sign out the lost device from another session as soon as possible, and change your password if it might have been unlocked.</p>
+{% endblock %}

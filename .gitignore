@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+services/portal/staticfiles/
+.pytest_cache/
+# Node
+node_modules/
+services/chat/dist/
+# Local runtime / secrets (never commit)
+.env
+*.local.env
+/var/
+/secrets/
+lumen.conf
+!lumen.conf.example
+*.pem
+*.key
+!deploy/**/*.example
+# Test artefacts
+tests/**/output/
+tests/**/screenshots/*.tmp.png
+playwright-report/
+test-results/

@@ -1,0 +1,53 @@
+{% extends "portal/base_portal.html" %}{% load lumen humanize %}
+{% block title %}{{ ws.name }} billing{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>{{ ws.name }}</h1><p>Plan, limits and invoices</p></div></div>
+{% include "portal/_workspace_tabs.html" with tab="billing" %}
+<div class="grid grid-2">
+  <section class="card stack">
+    <div class="card-header"><h2>Current plan: {{ plan.name }}</h2>
+      <span class="badge {% if sub.status == 'active' or sub.status == 'trialing' or sub.status == 'free' %}badge-success{% elif sub.status == 'past_due' %}badge-warning{% else %}badge-danger{% endif %}">{{ sub.get_status_display }}</span></div>
+    {% if sub.plan != plan %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>Your {{ sub.plan.name }} subscription isn't active, so Free limits apply. Nothing has been deleted.</div></div>{% endif %}
+    {% if sub.status == "past_due" %}<div class="alert alert-danger">{% icon "credit-card" %}<div>The last payment failed. Paid limits stay on{% if sub.grace_until %} until {{ sub.grace_until|date:"j M Y" }}{% endif %}. Update your payment method to keep them.</div></div>{% endif %}
+    <dl class="kv">
+      {% if sub.current_period_end %}<dt>{% if sub.cancel_at_period_end %}Ends{% else %}Renews{% endif %}</dt><dd>{{ sub.current_period_end|date:"j M Y" }}</dd>{% endif %}
+      <dt>Billing</dt><dd>{{ sub.get_provider_display }}{% if sub.provider != "none" %} · {{ sub.interval }}ly{% endif %}</dd>
+      <dt>Seats</dt><dd>{{ seats }} of {{ plan.entitlements.max_members }} (members + pending invitations)</dd>
+    </dl>
+    <div class="meter{% if seats >= plan.entitlements.max_members %} full{% endif %}"><span class="w-{{ seats|percent_of:plan.entitlements.max_members }}"></span></div>
+    <ul class="list-plain list-rows">{% for key, label in labels.items %}{% with v=plan.entitlements|get_item:key %}<li><span class="small">{{ label }}</span><span class="small"><strong>{% if v is True %}Yes{% elif v is False %}No{% else %}{{ v|intcomma }}{% endif %}</strong></span></li>{% endwith %}{% endfor %}</ul>
+    {% if membership.role == "owner" and sub.provider == "stripe" and sub.provider_customer_id %}
+    <form method="post" action="{% url 'portal:workspace_billing_portal' ws.pk %}">{% csrf_token %}<button class="btn" type="submit">{% icon "credit-card" %} Manage billing &amp; payment method</button></form>
+    {% endif %}
+  </section>
+  <section class="card stack">
+    <h2>Change plan</h2>
+    {% if membership.role != "owner" %}<p class="muted">Only the workspace owner can change the plan.</p>{% endif %}
+    {% if provider.name == "none" %}<div class="alert alert-info">{% icon "info" %}<div>Online payments aren't enabled on this server. <a href="{% url 'site:contact' %}?topic=sales">Contact us</a> to arrange a paid plan.</div></div>{% elif provider.name == "manual" %}<div class="alert alert-info">{% icon "info" %}<div>Paid plans on this server are arranged with the operator. <a href="{% url 'site:contact' %}?topic=sales">Contact us</a>.</div></div>{% endif %}
+    <ul class="list-plain list-rows">
+    {% for row in plans %}{% with p=row.plan %}
+      <li><div><strong>{{ p.name }}</strong>{% if p == plan %} <span class="badge badge-accent">Current</span>{% endif %}<div class="xsmall muted">{% if p.is_free %}Free{% elif p.price_monthly_cents is None %}Contact sales{% else %}{{ p.price_monthly_cents|cents:p.currency }}/month{% if p.price_yearly_cents %} · {{ p.price_yearly_cents|cents:p.currency }}/year{% endif %}{% endif %}</div></div>
+      {% if membership.role == "owner" and p != plan and not p.is_free %}
+        {% if row.monthly or row.yearly %}
+        <form class="cluster" method="post" action="{% url 'portal:workspace_checkout' ws.pk %}">{% csrf_token %}<input type="hidden" name="plan" value="{{ p.code }}">
+          {% if row.monthly %}<button class="btn btn-sm btn-primary" type="submit" name="interval" value="month">Monthly</button>{% endif %}
+          {% if row.yearly %}<button class="btn btn-sm" type="submit" name="interval" value="year">Yearly</button>{% endif %}
+        </form>
+        {% else %}<a class="btn btn-sm" href="{% url 'site:contact' %}?topic=sales">Contact sales</a>{% endif %}
+      {% endif %}
+      </li>
+    {% endwith %}{% endfor %}
+    </ul>
+    {% if sub.provider == "stripe" %}<p class="xsmall subtle mb-0">To cancel or switch an existing subscription use “Manage billing”. Changes apply when Stripe confirms them.</p>{% endif %}
+  </section>
+</div>
+<br>
+<section class="card">
+  <div class="card-header"><h2>Invoices</h2></div>
+  {% if invoices %}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Number</th><th>Period</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for inv in invoices %}<tr><td class="mono small">{{ inv.number|default:inv.provider_invoice_id|truncatechars:24 }}</td><td class="small">{{ inv.period_start|date:"j M Y" }} – {{ inv.period_end|date:"j M Y" }}</td><td>{{ inv.amount_due|cents:inv.currency }}</td><td><span class="badge {% if inv.status == 'paid' %}badge-success{% elif inv.status == 'open' %}badge-warning{% endif %}">{{ inv.status|title }}</span></td><td class="actions">{% if inv.hosted_url %}<a class="btn btn-sm" href="{{ inv.hosted_url }}" rel="noopener" target="_blank">View {% icon "external-link" %}</a>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<div class="empty"><p>No invoices. Invoices appear here once the payment provider issues them.</p></div>{% endif %}
+</section>
+{% endblock %}

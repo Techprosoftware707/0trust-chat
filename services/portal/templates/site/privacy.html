@@ -1,0 +1,42 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Privacy policy{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Legal</p>
+  <h1>Privacy policy</h1>
+  <p class="lead">This policy describes what {{ brand.legal_name }} ("we") processes when you use {{ brand.name }}, written to match what the software actually does.</p>
+</div></header>
+<section class="section"><div class="container-narrow prose">
+  <h2>1. The short version</h2>
+  <ul>
+    <li>Messages and files in encrypted rooms (the default) are encrypted on your devices. We cannot read them.</li>
+    <li>We process account data (username, email, sign-in records) and messaging metadata (who is in which room, when) to run the service.</li>
+    <li>We don't sell data, show ads, or use analytics trackers. No third-party scripts run on our pages.</li>
+  </ul>
+  <h2>2. Data we process</h2>
+  <table>
+    <thead><tr><th>Category</th><th>Examples</th><th>Purpose</th><th>Retention</th></tr></thead>
+    <tbody>
+      <tr><td>Account</td><td>Username, display name, email, password hash (Argon2id), MFA authenticators</td><td>Provide and secure your account</td><td>Until you delete your account (+ {{ retention.deletion_grace_days }}-day cancellation window)</td></tr>
+      <tr><td>Security records</td><td>Sign-in events, IP address, browser user agent, rate-limit events</td><td>Detect abuse and show you your own security history</td><td>{{ retention.security_events_days }} days</td></tr>
+      <tr><td>Operator audit log</td><td>Actions taken by our staff on accounts and settings</td><td>Accountability</td><td>{{ retention.audit_days }} days</td></tr>
+      <tr><td>Messaging (encrypted)</td><td>Encrypted messages and files, encrypted key backup</td><td>Deliver and store your conversations</td><td>Until deleted by participants or the account is erased; copies on other federated servers follow their policies</td></tr>
+      <tr><td>Messaging metadata</td><td>Room membership, event timestamps, room names/topics, device list, last-seen IP</td><td>Route messages and run the Matrix protocol</td><td>As long as the room or device exists</td></tr>
+      <tr><td>Workspaces &amp; billing</td><td>Workspace name, members, plan, invoices (amounts, dates)</td><td>Provide paid plans</td><td>While the workspace exists; invoices as required by law</td></tr>
+      <tr><td>Support</td><td>Messages you send us</td><td>Answer your request</td><td>{{ retention.support_days }} days after the ticket is closed</td></tr>
+      <tr><td>Backups</td><td>Encrypted copies of the above</td><td>Disaster recovery</td><td>Rolling; see the operator's backup retention setting</td></tr>
+    </tbody>
+  </table>
+  <h2>3. Federation</h2>
+  <p>When you join a room that includes people on other Matrix servers, those servers receive the room's events — encrypted message content plus the metadata listed above — and store them under their own policies. That is how federation works; we cannot delete data from other servers.</p>
+  <h2>4. Processors</h2>
+  <p>If online payments are enabled, Stripe processes payment details as our processor; card numbers never reach our servers. If email is enabled, our email provider processes the messages we send you. We use no other third parties to process your data.</p>
+  <h2>5. Your rights</h2>
+  <p>You can view and export your account data and delete your account from the <a href="{% url 'portal:privacy' %}">Privacy &amp; data</a> page. Account deletion deactivates your Matrix account, asks other servers to forget your profile, and removes your account data after the cancellation window. For other requests contact <a href="mailto:{{ brand.privacy_email }}">{{ brand.privacy_email }}</a>.</p>
+  <h2>6. Security</h2>
+  <p>See our <a href="{% url 'site:security' %}">security page</a> for how data is protected, and its limits.</p>
+  <h2>7. Changes</h2>
+  <p>We'll announce material changes in the app and on this page before they take effect.</p>
+  <p class="small subtle">Operator: {{ brand.legal_name }}{% if brand.jurisdiction %}, {{ brand.jurisdiction }}{% endif %}. Operators deploying {{ brand.short_name }} must review this policy with counsel and adapt it to their jurisdiction.</p>
+</div></section>
+{% endblock %}

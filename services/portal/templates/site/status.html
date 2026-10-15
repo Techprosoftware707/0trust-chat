@@ -1,0 +1,17 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Status{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Status</p>
+  <h1>{% if overall == "ok" %}All systems operational{% elif overall == "degraded" %}Some systems are degraded{% elif overall == "failed" %}Service disruption{% else %}Status not yet available{% endif %}</h1>
+  <p class="lead">Measured every minute by automated checks on this server. "No data" means a check hasn't reported in the last ten minutes — not that everything is fine.</p>
+</div></header>
+<section class="section"><div class="container-narrow">
+  <ul class="list-plain list-rows card">
+  {% for row in rows %}
+    <li><span class="cluster"><span class="status-dot status-{{ row.status }}"></span><strong>{{ row.label }}</strong></span><span class="small muted">{% if row.status == "unknown" %}No data{% else %}{{ row.status|title }} · checked {{ row.snapshot.at|timesince }} ago{% endif %}</span></li>
+  {% endfor %}
+  </ul>
+  <p class="small muted">Problems? <a href="{% url 'site:contact' %}?topic=support">Contact support</a>.</p>
+</div></section>
+{% endblock %}

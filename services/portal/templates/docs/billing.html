@@ -1,0 +1,12 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">Plans are per workspace. Limits are enforced by the server.</p>
+<h2>Upgrading</h2>
+<p>Workspace owners open <strong>Workspace → Billing</strong> and choose a plan. Payment happens on the payment provider's page; your plan changes once the provider confirms the payment to us — not when you return to the site.</p>
+<h2>Failed payments</h2>
+<p>If a renewal fails, the workspace keeps its paid limits during a grace period and owners see a notice. After the grace period it uses Free limits until payment succeeds.</p>
+<h2>Cancelling</h2>
+<p>Use <strong>Manage billing</strong> to cancel. The plan stays active until the end of the paid period. No content is deleted.</p>
+<h2>Enterprise &amp; self-hosted</h2>
+<p>For dedicated deployments or invoiced billing, <a href="{% url 'site:contact' %}?topic=sales">contact us</a>; an operator assigns the plan manually.</p>
+{% endblock %}

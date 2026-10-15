@@ -1,0 +1,7 @@
+{% extends "allauth/layouts/manage.html" %}{% load lumen %}
+{% block head_title %}Email{% endblock %}
+{% block content %}
+<h1>Email addresses</h1>
+<ul class="list-plain list-rows">{% for e in emails %}<li><span>{{ e.email }}</span>{% if e.primary %}<span class="badge badge-plain">Primary</span>{% endif %}</li>{% endfor %}</ul>
+<div class="alert alert-info">{% icon "info" %}<div>Changing your email requires email verification, and this server isn't configured to send email. Contact support to change it.</div></div>
+{% endblock %}

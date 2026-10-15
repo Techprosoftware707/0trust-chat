@@ -1,0 +1,16 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">Workspaces group people for billing and administration.</p>
+<h2>Roles</h2>
+<table><thead><tr><th>Role</th><th>Can</th></tr></thead><tbody>
+<tr><td>Owner</td><td>Everything, including billing, roles, deleting the workspace and transferring ownership.</td></tr>
+<tr><td>Admin</td><td>Invite and remove members, revoke invitations, change workspace policies.</td></tr>
+<tr><td>Member</td><td>Use the workspace's limits; invite others only if the workspace allows it.</td></tr>
+</tbody></table>
+<h2>Invitations</h2>
+<p>Invite by email. If email delivery is enabled, we send the link; otherwise copy the link and share it yourself. Invitations expire after 7 days and count towards the member limit while pending. The person must accept with an account using the invited email address.</p>
+<h2>Require two-factor authentication</h2>
+<p>On plans that include it, admins can require MFA. Members without MFA are blocked from <em>signing in to chat</em> until they enable it; existing chat sessions are not cut off immediately.</p>
+<h2>What workspaces don't do</h2>
+<p>Workspaces don't give admins access to members' messages. Chat rooms belong to their members, not to the workspace, and deleting a workspace doesn't delete any rooms.</p>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "portal/base_portal.html" %}{% load lumen %}
+{% block title %}Support{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Support</h1><p>{% if priority %}Your plan includes <strong>priority support</strong>.{% else %}We usually reply within two business days.{% endif %}</p></div><a class="btn btn-primary" href="{% url 'site:contact' %}?topic=support">{% icon "plus" %} New request</a></div>
+<section class="card">
+  {% if tickets %}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Subject</th><th>Topic</th><th>Status</th><th>Sent</th></tr></thead><tbody>
+  {% for t in tickets %}<tr><td>{{ t.subject }}</td><td>{{ t.topic|title }}</td><td><span class="badge {% if t.status == 'open' %}badge-info{% elif t.status == 'answered' %}badge-success{% endif %}">{{ t.get_status_display }}</span></td><td class="nowrap">{{ t.created_at|date:"j M Y" }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<div class="empty">{% icon "inbox" %}<p>No support requests yet.</p></div>{% endif %}
+</section>
+{% endblock %}

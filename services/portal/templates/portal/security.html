@@ -1,0 +1,40 @@
+{% extends "portal/base_portal.html" %}{% load lumen humanize %}
+{% block title %}Security center{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Security center</h1><p>Protect the account that controls your chat sign-in.</p></div></div>
+<div class="grid grid-2">
+  <section class="card stack">
+    <div class="security-score"><div class="ring ring-{{ summary.score }}"><span>{{ summary.score }}%</span></div><div><h2 class="mb-0">Account protection</h2><p class="muted mb-0">{% if summary.score == 100 %}Everything we check is in place.{% else %}A few things would make your account safer.{% endif %}</p></div></div>
+    <ul class="check-list">{% for label, ok in summary.checks %}<li>{% if ok %}{% icon "check-circle-2" %}{% else %}{% icon "circle-x" "danger-icon" %}{% endif %} {{ label }}</li>{% endfor %}</ul>
+  </section>
+  <section class="card stack">
+    <h2>Two-factor authentication</h2>
+    <ul class="list-plain list-rows">
+      <li><span>{% icon "smartphone" %} Authenticator app</span>{% if summary.totp %}<span class="badge badge-success">On</span>{% else %}<span class="badge">Off</span>{% endif %}</li>
+      <li><span>{% icon "fingerprint" %} Security keys &amp; passkeys</span>{% if summary.webauthn %}<span class="badge badge-success">On</span>{% else %}<span class="badge">Off</span>{% endif %}</li>
+      <li><span>{% icon "life-buoy" %} Recovery codes</span>{% if summary.recovery_codes_left is not None %}<span class="badge {% if summary.recovery_codes_left > 2 %}badge-success{% else %}badge-warning{% endif %}">{{ summary.recovery_codes_left }} left</span>{% else %}<span class="badge">None</span>{% endif %}</li>
+    </ul>
+    <div class="cluster"><a class="btn btn-primary" href="{% url 'mfa_index' %}">Manage two-factor</a><a class="btn" href="{% url 'account_change_password' %}">Change password</a></div>
+  </section>
+  <section class="card stack">
+    <h2>Sessions</h2>
+    <p class="muted mb-0">You're signed in to this portal in {{ summary.sessions }} browser session{{ summary.sessions|pluralize }}. Chat devices are listed separately in the chat app under <strong>Settings → Sessions</strong>.</p>
+    <div class="cluster"><a class="btn" href="{% url 'usersessions_list' %}">{% icon "monitor" %} Portal sessions</a><a class="btn" href="{{ lumen.app_url }}">{% icon "smartphone" %} Chat devices</a></div>
+  </section>
+  <section class="card stack">
+    <h2>Message encryption</h2>
+    <p class="muted mb-0">This account proves who you are; your devices hold the keys that encrypt your messages. Keep your chat <strong>recovery key</strong> somewhere safe and verify new devices. Losing all devices and the recovery key means losing encrypted history.</p>
+    <a href="{% url 'site:doc' 'encryption' %}">Understand the indicators in chat {% icon "arrow-right" %}</a>
+  </section>
+</div>
+<br>
+<section class="card">
+  <div class="card-header"><h2>Security activity</h2><span class="xsmall muted">Kept for {{ settings_retention|default:"90" }} days</span></div>
+  {% if events %}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Event</th><th>When</th><th>IP address</th><th>Device</th></tr></thead><tbody>
+  {% for e in events %}<tr><td>{% include "portal/_event_label.html" with kind=e.kind %}</td><td class="nowrap">{{ e.at|date:"j M Y H:i" }}</td><td class="mono small">{{ e.ip|default:"—" }}</td><td class="small muted break">{{ e.user_agent|truncatechars:70|default:"—" }}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "includes/pagination.html" with page=events %}
+  {% else %}<div class="empty"><p>No security events yet.</p></div>{% endif %}
+</section>
+{% endblock %}

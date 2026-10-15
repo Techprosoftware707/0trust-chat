@@ -1,0 +1,11 @@
+{% extends "allauth/layouts/entrance.html" %}{% load lumen %}
+{% block head_title %}Set your password{% endblock %}
+{% block content %}
+<span class="feature-icon">{% icon "key-round" %}</span>
+<h1>{% if purpose == "setup" %}Welcome, {{ target.username }}{% else %}Recover your account{% endif %}</h1>
+<p class="muted">Choose a strong password for <strong>{{ target.username }}</strong>. This link works once. {% if purpose == "setup" %}After signing in you'll set up two-factor authentication, which is required for operators.{% endif %}</p>
+<form class="form" method="post">{% csrf_token %}
+  {% include "includes/form_fields.html" with form=form %}
+  <div class="form-actions"><button class="btn btn-primary btn-lg btn-block" type="submit">Set password</button></div>
+</form>
+{% endblock %}

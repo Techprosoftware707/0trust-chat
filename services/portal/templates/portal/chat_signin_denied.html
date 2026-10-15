@@ -1,0 +1,8 @@
+{% extends "allauth/layouts/entrance.html" %}{% load lumen %}
+{% block head_title %}Chat sign-in blocked{% endblock %}
+{% block content %}
+<span class="feature-icon violet">{% icon "shield-alert" %}</span>
+<h1>Chat sign-in is blocked</h1>
+<div class="alert alert-warning">{% icon "info" %}<div>{{ decision.message }}</div></div>
+<div class="stack-sm">{% if action_url %}<a class="btn btn-primary btn-block" href="{{ action_url }}">Fix this now</a>{% endif %}<a class="btn btn-block" href="{{ retry_url }}">Try again</a></div>
+{% endblock %}

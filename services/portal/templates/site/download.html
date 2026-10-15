@@ -1,0 +1,18 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Apps & clients{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Apps &amp; clients</p>
+  <h1>Use {{ brand.short_name }} anywhere</h1>
+  <p class="lead">The web app works in any modern browser. Because {{ brand.short_name }} is standard Matrix, independent desktop and mobile apps work too.</p>
+</div></header>
+<section class="section"><div class="container grid grid-3">
+  <div class="card stack-sm"><div class="feature-icon">{% icon "monitor" %}</div><h3>Web app</h3><p class="muted">Nothing to install. Works in current Chrome, Edge, Firefox and Safari.</p><a class="btn btn-primary" href="{{ lumen.app_url }}">Open web app</a></div>
+  <div class="card stack-sm"><div class="feature-icon teal">{% icon "laptop" %}</div><h3>Desktop</h3><p class="muted">Use any Matrix desktop client (for example Element Desktop). Choose “sign in with another server” and enter <code>{{ lumen.server_name }}</code>.</p><p class="small subtle mb-0">Native {{ brand.short_name }}-branded builds are not published yet.</p></div>
+  <div class="card stack-sm"><div class="feature-icon violet">{% icon "smartphone" %}</div><h3>Mobile</h3><p class="muted">Matrix mobile apps that support single sign-on can use your account the same way, with the server <code>{{ lumen.server_name }}</code>.</p><p class="small subtle mb-0">Native {{ brand.short_name }}-branded builds are not published yet.</p></div>
+</div></section>
+<section class="section-tight"><div class="container-narrow prose">
+  <h2>Before you sign in on a new device</h2>
+  <p>Have your <strong>recovery key</strong> ready, or keep another signed-in device nearby. The new device needs one of them to unlock your encrypted message history. <a href="{% url 'site:doc' 'devices' %}">Learn about devices and sessions</a>.</p>
+</div></section>
+{% endblock %}

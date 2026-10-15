@@ -1,0 +1,26 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}{{ ws.name }}{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>{{ ws.name }}</h1><p>Created {{ ws.created_at|date:"Y-m-d" }}{% if ws.require_mfa %} · MFA required{% endif %}</p></div></div>
+<div class="grid grid-2">
+  <section class="card stack">
+    <h2>Subscription</h2>
+    <dl class="kv"><dt>Plan</dt><dd>{{ sub.plan.name }}{% if effective != sub.plan %} (effective: {{ effective.name }}){% endif %}</dd><dt>Status</dt><dd>{{ sub.get_status_display }}</dd><dt>Provider</dt><dd>{{ sub.get_provider_display }}</dd>{% if sub.provider_customer_id %}<dt>Customer</dt><dd class="mono small">{{ sub.provider_customer_id }}</dd>{% endif %}{% if sub.provider_subscription_id %}<dt>Subscription</dt><dd class="mono small">{{ sub.provider_subscription_id }}</dd>{% endif %}{% if sub.current_period_end %}<dt>Period end</dt><dd>{{ sub.current_period_end|date:"Y-m-d" }}{% if sub.cancel_at_period_end %} (cancels){% endif %}</dd>{% endif %}{% if sub.grace_until %}<dt>Grace until</dt><dd>{{ sub.grace_until|date:"Y-m-d" }}</dd>{% endif %}{% if sub.manual_note %}<dt>Note</dt><dd>{{ sub.manual_note }}</dd>{% endif %}</dl>
+    {% if perms.manage_billing %}
+    <form class="form card card-tight" method="post" action="{% url 'ops:workspace_plan' ws.pk %}">{% csrf_token %}
+      <h3>Assign plan manually</h3>
+      <div class="field"><label for="plan">Plan</label><select id="plan" name="plan">{% for p in plans %}<option value="{{ p.code }}" {% if p == sub.plan %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="days">Duration in days (empty = until changed)</label><input id="days" name="days" type="number" min="1" max="3660"></div>
+      <div class="field"><label for="note">Note (e.g. invoice number)</label><input id="note" name="note" type="text" maxlength="300"></div>
+      <button class="btn" type="submit">Assign</button>
+    </form>
+    {% endif %}
+  </section>
+  <section class="card">
+    <div class="card-header"><h2>Members</h2></div>
+    <ul class="list-plain list-rows">{% for m in members %}<li><a href="{% url 'ops:user' m.user.pk %}">{{ m.user.username }}</a><span class="badge badge-plain">{{ m.get_role_display }}</span></li>{% endfor %}</ul>
+    <h3>Invitations</h3>
+    <ul class="list-plain list-rows">{% for i in invitations %}<li><span class="small">{{ i.email }}</span><span class="badge">{{ i.state }}</span></li>{% empty %}<li class="muted small">None</li>{% endfor %}</ul>
+  </section>
+</div>
+{% endblock %}

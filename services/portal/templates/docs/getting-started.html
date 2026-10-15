@@ -1,0 +1,16 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">From zero to a verified, encrypted conversation in about five minutes.</p>
+<h2>1. Create your account</h2>
+<p>Go to <a href="{% url 'account_signup' %}">sign up</a>. Your username becomes your chat address, <code>@username:{{ lumen.server_name }}</code>, and can't be changed later. Use a strong, unique password (12+ characters).</p>
+<h2>2. Turn on two-factor authentication</h2>
+<p>In the portal open <strong>Security center → Two-factor authentication</strong>. Add an authenticator app or a security key, then save your <strong>recovery codes</strong>. Some workspaces require MFA before you can sign in to chat.</p>
+<h2>3. Open the chat app</h2>
+<p>Click <strong>Open chat</strong>. The app signs you in through your {{ brand.short_name }} account. On first sign-in your browser generates this device's encryption keys locally.</p>
+<h2>4. Save your recovery key</h2>
+<p>The app asks you to set up <strong>secure backup</strong>. It shows a recovery key once. Store it in a password manager or print it. It's the only way to unlock your encrypted history on a new device if you have no other signed-in device. We never receive it.</p>
+<h2>5. Start a conversation</h2>
+<p>Choose <strong>New chat</strong>, enter someone's Matrix address (they can be on another server), and send a message. New chats are encrypted automatically.</p>
+<h2>6. Verify each other</h2>
+<p>Open the person's profile in the room and choose <strong>Verify</strong>. You'll both see the same emoji; confirm they match. From then on, their verified devices show a green shield and you'll be warned if their identity changes.</p>
+{% endblock %}

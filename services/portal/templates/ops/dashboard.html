@@ -1,0 +1,28 @@
+{% extends "ops/base_ops.html" %}{% load lumen humanize %}
+{% block title %}Operator overview{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Overview</h1><p>Live figures from the database and health probes. Nothing on this page comes from message content.</p></div></div>
+<div class="grid grid-4">
+  <div class="card stat"><span class="stat-label">Accounts</span><span class="stat-value">{{ stats.users|intcomma }}</span><span class="stat-note">+{{ stats.new_users_7d }} in 7 days · {{ stats.suspended }} suspended</span></div>
+  <div class="card stat"><span class="stat-label">Chat sign-ins (30d)</span><span class="stat-value">{{ stats.chat_active_30d|intcomma }}</span><span class="stat-note">accounts that signed in to chat</span></div>
+  <div class="card stat"><span class="stat-label">Workspaces</span><span class="stat-value">{{ stats.workspaces|intcomma }}</span><span class="stat-note">{{ stats.paid_subscriptions }} paid · {{ stats.past_due }} past due</span></div>
+  <div class="card stat"><span class="stat-label">Monthly recurring</span><span class="stat-value">{{ stats.mrr_cents|cents }}</span><span class="stat-note">from active paid subscriptions</span></div>
+  <div class="card stat"><span class="stat-label">Failed sign-ins (24h)</span><span class="stat-value">{{ stats.failed_logins_24h }}</span><span class="stat-note"><a href="{% url 'ops:security' %}?kind=login_failed">Investigate</a></span></div>
+  <div class="card stat"><span class="stat-label">Rate-limited (24h)</span><span class="stat-value">{{ stats.rate_limited_24h }}</span><span class="stat-note"><a href="{% url 'ops:security' %}?kind=rate_limited">View events</a></span></div>
+  <div class="card stat"><span class="stat-label">Chat sign-ins blocked (24h)</span><span class="stat-value">{{ stats.oidc_denied_24h }}</span><span class="stat-note">by MFA or account policy</span></div>
+  <div class="card stat"><span class="stat-label">Open support</span><span class="stat-value">{{ stats.open_tickets }}</span><span class="stat-note"><a href="{% url 'ops:support' %}">Support inbox</a></span></div>
+</div>
+<br>
+<div class="grid grid-2">
+  <section class="card">
+    <div class="card-header"><h2>Service health</h2><a class="btn btn-sm btn-ghost" href="{% url 'ops:health' %}">Details</a></div>
+    <ul class="list-plain list-rows">{% for row in health %}<li><span class="cluster"><span class="status-dot status-{{ row.status }}"></span>{{ row.label }}</span><span class="small muted text-right">{% if row.snapshot %}{{ row.snapshot.summary|truncatechars:60 }}{% else %}no data yet{% endif %}</span></li>{% endfor %}</ul>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2>Recent operator activity</h2><a class="btn btn-sm btn-ghost" href="{% url 'ops:audit' %}">Audit log</a></div>
+    {% if recent_audit %}<ul class="list-plain list-rows">{% for e in recent_audit %}<li><span class="small"><strong>{{ e.actor_label }}</strong> · <span class="mono">{{ e.action }}</span></span><span class="xsmall muted nowrap">{{ e.at|naturaltime }}</span></li>{% endfor %}</ul>
+    {% else %}<div class="empty"><p>No audit events yet.</p></div>{% endif %}
+    {% if backup %}<p class="xsmall muted mb-0">Last backup: {{ backup.last_success_at|default:"never" }}</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

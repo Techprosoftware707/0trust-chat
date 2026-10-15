@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% load lumen %}
+{% block body_class %}ops{% endblock %}
+{% block body %}
+<div class="mobile-bar">{% include "includes/brand.html" %}<button type="button" class="theme-toggle" data-nav-toggle aria-expanded="false" aria-label="Open navigation">{% icon "menu" %}</button></div>
+<div class="app-shell ops-shell" data-nav-open="false">
+  <aside class="sidebar" aria-label="Operator navigation">
+    <div class="cluster-between">{% include "includes/brand.html" %}<span class="ops-badge">Operator</span></div>
+    {% if user.is_authenticated and user.is_operator %}
+    <nav>
+      <a href="{% url 'ops:dashboard' %}" {% nav_current '/ops/dashboard' %}>{% icon "gauge" %} Overview</a>
+      <div class="nav-label">Customers</div>
+      <a href="{% url 'ops:users' %}" {% nav_current '/ops/users' %}>{% icon "users" %} Users</a>
+      <a href="{% url 'ops:workspaces' %}" {% nav_current '/ops/workspaces' %}>{% icon "building-2" %} Workspaces</a>
+      <a href="{% url 'ops:support' %}" {% nav_current '/ops/support' %}>{% icon "inbox" %} Support</a>
+      <div class="nav-label">Billing</div>
+      <a href="{% url 'ops:plans' %}" {% nav_current '/ops/plans' %}>{% icon "tag" %} Plans &amp; entitlements</a>
+      <a href="{% url 'ops:subscriptions' %}" {% nav_current '/ops/subscriptions' %}>{% icon "credit-card" %} Subscriptions</a>
+      <a href="{% url 'ops:webhooks' %}" {% nav_current '/ops/webhooks' %}>{% icon "plug" %} Webhooks</a>
+      <div class="nav-label">Platform</div>
+      <a href="{% url 'ops:health' %}" {% nav_current '/ops/health' %}>{% icon "heart-pulse" %} Service health</a>
+      <a href="{% url 'ops:federation' %}" {% nav_current '/ops/federation' %}>{% icon "globe" %} Homeserver &amp; federation</a>
+      <a href="{% url 'ops:backups' %}" {% nav_current '/ops/backups' %}>{% icon "archive" %} Backups &amp; updates</a>
+      <a href="{% url 'ops:wireguard' %}" {% nav_current '/ops/wireguard' %}>{% icon "network" %} WireGuard</a>
+      <a href="{% url 'ops:maintenance' %}" {% nav_current '/ops/maintenance' %}>{% icon "wrench" %} Maintenance</a>
+      <div class="nav-label">Security</div>
+      <a href="{% url 'ops:security' %}" {% nav_current '/ops/security' %}>{% icon "shield-alert" %} Security events</a>
+      <a href="{% url 'ops:audit' %}" {% nav_current '/ops/audit' %}>{% icon "scroll-text" %} Audit log</a>
+      <a href="{% url 'ops:config' %}" {% nav_current '/ops/config' %}>{% icon "sliders-horizontal" %} Configuration</a>
+    </nav>
+    {% endif %}
+    <div class="sidebar-foot">
+      {% if user.is_authenticated %}
+      <div class="user-chip"><span class="avatar">{{ user|initials }}</span><div class="break"><div class="small"><strong>{{ user.name }}</strong></div><div class="xsmall muted">{{ user.get_staff_role_display }}</div></div></div>
+      <div class="cluster">
+        {% include "includes/theme_toggle.html" %}
+        <a class="btn btn-ghost btn-sm" href="{% url 'mfa_index' %}">{% icon "key-round" %} MFA</a>
+        <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm" type="submit">{% icon "log-out" %} Sign out</button></form>
+      </div>
+      {% endif %}
+      <p class="xsmall muted">Lumen {{ lumen.version }} · private console</p>
+    </div>
+  </aside>
+  <main id="main" class="app-main">
+    {% include "includes/messages.html" %}
+    {% block main %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

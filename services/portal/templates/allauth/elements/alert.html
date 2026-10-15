@@ -1,0 +1,1 @@
+{% load allauth lumen %}<div class="alert alert-{% if 'error' in attrs.level or 'danger' in attrs.level %}danger{% elif 'warning' in attrs.level %}warning{% elif 'success' in attrs.level %}success{% else %}info{% endif %}" role="status">{% icon "info" %}<div>{% slot message %}{% endslot %}</div></div>

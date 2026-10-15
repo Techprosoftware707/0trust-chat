@@ -1,0 +1,16 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}{{ ticket.subject }}{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>{{ ticket.subject }}</h1><p>{{ ticket.name }} &lt;{{ ticket.email }}&gt; · {{ ticket.topic }} · {{ ticket.created_at|date:"Y-m-d H:i" }}{% if ticket.user %} · <a href="{% url 'ops:user' ticket.user.pk %}">{{ ticket.user.username }}</a>{% endif %}</p></div>{% if ticket.priority == "high" %}<span class="badge badge-danger">high priority</span>{% endif %}</div>
+<div class="grid grid-2">
+  <section class="card"><pre class="ticket-body">{{ ticket.message }}</pre><p class="xsmall subtle mb-0">Reply by email to {{ ticket.email }}. Never ask users for passwords or recovery keys.</p></section>
+  <section class="card stack"><h2>Handling</h2>
+    <form class="form" method="post">{% csrf_token %}
+      <div class="field"><label for="st">Status</label><select id="st" name="status">{% for v, l in statuses %}<option value="{{ v }}" {% if v == ticket.status %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="note">Internal note</label><textarea id="note" name="internal_note" rows="6">{{ ticket.internal_note }}</textarea></div>
+      {% if perms.manage_support %}<div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>{% endif %}
+    </form>
+    {% if ticket.handled_by %}<p class="xsmall muted mb-0">Last handled by {{ ticket.handled_by.username }}</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

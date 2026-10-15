@@ -1,0 +1,9 @@
+/*
+ * Operator brand overrides. Loaded after design/tokens.css on every surface
+ * (website, portal, admin console, chat). Keep it to CSS custom properties.
+ *
+ * Example — switch the primary accent to violet:
+ *
+ * :root { --brand-accent: #6b58e8; --brand-accent-strong: #5443c9; }
+ * :root[data-theme="dark"] { --accent: #a497fa; --accent-hover: #c4bbfc; }
+ */

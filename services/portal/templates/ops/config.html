@@ -1,0 +1,9 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Configuration{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Configuration status</h1><p>Read-only view. Secrets are reported only as present or missing. Change settings in <code>/etc/lumen/lumen.conf</code> and run <code>update.sh</code>.</p></div></div>
+<div class="grid grid-2">
+<section class="card"><dl class="kv">{% for k, v in items %}<dt>{{ k }}</dt><dd>{% if v == "missing" or v == "not configured" or v == "NO (insecure)" %}<span class="badge badge-warning">{{ v }}</span>{% elif v == "present" or v == "configured" %}<span class="badge badge-success">{{ v }}</span>{% else %}{{ v }}{% endif %}</dd>{% endfor %}</dl></section>
+<section class="card stack-sm"><h2>Data retention</h2><dl class="kv"><dt>Security events</dt><dd>{{ retention.security_events_days }} days</dd><dt>Audit log</dt><dd>{{ retention.audit_days }} days</dd><dt>Health snapshots</dt><dd>{{ retention.health_days }} days</dd><dt>Webhook records</dt><dd>{{ retention.webhook_days }} days</dd><dt>Closed support tickets</dt><dd>{{ retention.support_days }} days</dd><dt>Account deletion grace</dt><dd>{{ retention.deletion_grace_days }} days</dd></dl></section>
+</div>
+{% endblock %}

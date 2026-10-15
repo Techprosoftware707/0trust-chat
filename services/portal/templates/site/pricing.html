@@ -1,0 +1,50 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% load humanize %}
+{% block title %}Pricing{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Pricing</p>
+  <h1>Simple plans, enforced honestly</h1>
+  <p class="lead">Every plan includes the same end-to-end encryption. Paid plans raise limits for a workspace; they never unlock "more privacy".</p>
+</div></header>
+<section class="section"><div class="container stack-lg">
+  {% if provider.name != "stripe" or not provider.is_configured %}
+  <div class="alert alert-info">{% icon "info" %}<div>Online payments are not enabled on this server{% if provider.name == "manual" %}; paid plans are arranged with the operator{% endif %}. <a href="{% url 'site:contact' %}?topic=sales">Contact us</a> about paid plans.</div></div>
+  {% endif %}
+  <div class="pricing">
+    {% for row in plans %}{% with plan=row.plan %}
+    <div class="card plan{% if plan.code == 'pro' %} featured{% endif %}">
+      <div><h2 class="mb-0">{{ plan.name }}</h2><p class="muted small mb-0">{{ plan.tagline }}</p></div>
+      <div class="price">{% if plan.is_free %}Free{% elif plan.price_monthly_cents is None %}Let's talk{% else %}{{ plan.price_monthly_cents|cents:plan.currency }}<small> / workspace / month</small>{% endif %}</div>
+      {% if plan.price_yearly_cents and not plan.is_free %}<p class="small muted mt-0">or {{ plan.price_yearly_cents|cents:plan.currency }} billed yearly</p>{% endif %}
+      <ul class="check-list">{% for f in plan.features %}<li>{% icon "check" %} {{ f }}</li>{% endfor %}</ul>
+      {% if plan.is_free %}
+        {% if lumen.registration_mode == "open" %}<a class="btn btn-block" href="{% url 'account_signup' %}">Start free</a>{% endif %}
+      {% elif row.purchasable %}
+        <a class="btn btn-primary btn-block" href="{% url 'portal:workspaces' %}">Choose {{ plan.name }}</a>
+      {% else %}
+        <a class="btn btn-block" href="{% url 'site:contact' %}?topic=sales">Contact sales</a>
+      {% endif %}
+    </div>
+    {% endwith %}{% endfor %}
+  </div>
+  <div class="stack">
+    <h2>Limits per plan</h2>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Limit</th>{% for row in plans %}<th>{{ row.plan.name }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for key, label in entitlement_labels.items %}
+        <tr><td>{{ label }}</td>{% for row in plans %}{% with v=row.plan.entitlements|get_item:key %}<td>{% if v is True %}{% icon "check" "" "Yes" %}{% elif v is False %}<span class="subtle">—</span>{% else %}{{ v|intcomma }}{% endif %}</td>{% endwith %}{% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <p class="small muted">Limits are enforced by the server: member and invitation limits by the portal, file size and monthly upload volume by the homeserver. When a paid plan lapses there is a {{ grace_days|default:"14" }}-day grace period, after which the workspace uses Free limits. Nothing is deleted.</p>
+  </div>
+  <div class="container-narrow faq">
+    <h2>Billing questions</h2>
+    <details><summary>What is a workspace?</summary><p>A team space for billing and administration: members, roles, invitations and policies such as mandatory MFA. Members get the workspace's file limits in every chat.</p></details>
+    <details><summary>Who processes payments?</summary><p>When online payments are enabled, Stripe handles card details; they never touch our servers. We receive the subscription status through signed webhooks.</p></details>
+    <details><summary>Can I cancel any time?</summary><p>Yes. Your plan stays active until the end of the period you paid for, then the workspace moves to the Free plan's limits.</p></details>
+  </div>
+</div></section>
+{% endblock %}

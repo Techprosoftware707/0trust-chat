@@ -1,0 +1,3 @@
+{% extends "allauth/layouts/entrance.html" %}{% load lumen %}
+{% block head_title %}Operators only{% endblock %}
+{% block content %}<span class="feature-icon violet">{% icon "lock" %}</span><h1>Operators only</h1><p class="muted">This console is restricted to accounts with an operator role. The attempt was recorded.</p><a class="btn" href="{% url 'account_login' %}">Sign in as an operator</a>{% endblock %}

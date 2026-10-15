@@ -1,0 +1,5 @@
+{% load allauth %}<section class="card card-tight stack-sm">
+  <h2 class="mt-0">{% slot title %}{% endslot %}</h2>
+  {% slot body %}{% endslot %}
+  {% if slots.actions %}<div class="cluster">{% for action in slots.actions %}{{ action }}{% endfor %}</div>{% endif %}
+</section>

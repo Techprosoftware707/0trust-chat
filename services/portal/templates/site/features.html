@@ -1,0 +1,75 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Features{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Features</p>
+  <h1>Everything a private conversation needs</h1>
+  <p class="lead">{{ brand.short_name }} pairs the mature Matrix encryption stack with an interface designed for people who just want to talk safely.</p>
+</div></header>
+
+<section class="section"><div class="container stack-lg">
+  <div class="grid grid-2">
+    <div class="stack">
+      <h2>Messaging</h2>
+      <ul class="check-list">
+        <li>{% icon "check" %} End-to-end encrypted direct messages and group rooms, on by default</li>
+        <li>{% icon "check" %} Replies, reactions, edits and deletions</li>
+        <li>{% icon "check" %} Typing indicators, read receipts and presence (where the server enables it)</li>
+        <li>{% icon "check" %} Delivery states taken from real server events: sending, sent, seen</li>
+        <li>{% icon "check" %} Encrypted file and image sharing with in-browser decryption</li>
+        <li>{% icon "check" %} Search across the messages your device can decrypt — locally, never on the server</li>
+        <li>{% icon "check" %} Browser notifications, with message previews off by default</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h2>Identity &amp; verification</h2>
+      <ul class="check-list">
+        <li>{% icon "check" %} Emoji (SAS) verification between people and between your own devices</li>
+        <li>{% icon "check" %} Cross-signing: verify a person once, trust all their verified devices</li>
+        <li>{% icon "check" %} Clear warnings when someone's identity changes</li>
+        <li>{% icon "check" %} Per-message and per-room encryption indicators that tell the truth — unencrypted rooms are labelled as such</li>
+        <li>{% icon "check" %} Session list for every device, with remote sign-out</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h2>Recovery</h2>
+      <ul class="check-list">
+        <li>{% icon "check" %} Encrypted server-side key backup (Matrix secure backup)</li>
+        <li>{% icon "check" %} Recovery key generated on your device and never sent to us</li>
+        <li>{% icon "check" %} Account recovery with MFA recovery codes, email reset (when configured) or assisted recovery</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h2>Accounts &amp; teams</h2>
+      <ul class="check-list">
+        <li>{% icon "check" %} Two-factor authentication: authenticator apps, security keys (WebAuthn) and recovery codes</li>
+        <li>{% icon "check" %} Workspaces with owners, admins and members</li>
+        <li>{% icon "check" %} Invitations by link or email, with seat limits enforced on the server</li>
+        <li>{% icon "check" %} Workspace policy: require MFA before members can sign in to chat</li>
+        <li>{% icon "check" %} Self-service data export and account deletion</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h2>Network</h2>
+      <ul class="check-list">
+        <li>{% icon "check" %} Federation with independently operated Matrix servers</li>
+        <li>{% icon "check" %} Works with standard Matrix apps</li>
+        <li>{% icon "check" %} Operator-defined federation policy: open, allow-list or closed</li>
+        <li>{% icon "check" %} TLS 1.3 everywhere, with hybrid post-quantum key exchange where supported</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h2>Voice &amp; video</h2>
+      <ul class="check-list">
+        <li>{% icon "check" %} One-to-one voice and video calls using WebRTC (DTLS-SRTP media encryption)</li>
+        <li>{% icon "check" %} Call setup messages are end-to-end encrypted in encrypted rooms</li>
+        <li>{% icon "info" %} Available when the server operator enables the TURN relay. Group calls are not part of this release.</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+<section class="section band"><div class="container cluster-between">
+  <div><h2 class="mb-0">Ready when you are.</h2><p class="muted mb-0">Create an account, or read how the security works first.</p></div>
+  <div class="cluster">{% if lumen.registration_mode == "open" %}<a class="btn btn-primary btn-lg" href="{% url 'account_signup' %}">Get started</a>{% endif %}<a class="btn btn-lg" href="{% url 'site:security' %}">Security details</a></div>
+</div></section>
+{% endblock %}

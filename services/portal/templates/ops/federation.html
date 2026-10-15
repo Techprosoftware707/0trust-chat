@@ -1,0 +1,33 @@
+{% extends "ops/base_ops.html" %}{% load lumen humanize %}
+{% block title %}Homeserver & federation{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Homeserver &amp; federation</h1><p>Server name <span class="mono">{{ server_name }}</span> · federation <strong>{{ mode }}</strong>{% if allowlist %} ({{ allowlist|join:", " }}){% endif %}</p></div></div>
+{% if error %}<div class="alert alert-danger">{% icon "x-circle" %}<div>Homeserver admin API: {{ error }}</div></div><br>{% endif %}
+<div class="grid grid-4">
+  <div class="card stat"><span class="stat-label">Synapse</span><span class="stat-value">{{ data.version.server_version|default:"—" }}</span></div>
+  <div class="card stat"><span class="stat-label">Local users</span><span class="stat-value">{{ data.counts.users|intcomma|default:"—" }}</span></div>
+  <div class="card stat"><span class="stat-label">Rooms known</span><span class="stat-value">{{ data.counts.rooms|intcomma|default:"—" }}</span></div>
+  <div class="card stat"><span class="stat-label">External reachability</span><span class="stat-value">{% include "ops/_status_badge.html" with s=probe.status %}</span><span class="stat-note">{{ probe.summary|default:"not probed yet" }}</span></div>
+</div><br>
+<section class="card">
+  <div class="card-header"><h2>Federation destinations</h2><span class="xsmall muted">Servers this homeserver has sent events to</span></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Server</th><th>State</th><th>Retry interval</th></tr></thead><tbody>
+  {% for d in data.destinations %}<tr><td class="mono small">{{ d.destination }}</td><td>{% if d.failing %}<span class="badge badge-warning">backing off</span>{% else %}<span class="badge badge-success">ok</span>{% endif %}</td><td class="small">{% if d.retry_interval %}{{ d.retry_interval|floatformat:0 }} ms{% if d.retry_in_s %} · next try in {{ d.retry_in_s }} s{% endif %}{% else %}—{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="3"><div class="empty">No federation traffic yet.</div></td></tr>{% endfor %}
+  </tbody></table></div>
+</section><br>
+<div class="grid grid-2">
+<section class="card">
+  <div class="card-header"><h2>Storage by user</h2><span class="xsmall muted">uploaded media</span></div>
+  <ul class="list-plain list-rows">{% for u in data.media %}<li><span class="mono small">{{ u.user_id }}</span><span class="small">{{ u.media_length|filesizeformat }} · {{ u.media_count }} files</span></li>{% empty %}<li class="muted small">No uploads yet.</li>{% endfor %}</ul>
+</section>
+{% if perms.view_security %}
+<section class="card">
+  <div class="card-header"><h2>Abuse reports</h2><span class="xsmall muted">user reports; encrypted content stays encrypted</span></div>
+  <ul class="list-plain list-rows">{% for r in data.reports %}<li><div class="small"><span class="mono">{{ r.sender }}</span> in {{ r.name|default:r.room_id }}<div class="xsmall muted">{{ r.reason|default:"no reason" }}</div></div><span class="xsmall muted">{{ r.received_ts }}</span></li>{% empty %}<li class="muted small">No reports.</li>{% endfor %}</ul>
+</section>
+{% endif %}
+</div>
+<br>
+<section class="card stack-sm"><h2>Change federation policy</h2><p class="muted small mb-0">Federation mode is part of the homeserver configuration. On the server run <code>sudo ./lumenctl federation open|allowlist|closed [servers]</code>; it validates, applies and restarts the homeserver, and records the change.</p></section>
+{% endblock %}

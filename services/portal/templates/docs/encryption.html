@@ -1,0 +1,18 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">What the shields and warnings in the chat app mean.</p>
+<h2>Encrypted and unencrypted rooms</h2>
+<p>Rooms created on this server are end-to-end encrypted. A room joined from elsewhere might not be. The room header shows <strong>Encrypted</strong> or <strong>Not encrypted</strong>; in unencrypted rooms the server and other servers can read messages.</p>
+<h2>Verification shields</h2>
+<table><thead><tr><th>Indicator</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>Green shield</td><td>You verified this person (or this is your own verified device).</td></tr>
+<tr><td>Neutral shield</td><td>Encrypted, but you haven't verified the person yet.</td></tr>
+<tr><td>Warning</td><td>An unverified device sent this message, or the person's identity changed since you verified them.</td></tr>
+</tbody></table>
+<h2>Identity changes</h2>
+<p>If someone resets their encryption identity — for example after losing all their devices and their recovery key — the app warns you. Confirm with them through another channel before trusting the new identity, then verify again.</p>
+<h2>"Unable to decrypt" messages</h2>
+<p>Usually the sending device hasn't shared the key with your device yet, or this is a new device that hasn't restored the key backup. Verify the new device or enter your recovery key to fix it.</p>
+<h2>Post-quantum</h2>
+<p>Message encryption uses classical cryptography; connections to the server use hybrid post-quantum key exchange where your browser supports it. See the <a href="{% url 'site:security' %}#post-quantum">security page</a>.</p>
+{% endblock %}

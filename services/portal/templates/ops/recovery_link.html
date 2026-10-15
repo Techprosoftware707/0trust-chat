@@ -1,0 +1,10 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Recovery link{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>One-time recovery link</h1><p>For {{ target.username }} · valid for 1 hour · usable once</p></div></div>
+<section class="card stack">
+  <div class="alert alert-warning">{% icon "triangle-alert" %}<div>Deliver this link through a channel you have verified belongs to the account holder. It is shown only now and isn't stored. The issuance is recorded in the audit log and in the user's security history.</div></div>
+  <div class="codebox" id="rlink">{{ link }}</div>
+  <div class="cluster"><button class="btn" type="button" data-copy="rlink">{% icon "copy" %} Copy</button><a class="btn btn-ghost" href="{% url 'ops:user' target.pk %}">Back to user</a></div>
+</section>
+{% endblock %}

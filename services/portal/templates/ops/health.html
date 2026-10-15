@@ -1,0 +1,22 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Service health{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Service health</h1><p>Results of the worker's probes (every minute; TLS, federation and email every 15 minutes).</p></div></div>
+<div class="table-wrap"><table class="table"><thead><tr><th>Component</th><th>Status</th><th>Last result</th><th>Checked</th><th>Latency</th><th>Last 24h</th></tr></thead><tbody>
+{% for row in rows %}<tr><td><strong>{{ row.label }}</strong></td><td>{% include "ops/_status_badge.html" with s=row.status %}</td><td class="small">{{ row.snapshot.summary|default:"—" }}</td><td class="small nowrap">{% if row.snapshot %}{{ row.snapshot.at|timesince }} ago{% else %}never{% endif %}</td><td class="small">{% if row.snapshot.latency_ms is not None %}{{ row.snapshot.latency_ms }} ms{% endif %}</td><td><span class="cluster history">{% for h in history|get_item:row.key %}<span class="status-dot status-{{ h.status }}" title="{{ h.at|date:'H:i' }} {{ h.status }}"></span>{% endfor %}</span></td></tr>{% endfor %}
+</tbody></table></div>
+<br>
+<section class="card stack">
+  <h2>Host</h2>
+  {% if host_error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>Host agent: {{ host_error }}</div></div>{% endif %}
+  {% if host %}
+  <div class="grid grid-4">
+    <div class="stat"><span class="stat-label">Load (1/5/15 min)</span><span class="stat-value">{{ host.load.0 }}</span><span class="stat-note">{{ host.load.1 }} · {{ host.load.2 }} · {{ host.cpus }} CPUs</span></div>
+    <div class="stat"><span class="stat-label">Memory used</span><span class="stat-value">{{ host.memory.used_pct }}%</span><span class="stat-note">{{ host.memory.available_mb }} MB available of {{ host.memory.total_mb }} MB</span></div>
+    <div class="stat"><span class="stat-label">Disk used</span><span class="stat-value">{{ host.disk.used_pct }}%</span><span class="stat-note">{{ host.disk.free_gb }} GB free</span></div>
+    <div class="stat"><span class="stat-label">Uptime</span><span class="stat-value">{{ host.uptime_days }} d</span><span class="stat-note">{% if host.reboot_required %}<span class="badge badge-warning">reboot required</span>{% else %}no reboot pending{% endif %}</span></div>
+  </div>
+  <dl class="kv"><dt>OS</dt><dd>{{ host.os }}</dd><dt>Pending updates</dt><dd>{{ host.updates.pending|default:"0" }} ({{ host.updates.security|default:"0" }} security)</dd><dt>Unattended upgrades</dt><dd>{{ host.unattended_upgrades|yesno:"enabled,disabled" }}</dd><dt>Firewall</dt><dd>{{ host.firewall }}</dd><dt>Containers</dt><dd>{% for c in host.containers %}<span class="badge {% if c.health == 'healthy' %}badge-success{% elif c.health == 'unhealthy' %}badge-danger{% else %}badge-plain{% endif %}">{{ c.service }}: {{ c.state }}{% if c.health %} ({{ c.health }}){% endif %}</span> {% endfor %}</dd></dl>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Vulnerability disclosure{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Security</p>
+  <h1>Vulnerability disclosure policy</h1>
+  <p class="lead">We welcome reports from security researchers and will work with you to fix issues quickly.</p>
+</div></header>
+<section class="section"><div class="container-narrow prose">
+  <h2>How to report</h2>
+  <p>Email <a href="mailto:{{ brand.security_email }}">{{ brand.security_email }}</a> with a description, the affected component and steps to reproduce. You can also use the <a href="{% url 'site:contact' %}?topic=security">contact form</a> with the topic "Security report". Our <a href="/.well-known/security.txt">security.txt</a> lists current contacts.</p>
+  <h2>Scope</h2>
+  <ul>
+    <li>This website, the customer portal, the web chat app and the homeserver at <code>{{ lumen.server_name }}</code>.</li>
+    <li>The Lumen installer and operational scripts.</li>
+    <li>Issues in upstream components (Synapse, the Matrix SDKs, vodozemac, Caddy) are welcome too; we'll coordinate with the upstream project.</li>
+  </ul>
+  <h2>Please don't</h2>
+  <ul>
+    <li>Access, modify or delete other people's data, or degrade the service (no denial-of-service tests).</li>
+    <li>Use social engineering, physical attacks or spam.</li>
+    <li>Test against other Matrix servers you don't own.</li>
+  </ul>
+  <h2>What we commit to</h2>
+  <ul>
+    <li>Acknowledge your report within 3 business days and keep you updated.</li>
+    <li>Not pursue legal action for good-faith research that follows this policy.</li>
+    <li>Credit you in our release notes, if you'd like.</li>
+  </ul>
+</div></section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% load lumen %}
+{% block title %}{% block head_title %}{% endblock %}{% endblock %}
+{% block body %}
+<div class="auth-layout">
+  <aside class="auth-aside">
+    {% include "includes/brand.html" %}
+    <div>
+      {% if lumen.surface == "ops" %}
+      <h2>Operator console</h2>
+      <p>This private console is reachable only through an SSH tunnel or WireGuard. Every action is authorised server-side and written to a tamper-evident audit log.</p>
+      {% else %}
+      <h2>Your conversations, end-to-end encrypted.</h2>
+      <p>Messages are encrypted on your devices with the Matrix Olm/Megolm protocol. This account controls sign-in, workspaces and billing — it never holds the keys to your messages.</p>
+      {% endif %}
+    </div>
+    <ul class="check-list auth-points">
+      <li>{% icon "check" %} Two-factor authentication with apps, security keys and recovery codes</li>
+      <li>{% icon "check" %} Federated with the open Matrix network</li>
+      <li>{% icon "check" %} No ads, no message scanning, no hidden access</li>
+    </ul>
+  </aside>
+  <main id="main" class="auth-main">
+    <div class="auth-panel stack">
+      <div class="auth-mobile-brand">{% include "includes/brand.html" %}</div>
+      {% include "includes/messages.html" %}
+      {% block content %}{% endblock %}
+      <p class="xsmall subtle">{% if lumen.surface != "ops" %}<a href="/">← Back to {{ brand.short_name }}</a> · <a href="{% url 'site:privacy' %}">Privacy</a> · <a href="{% url 'site:terms' %}">Terms</a>{% endif %}</p>
+    </div>
+  </main>
+</div>
+{% endblock %}

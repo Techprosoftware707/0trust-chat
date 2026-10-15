@@ -1,0 +1,44 @@
+{% extends "portal/base_portal.html" %}{% load lumen %}
+{% block title %}Privacy & data{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Privacy &amp; data</h1><p>See what we hold, take a copy, or delete your account.</p></div></div>
+<div class="grid grid-2">
+  <section class="card stack">
+    <h2>What this portal stores about you</h2>
+    <ul class="check-list">
+      <li>{% icon "user" %} Username, display name and email addresses</li>
+      <li>{% icon "key-round" %} Password hash (Argon2id) and two-factor authenticators</li>
+      <li>{% icon "shield-check" %} Security events — kept {{ retention.security_events_days }} days</li>
+      <li>{% icon "building-2" %} Workspace memberships and roles</li>
+      <li>{% icon "life-buoy" %} Support messages you sent</li>
+    </ul>
+    <p class="small muted mb-0">Chat messages are end-to-end encrypted and stored on the homeserver as ciphertext; this export doesn't include them. Use the chat app to export room keys or conversations.</p>
+    <div class="cluster"><a class="btn btn-primary" href="{% url 'portal:export' %}">{% icon "download" %} Download my data (JSON)</a></div>
+  </section>
+  <section class="card stack">
+    <h2>Directory visibility</h2>
+    <p class="muted mb-0">You're currently {% if user.show_in_directory %}<strong>visible</strong>{% else %}<strong>hidden</strong>{% endif %} in this portal's people search. People who share a room with you can always see your chat profile; that's how Matrix works.</p>
+    <a class="btn" href="{% url 'portal:profile' %}">Change in profile</a>
+  </section>
+</div>
+<br>
+<section class="card stack danger-zone">
+  <h2>{% icon "trash-2" %} Delete account</h2>
+  {% if user.status == "pending_deletion" %}
+    <div class="alert alert-danger">{% icon "triangle-alert" %}<div>Your account is scheduled for deletion on <strong>{{ user.deletion_scheduled_for|date:"j F Y" }}</strong>. Until then you can cancel. Chat sign-in is blocked meanwhile.</div></div>
+    <form method="post" action="{% url 'portal:account_delete_cancel' %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Cancel deletion</button></form>
+  {% else %}
+    <p class="muted">Deletion happens {{ retention.deletion_grace_days }} days after you confirm, so you can change your mind. Then we:</p>
+    <ul class="check-list">
+      <li>{% icon "check" %} deactivate your Matrix account and ask other servers to erase your profile and messages,</li>
+      <li>{% icon "check" %} hand your workspaces to another admin (or delete them if you're the only member),</li>
+      <li>{% icon "check" %} delete your portal data. Your username is retired permanently.</li>
+    </ul>
+    {% if owned_paid %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>You own paid workspaces ({% for w in owned_paid %}{{ w.name }}{% if not forloop.last %}, {% endif %}{% endfor %}). Cancel their subscriptions or transfer ownership first.</div></div>{% endif %}
+    <form class="form" method="post" action="{% url 'portal:account_delete' %}" data-confirm="Schedule permanent deletion of your account?">{% csrf_token %}
+      {% include "includes/form_fields.html" with form=delete_form %}
+      <div class="form-actions"><button class="btn btn-danger" type="submit">Schedule deletion</button><span class="xsmall muted">You may be asked to confirm your password.</span></div>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

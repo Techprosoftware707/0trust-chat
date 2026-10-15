@@ -1,0 +1,237 @@
+/*
+ * Lumen design tokens — shared by the website, customer portal, admin console
+ * and the web chat client. Operators re-brand by overriding the `--brand-*`
+ * variables in branding/theme.css (served at /brand/theme.css), not by editing
+ * this file.
+ */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("fonts/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Inter Variable";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("fonts/inter-latin-wght-italic.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+:root {
+  /* ---- Palette (raw) ---------------------------------------------------- */
+  --lm-midnight-950: #050b1a;
+  --lm-midnight-900: #0a1630;
+  --lm-midnight-850: #0d1b3a;
+  --lm-midnight-800: #112245;
+  --lm-midnight-700: #182d59;
+  --lm-midnight-600: #233d72;
+
+  --lm-charcoal-900: #16191f;
+  --lm-charcoal-800: #1e222b;
+  --lm-charcoal-700: #2a2f3a;
+  --lm-charcoal-600: #3a404d;
+  --lm-charcoal-500: #555c6b;
+  --lm-charcoal-400: #7a8292;
+  --lm-charcoal-300: #a3aab8;
+  --lm-charcoal-200: #cdd2db;
+  --lm-charcoal-100: #e6e9ef;
+  --lm-charcoal-50: #f3f5f8;
+
+  --lm-cyan-200: #b9eef7;
+  --lm-cyan-300: #8be3f0;
+  --lm-cyan-400: #5cd0e6;
+  --lm-cyan-500: #22b4d6;
+  --lm-cyan-600: #0e8fb0;
+  --lm-cyan-700: #0b6f8a;
+
+  --lm-teal-300: #7fe3d1;
+  --lm-teal-400: #3ccfb6;
+  --lm-teal-500: #1fb39c;
+  --lm-teal-600: #12917f;
+  --lm-teal-700: #0d7366;
+
+  --lm-violet-300: #c4bbfc;
+  --lm-violet-400: #a497fa;
+  --lm-violet-500: #8676f4;
+  --lm-violet-600: #6b58e8;
+  --lm-violet-700: #5443c9;
+
+  --lm-green-600: #13895f;
+  --lm-green-400: #4fd39b;
+  --lm-amber-600: #a86200;
+  --lm-amber-400: #f2b553;
+  --lm-red-600: #c62f45;
+  --lm-red-400: #ff7d8f;
+
+  /* ---- Brand hooks (override in branding/theme.css) --------------------- */
+  --brand-accent: var(--lm-cyan-600);
+  --brand-accent-strong: var(--lm-cyan-700);
+  --brand-accent-2: var(--lm-teal-600);
+  --brand-accent-3: var(--lm-violet-600);
+  --brand-gradient: linear-gradient(135deg, var(--lm-cyan-400) 0%, var(--lm-teal-400) 45%, var(--lm-violet-400) 100%);
+  --brand-hero: radial-gradient(1200px 600px at 10% -10%, rgba(92, 208, 230, 0.22), transparent 60%),
+    radial-gradient(900px 500px at 95% 10%, rgba(134, 118, 244, 0.20), transparent 60%),
+    linear-gradient(180deg, var(--lm-midnight-950) 0%, var(--lm-midnight-900) 100%);
+
+  /* ---- Typography -------------------------------------------------------- */
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: clamp(2.25rem, 1.5rem + 3vw, 3.75rem);
+  --leading-tight: 1.15;
+  --leading-normal: 1.55;
+  --tracking-tight: -0.022em;
+
+  /* ---- Space, radius, motion -------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --space-9: 6.5rem;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+  --container: 1180px;
+
+  /* ---- Semantic (light) -------------------------------------------------- */
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f0f3f8;
+  --surface-3: #e7ecf3;
+  --surface-inverse: var(--lm-midnight-900);
+  --border: #dde3ec;
+  --border-strong: #c5cdda;
+  --text: #121a2b;
+  --text-muted: #4f5a6e;
+  --text-subtle: #6b7486;
+  --text-inverse: #f3f6fb;
+  --accent: var(--brand-accent);
+  --accent-hover: var(--brand-accent-strong);
+  --accent-soft: rgba(14, 143, 176, 0.10);
+  --accent-contrast: #ffffff;
+  --accent-2: var(--brand-accent-2);
+  --accent-3: var(--brand-accent-3);
+  --focus-ring: 0 0 0 3px rgba(107, 88, 232, 0.45);
+  --success: var(--lm-green-600);
+  --success-soft: rgba(19, 137, 95, 0.10);
+  --warning: var(--lm-amber-600);
+  --warning-soft: rgba(168, 98, 0, 0.10);
+  --danger: var(--lm-red-600);
+  --danger-soft: rgba(198, 47, 69, 0.09);
+  --info: var(--lm-violet-600);
+  --info-soft: rgba(107, 88, 232, 0.10);
+  --shadow-sm: 0 1px 2px rgba(10, 22, 48, 0.06), 0 1px 1px rgba(10, 22, 48, 0.04);
+  --shadow-md: 0 6px 20px -6px rgba(10, 22, 48, 0.16), 0 2px 6px rgba(10, 22, 48, 0.06);
+  --shadow-lg: 0 24px 60px -18px rgba(10, 22, 48, 0.28);
+  --bubble-own: #e3f5fa;
+  --bubble-other: #ffffff;
+}
+
+/* Dark theme: explicit choice wins; otherwise follow the OS. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--lm-midnight-950);
+  --bg-elevated: var(--lm-midnight-900);
+  --surface: #0f1a33;
+  --surface-2: #14213f;
+  --surface-3: #1b2a4d;
+  --surface-inverse: #f6f8fb;
+  --border: #22325a;
+  --border-strong: #2f4374;
+  --text: #e9eef7;
+  --text-muted: #a9b4c9;
+  --text-subtle: #8792a8;
+  --text-inverse: #0a1630;
+  --accent: var(--lm-cyan-400);
+  --accent-hover: var(--lm-cyan-300);
+  --accent-soft: rgba(92, 208, 230, 0.14);
+  --accent-contrast: #04111f;
+  --accent-2: var(--lm-teal-400);
+  --accent-3: var(--lm-violet-400);
+  --focus-ring: 0 0 0 3px rgba(164, 151, 250, 0.6);
+  --success: var(--lm-green-400);
+  --success-soft: rgba(79, 211, 155, 0.13);
+  --warning: var(--lm-amber-400);
+  --warning-soft: rgba(242, 181, 83, 0.13);
+  --danger: var(--lm-red-400);
+  --danger-soft: rgba(255, 125, 143, 0.13);
+  --info: var(--lm-violet-400);
+  --info-soft: rgba(164, 151, 250, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 28px 70px -20px rgba(0, 0, 0, 0.7);
+  --bubble-own: #133152;
+  --bubble-other: #14213f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: var(--lm-midnight-950);
+    --bg-elevated: var(--lm-midnight-900);
+    --surface: #0f1a33;
+    --surface-2: #14213f;
+    --surface-3: #1b2a4d;
+    --surface-inverse: #f6f8fb;
+    --border: #22325a;
+    --border-strong: #2f4374;
+    --text: #e9eef7;
+    --text-muted: #a9b4c9;
+    --text-subtle: #8792a8;
+    --text-inverse: #0a1630;
+    --accent: var(--lm-cyan-400);
+    --accent-hover: var(--lm-cyan-300);
+    --accent-soft: rgba(92, 208, 230, 0.14);
+    --accent-contrast: #04111f;
+    --accent-2: var(--lm-teal-400);
+    --accent-3: var(--lm-violet-400);
+    --focus-ring: 0 0 0 3px rgba(164, 151, 250, 0.6);
+    --success: var(--lm-green-400);
+    --success-soft: rgba(79, 211, 155, 0.13);
+    --warning: var(--lm-amber-400);
+    --warning-soft: rgba(242, 181, 83, 0.13);
+    --danger: var(--lm-red-400);
+    --danger-soft: rgba(255, 125, 143, 0.13);
+    --info: var(--lm-violet-400);
+    --info-soft: rgba(164, 151, 250, 0.14);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 28px 70px -20px rgba(0, 0, 0, 0.7);
+    --bubble-own: #133152;
+    --bubble-other: #14213f;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-med: 0ms;
+  }
+}

@@ -1,0 +1,25 @@
+{% extends "portal/base_portal.html" %}{% load lumen %}
+{% block title %}Profile{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Profile</h1><p>How you appear to others, and your sign-in details.</p></div></div>
+<div class="grid grid-2">
+  <section class="card stack">
+    <h2>Public profile</h2>
+    <form class="form" method="post">{% csrf_token %}
+      {% include "includes/form_fields.html" with form=form %}
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+    </form>
+    <p class="xsmall subtle mb-0">Your chat display name and avatar are set in the chat app and shared with every server in your rooms.</p>
+  </section>
+  <section class="card stack">
+    <h2>Sign-in details</h2>
+    <dl class="kv">
+      <dt>Username</dt><dd class="mono">{{ user.username }}</dd>
+      <dt>Chat address</dt><dd class="mono">{{ user.matrix_id }}</dd>
+      <dt>Member since</dt><dd>{{ user.date_joined|date:"j M Y" }}</dd>
+      {% for e in emails %}<dt>{% if e.primary %}Email{% else %}Other email{% endif %}</dt><dd>{{ e.email }} {% if e.verified %}<span class="badge badge-success">Verified</span>{% else %}<span class="badge badge-warning">Unverified</span>{% endif %}</dd>{% endfor %}
+    </dl>
+    <div class="cluster"><a class="btn" href="{% url 'account_email' %}">{% icon "mail" %} Manage email</a><a class="btn" href="{% url 'account_change_password' %}">{% icon "key-round" %} Change password</a></div>
+  </section>
+</div>
+{% endblock %}

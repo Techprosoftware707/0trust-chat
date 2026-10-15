@@ -1,0 +1,12 @@
+{% extends "docs/base_docs.html" %}
+{% block article %}
+<p class="lead">Talk to people on other Matrix servers and use other Matrix apps.</p>
+<h2>Messaging someone on another server</h2>
+<p>Start a new chat with their full address, for example <code>@sam:example.org</code>. Their server must be reachable and allowed by this server's federation policy ({{ lumen.federation_mode }}).</p>
+<h2>Encryption across servers</h2>
+<p>End-to-end encryption works the same across servers. Verify people on other servers exactly as you would locally.</p>
+<h2>Using another Matrix app</h2>
+<p>In a Matrix app, choose a custom homeserver and enter <code>{{ lumen.server_name }}</code>. The app discovers the homeserver automatically and signs you in through your {{ brand.short_name }} account.</p>
+<h2>Limitations</h2>
+<ul><li>Servers in a room keep their own copy of its history and metadata.</li><li>If the other person's server is down, messages are delivered when it comes back.</li><li>Room names and topics are not end-to-end encrypted.</li></ul>
+{% endblock %}

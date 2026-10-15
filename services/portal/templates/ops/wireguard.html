@@ -1,0 +1,44 @@
+{% extends "ops/base_ops.html" %}{% load lumen humanize %}
+{% block title %}WireGuard{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>WireGuard</h1><p>Optional private network for operator access. It never replaces end-to-end encryption and isn't needed to chat or federate.</p></div></div>
+{% if not enabled %}<div class="alert alert-info">{% icon "info" %}<div>WireGuard is disabled. Enable it with <code>sudo ./lumenctl wireguard enable</code> (or set <code>WIREGUARD_ENABLED=true</code> in <code>lumen.conf</code> and run <code>update.sh</code>).</div></div><br>{% endif %}
+{% if error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>{{ error }}</div></div><br>{% endif %}
+{% if new_peer %}
+<section class="card stack">
+  <h2>{% icon "check-circle-2" %} Peer “{{ new_peer.name }}” created</h2>
+  {% if new_peer.config %}
+  <div class="alert alert-warning">{% icon "triangle-alert" %}<div>This configuration contains the peer's <strong>private key</strong>. It is shown once and not stored on the server. Download it or scan the QR code now.</div></div>
+  <div class="grid grid-2"><div class="qr">{{ qr_svg|safe }}</div><div class="stack-sm"><pre class="small">{{ new_peer.config }}</pre><a class="btn btn-primary" href="{% url 'ops:wg_download' %}">{% icon "download" %} Download .conf</a></div></div>
+  {% else %}<p class="muted">Registered your public key <span class="mono">{{ new_peer.public_key }}</span> with address {{ new_peer.address }}. Add the server's details to your own configuration.</p>{% endif %}
+</section><br>
+{% endif %}
+{% if status %}
+<div class="grid grid-4">
+  <div class="card stat"><span class="stat-label">Interface</span><span class="stat-value">{{ status.interface }}</span><span class="stat-note">{{ status.up|yesno:"up,down" }} · {{ status.address }}</span></div>
+  <div class="card stat"><span class="stat-label">Listen port</span><span class="stat-value">{{ status.listen_port }}</span><span class="stat-note">UDP</span></div>
+  <div class="card stat"><span class="stat-label">Peers</span><span class="stat-value">{{ status.peers|length }}</span></div>
+  <div class="card stat"><span class="stat-label">Server key</span><span class="stat-value small mono break">{{ status.public_key|truncatechars:16 }}</span><span class="stat-note">rotated {{ status.key_created_at|default:"—" }}</span></div>
+</div><br>
+<section class="card">
+  <div class="card-header"><h2>Peers</h2></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Address</th><th>Last handshake</th><th>Transfer</th><th>PSK</th><th></th></tr></thead><tbody>
+  {% for p in status.peers %}<tr><td><strong>{{ p.name|default:"(unnamed)" }}</strong><div class="xsmall muted mono">{{ p.public_key|truncatechars:20 }}</div></td><td class="mono small">{{ p.allowed_ips }}</td><td class="small">{% if p.latest_handshake %}{{ p.handshake_age_s }} s ago{% else %}never{% endif %}</td><td class="small">↓ {{ p.rx_bytes|filesizeformat }} · ↑ {{ p.tx_bytes|filesizeformat }}</td><td>{% if p.preshared_key %}<span class="badge badge-success">yes</span>{% else %}<span class="badge badge-warning">no</span>{% endif %}</td><td class="actions">{% if perms.manage_wireguard %}<form method="post" action="{% url 'ops:wg_remove' %}" data-confirm="Revoke {{ p.name }}? The device loses access immediately.">{% csrf_token %}<input type="hidden" name="public_key" value="{{ p.public_key }}"><button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button></form>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6"><div class="empty">No peers yet.</div></td></tr>{% endfor %}
+  </tbody></table></div>
+</section><br>
+{% endif %}
+{% if perms.manage_wireguard and enabled %}
+<section class="card stack">
+  <h2>Add an operator device</h2>
+  <form class="form" method="post" action="{% url 'ops:wg_add' %}">{% csrf_token %}
+    <div class="grid grid-2">
+      <div class="field"><label for="wg-name">Device name</label><input id="wg-name" name="name" pattern="[A-Za-z0-9._-]{1,32}" required placeholder="alice-laptop"></div>
+      <div class="field"><label for="wg-pub">Your public key (recommended)</label><input id="wg-pub" name="public_key" placeholder="Leave empty to generate a key pair here"><span class="help">Generate keys on your device with <code>wg genkey | tee priv | wg pubkey</code> so the private key never exists on the server.</span></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "plus" %} Add peer</button></div>
+  </form>
+  <p class="xsmall subtle mb-0">Each peer gets its own preshared key (post-quantum resistance for the tunnel) and a /32 address. Peers can reach only the operator console port; the firewall still applies.</p>
+</section>
+{% endif %}
+{% endblock %}

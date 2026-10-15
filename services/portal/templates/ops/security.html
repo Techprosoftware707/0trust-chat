@@ -1,0 +1,17 @@
+{% extends "ops/base_ops.html" %}{% load lumen %}
+{% block title %}Security events{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>Security events</h1><p>Sign-ins, MFA, rate limiting, policy denials and webhook rejections.</p></div>
+<form class="cluster" method="get"><select name="kind" data-autosubmit aria-label="Event type"><option value="">All events</option>{% for v, l in kinds %}<option value="{{ v }}" {% if v == kind %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><noscript><button class="btn" type="submit">Filter</button></noscript></form></div>
+<div class="grid grid-2">
+  <section class="card"><div class="card-header"><h2>Last 7 days</h2></div>
+    <ul class="list-plain list-rows">{% for c in counts %}<li><a href="?kind={{ c.kind }}">{% include "portal/_event_label.html" with kind=c.kind %}</a><span class="small">{{ c.day }} today · {{ c.week }} this week</span></li>{% empty %}<li class="muted small">No events.</li>{% endfor %}</ul></section>
+  <section class="card"><div class="card-header"><h2>Noisiest IPs (24h)</h2><span class="xsmall muted">failures and rate limits</span></div>
+    <ul class="list-plain list-rows">{% for t in top_ips %}<li><span class="mono small">{{ t.ip|default:"unknown" }}</span><span class="small">{{ t.n }}</span></li>{% empty %}<li class="muted small">Nothing suspicious.</li>{% endfor %}</ul></section>
+</div><br>
+<div class="table-wrap"><table class="table"><thead><tr><th>When</th><th>Event</th><th>Account</th><th>IP</th><th>Detail</th></tr></thead><tbody>
+{% for e in page %}<tr><td class="small nowrap">{{ e.at|date:"Y-m-d H:i:s" }}</td><td>{% include "portal/_event_label.html" with kind=e.kind %}</td><td class="small">{% if e.user %}<a href="{% url 'ops:user' e.user.pk %}">{{ e.user.username }}</a>{% else %}—{% endif %}</td><td class="mono small">{{ e.ip|default:"—" }}</td><td class="mono xsmall muted break">{{ e.detail|default:"" }}</td></tr>
+{% empty %}<tr><td colspan="5"><div class="empty">No events.</div></td></tr>{% endfor %}
+</tbody></table></div>
+{% include "includes/pagination.html" %}
+{% endblock %}

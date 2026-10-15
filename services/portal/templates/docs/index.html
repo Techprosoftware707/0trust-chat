@@ -1,0 +1,8 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Documentation{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm"><p class="eyebrow">Help center</p><h1>Documentation</h1><p class="lead">Guides for using {{ brand.short_name }} safely, managing a team, and running your own server.</p></div></header>
+<section class="section"><div class="container grid grid-3">
+  {% for s, t, d in docs %}<a class="card card-link stack-sm" href="{% url 'site:doc' s %}"><h3 class="mb-0">{{ t }}</h3><p class="muted small mb-0">{{ d }}</p></a>{% endfor %}
+</div></section>
+{% endblock %}

@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% load lumen %}
+{% block title %}Not allowed{% endblock %}
+{% block body %}<main id="main" class="auth-main"><div class="auth-panel stack center"><span class="feature-icon violet">{% icon "lock" %}</span><h1>You don't have access to this</h1><p class="muted">{% if exception %}{{ exception }}{% else %}Your account isn't allowed to perform this action.{% endif %}</p><p><a class="btn" href="/">Go home</a></p></div></main>{% endblock %}

@@ -1,0 +1,27 @@
+{% load static lumen %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ brand.name }}{% endblock %}{% if not request.path == "/" %} · {{ brand.name }}{% endif %}</title>
+  <meta name="description" content="{% block meta_description %}{{ brand.tagline }}{% endblock %}">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0a1630">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="icon" href="{{ lumen.brand_asset_url }}favicon.svg" type="image/svg+xml">
+  <script src="{% static 'lumen/js/theme.js' %}"></script>
+  <link rel="preload" href="{% static 'design/fonts/inter-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'design/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'lumen/css/lumen.css' %}">
+  <link rel="stylesheet" href="{{ lumen.brand_asset_url }}theme.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% if lumen.maintenance %}<div class="banner" role="status">{% icon "construction" %} {{ lumen.maintenance_message|default:"Scheduled maintenance is in progress. New sign-ups are paused." }}</div>{% endif %}
+  {% if lumen.announcement %}<div class="banner" role="status">{{ lumen.announcement }}</div>{% endif %}
+  {% block body %}{% endblock %}
+  <script src="{% static 'lumen/js/app.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

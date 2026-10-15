@@ -1,0 +1,27 @@
+{% extends "portal/base_portal.html" %}{% load lumen %}
+{% block title %}{{ ws.name }} settings{% endblock %}
+{% block main %}
+<div class="app-topbar"><div><h1>{{ ws.name }}</h1><p>Workspace policies</p></div></div>
+{% include "portal/_workspace_tabs.html" with tab="settings" %}
+<div class="grid grid-2">
+  <section class="card stack">
+    <h2>General</h2>
+    <form class="form" method="post">{% csrf_token %}
+      <div class="field"><label for="ws-name">Name</label><input id="ws-name" type="text" name="name" value="{{ ws.name }}" maxlength="80" required></div>
+      <label class="checkbox" for="ws-mfa"><input id="ws-mfa" type="checkbox" name="require_mfa" {% if ws.require_mfa %}checked{% endif %} {% if not plan.entitlements.can_require_mfa and not ws.require_mfa %}disabled{% endif %}> <span><strong>Require two-factor authentication</strong> — members without MFA can't sign in to chat.{% if not plan.entitlements.can_require_mfa %} <span class="badge badge-info">{{ plan.name }} plan doesn't include this</span>{% endif %}</span></label>
+      <label class="checkbox" for="ws-inv"><input id="ws-inv" type="checkbox" name="allow_member_invites" {% if ws.allow_member_invites %}checked{% endif %}> <span><strong>Let members invite people</strong> (as members)</span></label>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Save settings</button></div>
+    </form>
+  </section>
+  {% if membership.role == "owner" %}
+  <section class="card stack danger-zone">
+    <h2>Delete workspace</h2>
+    <p class="muted mb-0">Removes the workspace, its memberships and invitations. Chat rooms are not affected. Cancel any paid subscription first.</p>
+    <form class="form" method="post" action="{% url 'portal:workspace_delete' ws.pk %}" data-confirm="Delete {{ ws.name }}? This cannot be undone.">{% csrf_token %}
+      <div class="field"><label for="confirm-name">Type <strong>{{ ws.name }}</strong> to confirm</label><input id="confirm-name" type="text" name="confirm_name" required autocomplete="off"></div>
+      <div class="form-actions"><button class="btn btn-danger" type="submit">Delete workspace</button></div>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

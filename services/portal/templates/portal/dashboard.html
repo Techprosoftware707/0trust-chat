@@ -1,0 +1,56 @@
+{% extends "portal/base_portal.html" %}{% load lumen humanize %}
+{% block title %}Overview{% endblock %}
+{% block main %}
+<div class="app-topbar">
+  <div><h1>Welcome{% if user.display_name %}, {{ user.display_name }}{% endif %}</h1><p>Your chat address is <span class="mono">{{ user.matrix_id }}</span></p></div>
+  <a class="btn btn-primary" href="{{ lumen.app_url }}">{% icon "messages-square" %} Open chat</a>
+</div>
+
+{% if notifications %}
+<div class="stack-sm" aria-label="Security notifications">
+  {% for n in notifications %}<div class="alert alert-{{ n.level }}">{% if n.level == "danger" %}{% icon "triangle-alert" %}{% else %}{% icon "info" %}{% endif %}<div class="cluster-between grow-1"><span>{{ n.text }}</span><a class="btn btn-sm" href="{{ n.href }}">{{ n.cta }}</a></div></div>{% endfor %}
+</div>
+<br>
+{% endif %}
+
+<div class="grid grid-4">
+  <div class="card stat"><span class="stat-label">Account security</span><span class="stat-value">{{ summary.score }}%</span><span class="stat-note">{% for label, ok in summary.checks %}{% if not ok %}{{ label }} · {% endif %}{% endfor %}{% if summary.score == 100 %}All checks passing{% endif %}</span></div>
+  <div class="card stat"><span class="stat-label">Two-factor</span><span class="stat-value">{% if summary.mfa_enabled %}On{% else %}Off{% endif %}</span><span class="stat-note">{% if summary.totp %}Authenticator app {% endif %}{% if summary.webauthn %}· Security key {% endif %}{% if summary.recovery_codes_left is not None %}· {{ summary.recovery_codes_left }} recovery codes{% endif %}</span></div>
+  <div class="card stat"><span class="stat-label">Portal sessions</span><span class="stat-value">{{ summary.sessions }}</span><span class="stat-note"><a href="{% url 'usersessions_list' %}">Review sessions</a></span></div>
+  <div class="card stat"><span class="stat-label">File limits</span><span class="stat-value">{{ entitlements.upload_max_mb }} MB</span><span class="stat-note">per file · {{ entitlements.media_quota_mb_30d|intcomma }} MB per 30 days</span></div>
+</div>
+<br>
+<div class="grid grid-2">
+  <section class="card">
+    <div class="card-header"><h2>Workspaces</h2><a class="btn btn-sm" href="{% url 'portal:workspaces' %}">{% icon "plus" %} New</a></div>
+    {% if workspaces %}
+    <ul class="list-plain list-rows">
+      {% for w in workspaces %}<li><div><a href="{% url 'portal:workspace' w.membership.workspace.pk %}"><strong>{{ w.membership.workspace.name }}</strong></a><div class="xsmall muted">{{ w.membership.get_role_display }} · {{ w.plan.name }} plan</div></div><div class="stat-note nowrap">{{ w.seats }} / {{ w.limit }} seats<div class="meter{% if w.seats >= w.limit %} full{% endif %}" aria-hidden="true"><span class="w-{{ w.seats|percent_of:w.limit }}"></span></div></div></li>{% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">{% icon "building-2" %}<p>You're not in a workspace yet. Create one to invite your team, or keep chatting on your own — the Free plan applies.</p><a class="btn btn-primary" href="{% url 'portal:workspaces' %}">Create a workspace</a></div>
+    {% endif %}
+  </section>
+  <section class="card">
+    <div class="card-header"><h2>Recent security activity</h2><a class="btn btn-sm btn-ghost" href="{% url 'portal:security' %}">All activity</a></div>
+    {% if recent_events %}
+    <ul class="list-plain list-rows">{% for e in recent_events %}<li><span>{% include "portal/_event_label.html" with kind=e.kind %}</span><span class="xsmall muted nowrap">{{ e.at|naturaltime }}{% if e.ip %} · {{ e.ip }}{% endif %}</span></li>{% endfor %}</ul>
+    {% else %}<div class="empty"><p>No activity recorded yet.</p></div>{% endif %}
+  </section>
+  <section class="card stack-sm">
+    <h2>Your encryption keys</h2>
+    <p class="muted">Message keys live in the chat app on your devices — this portal never has them. In the chat app you can verify devices, set up your recovery key and review chat sessions.</p>
+    <div class="cluster"><a class="btn" href="{{ lumen.app_url }}">{% icon "key-round" %} Manage in chat</a><a class="btn btn-ghost" href="{% url 'site:doc' 'encryption' %}">How it works</a></div>
+    {% if user.chat_last_login_at %}<p class="xsmall subtle mb-0">Last chat sign-in {{ user.chat_last_login_at|naturaltime }}.</p>{% else %}<p class="xsmall subtle mb-0">You haven't signed in to chat yet.</p>{% endif %}
+  </section>
+  <section class="card stack-sm">
+    <h2>Help</h2>
+    <ul class="list-plain list-rows">
+      <li><a href="{% url 'site:doc' 'getting-started' %}">Getting started</a>{% icon "chevron-right" %}</li>
+      <li><a href="{% url 'site:doc' 'devices' %}">Devices &amp; sessions</a>{% icon "chevron-right" %}</li>
+      <li><a href="{% url 'site:doc' 'account-recovery' %}">Account recovery</a>{% icon "chevron-right" %}</li>
+      <li><a href="{% url 'portal:support' %}">Contact support</a>{% icon "chevron-right" %}</li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

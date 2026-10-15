@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lumen">
+  <defs>
+    <linearGradient id="lm-g" x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5CD0E6"/>
+      <stop offset=".55" stop-color="#3CCFB6"/>
+      <stop offset="1" stop-color="#8676F4"/>
+    </linearGradient>
+    <radialGradient id="lm-glow" cx="42" cy="22" r="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8BE3F0" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#8BE3F0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="#0A1630"/>
+  <circle cx="42" cy="22" r="16" fill="url(#lm-glow)"/>
+  <path d="M21 16v22.5A9.5 9.5 0 0 0 30.5 48H46" fill="none" stroke="url(#lm-g)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="42" cy="22" r="5.5" fill="url(#lm-g)"/>
+</svg>

@@ -1,0 +1,86 @@
+{% extends "site/base_site.html" %}{% load lumen %}
+{% block title %}Security & privacy{% endblock %}
+{% block main %}
+<header class="page-head"><div class="container stack-sm">
+  <p class="eyebrow">Security &amp; privacy</p>
+  <h1>Exactly what is protected — and what isn't</h1>
+  <p class="lead">We would rather you trust {{ brand.short_name }} for the right reasons. This page describes the protections in place, their limits and the work that remains.</p>
+</div></header>
+
+<section class="section"><div class="container docs-layout">
+  <nav class="docs-nav" aria-label="On this page">
+    <ul>
+      <li><a href="#e2ee">End-to-end encryption</a></li>
+      <li><a href="#verification">Verification</a></li>
+      <li><a href="#recovery">Backup &amp; recovery</a></li>
+      <li><a href="#metadata">Metadata</a></li>
+      <li><a href="#transport">Transport security</a></li>
+      <li><a href="#post-quantum">Post-quantum status</a></li>
+      <li><a href="#accounts">Account security</a></li>
+      <li><a href="#limits">Limits</a></li>
+    </ul>
+  </nav>
+  <div class="prose">
+    <h2 id="e2ee">End-to-end encryption</h2>
+    <p>Chats use the <strong>Matrix</strong> protocol's encryption: <strong>Olm</strong> (a Double Ratchet derivative) to set up keys between devices, and <strong>Megolm</strong> to encrypt room messages efficiently for every device in a room. The implementation is <em>vodozemac</em>, a Rust library maintained by the Matrix.org Foundation and audited by Least Authority, compiled to WebAssembly and used through the official Matrix JavaScript SDK. {{ brand.short_name }} does not implement any cryptography of its own.</p>
+    <ul>
+      <li>New rooms are encrypted by default, server-wide.</li>
+      <li>Keys are generated on your device. Our servers store only public keys and ciphertext.</li>
+      <li>Attachments are encrypted in your browser (AES-256-CTR with a SHA-256 integrity hash) before upload.</li>
+      <li>Rooms that are not encrypted — for example a public room joined from another server — are clearly labelled as such.</li>
+    </ul>
+
+    <h2 id="verification">Verification</h2>
+    <p>Encryption is only as good as knowing who holds the keys. Verify a contact by comparing a short list of emoji on both screens. With <strong>cross-signing</strong>, each person has a master identity key that signs their own devices, so you verify a person once. If someone's identity key changes — because they reset their account, or because someone else is trying to impersonate them — the app warns you before you keep talking.</p>
+
+    <h2 id="recovery">Backup &amp; recovery</h2>
+    <p>Your devices can upload an <strong>encrypted backup</strong> of message keys to the server. It is encrypted with a key derived from your <strong>recovery key</strong>, which is generated on your device and shown to you once. We never receive it. If you lose all your devices <em>and</em> your recovery key, your encrypted history cannot be recovered by anyone — including us.</p>
+
+    <h2 id="metadata">Metadata the server can see</h2>
+    <p>End-to-end encryption hides content, not the existence of a conversation. Like every Matrix server, ours stores:</p>
+    <table>
+      <thead><tr><th>Data</th><th>Visible to</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Your user ID, display name, avatar</td><td>Servers of rooms you join</td><td>Needed to route and display messages</td></tr>
+        <tr><td>Room membership and timestamps of events</td><td>Every server participating in the room</td><td>Federation replicates room history</td></tr>
+        <tr><td>Room names and topics (state events)</td><td>Servers in the room</td><td>Room state is not end-to-end encrypted in Matrix today</td></tr>
+        <tr><td>IP addresses, device names, last-seen times</td><td>Your homeserver</td><td>Sessions, abuse prevention, security notifications</td></tr>
+        <tr><td>Email address, billing details</td><td>The portal and the payment provider</td><td>Account recovery and invoices; never linked to message content</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="transport">Transport security</h2>
+    <p>Every public endpoint is HTTPS-only with TLS 1.2+ (TLS 1.3 preferred), HSTS and strict security headers. Certificates are issued and renewed automatically. Server-to-server federation traffic is also TLS-encrypted and every federation request is signed by the sending server's key.</p>
+
+    <h2 id="post-quantum">Post-quantum status</h2>
+    <p>Large quantum computers would break the elliptic-curve cryptography that almost every messenger relies on, and an adversary could record encrypted traffic today to decrypt it later. Here is where {{ brand.short_name }} stands:</p>
+    <table>
+      <thead><tr><th>Layer</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Message encryption (Olm/Megolm)</td><td><strong>Not post-quantum.</strong> Matrix has no standardised, interoperable post-quantum Olm/Megolm yet. We will adopt one once it is specified, implemented upstream and reviewed — not before.</td></tr>
+        <tr><td>Browser ↔ server connections</td><td><strong>Hybrid post-quantum key exchange</strong> (X25519MLKEM768, combining X25519 with NIST FIPS 203 ML-KEM) is offered and used automatically when your browser supports it. This protects the connection to our server, not the end-to-end layer.</td></tr>
+        <tr><td>Server ↔ server federation</td><td>Hybrid key exchange is used when both servers support it; many Matrix servers do not yet.</td></tr>
+        <tr><td>Operator VPN (WireGuard)</td><td>Each peer uses a preshared key, which WireGuard mixes into its handshake for post-quantum resistance of the tunnel.</td></tr>
+      </tbody>
+    </table>
+    <p>You will not see a "quantum-safe" badge on your chats, because that would not be true. The full analysis is published with the source code.</p>
+
+    <h2 id="accounts">Account security</h2>
+    <ul>
+      <li>Passwords are hashed with Argon2id. Minimum length 12, with checks against common passwords.</li>
+      <li>Two-factor authentication with authenticator apps, security keys and one-time recovery codes. Workspaces can require it.</li>
+      <li>Sign-in rate limiting, session idle timeouts and a list of active sessions you can end at any time.</li>
+      <li>Your chat sign-in goes through your {{ brand.short_name }} account (single sign-on). The account service decides <em>who</em> you are; it never sees your message keys.</li>
+    </ul>
+
+    <h2 id="limits">Limits we want you to know</h2>
+    <ul>
+      <li>If your device is compromised (malware, an unlocked phone), encryption can't help: the attacker sees what you see.</li>
+      <li>A compromised account service or server could try to add a new device to your account. Other people will see an unverified device and a warning; keep verification on.</li>
+      <li>The web app is delivered by the server you use. Someone who controls that server could serve modified code. For the highest assurance, use a desktop or mobile Matrix app from an independent source.</li>
+      <li>{{ brand.short_name }} is not an anonymity tool. Use Tor or similar if you need to hide your IP address.</li>
+    </ul>
+    <p>Found a problem? Please tell us through our <a href="{% url 'site:disclosure' %}">vulnerability disclosure policy</a>.</p>
+  </div>
+</div></section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "allauth/layouts/entrance.html" %}{% load lumen %}
+{% block head_title %}Invitation{% endblock %}
+{% block content %}
+<span class="feature-icon teal">{% icon "user-plus" %}</span>
+<h1>Join {{ inv.workspace.name }}</h1>
+<p class="muted">{% if inv.invited_by %}{{ inv.invited_by.name }} ({{ inv.invited_by.matrix_id }}){% else %}A workspace admin{% endif %} invited <strong>{{ inv.email }}</strong> to join as {{ inv.get_role_display|lower }}. The invitation expires on {{ inv.expires_at|date:"j F Y" }}.</p>
+{% if user.is_authenticated %}
+  {% if email_matches %}
+  <form method="post">{% csrf_token %}<button class="btn btn-primary btn-lg btn-block" type="submit">Accept invitation</button></form>
+  {% else %}
+  <div class="alert alert-warning">{% icon "triangle-alert" %}<div>You're signed in as {{ user.email }}, but this invitation is for {{ inv.email }}. Sign in with that address to accept.</div></div>
+  <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-block" type="submit">Switch account</button></form>
+  {% endif %}
+{% else %}
+  <a class="btn btn-primary btn-lg btn-block" href="{% url 'account_signup' %}?next={{ request.path|urlencode }}">Create an account</a>
+  <a class="btn btn-block" href="{% url 'account_login' %}?next={{ request.path|urlencode }}">I already have an account</a>
+{% endif %}
+{% endblock %}
