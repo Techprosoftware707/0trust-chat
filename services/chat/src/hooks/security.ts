@@ -1,6 +1,6 @@
 /** The account's encryption set-up state, read from the Rust crypto layer. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MatrixClient } from "matrix-js-sdk";
+import { ClientEvent, SyncState, type MatrixClient, type MatrixEvent } from "matrix-js-sdk";
 import { CryptoEvent, type KeyBackupInfo } from "matrix-js-sdk/lib/crypto-api/index.js";
 
 export interface SecurityState {
@@ -97,6 +97,13 @@ export function useSecurityState(client: MatrixClient): SecurityState & { refres
 
   useEffect(() => {
     refresh();
+    // The SDK enables key backup asynchronously after start-up, possibly before we subscribed
+    // to its events: check it explicitly once, then re-read the state.
+    void client
+      .getCrypto()
+      ?.checkKeyBackupAndEnable()
+      .catch(() => null)
+      .finally(refresh);
     const me = client.getUserId();
     let timer: ReturnType<typeof setTimeout> | null = null;
     const soon = () => {
@@ -106,6 +113,17 @@ export function useSecurityState(client: MatrixClient): SecurityState & { refres
     const onTrust = (userId: string) => userId === me && soon();
     const onDevices = (users: string[]) => me && users.includes(me) && soon();
     const onRemaining = (n: number) => setState((s) => ({ ...s, sessionsRemaining: n }));
+    // Start-up may render from the cached sync before the first live sync: re-read when
+    // secret-storage / cross-signing / backup account data arrives, and after the first live sync.
+    const onAccountData = (ev: MatrixEvent) => {
+      const t = ev.getType();
+      if (t.startsWith("m.secret_storage.") || t.startsWith("m.cross_signing.") || t === "m.megolm_backup.v1") soon();
+    };
+    const onSync = (st: SyncState, prev: SyncState | null) => {
+      if (st === SyncState.Syncing && prev !== SyncState.Syncing) soon();
+    };
+    client.on(ClientEvent.AccountData, onAccountData);
+    client.on(ClientEvent.Sync, onSync);
     client.on(CryptoEvent.KeysChanged, soon);
     client.on(CryptoEvent.UserTrustStatusChanged, onTrust);
     client.on(CryptoEvent.DevicesUpdated, onDevices);
@@ -120,6 +138,8 @@ export function useSecurityState(client: MatrixClient): SecurityState & { refres
       client.off(CryptoEvent.KeyBackupStatus, soon);
       client.off(CryptoEvent.KeyBackupDecryptionKeyCached, soon);
       client.off(CryptoEvent.KeyBackupSessionsRemaining, onRemaining);
+      client.off(ClientEvent.AccountData, onAccountData);
+      client.off(ClientEvent.Sync, onSync);
     };
   }, [client, refresh]);
 

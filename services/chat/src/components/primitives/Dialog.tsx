@@ -24,9 +24,13 @@ export function Dialog({ title, description, onClose, children, size = "md", dis
   const dismissRef = useRef(dismissible);
   dismissRef.current = dismissible;
 
+  const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const d = ref.current;
     if (d && !d.open) d.showModal();
+    // The browser focuses the first focusable element (the close button) unless a field
+    // asked for autofocus; start on the panel instead so screen readers read the title first.
+    if (d && document.activeElement?.classList.contains("dialog-close")) panelRef.current?.focus();
     return () => {
       if (d?.open) d.close();
     };
@@ -47,7 +51,7 @@ export function Dialog({ title, description, onClose, children, size = "md", dis
         if (e.target === ref.current && dismissRef.current) onClose();
       }}
     >
-      <div className="dialog-panel">
+      <div className="dialog-panel" ref={panelRef} tabIndex={-1}>
         <header className="dialog-header">
           {icon ? <div className="dialog-icon" aria-hidden="true">{icon}</div> : null}
           <div className="dialog-titles">

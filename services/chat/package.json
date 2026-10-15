@@ -14,10 +14,13 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test": "vitest run",
-    "test:e2ee": "node --test ../../tests/chat/e2ee.test.mjs",
-    "test:ui": "node ../../tests/chat/run-ui-tests.mjs",
+    "test:e2ee": "node --test --test-force-exit --test-reporter=spec ../../tests/chat/e2ee.test.mjs",
+    "test:ui": "npm run build && node --test --test-force-exit --test-concurrency=1 --test-reporter=spec ../../tests/chat/ui.test.mjs",
     "devserver:up": "node ../../tests/chat/devserver.mjs up",
-    "devserver:down": "node ../../tests/chat/devserver.mjs down"
+    "devserver:down": "node ../../tests/chat/devserver.mjs down",
+    "test:voip": "npm run build && node --test --test-force-exit --test-reporter=spec ../../tests/chat/voip.test.mjs",
+    "test:sso": "npm run build && node ../../tests/chat/sso.smoke.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "loglevel": "^1.9.2",
@@ -28,14 +31,19 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "fake-indexeddb": "^6.2.5",
+    "globals": "^17.13.0",
     "jsdom": "^30.1.2",
     "playwright": "^1.56.1",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.4"
   }

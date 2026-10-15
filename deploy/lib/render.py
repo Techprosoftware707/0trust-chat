@@ -164,6 +164,8 @@ def validate(cfg: dict[str, str]) -> None:
         errors.append("MATRIX_SERVER_NAME must be the primary domain (recommended) or the matrix domain")
     if not EMAIL_RE.match(cfg["ADMIN_EMAIL"]):
         errors.append("ADMIN_EMAIL must be a valid email address (used for ACME and as operator contact)")
+    if cfg["CHAT_DIST_DIR"] and (not cfg["CHAT_DIST_DIR"].startswith("/") or Path(cfg["CHAT_DIST_DIR"]).name != "chat"):
+        errors.append("CHAT_DIST_DIR must be an absolute path ending in /chat (its parent directory is served read-only)")
     if cfg["TLS_MODE"] not in {"acme", "internal"} or cfg["OPS_TLS_MODE"] not in {"acme", "internal"}:
         errors.append("TLS_MODE / OPS_TLS_MODE must be 'acme' or 'internal'")
     if cfg["REGISTRATION_MODE"] not in {"open", "invite", "closed"}:
@@ -620,7 +622,7 @@ def render_caddy(cfg, out: Path) -> None:
         '\t\theader Cache-Control "no-store"',
         "\t}",
         "\thandle {",
-        "\t\troot * /srv/chat",
+        "\t\troot * /srv/www/chat",
         "\t\ttry_files {path} /index.html",
         "\t\tfile_server",
         "\t\t@assets path /assets/*",
@@ -763,6 +765,7 @@ def render_compose_env(cfg, out: Path, repo: Path) -> None:
         "LUMEN_SECRETS_DIR": f"{cfg['LUMEN_CONFIG_DIR']}/secrets",
         "LUMEN_BRANDING_DIR": f"{cfg['LUMEN_CONFIG_DIR']}/branding",
         "LUMEN_CHAT_DIST": cfg["CHAT_DIST_DIR"] or f"{cfg['LUMEN_DATA_DIR']}/www/chat",
+        "LUMEN_WWW_DIR": str(Path(cfg["CHAT_DIST_DIR"] or f"{cfg['LUMEN_DATA_DIR']}/www/chat").parent),
         "LUMEN_STATUS_DIR": f"{cfg['LUMEN_DATA_DIR']}/status",
         "LUMEN_AGENT_DIR": "/run/lumen-agent",
         "LUMEN_PRIMARY_DOMAIN": cfg["LUMEN_PRIMARY_DOMAIN"],

@@ -22,6 +22,8 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return Notification.requestPermission();
 }
 
+const MAX_AGE_MS = 5 * 60 * 1000;
+
 export function startDesktopNotifications(client: MatrixClient, brandName: string): () => void {
   const me = client.getUserId();
   const onTimeline = async (
@@ -33,6 +35,8 @@ export function startDesktopNotifications(client: MatrixClient, brandName: strin
   ) => {
     if (toStartOfTimeline || removed || !data?.liveEvent || !room) return;
     if (ev.getSender() === me) return;
+    // Catching up after sleep or a reload: don't alert for old messages.
+    if (ev.getLocalAge() > MAX_AGE_MS) return;
     const prefs = getPrefs();
     if (!prefs.notifications || notificationPermission() !== "granted") return;
     if (!document.hidden) return;

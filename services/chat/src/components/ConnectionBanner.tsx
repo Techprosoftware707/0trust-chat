@@ -36,7 +36,7 @@ export function ConnectionBanner() {
     content = (
       <div className="conn-banner conn-offline">
         <WifiOff aria-hidden="true" />
-        <span>You're offline. Messages you send will be queued until you reconnect.</span>
+        <span>You're offline. New messages can't be sent until you reconnect.</span>
       </div>
     );
   } else if (state === SyncState.Reconnecting) {

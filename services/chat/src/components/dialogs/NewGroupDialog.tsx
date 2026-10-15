@@ -1,4 +1,5 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { Preset } from "matrix-js-sdk";
 import { Lock, Users } from "lucide-react";
 import { useMatrix } from "../../matrix/context";
 import { createGroup, waitForRoom } from "../../matrix/rooms";
@@ -17,7 +18,23 @@ export function NewGroupDialog({ onClose }: { onClose: () => void }) {
   const [people, setPeople] = useState<PickedUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forced, setForced] = useState(false);
   const id = useId();
+  // Some servers encrypt every new room regardless of what the client asks for: say so.
+  useEffect(() => {
+    let alive = true;
+    client
+      .doesServerForceEncryptionForPreset(Preset.PrivateChat)
+      .then((f) => {
+        if (!alive || !f) return;
+        setForced(true);
+        setEncrypted(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [client]);
   return (
     <Dialog title="New group" icon={<Users />} onClose={onClose} dismissible={!busy}>
       <form
@@ -47,14 +64,18 @@ export function NewGroupDialog({ onClose }: { onClose: () => void }) {
         </div>
         <UserPicker selected={people} onChange={setPeople} multiple label="Invite people" autoFocus={false} />
         <label className="checkbox">
-          <input type="checkbox" checked={encrypted} onChange={(e) => setEncrypted(e.target.checked)} />
+          <input type="checkbox" checked={encrypted} disabled={forced} onChange={(e) => setEncrypted(e.target.checked)} />
           <span>
             <strong>
               <Lock aria-hidden="true" className="inline-icon" /> End-to-end encryption
             </strong>
             <br />
             <span className="muted small">
-              {encrypted ? "Recommended. Can't be turned off later." : "Without encryption the server can read every message in this group."}
+              {forced
+                ? "Your server encrypts all new conversations."
+                : encrypted
+                  ? "Recommended. Can't be turned off later."
+                  : "Without encryption the server can read every message in this group."}
             </span>
           </span>
         </label>

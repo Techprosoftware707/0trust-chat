@@ -508,6 +508,7 @@ mark { background: color-mix(in srgb, var(--lm-amber-400) 45%, transparent); col
 dialog.dialog { border: 0; padding: 0; background: transparent; color: var(--text); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); overflow: visible; }
 dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: blur(3px); }
 .dialog-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; max-height: calc(100dvh - 24px); animation: fade-up var(--dur-med) var(--ease-out) both; }
+.dialog-panel:focus { outline: none; box-shadow: var(--shadow-lg); }
 .dialog-sm .dialog-panel { width: min(420px, calc(100vw - 24px)); }
 .dialog-md .dialog-panel { width: min(520px, calc(100vw - 24px)); }
 .dialog-lg .dialog-panel { width: min(680px, calc(100vw - 24px)); }
@@ -603,6 +604,29 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .about-head img { border-radius: 12px; }
 .about-head h3 { margin: 0; }
 
+/* ---- Calls ---------------------------------------------------------------- */
+.call-view { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 55; width: min(340px, calc(100vw - 2 * var(--space-4))); border-radius: var(--radius-lg); overflow: hidden; background: var(--lm-midnight-900); color: #e9eef7; border: 1px solid rgba(255,255,255,0.1); box-shadow: var(--shadow-lg); display: grid; animation: fade-up var(--dur-med) var(--ease-out) both; }
+.call-view.video { width: min(560px, calc(100vw - 2 * var(--space-4))); }
+.call-stage { position: relative; background: radial-gradient(400px 200px at 50% 0%, rgba(92, 208, 230, 0.2), transparent 70%), var(--lm-midnight-950); min-height: 150px; display: grid; place-items: center; }
+.call-view.video .call-stage { aspect-ratio: 16 / 10; }
+.call-remote { width: 100%; height: 100%; object-fit: cover; background: #000; }
+.call-local { position: absolute; right: 10px; bottom: 10px; width: 28%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; border: 2px solid rgba(255,255,255,0.25); background: #000; }
+.call-avatar { padding: var(--space-5); }
+.call-info { padding: var(--space-3) var(--space-4) 0; display: grid; gap: 4px; justify-items: start; }
+.call-name { font-weight: 680; margin: 0; }
+.call-status { margin: 0; font-size: var(--text-sm); color: #a9b4c9; font-variant-numeric: tabular-nums; }
+.call-info .badge { white-space: normal; background: rgba(255, 255, 255, 0.08); color: #cfd8e8; border-color: transparent; }
+.call-info .badge-success { color: var(--lm-green-400); background: rgba(79, 211, 155, 0.14); }
+.call-info .badge-danger { color: var(--lm-red-400); background: rgba(255, 125, 143, 0.14); }
+.call-controls { display: flex; gap: var(--space-3); justify-content: center; padding: var(--space-3) var(--space-4) var(--space-4); }
+.call-btn { width: 3rem; height: 3rem; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(255,255,255,0.12); color: #fff; cursor: pointer; transition: background var(--dur-fast); }
+.call-btn:hover { background: rgba(255,255,255,0.2); }
+.call-btn[aria-pressed="true"] { background: #fff; color: var(--lm-midnight-900); }
+.call-btn.hangup { background: var(--lm-red-600); }
+.call-btn.hangup:hover { filter: brightness(1.1); }
+.call-btn svg.lucide { width: 1.3rem; height: 1.3rem; }
+@media (max-width: 759px) { .call-view, .call-view.video { inset: 0; width: auto; border-radius: 0; align-content: center; } }
+
 /* ---- Toasts ---------------------------------------------------------------- */
 .toasts { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 60; display: grid; gap: var(--space-2); width: min(380px, calc(100vw - 2 * var(--space-4))); pointer-events: none; }
 .toast { pointer-events: auto; display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg); animation: fade-up var(--dur-med) var(--ease-out) both; }
@@ -641,8 +665,9 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
   .composer-hint { display: none; }
   .composer-wrap { padding-bottom: max(var(--space-2), env(safe-area-inset-bottom)); }
   .hide-narrow { display: none; }
-  .settings { grid-template-columns: minmax(0, 1fr); }
-  .settings-tabs { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: var(--space-2); }
+  .settings { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 0; }
+  .settings-tabs { display: flex; align-items: center; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: var(--space-2); scrollbar-width: none; }
+  .settings-tab { flex: none; }
   .settings-panel { padding: var(--space-4); max-height: none; }
   .status-row { grid-template-columns: auto 1fr; }
   .status-value { grid-column: 2; }

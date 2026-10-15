@@ -222,7 +222,8 @@ export function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").slice(0, 200) || "download";
+  const safe = Array.from(filename, (c) => (c.charCodeAt(0) < 0x20 || '\\/:*?"<>|'.includes(c) ? "_" : c)).join("");
+  a.download = safe.slice(0, 200) || "download";
   a.rel = "noopener";
   document.body.appendChild(a);
   a.click();

@@ -2,8 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, HttpApiEvent, type LoginResponse, type MatrixClient } from "matrix-js-sdk";
 import { loadConfig, normaliseBaseUrl, type AppConfig } from "./config";
 import { errorMessage } from "./lib/errors";
+import { acquireTabLock } from "./lib/tab-lock";
 import { hasStoredSession, loadSession, saveSession, SessionUnavailableError, type Session } from "./lib/session-store";
-import { createMatrixClient, startSyncing, wipeLocalData, type StartupStage } from "./matrix/client";
+import {
+  createMatrixClient,
+  deleteLocalDatabases,
+  reloadSignedOut,
+  startSyncing,
+  takeSignedOutNotice,
+  wipeLocalData,
+  type StartupStage,
+} from "./matrix/client";
 import { deviceDisplayName, extractLoginToken, loginWithToken, takePendingSsoHomeserver } from "./matrix/login";
 import { BootScreen } from "./components/BootScreen";
 import { LoginScreen } from "./components/LoginScreen";
@@ -16,7 +25,8 @@ type Phase =
   | { kind: "starting"; stage: StartupStage | "session" }
   | { kind: "login"; notice?: string; noticeKind?: "info" | "error" }
   | { kind: "ready"; client: MatrixClient; session: Session }
-  | { kind: "fatal"; message: string; session: Session | null };
+  | { kind: "fatal"; message: string; session: Session | null }
+  | { kind: "other-tab" };
 
 const STAGE_TEXT: Record<StartupStage | "session", string> = {
   session: "Unlocking your session…",
@@ -30,12 +40,13 @@ export function App() {
   const [phase, setPhase] = useState<Phase>({ kind: "config" });
   const booted = useRef(false);
   const clientRef = useRef<MatrixClient | null>(null);
+  const configRef = useRef<AppConfig | null>(null);
 
   const handleLoggedOut = useCallback(async (notice: string) => {
     const client = clientRef.current;
     clientRef.current = null;
     await wipeLocalData(client);
-    setPhase({ kind: "login", notice, noticeKind: "info" });
+    reloadSignedOut(notice);
   }, []);
 
   const start = useCallback(
@@ -43,7 +54,9 @@ export function App() {
       setPhase({ kind: "starting", stage: "store" });
       let client: MatrixClient | null = null;
       try {
-        client = await createMatrixClient(session, (stage) => setPhase({ kind: "starting", stage }));
+        client = await createMatrixClient(session, { voip: !!configRef.current?.voipEnabled }, (stage) =>
+          setPhase({ kind: "starting", stage }),
+        );
         clientRef.current = client;
         const thisClient = client;
         client.on(HttpApiEvent.SessionLoggedOut, () => {
@@ -58,7 +71,7 @@ export function App() {
         clientRef.current = null;
         if ((e as { errcode?: string })?.errcode === "M_UNKNOWN_TOKEN") {
           await wipeLocalData(client);
-          setPhase({ kind: "login", notice: "Your session has ended. Please sign in again.", noticeKind: "info" });
+          reloadSignedOut("Your session has ended. Please sign in again.");
           return;
         }
         setPhase({ kind: "fatal", message: errorMessage(e, "The app couldn't start."), session });
@@ -110,7 +123,14 @@ export function App() {
         return;
       }
       setConfig(cfg);
+      configRef.current = cfg;
       document.title = cfg.brand.name;
+
+      // Only one tab may run the client (shared encrypted crypto store).
+      if (!(await acquireTabLock())) {
+        setPhase({ kind: "other-tab" });
+        return;
+      }
 
       // Returning from SSO: remove the token from the address bar immediately.
       if (new URLSearchParams(window.location.search).has("loginToken")) {
@@ -130,8 +150,14 @@ export function App() {
         }
         return;
       }
-      if (hasStoredSession()) await resume();
-      else setPhase({ kind: "login" });
+      if (hasStoredSession()) {
+        await resume();
+        return;
+      }
+      // No session: make sure nothing is left over from an earlier (possibly interrupted) sign-out.
+      await deleteLocalDatabases();
+      const notice = takeSignedOutNotice();
+      setPhase(notice ? { kind: "login", notice, noticeKind: "info" } : { kind: "login" });
     })();
   }, [completeLogin, resume]);
 
@@ -141,6 +167,14 @@ export function App() {
     case "config-error":
       return (
         <BootScreen config={null} status={null} error={phase.message}>
+          <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </BootScreen>
+      );
+    case "other-tab":
+      return (
+        <BootScreen config={config} status={null} error={`${config?.brand.name ?? "This app"} is already open in another tab or window. Close it, then try again here.`}>
           <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
             Try again
           </button>
@@ -185,7 +219,7 @@ export function App() {
           session={phase.session}
           onSignedOut={(notice) => {
             clientRef.current = null;
-            setPhase({ kind: "login", notice, noticeKind: "info" });
+            reloadSignedOut(notice);
           }}
         />
       );

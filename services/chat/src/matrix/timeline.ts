@@ -69,7 +69,11 @@ export function buildTimeline(events: MatrixEvent[], nameOf: NameOf): TimelineIt
     const ts = ev.getTs();
     const key = ev.getId() ?? ev.getTxnId() ?? `${ts}-${items.length}`;
     let item: TimelineItem | null = null;
-    if (isMessageEvent(ev)) {
+    const msgtype = (ev.getContent() as { msgtype?: string }).msgtype;
+    if (ev.getType() === EventType.RoomMessage && msgtype === "m.key.verification.request" && !ev.isRedacted()) {
+      const to = (ev.getContent() as { to?: string }).to;
+      item = { kind: "notice", key, event: ev, text: `${nameOf(ev.getSender() ?? "")} sent a verification request${to ? ` to ${nameOf(to)}` : ""}` };
+    } else if (isMessageEvent(ev)) {
       const continuation: boolean =
         prevMessage !== null &&
         prevMessage.getSender() === ev.getSender() &&

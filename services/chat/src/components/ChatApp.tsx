@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type MatrixClient } from "matrix-js-sdk";
+import { SyncState, type MatrixClient } from "matrix-js-sdk";
 import {
   canAcceptVerificationRequest,
   CryptoEvent,
@@ -20,7 +20,7 @@ import { setUiaPrompt, type UiaPromptRequest } from "../matrix/uia";
 import { useSecurityState } from "../hooks/security";
 import { navigate, useRoute } from "../hooks/useRoute";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { useRoomSummaries } from "../hooks/matrix";
+import { useRoomSummaries, useSyncState } from "../hooks/matrix";
 import { UiContext, type DialogSpec, type Toast, type UiContextValue } from "./UiContext";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { Sidebar } from "./Sidebar";
@@ -32,6 +32,8 @@ import { ToastRegion } from "./ToastRegion";
 import { DialogHost } from "./DialogHost";
 import { UiaDialog } from "./dialogs/UiaDialog";
 import { SecretKeyPromptDialog } from "./dialogs/SecretKeyPromptDialog";
+import { CallManager } from "./calls/CallManager";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface Props {
   config: AppConfig;
@@ -196,9 +198,19 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
   useEffect(() => startDesktopNotifications(client, config.brand.name), [client, config.brand.name]);
 
   // --- First-run security prompt (once per tab session, never forced) ---
+  // Only decide after a live sync: start-up may show cached (possibly stale) account data.
   const prompted = useRef(false);
+  const { state: syncState } = useSyncState(client);
+  const [liveSynced, setLiveSynced] = useState(false);
   useEffect(() => {
-    if (security.loading || prompted.current) return;
+    if (syncState === SyncState.Syncing && !liveSynced) {
+      // give the security state a moment to re-read after the live sync
+      const t = setTimeout(() => setLiveSynced(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [syncState, liveSynced]);
+  useEffect(() => {
+    if (!liveSynced || security.loading || prompted.current) return;
     if (security.next !== "setup" && security.next !== "verify") return;
     prompted.current = true;
     try {
@@ -207,7 +219,7 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
       /* ignore */
     }
     openDialog(security.next === "setup" ? { type: "setup-recovery", mode: "setup" } : { type: "verify-device" });
-  }, [security.loading, security.next, openDialog]);
+  }, [liveSynced, security.loading, security.next, openDialog]);
 
   // --- Deep links (#/dm/@user:server) and invalid links ---
   useEffect(() => {
@@ -246,16 +258,18 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
         <a className="skip-link" href="#composer">
           Skip to message composer
         </a>
-        <div className="app" data-view={view} data-panel={panel ?? "none"}>
+        <div
+          className="app"
+          data-view={view}
+          data-panel={panel ?? "none"}
+        >
           <ConnectionBanner />
           <div className="shell">
             <Sidebar summaries={summaries} activeRoomId={roomId} onSignOut={() => openDialog({ type: "sign-out" })} />
             <main className="room-pane" id="main">
-              {roomId ? (
-                <RoomView key={roomId} roomId={roomId} isMobile={isMobile} panel={panel} />
-              ) : (
-                <EmptyRoomPane />
-              )}
+              <ErrorBoundary compact key={roomId ?? "home"}>
+                {roomId ? <RoomView key={roomId} roomId={roomId} isMobile={isMobile} panel={panel} /> : <EmptyRoomPane />}
+              </ErrorBoundary>
             </main>
             {panel ? (
               <aside className="right-panel" aria-label={panel === "info" ? "Conversation details" : "Search messages"}>
@@ -267,6 +281,7 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
               </aside>
             ) : null}
           </div>
+          {config.voipEnabled && client.supportsVoip() ? <CallManager /> : null}
           <ToastRegion toasts={toasts} onDismiss={dismissToast} />
         </div>
         <DialogHost

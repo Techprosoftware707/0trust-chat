@@ -265,7 +265,8 @@ services:
       - ${LUMEN_DATA_DIR}/caddy/data:/data
       - ${LUMEN_DATA_DIR}/caddy/config:/config
       - ${LUMEN_SOCKET_DIR}:/sockets
-      - ${LUMEN_CHAT_DIST}:/srv/chat:ro
+      # Parent directory, so the atomic swap of www/chat on rebuilds is visible without a restart.
+      - ${LUMEN_WWW_DIR}:/srv/www:ro
       - ${LUMEN_RENDERED_DIR}/chat:/srv/chat-config:ro
       - ${LUMEN_BRANDING_DIR}:/srv/brand:ro
     tmpfs:

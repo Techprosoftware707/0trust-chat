@@ -79,6 +79,8 @@ export function previewText(ev: MatrixEvent | undefined, myUserId: string): stri
   const who = ev.getSender() === myUserId ? "You: " : "";
   if (ev.status === EventStatus.NOT_SENT) return "Failed to send";
   switch (c.msgtype) {
+    case "m.key.verification.request":
+      return "Verification request";
     case "m.image":
       return `${who}Sent an image`;
     case "m.file":

@@ -91,10 +91,9 @@ export function parseConfig(raw: unknown): AppConfig {
   }
 
   const optionalUrl = (key: string): string | null => {
-    const v = str(raw, key, "", false);
-    if (!v) return null;
     try {
-      return validateHttpUrl(v, key);
+      const v = str(raw, key, "", false);
+      return v ? validateHttpUrl(v, key) : null;
     } catch {
       return null; // a bad link must not break the app; it is simply not shown
     }

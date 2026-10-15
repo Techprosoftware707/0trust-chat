@@ -8,6 +8,7 @@ import { previewText } from "../../matrix/rooms";
 import { formatBytes } from "../../lib/format";
 import { errorMessage } from "../../lib/errors";
 import { usePrefs } from "../../lib/prefs";
+import { getDraft, setDraft } from "../../lib/drafts";
 import { ProgressBar } from "../primitives/Spinner";
 
 interface Upload {
@@ -25,7 +26,6 @@ export interface ComposerHandle {
   focus: () => void;
 }
 
-const drafts = new Map<string, string>();
 let uploadSeq = 0;
 
 export const Composer = forwardRef<ComposerHandle, {
@@ -39,7 +39,7 @@ export const Composer = forwardRef<ComposerHandle, {
 }>(function Composer({ room, encrypted, replyTo, editing, onCancelReply, onCancelEdit, onEditLast }, ref) {
   const client = useClient();
   const prefs = usePrefs();
-  const [text, setText] = useState(() => drafts.get(room.roomId) ?? "");
+  const [text, setText] = useState(() => getDraft(room.roomId));
   const [uploads, setUploads] = useState<Upload[]>([]);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -48,7 +48,7 @@ export const Composer = forwardRef<ComposerHandle, {
 
   // Keep drafts per room for this tab session (in memory only).
   useEffect(() => {
-    drafts.set(room.roomId, text);
+    setDraft(room.roomId, text);
   }, [room.roomId, text]);
 
   useEffect(() => {
@@ -95,6 +95,8 @@ export const Composer = forwardRef<ComposerHandle, {
   const send = async () => {
     const body = text.trim();
     if (!body) return;
+    // matrix-js-sdk sends to rooms it doesn't know about without encryption: never do that.
+    if (client.getRoom(room.roomId) !== room) return;
     stopTyping();
     setText("");
     try {
@@ -119,8 +121,11 @@ export const Composer = forwardRef<ComposerHandle, {
         const id = ++uploadSeq;
         const roomId = room.roomId;
         const enc = (async () => {
+          // Encrypt if either the room state or the crypto layer says the room is encrypted
+          // (the same rule the SDK applies to the event itself).
+          if (room.hasEncryptionStateEvent()) return true;
           const crypto = client.getCrypto();
-          return crypto ? crypto.isEncryptionEnabledInRoom(roomId) : room.hasEncryptionStateEvent();
+          return crypto ? crypto.isEncryptionEnabledInRoom(roomId) : false;
         })();
         // Decide on encryption from the crypto layer at upload time, never from stale UI state.
         void enc.then((isEncrypted) => {

@@ -10,6 +10,7 @@ import {
 } from "matrix-js-sdk";
 import { VerificationMethod } from "matrix-js-sdk/lib/types.js";
 import { deleteDb } from "../lib/idb";
+import { clearDrafts } from "../lib/drafts";
 import { clearSession, type Session } from "../lib/session-store";
 import { clearMediaCache } from "./media";
 import { clearSecretStorageKeyCache, cryptoCallbacks } from "./secret-storage";
@@ -26,7 +27,11 @@ export const LOCAL_DATABASES = [
 
 export type StartupStage = "store" | "crypto" | "sync";
 
-export async function createMatrixClient(session: Session, onStage?: (s: StartupStage) => void): Promise<MatrixClient> {
+export async function createMatrixClient(
+  session: Session,
+  opts: { voip: boolean },
+  onStage?: (s: StartupStage) => void,
+): Promise<MatrixClient> {
   onStage?.("store");
   let store: IndexedDBStore | MemoryStore;
   try {
@@ -46,6 +51,8 @@ export async function createMatrixClient(session: Session, onStage?: (s: Startup
     timelineSupport: true,
     cryptoCallbacks,
     verificationMethods: [VerificationMethod.Sas],
+    // Legacy 1:1 VoIP only when the deployment enables it (no TURN lookups otherwise).
+    disableVoip: !opts.voip,
   });
   onStage?.("crypto");
   await client.initRustCrypto({ storagePassword: session.storagePassword, cryptoDatabasePrefix: CRYPTO_DB_PREFIX });
@@ -79,24 +86,62 @@ export async function startSyncing(client: MatrixClient): Promise<void> {
   await ready;
 }
 
-/** Deletes every local trace of an account: sync cache, crypto store, session keys, caches. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([p, new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))]);
+}
+
+/** Deletes leftover databases (e.g. from an interrupted sign-out). Only call when no client is running. */
+export async function deleteLocalDatabases(): Promise<void> {
+  await Promise.all(LOCAL_DATABASES.map((n) => deleteDb(n).catch(() => undefined)));
+}
+
+/**
+ * Deletes every local trace of an account. The pickle key and the sealed secrets go first:
+ * without them the access token and the crypto-store password are unrecoverable, so anything
+ * still on disk is unreadable even if deleting it is delayed (the Rust crypto store can stay
+ * open for a while after the client stops; its deletion then completes in the background,
+ * or on the next start).
+ */
 export async function wipeLocalData(client?: MatrixClient | null): Promise<void> {
   clearSecretStorageKeyCache();
   clearMediaCache();
+  clearDrafts();
+  client?.stopClient();
+  await clearSession();
   if (client) {
     try {
-      client.stopClient();
-      await client.clearStores({ cryptoDatabasePrefix: CRYPTO_DB_PREFIX });
+      await withTimeout(client.clearStores({ cryptoDatabasePrefix: CRYPTO_DB_PREFIX }), 1000);
     } catch {
       /* fall through to deleting the databases directly */
     }
   }
-  await Promise.all(LOCAL_DATABASES.map((n) => deleteDb(n).catch(() => undefined)));
-  await clearSession();
+  await withTimeout(deleteLocalDatabases(), 1000);
   try {
     for (const k of Object.keys(localStorage)) if (k.startsWith("mxjssdk_")) localStorage.removeItem(k);
   } catch {
     /* ignore */
+  }
+}
+
+const SIGNED_OUT_NOTICE = "lumen-signed-out-notice";
+
+/** Reloads the app on the sign-in screen, dropping everything held in memory. */
+export function reloadSignedOut(notice: string): void {
+  try {
+    sessionStorage.setItem(SIGNED_OUT_NOTICE, notice);
+  } catch {
+    /* ignore */
+  }
+  window.location.replace(`${window.location.origin}/`);
+}
+
+export function takeSignedOutNotice(): string | null {
+  try {
+    const n = sessionStorage.getItem(SIGNED_OUT_NOTICE);
+    sessionStorage.removeItem(SIGNED_OUT_NOTICE);
+    return n;
+  } catch {
+    return null;
   }
 }
 

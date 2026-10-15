@@ -14,7 +14,7 @@ export async function startDm(client: ReturnType<typeof useMatrix>["client"], us
   try {
     await client.getProfileInfo(userId);
   } catch (e) {
-    if (e instanceof MatrixError && e.errcode === "M_NOT_FOUND") throw new Error(`${userId} doesn't seem to exist.`);
+    if (e instanceof MatrixError && e.errcode === "M_NOT_FOUND") throw new Error(`${userId} doesn't seem to exist.`, { cause: e });
     // Other errors (e.g. federation) don't prove the user doesn't exist: continue.
   }
   const roomId = await openOrCreateDm(client, userId);

@@ -12,7 +12,11 @@ interface Content {
   filename?: string;
   url?: string;
   file?: EncryptedFile;
-  info?: MediaInfo;
+  info?: MediaInfo & {
+    thumbnail_url?: string;
+    thumbnail_file?: EncryptedFile;
+    thumbnail_info?: MediaInfo;
+  };
 }
 
 const MAX_W = 360;
@@ -42,11 +46,17 @@ export function Attachment({ event }: { event: MatrixEvent }) {
   const urlRef = useRef<string | null>(null);
   const encrypted = !!c.file;
 
+  // Images preview from the sender's thumbnail when there is one (smaller download).
+  const thumb =
+    kind === "image" && (c.info?.thumbnail_file || c.info?.thumbnail_url) && inlineKind(c.info?.thumbnail_info?.mimetype) === "image"
+      ? { url: c.info.thumbnail_url, file: c.info.thumbnail_file, mimetype: c.info.thumbnail_info?.mimetype }
+      : null;
   useEffect(() => {
     if (!mediaRequested || !kind) return;
     const ctrl = new AbortController();
     setState("loading");
-    downloadMedia(client, { url: c.url, file: c.file }, mimetype, ctrl.signal)
+    const src = thumb ?? { url: c.url, file: c.file, mimetype };
+    downloadMedia(client, { url: src.url, file: src.file }, src.mimetype, ctrl.signal)
       .then((blob) => {
         const u = URL.createObjectURL(blob);
         urlRef.current = u;

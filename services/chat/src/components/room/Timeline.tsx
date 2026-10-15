@@ -140,6 +140,23 @@ export function Timeline({
     }
   }, [items]);
 
+  // Content can grow and the viewport can shrink after render: stay pinned to the bottom if
+  // the user was there (and then send the read receipt).
+  const innerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const inner = innerRef.current;
+    const el = scrollRef.current;
+    if (!inner || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (!atBottom.current) return;
+      el.scrollTop = el.scrollHeight;
+      sendReceiptRef.current();
+    });
+    ro.observe(inner); // content grows (images, avatars, fonts)
+    ro.observe(el); // viewport shrinks (banners, composer growing, keyboard on mobile)
+    return () => ro.disconnect();
+  }, []);
+
   // Fill the viewport: keep paginating while there's no scrollbar yet.
   useEffect(() => {
     const el = scrollRef.current;
@@ -148,14 +165,18 @@ export function Timeline({
   }, [items, paginating, canPaginate, paginateError, loadOlder]);
 
   // Read receipts: only when the latest message is actually visible to the user.
+  const sendReceiptRef = useRef<() => void>(() => undefined);
   const sendReceiptIfNeeded = useCallback(() => {
     if (document.hidden || !atBottom.current) return;
     const ev = lastRealEvent(room);
-    if (!ev || !ev.getId() || room.hasUserReadEvent(me, ev.getId()!)) return;
+    // Compare with our last *real* receipt: the SDK counts our own messages as read, but the
+    // server's unread count only resets when we actually send a receipt.
+    if (!ev || !ev.getId() || room.getEventReadUpTo(me, true) === ev.getId()) return;
     const type = getPrefs().sendReadReceipts ? ReceiptType.Read : ReceiptType.ReadPrivate;
     client.sendReadReceipt(ev, type).catch(() => undefined);
   }, [client, room, me]);
 
+  sendReceiptRef.current = sendReceiptIfNeeded;
   useEffect(() => {
     const t = setTimeout(sendReceiptIfNeeded, 400);
     return () => clearTimeout(t);
@@ -233,7 +254,7 @@ export function Timeline({
         aria-live="off"
         tabIndex={0}
       >
-        <div className="timeline-inner">
+        <div className="timeline-inner" ref={innerRef}>
           <div className="timeline-top">
             {paginating ? (
               <Spinner size="sm" label="Loading earlier messages…" />

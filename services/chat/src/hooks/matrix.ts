@@ -70,9 +70,11 @@ export function useRoomEncrypted(client: MatrixClient, room: Room | null): boole
       setEnc(room.hasEncryptionStateEvent());
       return;
     }
+    // Same rule as the SDK uses when sending: encrypted if the room has an m.room.encryption
+    // state event OR the crypto layer has it configured as encrypted.
     crypto
       .isEncryptionEnabledInRoom(room.roomId)
-      .then((e) => alive && setEnc(e))
+      .then((e) => alive && setEnc(e || room.hasEncryptionStateEvent()))
       .catch(() => alive && setEnc(room.hasEncryptionStateEvent()));
     return () => {
       alive = false;

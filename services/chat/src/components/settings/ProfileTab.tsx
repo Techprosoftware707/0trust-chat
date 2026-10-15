@@ -17,7 +17,12 @@ export function ProfileTab() {
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const id = useId();
-  useEffect(() => setName(displayName), [displayName]);
+  // Follow profile updates from the server, but never overwrite what the user is typing.
+  const lastSynced = useRef(displayName);
+  useEffect(() => {
+    setName((current) => (current === lastSynced.current ? displayName : current));
+    lastSynced.current = displayName;
+  }, [displayName]);
 
   const saveName = async () => {
     setBusy("name");
