@@ -1,0 +1,237 @@
+Android CI evidence: GitHub Actions run 38707281536 (workflow_dispatch), commit 26d856c
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/38707281536
+Release APKs/AAB are UNSIGNED (no keystore secret); the debug APK carries the debug key. Emulator tests only; nothing ran on a device. Excerpts copied verbatim from the job logs (timestamps removed).
+
+=== job: Build, test, package (ubuntu-24.04) job id 116329715594 ===
+--- toolchain ---
+Image: ubuntu-24.04
+Version: 20261004.327.1
+  distribution: temurin
+  java-version: 21
+Resolved Java 21.0.12+1 from tool-cache
+Setting Java 21.0.12+1 as the default
+
+Java configuration:
+  Distribution: temurin
+  Version: 21.0.12+1
+  Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.12-1/x64
+  node-version: 22.22.0
+Downloading https://services.gradle.org/distributions/gradle-8.14.3-bin.zip
+Welcome to Gradle 8.14.3!
+(Android Gradle Plugin version: not found in the log)
+(Android SDK / compileSdk lines: not found in the log)
+--- unit tests ---
+> Task :core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:processResources NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :checkNoTlsBypass
+> Task :app:preBuild
+> Task :app:preDebugBuild
+> Task :app:generateDebugBuildConfig
+> Task :core:compileKotlin
+> Task :core:compileJava NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :app:checkDebugAarMetadata
+> Task :core:jar
+> Task :app:processDebugNavigationResources
+> Task :app:generateDebugResValues
+> Task :app:compileDebugNavigationResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:generateAppLinksManifest
+> Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
+> Task :app:packageDebugResources
+> Task :app:processDebugManifest
+> Task :app:parseDebugLocalResources
+> Task :app:processDebugManifestForPackage
+> Task :app:javaPreCompileDebug
+> Task :app:preDebugUnitTestBuild
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :app:processDebugResources
+
+> Task :core:compileTestKotlin
+w: file:///home/runner/work/0trust-chat/0trust-chat/apps/android/core/src/test/kotlin/io/lumen/secure/core/UrlPolicyTest.kt:23:38 Unnecessary non-null assertion (!!) on a non-null receiver of type 'LumenAppInfo'.
+w: file:///home/runner/work/0trust-chat/0trust-chat/apps/android/core/src/test/kotlin/io/lumen/secure/core/UrlPolicyTest.kt:24:43 Unnecessary non-null assertion (!!) on a non-null receiver of type 'LumenAppInfo'.
+w: file:///home/runner/work/0trust-chat/0trust-chat/apps/android/core/src/test/kotlin/io/lumen/secure/core/UrlPolicyTest.kt:25:61 Unnecessary non-null assertion (!!) on a non-null receiver of type 'LumenAppInfo'.
+w: file:///home/runner/work/0trust-chat/0trust-chat/apps/android/core/src/test/kotlin/io/lumen/secure/core/UrlPolicyTest.kt:60:27 Unnecessary non-null assertion (!!) on a non-null receiver of type 'LumenAppInfo'.
+
+> Task :core:compileTestJava NO-SOURCE
+> Task :core:processTestResources
+> Task :core:testClasses
+> Task :core:test
+> Task :app:compileDebugKotlin
+> Task :app:compileDebugJavaWithJavac
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:processDebugJavaRes
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1792053648762.json
+
+BUILD SUCCESSFUL in 3m 21s
+33 actionable tasks: 32 executed, 1 from cache
+(per-test or "N tests completed" summary lines: not found in the log)
+--- lint ---
+> Task :core:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:compileKotlin UP-TO-DATE
+> Task :core:compileJava NO-SOURCE
+> Task :core:processResources NO-SOURCE
+> Task :core:classes UP-TO-DATE
+> Task :core:jar UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :checkNoTlsBypass
+> Task :app:preBuild
+> Task :app:preDebugBuild
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:generateAppLinksManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestResValues FROM-CACHE
+> Task :core:writeJvmLintModelMetadata
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:extractProguardFiles
+> Task :core:generateJvmMainLintModel
+> Task :app:generateDebugLintReportModel
+> Task :app:preDebugUnitTestBuild
+> Task :app:generateDebugUnitTestLintModel
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :core:lintAnalyzeJvmMain
+> Task :app:lintAnalyzeDebugUnitTest
+> Task :core:generateJvmTestLintModel
+> Task :core:lintAnalyzeJvmTest
+> Task :app:lintAnalyzeDebug
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///home/runner/work/0trust-chat/0trust-chat/apps/android/app/build/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1792053844515.json
+
+BUILD SUCCESSFUL in 2m 20s
+39 actionable tasks: 15 executed, 1 from cache, 23 up-to-date
+(lint summary line "No issues found" / "N errors, M warnings": not found in the log)
+--- builds ---
+##[notice]no ANDROID_KEYSTORE_BASE64 secret: release APK/AAB are UNSIGNED
+> Task :checkNoTlsBypass
+> Task :app:packageDebugResources UP-TO-DATE
+Call widget bundled from /home/runner/work/0trust-chat/0trust-chat/services/chat/dist-widget
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so, libjnidispatch.so, libmatrix_sdk_ffi.so. Run with --info option to learn more.
+> Task :app:validateSigningDebug
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:packageDebug
+> Task :app:assembleDebug
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so, libjnidispatch.so, libmatrix_sdk_ffi.so. Run with --info option to learn more.
+> Task :app:packageReleaseResources
+> Task :core:lintVitalAnalyzeJvmMain
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:bundleReleaseResources
+> Task :app:minifyReleaseWithR8
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:packageRelease
+> Task :app:assembleRelease
+> Task :app:packageReleaseBundle
+> Task :app:signReleaseBundle
+> Task :app:bundleRelease
+BUILD SUCCESSFUL in 8m 47s
+109 actionable tasks: 79 executed, 4 from cache, 26 up-to-date
+(signing warnings: not found in the log)
+--- checksums ---
+total 882776
+drwxr-xr-x 2 runner runner      4096 Oct 15 08:55 .
+drwxr-xr-x 8 runner runner      4096 Oct 15 08:55 ..
+-rw-r--r-- 1 runner runner  69065330 Oct 15 08:55 app-arm64-v8a-release-unsigned.apk
+-rw-r--r-- 1 runner runner  47257518 Oct 15 08:55 app-armeabi-v7a-release-unsigned.apk
+-rw-r--r-- 1 runner runner 106270741 Oct 15 08:55 app-release.aab
+-rw-r--r-- 1 runner runner 270199725 Oct 15 08:55 app-universal-debug.apk
+-rw-r--r-- 1 runner runner 256581200 Oct 15 08:55 app-universal-release-unsigned.apk
+-rw-r--r-- 1 runner runner  79373386 Oct 15 08:55 app-x86-release-unsigned.apk
+-rw-r--r-- 1 runner runner  75192726 Oct 15 08:55 app-x86_64-release-unsigned.apk
+7d9b722fe671165ff1a1418933adbc697e51e21981274a448ee0f9a0c8851991  app-arm64-v8a-release-unsigned.apk
+9b8eb3f309d9e2e62eb33ca1683714ee1efcb9504416b9de4791e6ef3c1789f8  app-armeabi-v7a-release-unsigned.apk
+5e75fa65214660d3d4cadd0384cbae1c0dc953b5d570c437b3860ec0fc8af8ec  app-release.aab
+02e914f265b3c2e76c8b600c152e26eb59dc3c6dd74cca26bb5137700efa0372  app-universal-debug.apk
+b14c75596ef734274675b62beda1aa7535fb5999f5b58cdeed2626561389087b  app-universal-release-unsigned.apk
+194d8f91c430f0032413e462bef78bb0d6ad5747e3374878099c359eda47f497  app-x86-release-unsigned.apk
+1901231aa847e12d3e35b72b75e1152cab70c055b674cf263547ec41c8d5f47e  app-x86_64-release-unsigned.apk
+
+=== job: Instrumented tests (emulator) job id 116336089393 ===
+--- emulator ---
+API level: 35
+System image API level: 35
+target: google_apis
+CPU architecture: x86_64
+Hardware profile: 
+Cores: 2
+AVD name: test
+[command]/usr/bin/sh -c \yes | sdkmanager --licenses > /dev/null
+Installing latest build tools, platform tools, and platform.
+[command]/usr/bin/sh -c \sdkmanager --install 'build-tools;37.0.0' platform-tools 'platforms;android-35'> /dev/null
+Installing latest emulator.
+[command]/usr/bin/sh -c \sdkmanager --install emulator --channel=0 > /dev/null
+Installing system images.
+[command]/usr/bin/sh -c \sdkmanager --install 'system-images;android-35;google_apis;x86_64' --channel=0 > /dev/null
+[command]/usr/bin/sh -c \echo no | avdmanager create avd --force -n test --package 'system-images;android-35;google_apis;x86_64'
+Starting emulator.
+[command]/usr/bin/sh -c \/usr/local/lib/android/sdk/emulator/emulator -port 5554 -avd test -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim &
+INFO         | Android emulator version 37.2.12.0 (build_id 16428233) (CL:N/A)
+ERROR        | Unable to connect to adb daemon on port: 5037
+INFO         | Boot completed in 60513 ms
+Emulator booted.
+--- instrumented tests ---
+Call widget not found at /home/runner/work/0trust-chat/0trust-chat/services/chat/dist-widget: this build has no calls ("Calls unavailable in this build").
+w: file:///home/runner/work/0trust-chat/0trust-chat/apps/android/app/src/androidTest/java/io/lumen/secure/LaunchTest.kt:28:19 'fun <reified A : ComponentActivity> createAndroidComposeRule(effectContext: CoroutineContext = ...): AndroidComposeTestRule<ActivityScenarioRule<A>, A>' is deprecated. Use `androidx.compose.ui.test.junit4.v2.createAndroidComposeRule` instead. The v2 APIs use StandardTestDispatcher instead of UnconfinedTestDispatcher, which aligns with standard coroutine behavior by queuing tasks rather than executing them immediately. Tests relying on immediate execution may require explicit synchronization. Please refer to the migration guide for more details.
+[EmulatorConsole]: Failed to start Emulator console for 5554
+
+> Task :app:connectedDebugAndroidTest
+Starting 9 tests on emulator-5554 - 15
+
+io.lumen.secure.LaunchTest > discoversConfiguredTestServer[emulator-5554 - 15] SKIPPED 
+
+emulator-5554 - 15 Tests 4/9 completed. (1 skipped) (0 failed)
+Finished 10 tests on emulator-5554 - 15
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__reactivecircus_android-emulator-runner-1792054709385.json
+
+BUILD SUCCESSFUL in 9m 8s
+76 actionable tasks: 71 executed, 5 from cache
+("Tests on ... completed" summary line: not found in the log)
+
+=== artifacts ===
+android-instrumented-reports 7293 sha256:fcf0a17c8ae0e0b00ebcced29ca14734bc80c7e4965277e9f3061068e35f44e2
+lumen-android 446465523 sha256:28213b25a844e9c0b9cef12deb8cf4662f3f0253190948ca4a818ea1f2475f0b
+android-reports 41741 sha256:eee82b8bace8eb7580e6212e1bc8c76d38e44e91c5f392d549a49c5dd01dd5ee
+
+=== instrumented test report (artifact android-instrumented-reports, id 11961005070) ===
+Downloaded zip SHA-256 fcf0a17c8ae0e0b00ebcced29ca14734bc80c7e4965277e9f3061068e35f44e2 (matches the artifact digest).
+The Gradle console lines above disagree with each other ("Starting 9", "Finished 10", progress "4/9"); the HTML report
+(connected/debug/index.html, generated by Gradle 8.14.3 at 9:07:11 AM) says:
+  9 tests, 0 failures, 1 skipped, 100% successful
+  KeystoreTest                 1 test,  0 failures, 0 skipped
+  LaunchTest                   3 tests, 0 failures, 1 skipped (discoversConfiguredTestServer: no LUMEN_TEST_SERVER)
+  ManifestAndPermissionsTest   5 tests, 0 failures, 0 skipped
+Note: the emulator job builds its own debug APK without the call widget (it does not run the widget build step), so
+calls are absent in the app under instrumented test; the packaged artifacts from the build job do bundle the widget.
