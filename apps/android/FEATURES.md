@@ -6,8 +6,9 @@ Legend:
   (`./gradlew :app:testDebugUnitTest`, which includes `:core:test` and the shared vectors in
   `apps/shared/test-vectors`).
 - **Tested on emulator** — covered by an instrumented test that passed in CI on an Android 15
-  (API 35, google_apis x86_64) emulator: GitHub Actions run 38704288600, job "Instrumented tests
-  (emulator)", 9 tests: 8 passed, 1 skipped (needs `LUMEN_TEST_SERVER`), 0 failed.
+  (API 35, google_apis x86_64) emulator: GitHub Actions runs 38704288600 and 38707281536 (commit
+  26d856c), job "Instrumented tests (emulator)", 9 tests each: 8 passed, 1 skipped (needs
+  `LUMEN_TEST_SERVER`), 0 failed.
 - **Builds, unverified** — implemented against the real Matrix Rust SDK API (type-checked by
   the compiler against `sdk-android 26.09.28`), but not exercised: this build host has no
   emulator (no KVM) and no device, and the CI emulator tests do not sign in to a server.
