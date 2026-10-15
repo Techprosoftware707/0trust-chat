@@ -103,10 +103,17 @@ class CallManager(
                         if (declinerUserId == session.userId) stopRinging(missed = false) // declined on another device
                     }
                 })
+                // Local room state may lag behind the ring (push while sync was stopped), so "call
+                // ended" counts only after the call was seen active here.
+                var sawCall = false
                 ringHandles += room.subscribeToRoomInfoUpdates(object : RoomInfoListener {
                     override fun call(roomInfo: RoomInfo) {
+                        if (roomInfo.hasRoomCall) sawCall = true
                         val answeredElsewhere = session.userId in roomInfo.activeRoomCallParticipants
-                        if (!roomInfo.hasRoomCall || answeredElsewhere) stopRinging(missed = !answeredElsewhere)
+                        when {
+                            answeredElsewhere -> stopRinging(missed = false)
+                            sawCall && !roomInfo.hasRoomCall -> stopRinging(missed = true)
+                        }
                     }
                 })
             }

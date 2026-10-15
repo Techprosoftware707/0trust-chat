@@ -3,7 +3,6 @@ package io.lumen.secure.core.deeplink
 import io.lumen.secure.core.auth.SsoRedirect
 import io.lumen.secure.core.matrix.MatrixIds
 import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 
 sealed interface DeepLinkRoute {
     /** Completes the pending sign-in. [callbackUrl] is passed to `SsoHandler.finish`. */
@@ -143,7 +142,8 @@ object DeepLinkRouter {
     }
 
     private fun decode(s: String): String? = try {
-        URLDecoder.decode(s.replace("+", "%2B"), StandardCharsets.UTF_8)
+        // The (String, String) overload: the Charset one needs Android API 33 (minSdk is 26).
+        URLDecoder.decode(s.replace("+", "%2B"), "UTF-8")
     } catch (_: IllegalArgumentException) {
         null
     }

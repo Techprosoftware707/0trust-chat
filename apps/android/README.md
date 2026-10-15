@@ -140,5 +140,8 @@ apps/android
 
 - Maven Central sometimes answers HTTP 429 for the 104 MB `sdk-android` AAR on busy shared hosts;
   `gradle.properties` raises Gradle's repository retry count. Re-run if it still fails.
+- Release builds use R8 code shrinking but not resource shrinking: with ABI splits enabled,
+  AGP 8.13 refuses to build the AAB in the same Gradle invocation as the split APKs when
+  resources are shrunk (issuetracker.google.com/402800800).
 - The universal APK is large (~270 MB debug) because it carries the Rust SDK for four ABIs;
   ship per-ABI APKs or the AAB (Play splits per ABI).

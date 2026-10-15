@@ -32,6 +32,8 @@
     "electron-updater": "6.8.10"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
+    "@electron/fuses": "1.8.0",
     "@types/node": "22.20.5",
     "electron": "44.7.2",
     "electron-builder": "26.17.0",

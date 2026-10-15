@@ -10,7 +10,10 @@
 //! 2. SSO completion: `SsoHandler::finish(callbackUrl)` =
 //!    `matrix_auth().login_with_sso_callback(url)` with the `loginToken` the
 //!    portal returned;
-//! 3. sync, join the room;
+//! 3. sync like the apps: `SyncService` (matrix-sdk-ui; native sliding sync
+//!    discovered from `/versions`, the apps' `SlidingSyncVersionBuilder::
+//!    DiscoverNative`), join the room and subscribe to it in the room list
+//!    service (what opening the call's room does in the apps);
 //! 4. `WidgetSettings::new(widgetId, initAfterContentLoad = true, rawUrl)`,
 //!    `generate_webview_url(settings, room, ClientProperties)`,
 //!    `WidgetDriver::new(settings)` (= `make_widget_driver`) and
@@ -47,12 +50,13 @@ use anyhow::{Context, Result, anyhow, bail};
 use language_tags::LanguageTag;
 use matrix_sdk::{
     Client, RoomState,
-    config::SyncSettings,
     encryption::{BackupDownloadStrategy, EncryptionSettings},
     reqwest::Certificate,
     ruma::{OwnedRoomId, RoomId},
+    sliding_sync::VersionBuilder as SlidingSyncVersionBuilder,
     widget::{Capabilities, CapabilitiesProvider, ClientProperties, WidgetDriver, WidgetSettings},
 };
+use matrix_sdk_ui::sync_service::{State as SyncState, SyncService};
 use serde_json::{Value, json};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -301,6 +305,7 @@ async fn run(args: Args) -> Result<()> {
         .homeserver_url(args.homeserver.as_str())
         .sqlite_store(&store_dir, Some(&passphrase))
         .handle_refresh_tokens()
+        .sliding_sync_version_builder(SlidingSyncVersionBuilder::DiscoverNative)
         .with_encryption_settings(EncryptionSettings {
             auto_enable_cross_signing: true,
             backup_download_strategy: BackupDownloadStrategy::AfterDecryptionFailure,
@@ -352,11 +357,10 @@ async fn run_with_client(client: &Client, args: &Args) -> Result<()> {
         other => warn!("cross-signing not complete: {other:?}"),
     }
 
-    // --- sync and join ---------------------------------------------------------
-    client
-        .sync_once(SyncSettings::default().timeout(Duration::from_secs(5)))
-        .await
-        .context("initial sync")?;
+    // --- sync (SyncService, as the apps) and join ---------------------------------
+    let sync_service = SyncService::builder(client.clone()).build().await.context("building the sync service")?;
+    sync_service.start().await;
+    let mut sync_state = sync_service.state();
     let room = match client.get_room(&args.room_id) {
         Some(r) if r.state() == RoomState::Joined => r,
         _ => {
@@ -364,21 +368,19 @@ async fn run_with_client(client: &Client, args: &Args) -> Result<()> {
             client.join_room_by_id(&args.room_id).await.context("joining the room")?
         }
     };
-    let sync_client = client.clone();
-    let sync_task = tokio::spawn(async move {
-        if let Err(e) = sync_client.sync(SyncSettings::default().timeout(Duration::from_secs(30))).await {
-            error!("sync stopped: {e}");
+    sync_service.room_list_service().set_room_subscriptions(&[args.room_id.as_ref()]).await;
+    // Wait until the joined room's state has arrived through the sync.
+    for _ in 0..150 {
+        if let SyncState::Error(e) = sync_state.get() {
+            bail!("sync failed: {e}");
         }
-    });
-    // Wait until the joined room's state has been synced.
-    for _ in 0..100 {
         if room.state() == RoomState::Joined && !room.encryption_state().is_unknown() {
             break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     let encrypted = room.latest_encryption_state().await.map(|s| s.is_encrypted()).unwrap_or(false);
-    info!(encrypted, "room joined");
+    info!(encrypted, sync = ?sync_state.next_now(), "room joined");
 
     // --- widget (generate_webview_url, make_widget_driver) -----------------------
     let (raw_url, origin) = raw_widget_url(args)?;
@@ -487,7 +489,7 @@ async fn run_with_client(client: &Client, args: &Args) -> Result<()> {
     to_widget.abort();
     drop(out_tx);
     let _ = tokio::time::timeout(Duration::from_secs(2), writer).await;
-    sync_task.abort();
+    let _ = tokio::time::timeout(Duration::from_secs(5), sync_service.stop()).await;
     Ok(())
 }
 

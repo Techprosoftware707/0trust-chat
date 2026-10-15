@@ -297,7 +297,9 @@ class RoomController(
     }
 
     fun stop() {
-        setTyping(false, force = true)
+        // The final "stopped typing" outlives this controller's scope.
+        val r = room
+        if (lastTypingSent != 0L && r != null) session.scope.launch { runCatching { r.typingNotice(false) } }
         stopInternal()
         scope.cancel()
     }

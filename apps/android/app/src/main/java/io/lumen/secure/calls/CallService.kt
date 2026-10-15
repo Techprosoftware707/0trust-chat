@@ -28,10 +28,6 @@ class CallService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         val video = intent?.getBooleanExtra(EXTRA_VIDEO, false) ?: false
         val call = LumenApplication.graph(this).calls.active.value
-        if (call == null && intent?.action != ACTION_REFRESH) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
         var types = 0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             types = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
@@ -42,59 +38,56 @@ class CallService : LifecycleService() {
                 types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
             }
         }
-        ServiceCompat.startForeground(this, Notifier.ID_ONGOING_CALL, notification(), types)
+        // startForeground first in every case: a service started with startForegroundService must
+        // call it before it may stop.
+        ServiceCompat.startForeground(this, Notifier.ID_ONGOING_CALL, buildNotification(this), types)
+        if (call == null) stopSelf()
         return START_NOT_STICKY
     }
 
     private fun granted(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
-    private fun notification(): android.app.Notification {
-        val graph = LumenApplication.graph(this)
-        val call = graph.calls.active.value
-        val title = call?.title ?: getString(R.string.call_ongoing)
-        val person = Person.Builder().setName(title).build()
-        val hangUp = CallActionReceiver.pendingIntent(this, CallActionReceiver.ACTION_HANGUP)
-        val open = PendingIntent.getActivity(
-            this, 3, CallActivity.resumeIntent(this),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val status = when (call?.e2ee?.label()) {
-            CallEncryptionLabel.END_TO_END_ENCRYPTED -> getString(R.string.call_e2ee_encrypted)
-            CallEncryptionLabel.WAITING_FOR_KEYS -> getString(R.string.call_e2ee_waiting)
-            CallEncryptionLabel.NOT_ENCRYPTED -> getString(R.string.call_e2ee_not_encrypted)
-            CallEncryptionLabel.DECRYPTION_ERROR -> getString(R.string.call_e2ee_error)
-            else -> getString(R.string.call_e2ee_unknown)
-        }
-        return graph.notifier.base(Notifier.CH_ONGOING_CALL)
-            .setContentTitle(title)
-            .setContentText(status)
-            .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUp))
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setContentIntent(open)
-            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .build()
-    }
-
     companion object {
         private const val EXTRA_VIDEO = "video"
-        private const val ACTION_REFRESH = "io.lumen.secure.call.REFRESH"
+
+        /** The ongoing-call notification; the encryption line is the widget's report. */
+        fun buildNotification(context: Context): android.app.Notification {
+            val graph = LumenApplication.graph(context)
+            val call = graph.calls.active.value
+            val title = call?.title ?: context.getString(R.string.call_ongoing)
+            val person = Person.Builder().setName(title).build()
+            val hangUp = CallActionReceiver.pendingIntent(context, CallActionReceiver.ACTION_HANGUP)
+            val open = PendingIntent.getActivity(
+                context, 3, CallActivity.resumeIntent(context),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val status = when (call?.e2ee?.label()) {
+                CallEncryptionLabel.END_TO_END_ENCRYPTED -> context.getString(R.string.call_e2ee_encrypted)
+                CallEncryptionLabel.WAITING_FOR_KEYS -> context.getString(R.string.call_e2ee_waiting)
+                CallEncryptionLabel.NOT_ENCRYPTED -> context.getString(R.string.call_e2ee_not_encrypted)
+                CallEncryptionLabel.DECRYPTION_ERROR -> context.getString(R.string.call_e2ee_error)
+                else -> context.getString(R.string.call_e2ee_unknown)
+            }
+            return graph.notifier.base(Notifier.CH_ONGOING_CALL)
+                .setContentTitle(title)
+                .setContentText(status)
+                .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUp))
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setContentIntent(open)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .build()
+        }
 
         fun start(context: Context, video: Boolean) {
             ContextCompat.startForegroundService(context, Intent(context, CallService::class.java).putExtra(EXTRA_VIDEO, video))
         }
 
+        /** Updates the ongoing-call notification (no service restart from the background). */
         fun refresh(context: Context) {
-            val call = LumenApplication.graph(context).calls.active.value ?: return
-            try {
-                ContextCompat.startForegroundService(
-                    context,
-                    Intent(context, CallService::class.java).setAction(ACTION_REFRESH).putExtra(EXTRA_VIDEO, call.video),
-                )
-            } catch (_: Exception) {
-                // Not allowed from the background on some versions; the notification refreshes on the next start.
-            }
+            if (LumenApplication.graph(context).calls.active.value == null) return
+            LumenApplication.graph(context).notifier.post(null, Notifier.ID_ONGOING_CALL, buildNotification(context))
         }
 
         fun stop(context: Context) {

@@ -17,10 +17,8 @@
   Var LumenDeleteData
   Var LumenDeleteDataBox
 
+  ; (Updates run the old uninstaller silently, so this page never shows during an update.)
   Function un.LumenDataPageCreate
-    ${If} ${isUpdated}
-      Abort
-    ${EndIf}
     nsDialogs::Create 1018
     Pop $0
     ${If} $0 == error

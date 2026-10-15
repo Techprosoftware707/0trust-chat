@@ -5,6 +5,7 @@ import android.os.Build
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +44,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -75,7 +75,10 @@ import org.matrix.rustcomponents.sdk.VerificationState
 @Composable
 fun RoomListScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, selectedRoomId: String?) {
     val controller by graph.roomList.collectAsState()
-    val list = controller ?: return
+    val list = controller ?: run {
+        CenteredState(stringResource(R.string.rooms_loading), loading = true)
+        return
+    }
     val rooms by list.visible.collectAsState()
     val loaded by list.loaded.collectAsState()
     val category by list.category.collectAsState()
@@ -87,7 +90,6 @@ fun RoomListScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, s
     val recovery by (encryption?.recovery ?: remember { kotlinx.coroutines.flow.MutableStateFlow(RecoveryState.UNKNOWN) }).collectAsState()
     var searching by rememberSaveable { mutableStateOf(false) }
     val c = MaterialTheme.lumenColors
-    val context = LocalContext.current
     var notificationsAllowed by remember { mutableStateOf(graph.notifier.canPost()) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notificationsAllowed = it }
     val brand = graph.serverInfo.load()?.brandName ?: stringResource(R.string.app_name)
@@ -177,7 +179,7 @@ fun RoomListScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, s
                     )
                     else -> LazyColumn(Modifier.fillMaxSize().testTag("room_list")) {
                         items(rooms, key = { it.id }) { room ->
-                            RoomRow(graph, session, room, selected = room.id == selectedRoomId) { nav.openRoom(room.id) }
+                            RoomRow(session, room, selected = room.id == selectedRoomId) { nav.openRoom(room.id) }
                         }
                     }
                 }
@@ -187,14 +189,13 @@ fun RoomListScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, s
 }
 
 @Composable
-private fun RoomRow(graph: AppGraph, session: MatrixSession, room: RoomSummary, selected: Boolean, onOpen: () -> Unit) {
+private fun RoomRow(session: MatrixSession, room: RoomSummary, selected: Boolean, onOpen: () -> Unit) {
     val c = MaterialTheme.lumenColors
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     Column(
         Modifier.fillMaxWidth()
-            .then(if (selected) Modifier.padding(0.dp) else Modifier)
+            .then(if (selected) Modifier.background(c.accentSoft) else Modifier)
             .clickable(enabled = !room.isInvite, onClick = onOpen)
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {

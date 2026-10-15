@@ -4,6 +4,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    // Lets the app's lint (checkDependencies) analyse this module too.
+    alias(libs.plugins.android.lint)
+}
+
+lint {
+    abortOnError = true
+    warningsAsErrors = false
 }
 
 java {

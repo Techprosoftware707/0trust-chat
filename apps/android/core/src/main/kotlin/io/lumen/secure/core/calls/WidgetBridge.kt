@@ -173,7 +173,7 @@ object CallWidgetUrl {
         val safeLang = lang.filter { it.isLetterOrDigit() || it == '-' }.take(35).ifEmpty { "en" }
         return INDEX +
             "?widgetId=\$matrix_widget_id" +
-            "&parentUrl=" + java.net.URLEncoder.encode(ASSET_ORIGIN, Charsets.UTF_8) +
+            "&parentUrl=" + java.net.URLEncoder.encode(ASSET_ORIGIN, "UTF-8") /* charset-name overload: API 1 */ +
             "&roomId=\$matrix_room_id" +
             "&userId=\$matrix_user_id" +
             "&deviceId=\$org.matrix.msc2873.matrix_device_id" +

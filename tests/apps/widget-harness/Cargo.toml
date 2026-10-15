@@ -29,6 +29,9 @@ matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "2a3
     "rustls-aws-lc-rs",
     "experimental-widgets",
 ] }
+# The apps sync with matrix-sdk-ffi's SyncService (native sliding sync, MSC4186),
+# which lives in matrix-sdk-ui.
+matrix-sdk-ui = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "2a3db80e99fe322b9849325a182dc8a634fb20d4", default-features = false, features = ["rustls-aws-lc-rs"] }
 anyhow = "1.0.104"
 language-tags = "0.3.2"
 serde_json = "1.0.151"

@@ -47,7 +47,7 @@ module.exports = {
   productName,
   copyright: "Lumen contributors — AGPL-3.0-or-later",
   directories: { output: "release", buildResources: "build" },
-  files: ["dist/**/*", "package.json", "!dist/**/*.map"],
+  files: ["dist/**/*", "package.json", "!**/*.map", "!**/node_modules/**/*.{map,md,d.ts}"],
   asar: true,
   compression: "normal",
   // electron-updater (and its dependencies) is the only node_modules content; the rest is bundled by esbuild.
@@ -64,7 +64,8 @@ module.exports = {
     loadBrowserProcessSpecificV8Snapshot: false,
     grantFileProtocolExtraPrivileges: false,
   },
-  artifactName: "${productName}-${version}-${os}-${arch}.${ext}",
+  // No spaces in file names: GitHub release assets and update feeds rewrite them.
+  artifactName: `${productName.replace(/\s+/g, "-")}-\${version}-\${os}-\${arch}.\${ext}`,
 
   // ---------------------------------------------------------------- macOS
   mac: {
@@ -163,5 +164,5 @@ module.exports = {
   deb: {
     depends: ["libnss3", "libsecret-1-0", "libnotify4", "libxtst6", "libxss1", "libgbm1", "libasound2t64 | libasound2"],
   },
-  appImage: { artifactName: "${productName}-${version}-linux-${arch}.${ext}" },
+  appImage: { artifactName: `${productName.replace(/\s+/g, "-")}-\${version}-linux-\${arch}.\${ext}` },
 };

@@ -94,7 +94,9 @@ class SessionManager(
         }
         val (s, key) = stored
         return try {
-            val client = buildClient(s.homeserverUrl, s.storeDir, key)
+            // Restoring uses the stored sliding-sync version: no network needed, so an offline
+            // start opens the local stores and shows the offline banner instead of failing.
+            val client = buildClient(s.homeserverUrl, s.storeDir, key, discoverSlidingSync = false)
             client.restoreSession(
                 Session(
                     accessToken = s.accessToken,
@@ -280,14 +282,14 @@ class SessionManager(
 
     // ---- helpers ----------------------------------------------------------------------------------
 
-    private suspend fun buildClient(homeserverUrl: String, storeDir: String, key: ByteArray): Client {
+    private suspend fun buildClient(homeserverUrl: String, storeDir: String, key: ByteArray, discoverSlidingSync: Boolean = true): Client {
         RustPlatform.ensureInitialised()
         val data = File(sessionsDataDir, storeDir).apply { mkdirs() }
         val cache = File(sessionsCacheDir, storeDir).apply { mkdirs() }
         return ClientBuilder()
             .homeserverUrl(homeserverUrl)
             .sqliteStore(SqliteStoreBuilder(data.absolutePath, cache.absolutePath).key(key))
-            .slidingSyncVersionBuilder(SlidingSyncVersionBuilder.DISCOVER_NATIVE)
+            .slidingSyncVersionBuilder(if (discoverSlidingSync) SlidingSyncVersionBuilder.DISCOVER_NATIVE else SlidingSyncVersionBuilder.NATIVE)
             .autoEnableCrossSigning(true)
             .autoEnableBackups(true)
             .backupDownloadStrategy(BackupDownloadStrategy.AFTER_DECRYPTION_FAILURE)

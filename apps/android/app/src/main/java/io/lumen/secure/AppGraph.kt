@@ -32,6 +32,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -112,10 +114,20 @@ class AppGraph(private val app: Application) {
                 inForeground = false
                 appLock.onBackground()
                 val s = sessions.session ?: return
-                if (!backgroundSync && calls.active.value == null) scope.launch { s.stopSync() }
+                if (!backgroundSync && calls.active.value == null && calls.ringing.value == null) scope.launch { s.stopSync() }
             }
         })
         scope.launch { sessions.restore() }
+        // Ringing or in a call: keep syncing (decline/answered-elsewhere/ended updates arrive
+        // through sync) even in the background; afterwards fall back to the normal policy.
+        scope.launch {
+            combine(calls.ringing, calls.active) { r, a -> r != null || a != null }
+                .distinctUntilChanged()
+                .collect { busy ->
+                    val s = sessions.session ?: return@collect
+                    if (busy) s.startSync() else if (!inForeground && !backgroundSync) s.stopSync()
+                }
+        }
         File(app.cacheDir, "opened").deleteRecursively()
     }
 

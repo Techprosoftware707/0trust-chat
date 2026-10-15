@@ -87,7 +87,11 @@ android {
         release {
             buildConfigField("boolean", "ALLOW_LOOPBACK_HTTP", "false")
             isMinifyEnabled = true
-            isShrinkResources = true
+            // Resource shrinking stays off: with ABI splits, AGP 8.13 cannot build the AAB in the
+            // same invocation as the split APKs ("Multiple shrunk-resources files",
+            // issuetracker.google.com/402800800). The APK size is dominated by the Rust SDK's
+            // native library; R8 still shrinks and optimises the code.
+            isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (releaseSigningAvailable) signingConfigs.getByName("release") else null
         }
