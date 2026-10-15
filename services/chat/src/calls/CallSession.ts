@@ -193,6 +193,7 @@ export class CallSession {
   private ringTimer: ReturnType<typeof setTimeout> | null = null;
   private notificationId: string | null = null;
   private leaving = false;
+  private hadRemote = false;
   private rejoining = false;
   private updateQueued = false;
   private codec: VideoCodec = "vp8";
@@ -428,6 +429,9 @@ export class CallSession {
         this.set({ ringing: false });
         if (this.ringTimer) clearTimeout(this.ringTimer);
       }
+      // A 1:1 call ends when the other person hangs up (a group call stays open).
+      if (this.hasRemoteMembers()) this.hadRemote = true;
+      else if (this.hadRemote && this.snapshot.isDm && this.rtc.isJoined()) void this.leave("The other person left the call");
       this.scheduleUpdate();
     };
     const onManagerError = (e: unknown) => {

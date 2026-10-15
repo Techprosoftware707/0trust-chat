@@ -32,9 +32,9 @@ function Stream({ title, s }: { title: string; s: StreamSummary | null }) {
         <dd data-k="codec">
           {dash(s.codec)}
           {s.clockRate ? ` · ${s.clockRate / 1000} kHz` : ""}
-          {!video && s.channels ? ` · ${s.channels === 2 ? "2 ch" : "1 ch"}` : ""}
+          {!video && s.direction === "send" && s.codec === "audio/opus" ? ` · ${/(^|;)\s*stereo=1/.test(s.fmtp ?? "") ? "stereo" : "mono"}` : ""}
         </dd>
-        {!video ? (
+        {!video && s.direction === "send" ? (
           <>
             <dt>Codec options</dt>
             <dd data-k="fmtp">{fmtpHighlights(s.fmtp)}</dd>

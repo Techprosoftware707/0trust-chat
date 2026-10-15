@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Track } from "livekit-client";
 import { meterTrack } from "../../calls/audio";
+import { listDevices } from "../../calls/media";
 
 /** Renders a LiveKit video track (attach/detach so adaptive streaming knows the element size). */
 export function TrackVideo({ track, mirror, fit = "cover", className, label }: { track: Track; mirror?: boolean; fit?: "cover" | "contain"; className?: string; label?: string }) {
@@ -64,4 +65,20 @@ export function LevelMeter({ track, label = "Microphone level" }: { track: Media
       ))}
     </div>
   );
+}
+
+/** Cameras currently available (empty until the user granted camera access). */
+export function useCameras(): MediaDeviceInfo[] {
+  const [cams, setCams] = useState<MediaDeviceInfo[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => void listDevices().then((d) => alive && setCams(d.cams)).catch(() => undefined);
+    refresh();
+    navigator.mediaDevices?.addEventListener?.("devicechange", refresh);
+    return () => {
+      alive = false;
+      navigator.mediaDevices?.removeEventListener?.("devicechange", refresh);
+    };
+  }, []);
+  return cams;
 }

@@ -8,6 +8,10 @@
 #   sudo bash tests/calls/lab.sh unshape <ns>
 #   sudo bash tests/calls/lab.sh block-udp <ns> | unblock-udp <ns>   force TURN/TLS or ICE/TCP
 #   sudo bash tests/calls/lab.sh link <ns> down|up                    simulate a network outage
+#   sudo bash tests/calls/lab.sh block-port <ns> udp|tcp <port[:port]> drop traffic to the server on
+#                                         those ports (e.g. udp 7882:7889 + tcp 7881 = no direct
+#                                         media path, only TURN is left)
+#   sudo bash tests/calls/lab.sh unblock-all <ns>                    remove every block in <ns>
 #   sudo bash tests/calls/lab.sh status
 #
 # Each namespace has its own interface, routing table, firewall and traffic shaping,
@@ -61,11 +65,21 @@ case "$cmd" in
     ip netns exec "$1" iptables -C OUTPUT -p udp -j DROP 2>/dev/null || ip netns exec "$1" iptables -A OUTPUT -p udp -j DROP
     echo "$1: all outbound UDP dropped" ;;
   unblock-udp) ip netns exec "$1" iptables -D OUTPUT -p udp -j DROP 2>/dev/null || true; echo "$1: UDP allowed" ;;
-  link) ip netns exec "$1" ip link set eth0 "$2"; echo "$1: eth0 $2" ;;
+  link)
+    ip netns exec "$1" ip link set eth0 "$2"
+    # bringing the link back restores the connected route only; restore the default route too
+    if [[ "$2" == up ]]; then ip -n "$1" route replace default via "$NET.1" 2>/dev/null || true; fi
+    echo "$1: eth0 $2" ;;
+  block-port)
+    ns="$1" proto="$2" ports="$3"
+    ip netns exec "$ns" iptables -C OUTPUT -p "$proto" -d "$NET.1" --dport "$ports" -j DROP 2>/dev/null \
+      || ip netns exec "$ns" iptables -A OUTPUT -p "$proto" -d "$NET.1" --dport "$ports" -j DROP
+    echo "$ns: $proto to $NET.1:$ports dropped" ;;
+  unblock-all) ip netns exec "$1" iptables -F OUTPUT; echo "$1: all blocks removed" ;;
   status)
     ip -br addr show "$BR" 2>/dev/null || echo "bridge $BR absent"
     for ns in "${NSES[@]}"; do
       ip netns list | grep -qw "$ns" && echo "$ns: $(ip -n "$ns" -br addr show eth0 | awk '{print $3}') qdisc: $(ip netns exec "$ns" tc qdisc show dev eth0 | head -n1)"
     done ;;
-  *) sed -n '2,16p' "$0"; exit 64 ;;
+  *) sed -n '2,20p' "$0"; exit 64 ;;
 esac

@@ -62,7 +62,7 @@ export function ensureLab() {
   if (!/lab-a: 10\.200\.0\.11/.test(status) || !/lab-c: 10\.200\.0\.13/.test(status)) lab("up");
   for (const ns of ["lab-a", "lab-b", "lab-c"]) {
     lab("unshape", ns);
-    lab("unblock-udp", ns);
+    lab("unblock-all", ns);
     lab("link", ns, "up");
   }
   return lab("status");
@@ -149,16 +149,37 @@ function instrument() {
  * Starts a Chromium client inside `ns`. `tone` (Hz) is the microphone input; `fakeDevices`
  * false gives a browser without any capture device (for the permission/no-device test).
  */
-export async function launchClient({ ns, label, tone = 440, viewport = { width: 1280, height: 800 }, colorScheme = "light", permissions = ["microphone", "camera"], fakeDevices = true, fakeUi = true, extraArgs = [] }) {
+/**
+ * A per-namespace browser profile HOME whose NSS store trusts the stack's internal CA
+ * (Chromium's WebRTC TURN/TLS client checks certificates independently of Playwright's
+ * ignoreHTTPSErrors). Test environment only: real users' devices trust a public CA.
+ */
+function profileHome(ns) {
+  const home = path.join(OUT, `home-${ns}`);
+  const db = path.join(home, ".pki", "nssdb");
+  const ca = process.env.LUMEN_CA || "/etc/lumen/ca/caddy-local-root.crt";
+  try {
+    if (!fs.existsSync(path.join(db, "cert9.db"))) {
+      fs.mkdirSync(db, { recursive: true });
+      execFileSync("certutil", ["-N", "-d", `sql:${db}`, "--empty-password"], { stdio: "ignore" });
+    }
+    if (fs.existsSync(ca)) execFileSync("certutil", ["-A", "-d", `sql:${db}`, "-t", "C,,", "-n", "lumen-test-ca", "-i", ca], { stdio: "ignore" });
+  } catch {
+    /* certutil missing: TURN/TLS may then fail certificate checks */
+  }
+  return home;
+}
+
+export async function launchClient({ ns, label, tone = 440, viewport = { width: 1280, height: 800 }, colorScheme = "light", permissions = ["microphone", "camera"], fakeDevices = true, fakeVideo = "fps=30,device-count=2", fakeUi = true, extraArgs = [] }) {
   const args = [
     `--host-resolver-rules=MAP ${BASE} ${LAB_HOST_IP}, MAP *.${BASE} ${LAB_HOST_IP}`,
     "--no-proxy-server",
     "--disable-features=WebRtcHideLocalIpsWithMdns",
-    ...(fakeDevices ? ["--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${toneFile(tone)}`] : []),
+    ...(fakeDevices ? [`--use-fake-device-for-media-stream=${fakeVideo}`, `--use-file-for-fake-audio-capture=${toneFile(tone)}`] : []),
     ...(fakeUi ? ["--use-fake-ui-for-media-stream"] : []),
     ...extraArgs,
   ];
-  const browser = await chromium.launch({ executablePath: wrapperFor(ns), headless: true, args, env: { ...process.env, HOME: path.join(OUT, `home-${ns}`) } });
+  const browser = await chromium.launch({ executablePath: wrapperFor(ns), headless: true, args, env: { ...process.env, HOME: profileHome(ns) } });
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport, colorScheme, permissions });
   await context.addInitScript(instrument);
   const page = await context.newPage();

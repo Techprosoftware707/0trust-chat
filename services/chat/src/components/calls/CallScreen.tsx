@@ -7,6 +7,7 @@ import { ConnectionQuality } from "livekit-client";
 import {
   Activity,
   AlertTriangle,
+  SwitchCamera,
   Lock,
   Maximize,
   Maximize2,
@@ -38,7 +39,8 @@ import { TrustBadge } from "../room/RoomHeader";
 import { useUi } from "../UiContext";
 import { CallDeviceSettings } from "./CallDeviceSettings";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
-import { TrackAudio, TrackVideo } from "./media";
+import { TrackAudio, TrackVideo, useCameras } from "./media";
+import { setCallPrefs } from "../../calls/prefs";
 
 function useNow(active: boolean, ms = 1000): number {
   const [now, setNow] = useState(() => Date.now());
@@ -111,6 +113,9 @@ export function CallTile({ p, large, screen, avatarMxc }: { p: CallParticipant; 
       className={`call-tile${large ? " large" : ""}${screen ? " screen" : ""}${p.speaking && !screen ? " speaking" : ""}${p.pending ? " pending" : ""}${p.encryption === "unknown" ? " unknown" : ""}`}
       data-identity={p.identity}
       data-participant={p.userId ?? ""}
+      data-encryption={p.encryption}
+      data-key-index={p.keyIndex ?? ""}
+      data-mic={p.micMuted ? "muted" : "on"}
       aria-label={label}
     >
       {track ? (
@@ -194,6 +199,7 @@ function Controls({ session, s, compact }: { session: CallSession; s: CallSnapsh
   const camOn = s.camera.state === "on";
   const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getDisplayMedia;
   const ended = s.phase === "ended";
+  const cams = useCameras();
   return (
     <div className={`call-controls${compact ? " compact" : ""}`} role="toolbar" aria-label="Call controls">
       <CtlButton
@@ -216,6 +222,21 @@ function Controls({ session, s, compact }: { session: CallSession; s: CallSnapsh
       >
         {camOn ? <Video aria-hidden="true" /> : <VideoOff aria-hidden="true" />}
       </CtlButton>
+      {!compact && camOn && cams.length > 1 ? (
+        <CtlButton
+          label="Switch camera"
+          disabled={ended}
+          onClick={() => {
+            const current = session.localVideoTrack?.mediaStreamTrack.getSettings().deviceId;
+            const i = cams.findIndex((c) => c.deviceId === current);
+            const next = cams[(i + 1) % cams.length];
+            setCallPrefs({ cameraDeviceId: next.deviceId });
+            void session.switchDevice("videoinput", next.deviceId);
+          }}
+        >
+          <SwitchCamera aria-hidden="true" />
+        </CtlButton>
+      ) : null}
       {!compact && canShare ? (
         <CtlButton label={s.screen.active ? "Stop sharing your screen" : "Share your screen"} pressed={s.screen.active} disabled={ended} onClick={() => void session.setScreenShare(!s.screen.active)}>
           {s.screen.active ? <MonitorOff aria-hidden="true" /> : <MonitorUp aria-hidden="true" />}
