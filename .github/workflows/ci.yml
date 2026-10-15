@@ -1,0 +1,111 @@
+# Shared checks for every push and pull request: design tokens, deploy renderer,
+# shell scripts, security guards, web client (also the code inside the desktop app and
+# the mobile call widget) and the portal.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared:
+    name: Shared checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Generated design tokens are up to date
+        run: python3 design/tools/gen_tokens.py --check
+      - name: Deploy renderer unit tests
+        run: python3 -m unittest discover -s tests/deploy -v
+      - name: shellcheck
+        run: |
+          git ls-files -z '*.sh' lumenctl install.sh update.sh backup.sh restore.sh healthcheck.sh diagnose.sh uninstall.sh \
+            | xargs -0 shellcheck -x -S warning
+      - name: No TLS-verification bypass in any client
+        run: |
+          # The apps must never disable certificate validation (docs/apps/integration.md section 2).
+          if git grep -nE 'disableSslVerification|ignore-certificate-errors|setIgnoreCertificateErrors|NODE_TLS_REJECT_UNAUTHORIZED|onReceivedSslError|allowsAnyHTTPSCertificate|ServerTrust.*performDefaultHandling: *false|TrustAllCerts|X509TrustManager *\{' -- apps services/chat ':!**/*.md'; then
+            echo "::error::TLS validation bypass found"; exit 1
+          fi
+      - name: No private keys or live tokens committed
+        run: |
+          if git grep -lIE -- '-----BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY-----|sk_live_[0-9a-zA-Z]{10,}|whsec_[0-9a-zA-Z]{20,}|ghp_[0-9A-Za-z]{30,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}' -- ':!tests/security/scan.sh' ':!.github/workflows/ci.yml'; then
+            echo "::error::secret-like value committed"; exit 1
+          fi
+          if git ls-files | grep -E '\.(jks|keystore|p12|pfx|mobileprovision|p8)$|google-services\.json$|GoogleService-Info\.plist$'; then
+            echo "::error::signing or credential file committed"; exit 1
+          fi
+
+  web:
+    name: Web client (web, desktop, call widget)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: services/chat
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: services/chat/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Call widget build (bundled by the mobile apps)
+        run: npm run --if-present build:widget
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-dist
+          path: |
+            services/chat/dist
+            services/chat/dist-widget
+          if-no-files-found: warn
+          retention-days: 7
+
+  portal:
+    name: Portal tests (PostgreSQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lumen_app
+          POSTGRES_PASSWORD: devpass
+          POSTGRES_DB: lumen
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U lumen_app" --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: services/portal
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: services/portal/requirements.txt
+      - run: pip install --require-hashes -r requirements.txt
+      - run: pip install pytest pytest-django hypothesis
+      - run: python -m pytest

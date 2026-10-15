@@ -75,6 +75,31 @@ CALLS_ENABLED=true
 # Test labs only: let the SFU advertise a private address (e.g. 10.200.0.1).
 #CALLS_ALLOW_PRIVATE_NODE_IP=false
 
+# --- Mobile and desktop apps ------------------------------------------------------------
+# The Windows, macOS, Android and iOS apps discover everything from this server's
+# /.well-known/matrix/client (see docs/apps/integration.md); nothing here is secret.
+#APP_URL_SCHEME=io.lumen.secure            # SSO return + deep links (must match the apps' build)
+# Verified app links (https://app.<domain>/... opens the app) — from YOUR signed builds:
+#APP_LINKS_ANDROID_PACKAGE=io.lumen.secure
+#APP_LINKS_ANDROID_SHA256=                  # signing-certificate SHA-256 fingerprint(s), AA:BB:...
+#APP_LINKS_APPLE_BUNDLE_ID=io.lumen.secure
+#APP_LINKS_APPLE_TEAM_ID=                   # your 10-character Apple team ID
+
+# --- Push notifications for the mobile apps (optional) --------------------------------------
+# Synapse -> Sygnal push gateway (on this server) -> Firebase Cloud Messaging / Apple Push.
+# Pushes carry only room and event IDs plus unread counts; the apps fetch and decrypt the
+# message themselves. Google/Apple still learn that a user received something, and when.
+# Credentials (never in this file):
+#   sudo ./lumenctl set-secret push_fcm_service_account < firebase-service-account.json
+#   sudo ./lumenctl set-secret push_apns_key < AuthKey_XXXXXXXXXX.p8
+PUSH_ENABLED=false
+#PUSH_FCM_PROJECT_ID=                       # Firebase project of YOUR Android build
+#PUSH_APNS_TEAM_ID=                         # Apple team ID
+#PUSH_APNS_KEY_ID=                          # APNs auth key ID
+#PUSH_APNS_TOPIC=                           # default: APP_LINKS_APPLE_BUNDLE_ID
+#PUSH_APNS_SANDBOX=false                    # true only for development builds run from Xcode (TestFlight and App Store use production)
+#PUSH_PORT=5000                             # 127.0.0.1 only
+
 # --- WireGuard (optional private admin network; never replaces end-to-end encryption)
 WIREGUARD_ENABLED=false
 #WG_SUBNET=10.77.0.0/24

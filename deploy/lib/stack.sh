@@ -42,6 +42,8 @@ ensure_secrets() {
   ensure_optional_secret smtp_password
   ensure_optional_secret stripe_secret_key
   ensure_optional_secret stripe_webhook_secret
+  ensure_optional_secret push_fcm_service_account
+  ensure_optional_secret push_apns_key
   ensure_optional_secret synapse_admin_token
   # OIDC signing key for the portal identity provider.
   if [[ ! -s "$LUMEN_SECRETS_DIR/oidc_private_key.pem" ]]; then
@@ -162,6 +164,9 @@ render_staging() {
   chmod 0640 "$staging/synapse/homeserver.yaml" "$staging/synapse/log.config"
   chown "root:$UID_CADDY" "$staging/caddy" "$staging/caddy/Caddyfile"
   chmod 0750 "$staging/caddy"; chmod 0640 "$staging/caddy/Caddyfile"
+  if [[ -f "$staging/sygnal/sygnal.yaml" ]]; then
+    chmod 0755 "$staging/sygnal"; chmod 0644 "$staging/sygnal/sygnal.yaml"
+  fi
   if [[ -f "$staging/livekit/livekit.yaml" ]]; then
     chmod 0755 "$staging/livekit"; chmod 0644 "$staging/livekit/livekit.yaml"
   fi
@@ -207,7 +212,7 @@ validate_staging() {
   ok "homeserver configuration valid; signing key present"
   info "validating Compose file"
   LUMEN_RENDERED_DIR="$staging" docker compose --project-directory "$LUMEN_REPO_DIR" --env-file "$staging/compose.env" \
-    -f "$LUMEN_REPO_DIR/docker-compose.yml" --profile calls config -q >>"$_log_file" 2>&1 \
+    -f "$LUMEN_REPO_DIR/docker-compose.yml" --profile calls --profile push config -q >>"$_log_file" 2>&1 \
     || die "docker compose rejected the configuration. See $_log_file"
   ok "Compose configuration valid"
 }
@@ -239,6 +244,7 @@ pull_images() {
   set -a; source "$(compose_env_file)"; set +a
   local img imgs=("$POSTGRES_IMAGE" "$SYNAPSE_IMAGE" "$CADDY_IMAGE" "$PYTHON_BASE_IMAGE" "$NODE_BASE_IMAGE") pulled=0 present=0
   calls_enabled && imgs+=("$LIVEKIT_IMAGE" "$LKJWT_IMAGE" "$LIVEKIT_CLI_IMAGE")
+  push_enabled && imgs+=("$SYGNAL_IMAGE")
   for img in "${imgs[@]}"; do
     # References are pinned by digest, so a local copy is exactly the pinned image:
     # don't contact the registry again (re-runs, rate limits, pre-loaded images).
@@ -330,6 +336,7 @@ run_migrations() {
 start_services() {
   local svc=(synapse portal ops worker caddy)
   calls_enabled && svc+=(lkjwt livekit)
+  push_enabled && svc+=(sygnal)
   local recreate=()
   [[ "${LUMEN_FORCE_RECREATE:-0}" == 1 ]] && recreate=(--force-recreate)
   run compose up -d --remove-orphans "${recreate[@]}" "${svc[@]}" || die "Could not start services. See $_log_file"
@@ -351,18 +358,43 @@ start_services() {
   else
     stop_calls
   fi
+  if push_enabled; then
+    start_push
+  else
+    remove_services sygnal
+  fi
+}
+
+# start_push — the push gateway must answer its health endpoint; a missing credential
+# file is reported (Sygnal starts without that platform rather than with a bad key).
+start_push() {
+  local f
+  for f in push_fcm_service_account:PUSH_FCM_PROJECT_ID push_apns_key:PUSH_APNS_KEY_ID; do
+    if [[ -n "$(conf_get "${f#*:}")" && ! -s "$LUMEN_SECRETS_DIR/${f%%:*}" ]]; then
+      warn "${f#*:} is set but the secret ${f%%:*} is empty: sudo ./lumenctl set-secret ${f%%:*} < <file>"
+    fi
+  done
+  if wait_health sygnal healthy 90; then
+    ok "push gateway healthy (127.0.0.1:$(conf_get PUSH_PORT 5000), reached through Caddy)"
+  else
+    compose logs --tail 40 sygnal >>"$_log_file" 2>&1 || true
+    warn "push gateway is $(container_health sygnal); see $_log_file (notifications to the mobile apps won't be delivered)"
+  fi
+}
+
+# remove_services NAME... — containers of disabled optional components (they hold no data).
+remove_services() {
+  local s id
+  for s in "$@"; do
+    for id in $(docker ps -aq --filter label=com.docker.compose.project=lumen --filter "label=com.docker.compose.service=$s"); do
+      run docker rm -f "$id" && ok "$s stopped (disabled in lumen.conf)"
+    done
+  done
 }
 
 # stop_calls — CALLS_ENABLED=false: remove the SFU and authorization-service containers
 # (they hold no data; their config and keys stay in /etc/lumen for re-enabling).
-stop_calls() {
-  local s id
-  for s in livekit lkjwt; do
-    for id in $(docker ps -aq --filter label=com.docker.compose.project=lumen --filter "label=com.docker.compose.service=$s"); do
-      run docker rm -f "$id" && ok "calls disabled: $s stopped"
-    done
-  done
-}
+stop_calls() { remove_services livekit lkjwt; }
 
 # refresh_livekit_config — re-render and rewrite livekit.yaml in place (the container's
 # bind mount follows the inode), then restart only LiveKit. Calls reconnect by themselves.

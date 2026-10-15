@@ -59,6 +59,24 @@ DEFAULTS: dict[str, str] = {
     "RTC_NETWORK_SUBNET": "172.30.42.0/28",  # Docker network: authorization service <-> host
     "VOIP_ENABLED": "",  # deprecated (legacy 1:1 calls via coturn were replaced by CALLS_*)
     "TURN_EXTERNAL_IP": "",  # deprecated alias of CALLS_PUBLIC_IP
+    # Native/desktop apps (docs/apps/integration.md): URL scheme for the SSO return and
+    # deep links, and the identities that verified app links / universal links accept.
+    "APP_URL_SCHEME": "io.lumen.secure",
+    "APP_LINKS_ANDROID_PACKAGE": "io.lumen.secure",
+    "APP_LINKS_ANDROID_SHA256": "",  # comma-separated signing-certificate fingerprints (AA:BB:...)
+    "APP_LINKS_APPLE_TEAM_ID": "",
+    "APP_LINKS_APPLE_BUNDLE_ID": "io.lumen.secure",
+    # Push notifications for the mobile apps: Synapse pushers -> Sygnal -> FCM / APNs.
+    # Payloads carry no message content (event_id_only, push.include_content: false).
+    "PUSH_ENABLED": "false",
+    "PUSH_PORT": "5000",  # Sygnal on 127.0.0.1 (host network), reached through Caddy only
+    "PUSH_ANDROID_APP_ID": "io.lumen.secure.android",
+    "PUSH_IOS_APP_ID": "io.lumen.secure.ios",
+    "PUSH_FCM_PROJECT_ID": "",  # needs the secret push_fcm_service_account (lumenctl set-secret)
+    "PUSH_APNS_TEAM_ID": "",  # needs the secret push_apns_key (.p8, lumenctl set-secret)
+    "PUSH_APNS_KEY_ID": "",
+    "PUSH_APNS_TOPIC": "",  # default: APP_LINKS_APPLE_BUNDLE_ID
+    "PUSH_APNS_SANDBOX": "false",  # true for development builds (APNs sandbox)
     "WIREGUARD_ENABLED": "false",
     "WG_SUBNET": "10.77.0.0/24",
     "WG_PORT": "51820",
@@ -97,7 +115,8 @@ DEFAULTS: dict[str, str] = {
     "LUMEN_BUILD_EXTRA_CA": "",
 }
 
-BOOL_KEYS = {"PRESENCE_ENABLED", "CALLS_ENABLED", "CALLS_ALLOW_PRIVATE_NODE_IP", "WIREGUARD_ENABLED", "PUBLIC_STATUS_PAGE"}
+BOOL_KEYS = {"PRESENCE_ENABLED", "CALLS_ENABLED", "CALLS_ALLOW_PRIVATE_NODE_IP", "WIREGUARD_ENABLED", "PUBLIC_STATUS_PAGE",
+             "PUSH_ENABLED", "PUSH_APNS_SANDBOX"}
 DOMAIN_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -109,6 +128,7 @@ GID_SOCKETS = 10300
 UID_SYNAPSE = 991
 UID_LIVEKIT = 10400
 UID_LKJWT = 10401
+UID_SYGNAL = 10500
 UID_POSTGRES = 70
 
 
@@ -152,6 +172,7 @@ def load_config(conf_path: Path) -> dict[str, str]:
     cfg["LUMEN_RTC_DOMAIN"] = (cfg["LUMEN_RTC_DOMAIN"] or f"rtc.{p}").lower()
     cfg["CALLS_PUBLIC_IP"] = cfg["CALLS_PUBLIC_IP"] or cfg["TURN_EXTERNAL_IP"]
     cfg["MATRIX_SERVER_NAME"] = (cfg["MATRIX_SERVER_NAME"] or p).lower()
+    cfg["PUSH_APNS_TOPIC"] = cfg["PUSH_APNS_TOPIC"] or cfg["APP_LINKS_APPLE_BUNDLE_ID"]
     cfg["OPS_TLS_MODE"] = cfg["OPS_TLS_MODE"] or cfg["TLS_MODE"]
     cfg["BRAND_LEGAL_NAME"] = cfg["BRAND_LEGAL_NAME"] or f"The operator of {p}"
     for k in ("SUPPORT_EMAIL", "SECURITY_EMAIL", "PRIVACY_EMAIL"):
@@ -232,6 +253,26 @@ def validate(cfg: dict[str, str]) -> None:
         errors.append("RTC_NETWORK_SUBNET must be a private IPv4 network between /24 and /28 (e.g. 172.30.42.0/28)")
     if cfg["LUMEN_OPS_PORT"] in {"80", "443"}:
         errors.append("LUMEN_OPS_PORT must not be 80 or 443")
+    reverse_dns = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_-]*)+$", re.I)
+    for k in ("APP_URL_SCHEME", "APP_LINKS_ANDROID_PACKAGE", "APP_LINKS_APPLE_BUNDLE_ID", "PUSH_ANDROID_APP_ID",
+              "PUSH_IOS_APP_ID", "PUSH_APNS_TOPIC"):
+        if not reverse_dns.match(cfg[k]):
+            errors.append(f"{k} must be a reverse-DNS identifier (e.g. io.lumen.secure)")
+    for fp in split_list(cfg["APP_LINKS_ANDROID_SHA256"]):
+        if not re.fullmatch(r"([0-9A-F]{2}:){31}[0-9A-F]{2}", fp.upper()):
+            errors.append("APP_LINKS_ANDROID_SHA256 must list SHA-256 fingerprints like AB:CD:...(32 bytes)")
+            break
+    for k in ("APP_LINKS_APPLE_TEAM_ID", "PUSH_APNS_TEAM_ID", "PUSH_APNS_KEY_ID"):
+        if cfg[k] and not re.fullmatch(r"[A-Z0-9]{10}", cfg[k]):
+            errors.append(f"{k} must be a 10-character Apple identifier")
+    if cfg["PUSH_FCM_PROJECT_ID"] and not re.fullmatch(r"[a-z][a-z0-9-]{4,61}[a-z0-9]", cfg["PUSH_FCM_PROJECT_ID"]):
+        errors.append("PUSH_FCM_PROJECT_ID must be a Firebase project ID")
+    if bool(cfg["PUSH_APNS_TEAM_ID"]) != bool(cfg["PUSH_APNS_KEY_ID"]):
+        errors.append("PUSH_APNS_TEAM_ID and PUSH_APNS_KEY_ID are needed together")
+    if not cfg["PUSH_PORT"].isdigit() or not 1024 < int(cfg["PUSH_PORT"]) < 65536:
+        errors.append("PUSH_PORT must be a port above 1024")
+    if cfg["PUSH_ENABLED"].lower() in {"true", "yes", "1", "on"} and not (cfg["PUSH_FCM_PROJECT_ID"] or cfg["PUSH_APNS_KEY_ID"]):
+        errors.append("PUSH_ENABLED needs PUSH_FCM_PROJECT_ID (Android) and/or PUSH_APNS_TEAM_ID + PUSH_APNS_KEY_ID (iOS)")
     for k in BOOL_KEYS:
         if cfg[k].lower() not in {"true", "false", "yes", "no", "1", "0", "on", "off"}:
             errors.append(f"{k} must be true or false")
@@ -410,7 +451,8 @@ def render_synapse(cfg, out: Path) -> None:
             }
         ],
         "sso": {
-            "client_whitelist": [f"https://{cfg['LUMEN_APP_DOMAIN']}/"],
+            # the web app, and the native/desktop apps' SSO return (RFC 8252 private-use scheme)
+            "client_whitelist": [f"https://{cfg['LUMEN_APP_DOMAIN']}/", f"{cfg['APP_URL_SCHEME']}:/sso-callback"],
             "update_profile_information": True,
         },
         "templates": {"custom_template_directory": "/config/templates"},
@@ -468,6 +510,8 @@ def render_synapse(cfg, out: Path) -> None:
         # only test networks should ever whitelist any.
         hs["ip_range_whitelist"] = split_list(cfg["SYNAPSE_IP_RANGE_WHITELIST"])
     hs["default_room_version"] = "12"
+    # Push notifications never carry message content, whatever format a client asks for.
+    hs["push"] = {"include_content": False}
     if truthy(cfg["CALLS_ENABLED"]):
         # MatrixRTC (Element Call protocol) with a LiveKit SFU, per Element Call's
         # self-hosting requirements and MSC4195: clients ask *this* homeserver for an
@@ -570,6 +614,73 @@ SECURITY_HEADERS = """(lumen_headers) {
 """
 
 
+def push_enabled(cfg) -> bool:
+    return truthy(cfg["PUSH_ENABLED"])
+
+
+def push_route(cfg) -> list[str]:
+    """The push gateway endpoint on the homeserver host. Only this server's homeserver
+    calls it (pushers are always registered on the user's own homeserver; its requests
+    arrive from the Docker networks), so every other source gets 404."""
+    if not push_enabled(cfg):
+        return ["\t\t@push_off path /_matrix/push/*", "\t\trespond @push_off 404"]
+    return [
+        "\t\t@push_gw {",
+        "\t\t\tpath /_matrix/push/v1/notify",
+        "\t\t\tremote_ip private_ranges",
+        "\t\t}",
+        "\t\thandle @push_gw {",
+        f"\t\t\treverse_proxy 127.0.0.1:{int(cfg['PUSH_PORT'])}",
+        "\t\t}",
+        "\t\t@push_other path /_matrix/push/*",
+        "\t\trespond @push_other 404",
+    ]
+
+
+def client_wellknown(cfg) -> dict:
+    """/.well-known/matrix/client: the homeserver plus the public endpoints the Lumen apps
+    discover at runtime (docs/apps/integration.md section 2). Nothing here is secret."""
+    p, app, mx = cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"]
+    lumen = {
+        "version": 1,
+        "brand": {"name": cfg["BRAND_NAME"], "short_name": cfg["BRAND_SHORT_NAME"]},
+        "portal_url": f"https://{p}",
+        "account_url": f"https://{p}/portal/security/",
+        "privacy_url": f"https://{p}/privacy/",
+        "help_url": f"https://{p}/docs/",
+        "sso_idp_id": "oidc-lumen",
+        "web_app_url": f"https://{app}",
+    }
+    if cfg["REGISTRATION_MODE"] != "closed":
+        lumen["signup_url"] = f"https://{p}/accounts/signup/"
+    if truthy(cfg["CALLS_ENABLED"]):
+        lumen["call_widget_url"] = f"https://{app}/widget/call/"
+    if push_enabled(cfg):
+        lumen["push_gateway_url"] = f"https://{mx}/_matrix/push/v1/notify"
+    return {"m.homeserver": {"base_url": f"https://{mx}"}, "io.lumen.app": lumen}
+
+
+def app_links_handlers(cfg) -> list[str]:
+    """Verified app links (Android assetlinks.json) and universal links (Apple AASA) for
+    https://<app>/ URLs, served only when the operator configured the app identities."""
+    lines: list[str] = []
+    fps = [f.upper() for f in split_list(cfg["APP_LINKS_ANDROID_SHA256"])]
+    if fps:
+        assetlinks = [{
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {"namespace": "android_app", "package_name": cfg["APP_LINKS_ANDROID_PACKAGE"],
+                       "sha256_cert_fingerprints": fps},
+        }]
+        lines += ["	handle /.well-known/assetlinks.json {", "		header Content-Type application/json",
+                  f"		respond `{json.dumps(assetlinks, separators=(',', ':'))}` 200", "	}"]
+    if cfg["APP_LINKS_APPLE_TEAM_ID"]:
+        app_id = f"{cfg['APP_LINKS_APPLE_TEAM_ID']}.{cfg['APP_LINKS_APPLE_BUNDLE_ID']}"
+        aasa = {"applinks": {"details": [{"appIDs": [app_id], "components": [{"#": "/room/*"}, {"#": "/user/*"}]}]}}
+        lines += ["	handle /.well-known/apple-app-site-association {", "		header Content-Type application/json",
+                  f"		respond `{json.dumps(aasa, separators=(',', ':'))}` 200", "	}"]
+    return lines
+
+
 def render_caddy(cfg, out: Path) -> None:
     p, app, mx, ops = cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"], cfg["LUMEN_OPS_DOMAIN"]
     rtc = cfg["LUMEN_RTC_DOMAIN"]
@@ -585,7 +696,7 @@ def render_caddy(cfg, out: Path) -> None:
         admin_cidrs.append(cfg["WG_SUBNET"])
     admin_cidrs += split_list(cfg["ADMIN_ALLOWED_CIDRS"])
     server_wk = json.dumps({"m.server": f"{mx}:443"})
-    client_wk = json.dumps({"m.homeserver": {"base_url": f"https://{mx}"}})
+    client_wk = json.dumps(client_wellknown(cfg), separators=(",", ":"))
     matrix_wellknown = f"""	handle /.well-known/matrix/server {{
 		header Content-Type application/json
 		header Access-Control-Allow-Origin *
@@ -697,6 +808,7 @@ def render_caddy(cfg, out: Path) -> None:
         '\t\tCross-Origin-Resource-Policy "same-origin"',
         "\t}",
         brand.rstrip("\n"),
+        *app_links_handlers(cfg),
         "\thandle /config.json {",
         "\t\troot * /srv/chat-config",
         "\t\tfile_server",
@@ -730,6 +842,7 @@ def render_caddy(cfg, out: Path) -> None:
         "\t\t@admin path /_synapse/admin /_synapse/admin/*",
         "\t\trespond @admin 404",
         matrix_wellknown.rstrip("\n").replace("\n\t", "\n\t\t").replace("\thandle", "\t\thandle", 1),
+        *push_route(cfg),
         "\t\t@matrix path /_matrix/* /_synapse/client/*",
         "\t\thandle @matrix {",
         f"\t\t\treverse_proxy unix/{sock}/synapse.sock {{",
@@ -878,6 +991,39 @@ def render_livekit(cfg, out: Path, secrets: Path) -> None:
     write(out / "livekit" / "livekit.yaml", header + to_yaml(conf), 0o644)
 
 
+def render_sygnal(cfg, out: Path) -> None:
+    """Sygnal (Matrix push gateway) configuration. Secrets stay in /run/secrets files;
+    logs at WARNING so push keys and room IDs are not written to ordinary logs."""
+    apps: dict = {}
+    if cfg["PUSH_FCM_PROJECT_ID"]:
+        apps[cfg["PUSH_ANDROID_APP_ID"]] = {
+            "type": "gcm", "api_version": "v1", "project_id": cfg["PUSH_FCM_PROJECT_ID"],
+            "service_account_file": "/run/secrets/push_fcm_service_account",
+        }
+    if cfg["PUSH_APNS_KEY_ID"]:
+        apps[cfg["PUSH_IOS_APP_ID"]] = {
+            "type": "apns", "keyfile": "/run/secrets/push_apns_key", "key_id": cfg["PUSH_APNS_KEY_ID"],
+            "team_id": cfg["PUSH_APNS_TEAM_ID"], "topic": cfg["PUSH_APNS_TOPIC"],
+            "platform": "sandbox" if truthy(cfg["PUSH_APNS_SANDBOX"]) else "production",
+        }
+    conf = {
+        "http": {"bind_addresses": ["127.0.0.1"], "port": int(cfg["PUSH_PORT"])},
+        "log": {
+            "setup": {
+                "version": 1,
+                "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
+                "handlers": {"stderr": {"class": "logging.StreamHandler", "formatter": "plain", "stream": "ext://sys.stderr"}},
+                "root": {"level": "WARNING", "handlers": ["stderr"]},
+                "disable_existing_loggers": False,
+            },
+            "access": {"x_forwarded_for": True},
+        },
+        "apps": apps,
+    }
+    header = "# Generated by Lumen (deploy/lib/render.py). Do not edit. Secrets: /run/secrets/push_*\n"
+    write(out / "sygnal" / "sygnal.yaml", header + to_yaml(conf), 0o644)
+
+
 def render_chat_config(cfg, out: Path) -> None:
     data = {
         "brand": {"name": cfg["BRAND_NAME"], "short_name": cfg["BRAND_SHORT_NAME"]},
@@ -928,6 +1074,8 @@ def render_compose_env(cfg, out: Path, repo: Path) -> None:
         "GID_SOCKETS": str(GID_SOCKETS),
         "UID_LIVEKIT": str(UID_LIVEKIT),
         "UID_LKJWT": str(UID_LKJWT),
+        "UID_SYGNAL": str(UID_SYGNAL),
+        "PUSH_PORT": cfg["PUSH_PORT"],
         "LUMEN_RTC_DOMAIN": cfg["LUMEN_RTC_DOMAIN"],
         "RTC_NETWORK_SUBNET": cfg["RTC_NETWORK_SUBNET"],
         "RTC_GATEWAY_IP": rtc_ips(cfg)["gateway"],
@@ -1007,6 +1155,7 @@ def main(argv=None) -> int:
     render_postgres(cfg, out)
     render_caddy(cfg, out)
     render_livekit(cfg, out, args.secrets)
+    render_sygnal(cfg, out)
     render_chat_config(cfg, out)
     render_compose_env(cfg, out, args.repo)
     render_app_env(cfg, out)

@@ -10,6 +10,8 @@
 #   * livekit — host network (`calls` profile): WebRTC media on the UDP mux ports and
 #              ICE/TCP, embedded TURN (UDP + TLS). Its HTTP port (signalling/API)
 #              listens on 127.0.0.1 only; clients reach it through Caddy.
+#   * sygnal — host network (`push` profile), 127.0.0.1 only: the push gateway that
+#              Synapse calls through Caddy; it needs outbound HTTPS to FCM/APNs.
 #   * everything else — no published ports. Caddy reaches portal, ops and
 #     synapse through Unix sockets in ${LUMEN_SOCKET_DIR}; postgres is on an
 #     internal-only network.
@@ -348,6 +350,33 @@ services:
       synapse:
         condition: service_healthy
 
+  # Matrix push gateway (element-hq Sygnal, unmodified upstream image) for the mobile
+  # apps: Synapse pushers -> Sygnal -> FCM / APNs. Payloads carry no message content.
+  sygnal:
+    <<: *hardening
+    image: ${SYGNAL_IMAGE}
+    profiles: ["push"]
+    user: "${UID_SYGNAL}:${UID_SYGNAL}"
+    group_add:
+      - "${GID_SECRETS}"
+    network_mode: host
+    environment:
+      SYGNAL_CONF: /etc/sygnal/sygnal.yaml
+      PYTHONDONTWRITEBYTECODE: "1"
+    secrets:
+      - push_fcm_service_account
+      - push_apns_key
+    volumes:
+      - ${LUMEN_RENDERED_DIR}/sygnal/sygnal.yaml:/etc/sygnal/sygnal.yaml:ro
+    tmpfs:
+      - /tmp:size=16m
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:${PUSH_PORT}/health', timeout=4)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 15s
 
 networks:
   backend:
@@ -395,6 +424,10 @@ secrets:
     file: ${LUMEN_SECRETS_DIR}/livekit_keys
   lkjwt_registration:
     file: ${LUMEN_SECRETS_DIR}/lkjwt_registration
+  push_fcm_service_account:
+    file: ${LUMEN_SECRETS_DIR}/push_fcm_service_account
+  push_apns_key:
+    file: ${LUMEN_SECRETS_DIR}/push_apns_key
   smtp_password:
     file: ${LUMEN_SECRETS_DIR}/smtp_password
   stripe_secret_key:

@@ -39,6 +39,12 @@ _calls_anonymous_refused() { # mx
     "https://$1/_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token")" || return 1
   [[ "$code" == 401 ]]
 }
+_push_route_ok() { # mx: an empty notification for an unknown app is refused by Sygnal itself (not by Caddy's 404)
+  local out
+  out="$(_vcurl "$1" 443 -X POST -H 'Content-Type: application/json' -w ' %{http_code}' \
+    -d '{"notification":{"devices":[{"app_id":"lumen.verify.unknown","pushkey":"x"}]}}' "https://$1/_matrix/push/v1/notify")" || return 1
+  [[ "$out" == *'"rejected"'*" 200" ]]
+}
 _listening() { # proto port
   local flag="-ltn"; [[ "$1" == udp ]] && flag="-lun"
   ss -H "$flag" "sport = :$2" 2>/dev/null | grep -q .
@@ -132,6 +138,13 @@ verify_endpoints() {
   vcheck "security: operator console paths are not public" _expect_status "$p" 443 /ops/ 404
   vcheck "security: internal API is not public" _expect_status "$p" 443 /internal/v1/healthz 404
   vcheck "operator console reachable on the private port ($ops:$ops_port via loopback)" _expect_status "$ops" "$ops_port" /accounts/login/ 200
+  vcheck "apps: discovery block (io.lumen.app) in /.well-known/matrix/client" _expect_json "$sn" 443 /.well-known/matrix/client \
+    "d['m.homeserver']['base_url'] == 'https://$mx' and d['io.lumen.app']['version'] == 1"
+  if push_enabled; then
+    vcheck "push: gateway answers /health on 127.0.0.1:$(conf_get PUSH_PORT 5000)" \
+      curl -fsS --noproxy '*' --max-time 5 -o /dev/null "http://127.0.0.1:$(conf_get PUSH_PORT 5000)/health"
+    vcheck "push: homeserver path to the gateway (POST /_matrix/push/v1/notify through Caddy)" _push_route_ok "$mx"
+  fi
   if calls_enabled; then
     local rtc udp; rtc="$(rtc_domain)"; udp="$(conf_get CALLS_UDP_PORTS 7882-7889)"
     vcheck "calls: TLS certificate valid for $rtc" _tls_ok "$rtc" 443
