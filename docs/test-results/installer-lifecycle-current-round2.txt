@@ -1,0 +1,75 @@
+VM lumen-it ready (systemd: running)
+### install
+    ! 16 GB free on /var/lib; media uploads and backups grow over time (40 GB+ recommended)
+    ! 16 GB free on /var/backups; media uploads and backups grow over time (40 GB+ recommended)
+    ! system clock is not NTP-synchronised; two-factor codes and certificates depend on accurate time (timedatectl set-ntp true)
+    ! TLS_MODE=internal: using a private test CA; browsers and other Matrix servers will NOT trust this server. Testing only.
+    ! push gateway not started: no push credential yet (sudo ./lumenctl set-secret push_fcm_service_account or push_apns_key < <file>, then sudo ./lumenctl apply)
+    ! TLS_MODE=internal: browsers must trust /etc/lumen/ca/caddy-local-root.crt (testing only)
+    ! push: enabled, but no platform credential yet, so the gateway is not running and the apps are not told about it
+Result: SUCCESS — all endpoint checks passed
+install exit 0
+### throwaway APNs key (generated in the test server, never leaves it)
+    ✔ push_apns_key stored in /etc/lumen/secrets (not printed). Run 'sudo ./lumenctl apply' to use it.
+    ! PUSH_FCM_PROJECT_ID is set but the secret push_fcm_service_account is empty: sudo ./lumenctl set-secret push_fcm_service_account < <file>
+    ✔ push gateway healthy (127.0.0.1:5000, reached through Caddy)
+    ✔ configuration applied
+### lifecycle
+PASS marker account A created
+--- idempotent re-install
+PASS install.sh re-run succeeds
+PASS secrets unchanged by re-install
+PASS homeserver signing key unchanged by re-install
+PASS data kept across re-install (marker A)
+PASS calls: media flows through the SFU after re-install
+--- calls: media-service restart
+PASS lumenctl restart livekit lkjwt
+PASS calls: media flows after the SFU restart
+PASS SFU configuration unchanged by restart
+PASS data untouched by the SFU restart (marker A)
+PASS healthy after the SFU restart
+--- health and diagnostics
+PASS healthcheck.sh reports healthy (warnings allowed)
+PASS diagnose.sh completes (1 problem(s) explained)
+--- backup and full restore
+PASS backup.sh creates an encrypted archive
+PASS archive is age-encrypted
+PASS archive contents are not readable without the key
+PASS restore.sh --verify-only on the archive
+PASS marker account B created after the backup
+PASS full restore of the archive
+PASS restored data contains marker A
+PASS restore rolled back to the backup (marker B gone)
+PASS signing key intact after restore
+PASS healthy after restore
+PASS calls: media flows after restore
+--- update
+PASS update.sh --no-pull succeeds
+PASS healthy after update
+PASS data kept across update (marker A)
+PASS calls: media flows after update
+--- calls: turn off, then on again
+PASS install.sh with CALLS_ENABLED=false
+PASS calls off: SFU and authorization service removed
+PASS calls off: Lumen's calls firewall rules closed
+PASS calls off: homeserver no longer advertises the SFU
+PASS calls off: chat app configured without calls
+PASS data kept with calls off (marker A)
+PASS install.sh with calls on again
+PASS calls on: firewall rules back
+PASS calls on: media flows again
+--- uninstall (keep data) and re-install
+PASS uninstall.sh keeps data
+PASS no Lumen containers left running
+PASS data directories kept
+PASS backups kept
+PASS host agent removed
+PASS re-install on kept data succeeds
+PASS kept data is live again (marker A)
+PASS same server identity after re-install
+PASS calls: media flows after uninstall + re-install
+--- secret leak scan
+PASS no secret values in installer/ops logs or diagnose output
+lifecycle: 47 passed, 0 failed
+lifecycle exit 0
+script exit 0
