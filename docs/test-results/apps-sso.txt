@@ -1,0 +1,11 @@
+PASS well-known: homeserver
+PASS well-known: io.lumen.app block (version 1, SSO provider, https URLs only)
+PASS SSO ends in a direct redirect to the app scheme (no confirmation page)
+PASS SSO callback keeps the app's per-attempt nonce
+PASS SSO callback carries a login token
+PASS login token accepted (m.login.token)
+PASS signed in as the portal user
+PASS login token is single-use
+PASS non-allow-listed redirect gets the confirmation page, not an automatic redirect
+PASS logout invalidates the access token
+app sso: 10 passed, 0 failed
