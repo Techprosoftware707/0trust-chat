@@ -137,6 +137,10 @@ published to a store.** Per-feature status: [apps/feature-matrix.md](apps/featur
 | installer lifecycle | **coturn could not start at all** (file capability vs `cap_drop: ALL`), and the installer reported success anyway | `cap_add: NET_BIND_SERVICE` only; installer now verifies TURN with a STUN request |
 | ADR review | ADR claimed a measured PQ TLS report that did not exist | implemented: probe measures the negotiated group; console shows it per host |
 | licence inventory | chat bundle shipped without third-party/font licence texts; module used an internal Synapse import | Vite `build.license` + font licences; public module API import |
+| installer re-test with the current code | A transient registry error (502 from the egress proxy) while the configuration-validation step pulled the Caddy image aborted the install, with a misleading "storage driver, runtime or image problem" message. Image pulls had no retry. | `pull_image`: up to 3 attempts with backoff, used for every image including the two validation containers; the failure message names the registry |
+| apps: widget harness | The Matrix Rust SDK's widget driver (as pinned by both mobile apps) doesn't answer MSC4533 SFU-token requests and can't parse Lumen's MSC4515 transports, so a mobile call could never get an SFU token | Android and iOS answer both actions natively next to the driver (own room and own device only; the widget never sees the access token); ported from the harness, which then passed a real E2EE call |
+| apps: desktop e2e | The portal's CSP `form-action` blocked the return to `io.lumen.secure:` after a fresh portal login during app SSO | the app scheme is allowed in `form-action`; portal test added |
+| apps: parity review | The web client (and so the desktop app) had no way to block people; the mobile apps did | block/unblock via `m.ignored_user_list`, with an end-to-end UI test |
 | chat-client tests (build agent) | stale backup nudge, profile edit race, timeline not pinned, stuck unread, inaccurate offline banner, verification requests rendered as messages, 25 s sign-out | fixed in the client |
 
 ## Not verified

@@ -162,6 +162,7 @@ validate_staging() {
   # shellcheck disable=SC1091
   set -a; source "$staging/compose.env"; set +a
   info "validating Caddy configuration"
+  pull_image "$CADDY_IMAGE"
   docker run --rm --network none --user "$UID_CADDY:$UID_CADDY" --group-add "$GID_SECRETS" \
     -v "$staging/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
     -v "$LUMEN_SECRETS_DIR/ops_gateway_secret:/run/secrets/ops_gateway_secret:ro" \
@@ -171,6 +172,7 @@ validate_staging() {
   ok "Caddy configuration valid"
   info "validating homeserver configuration (and generating the signing key if missing)"
   local data; data="$(conf_get LUMEN_DATA_DIR /var/lib/lumen)"
+  pull_image "$SYNAPSE_IMAGE"
   docker run --rm --network none --user "$UID_SYNAPSE:$UID_SYNAPSE" --group-add "$GID_SECRETS" \
     --entrypoint python \
     -e PYTHONPATH=/modules \
@@ -215,6 +217,21 @@ rollback_config() {
 
 # --- Images ----------------------------------------------------------------------------
 
+# pull_image REF — pull a digest-pinned image unless it is already present. Registries and
+# proxies fail transiently (502s, rate limits), so retry before giving up.
+pull_image() {
+  local img="$1" i
+  docker image inspect "$img" >/dev/null 2>&1 && return 0
+  for i in 1 2 3; do
+    run docker pull -q "$img" && return 0
+    if ((i < 3)); then
+      warn "pulling $img failed (attempt $i of 3); retrying in $((i * 10)) s"
+      sleep $((i * 10))
+    fi
+  done
+  die "Could not pull $img. Check internet access to the registry (proxy, firewall or rate limits). See $_log_file"
+}
+
 pull_images() {
   # shellcheck disable=SC1091
   set -a; source "$(compose_env_file)"; set +a
@@ -225,7 +242,7 @@ pull_images() {
     # References are pinned by digest, so a local copy is exactly the pinned image:
     # don't contact the registry again (re-runs, rate limits, pre-loaded images).
     if docker image inspect "$img" >/dev/null 2>&1; then present=$((present + 1)); continue; fi
-    run docker pull -q "$img" || die "Could not pull $img. Check internet access to the registry (or rate limits)."
+    pull_image "$img"
     pulled=$((pulled + 1))
   done
   ok "images ready, pinned by digest ($pulled pulled, $present already present)"

@@ -224,3 +224,198 @@ name: lumen-desktop-linux
 name: lumen-desktop-win
   size_in_bytes: 121781961
   digest: sha256:71974ab9b03b25b7ea1fe3069d881215aa04a50dc4a144e7fac90068348b1928
+
+################################################################################
+Second run: GitHub Actions run 38707540511 (workflow_dispatch), commit 0c39db3
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/38707540511
+Same signing situation as above. Excerpts copied verbatim from the job logs (timestamps removed).
+
+=== win (windows-2025) ===
+job id 116330581852
+unit tests:
+# tests 34
+# pass 34
+# fail 0
+--- packaged smoke test ---
+info packaged app: D:\a\0trust-chat\0trust-chat\apps\desktop\release\win-unpacked\Lumen Secure.exe
+PASS packaged executable exists
+PASS fuse RunAsNode = off — off
+PASS fuse EnableCookieEncryption = on — on
+PASS fuse EnableNodeOptionsEnvironmentVariable = off — off
+PASS fuse EnableNodeCliInspectArguments = off — off
+PASS fuse EnableEmbeddedAsarIntegrityValidation = on — on
+PASS fuse OnlyLoadAppFromAsar = on — on
+PASS fuse GrantFileProtocolExtraPrivileges = off — off
+PASS bundle contains /package.json
+PASS bundle contains /dist/main/index.cjs
+PASS bundle contains /dist/preload/app.cjs
+PASS bundle contains /dist/preload/lock.cjs
+PASS bundle contains /dist/pages/setup.html
+PASS bundle contains /dist/web/index.html
+PASS bundle contains /dist/web/theme-init.js
+PASS bundle contains /dist/desktop-config.json
+PASS bundle contains /dist/web/brand/logo.svg
+PASS bundle contains the crypto WASM
+PASS no source maps in the bundle
+PASS node_modules limited to electron-updater's tree — argparse, builder-util-runtime, debug, electron-updater, fs-extra, graceful-fs, js-yaml, jsonfile, lazy-val, lodash.escaperegexp, lodash.isequal, ms, sax, semver, tiny-typed-emitter, universalify
+info build-time default server: (none: asks on first run)
+PASS packaged app refuses --remote-debugging-port=0 — exit 1
+PASS packaged app refuses --inspect=0 — exit 1
+PASS self-check: main window opened — visible=true
+PASS self-check: server picker loaded from the app bundle — app://desktop/setup.html
+PASS self-check: server picker rendered — Connect to your server
+PASS self-check: CSP header on desktop pages — default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+PASS self-check: web client bundled (app://lumen/ index.html) — HTTP 200
+PASS self-check: CSP header on the web client — default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+PASS self-check: app:// refuses path traversal — HTTP 404
+PASS self-check: CSP enforced (inline script blocked) — {"ran":false,"violated":"script-src-elem"}
+PASS self-check: webPreferences (as created): sandbox, contextIsolation, no nodeIntegration, webSecurity — {"sandbox":true,"contextIsolation":true,"nodeIntegration":false,"webSecurity":true}
+PASS self-check: context isolation (preload API is a bridged proxy) — function () { [native code] }
+PASS self-check: renderer main world has no Node.js — {"require":"undefined","process":"undefined","module":"undefined","Buffer":"undefined","setup":"object","desktop":"undefined","bridged":"function () { [native code] }"}
+PASS self-check: preload exposes only this page's API — {"require":"undefined","process":"undefined","module":"undefined","Buffer":"undefined","setup":"object","desktop":"undefined","bridged":"function () { [native code] }"}
+PASS self-check: renderer process sandboxed by the OS — pid 848
+PASS self-check: permission handler: getUserMedia not granted to non-app pages — NotFoundError
+PASS self-check: permission check: microphone and camera denied to non-app pages — denied, denied
+PASS self-check: permission handler: notifications denied to non-app pages — denied
+PASS self-check: permission handler: geolocation denied — denied
+PASS self-check: window.open denied
+PASS self-check: navigation away from the app blocked — app://desktop/setup.html
+info self-check: packaged build: forbidden debug/insecure switches are refused
+PASS self-check: OS-protected storage (safeStorage) — os (dpapi)
+PASS self-check exit code 0 — exit 0; packaged=true, electron 44.7.2, chrome 152.0.7977.149, win32/x64
+43 passed, 0 failed
+--- checksums (npm run checksums) ---
+fbecb6502305b6f63c0990812588d6ea56d8c650bf0ceaff811c13c0451fdf7e  Lumen-Secure-1.0.0-win-x64.exe
+932e21a7344e030e9372193c6c1f819af428c94d0c1899d2a2e17417edb2aaaf  Lumen-Secure-1.0.0-win-x64.exe.blockmap
+
+=== linux (ubuntu-24.04) ===
+job id 116330582244
+unit tests:
+# tests 34
+# pass 34
+# fail 0
+--- packaged smoke test ---
+info packaged app: /home/runner/work/0trust-chat/0trust-chat/apps/desktop/release/linux-unpacked/lumen-secure
+PASS packaged executable exists
+PASS fuse RunAsNode = off — off
+PASS fuse EnableCookieEncryption = on — on
+PASS fuse EnableNodeOptionsEnvironmentVariable = off — off
+PASS fuse EnableNodeCliInspectArguments = off — off
+PASS fuse EnableEmbeddedAsarIntegrityValidation = on — on
+PASS fuse OnlyLoadAppFromAsar = on — on
+PASS fuse GrantFileProtocolExtraPrivileges = off — off
+PASS bundle contains /package.json
+PASS bundle contains /dist/main/index.cjs
+PASS bundle contains /dist/preload/app.cjs
+PASS bundle contains /dist/preload/lock.cjs
+PASS bundle contains /dist/pages/setup.html
+PASS bundle contains /dist/web/index.html
+PASS bundle contains /dist/web/theme-init.js
+PASS bundle contains /dist/desktop-config.json
+PASS bundle contains /dist/web/brand/logo.svg
+PASS bundle contains the crypto WASM
+PASS no source maps in the bundle
+PASS node_modules limited to electron-updater's tree — argparse, builder-util-runtime, debug, electron-updater, fs-extra, graceful-fs, js-yaml, jsonfile, lazy-val, lodash.escaperegexp, lodash.isequal, ms, sax, semver, tiny-typed-emitter, universalify
+info build-time default server: (none: asks on first run)
+info set chrome-sandbox setuid root (CI)
+PASS packaged app refuses --remote-debugging-port=0 — exit 1
+PASS packaged app refuses --inspect=0 — exit 1
+PASS self-check: main window opened — visible=false
+PASS self-check: server picker loaded from the app bundle — app://desktop/setup.html
+PASS self-check: server picker rendered — Connect to your server
+PASS self-check: CSP header on desktop pages — default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+PASS self-check: web client bundled (app://lumen/ index.html) — HTTP 200
+PASS self-check: CSP header on the web client — default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+PASS self-check: app:// refuses path traversal — HTTP 404
+PASS self-check: CSP enforced (inline script blocked) — {"ran":false,"violated":"script-src-elem"}
+PASS self-check: webPreferences (as created): sandbox, contextIsolation, no nodeIntegration, webSecurity — {"sandbox":true,"contextIsolation":true,"nodeIntegration":false,"webSecurity":true}
+PASS self-check: context isolation (preload API is a bridged proxy) — function () { [native code] }
+PASS self-check: renderer main world has no Node.js — {"require":"undefined","process":"undefined","module":"undefined","Buffer":"undefined","setup":"object","desktop":"undefined","bridged":"function () { [native code] }"}
+PASS self-check: preload exposes only this page's API — {"require":"undefined","process":"undefined","module":"undefined","Buffer":"undefined","setup":"object","desktop":"undefined","bridged":"function () { [native code] }"}
+PASS self-check: renderer process sandboxed by the OS (seccomp-bpf) — pid 2623: Seccomp=2 NoNewPrivs=1
+PASS self-check: permission handler: getUserMedia not granted to non-app pages — NotFoundError
+PASS self-check: permission check: microphone and camera denied to non-app pages — denied, denied
+PASS self-check: permission handler: notifications denied to non-app pages — denied
+PASS self-check: permission handler: geolocation denied — denied
+PASS self-check: window.open denied
+PASS self-check: navigation away from the app blocked — app://desktop/setup.html
+info self-check: packaged build: forbidden debug/insecure switches are refused
+info self-check: OS-protected storage (safeStorage): basic (basic_text)
+PASS self-check exit code 0 — exit 0; packaged=true, electron 44.7.2, chrome 152.0.7977.149, linux/x64
+42 passed, 0 failed
+--- checksums (npm run checksums) ---
+ff75e5bf7929924bc1600f61815f8b0b39b8b17de18be8b651687cb24ee31ffa  Lumen-Secure-1.0.0-linux-amd64.deb
+3e883dd52667c1a27fdb3399bc77f34082830dc6b6eede480a39e642cc24c6d9  Lumen-Secure-1.0.0-linux-x86_64.AppImage
+
+=== mac (macos-15) ===
+job id 116330582083
+unit tests:
+# tests 34
+# pass 34
+# fail 0
+--- packaged smoke test ---
+info packaged app: /Users/runner/work/0trust-chat/0trust-chat/apps/desktop/release/mac-arm64/Lumen Secure.app/Contents/MacOS/Lumen Secure
+PASS packaged executable exists
+PASS fuse RunAsNode = off — off
+PASS fuse EnableCookieEncryption = on — on
+PASS fuse EnableNodeOptionsEnvironmentVariable = off — off
+PASS fuse EnableNodeCliInspectArguments = off — off
+PASS fuse EnableEmbeddedAsarIntegrityValidation = on — on
+PASS fuse OnlyLoadAppFromAsar = on — on
+PASS fuse GrantFileProtocolExtraPrivileges = off — off
+PASS bundle contains /package.json
+PASS bundle contains /dist/main/index.cjs
+PASS bundle contains /dist/preload/app.cjs
+PASS bundle contains /dist/preload/lock.cjs
+PASS bundle contains /dist/pages/setup.html
+PASS bundle contains /dist/web/index.html
+PASS bundle contains /dist/web/theme-init.js
+PASS bundle contains /dist/desktop-config.json
+PASS bundle contains /dist/web/brand/logo.svg
+PASS bundle contains the crypto WASM
+PASS no source maps in the bundle
+PASS node_modules limited to electron-updater's tree — argparse, builder-util-runtime, debug, electron-updater, fs-extra, graceful-fs, js-yaml, jsonfile, lazy-val, lodash.escaperegexp, lodash.isequal, ms, sax, semver, tiny-typed-emitter, universalify
+info build-time default server: (none: asks on first run)
+PASS packaged app refuses --remote-debugging-port=0 — exit 1
+PASS packaged app refuses --inspect=0 — exit 1
+PASS self-check: main window opened — visible=true
+PASS self-check: server picker loaded from the app bundle — app://desktop/setup.html
+PASS self-check: server picker rendered — Connect to your server
+PASS self-check: CSP header on desktop pages — default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+PASS self-check: web client bundled (app://lumen/ index.html) — HTTP 200
+PASS self-check: CSP header on the web client — default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' blob:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+PASS self-check: app:// refuses path traversal — HTTP 404
+PASS self-check: CSP enforced (inline script blocked) — {"ran":false,"violated":"script-src-elem"}
+PASS self-check: webPreferences (as created): sandbox, contextIsolation, no nodeIntegration, webSecurity — {"sandbox":true,"contextIsolation":true,"nodeIntegration":false,"webSecurity":true}
+PASS self-check: context isolation (preload API is a bridged proxy) — function () { [native code] }
+PASS self-check: renderer main world has no Node.js — {"require":"undefined","process":"undefined","module":"undefined","Buffer":"undefined","setup":"object","desktop":"undefined","bridged":"function () { [native code] }"}
+PASS self-check: preload exposes only this page's API — {"require":"undefined","process":"undefined","module":"undefined","Buffer":"undefined","setup":"object","desktop":"undefined","bridged":"function () { [native code] }"}
+PASS self-check: renderer process sandboxed by the OS — pid 42944
+PASS self-check: permission handler: getUserMedia not granted to non-app pages — NotAllowedError
+PASS self-check: permission check: microphone and camera denied to non-app pages — denied, denied
+PASS self-check: permission handler: notifications denied to non-app pages — denied
+PASS self-check: permission handler: geolocation denied — denied
+PASS self-check: window.open denied
+PASS self-check: navigation away from the app blocked — app://desktop/setup.html
+info self-check: packaged build: forbidden debug/insecure switches are refused
+PASS self-check exit code 0 — exit 0; packaged=true, electron 44.7.2, chrome 152.0.7977.149, darwin/arm64
+42 passed, 0 failed
+--- checksums (npm run checksums) ---
+6a9ee7daf9974c583e2cd37339ee0112c73e3a3038c301cc215d996bf31c8ced  Lumen-Secure-1.0.0-mac-arm64.dmg
+fe8bace99bcb2fecfac2d30f5d9bc2febaae89837a1eb8b25c9072b1a0fcb413  Lumen-Secure-1.0.0-mac-arm64.zip
+ba3dfa2a4a5093cf25b1908aaa97f57c2976265cfd51a3fb68c0b5af9d5820c2  Lumen-Secure-1.0.0-mac-arm64.zip.blockmap
+47dec5fa974bd3438605697b744e284e2954edb3c5f7a6195e2729616fa6d179  Lumen-Secure-1.0.0-mac-x64.dmg
+f9e749fac8b629b9ffe17e3d9ee0f426d7d1eae94c452d6f8096c944c421ad43  Lumen-Secure-1.0.0-mac-x64.zip
+63db79721f366230af7c24c0e284a3cc8d20d2e9b60be56cf3bdc1856f5650dc  Lumen-Secure-1.0.0-mac-x64.zip.blockmap
+
+=== artifacts ===
+(from list_workflow_run_artifacts, run 38707540511; 3 artifacts)
+name: lumen-desktop-win
+  size_in_bytes: 121782170
+  digest: sha256:f74b5ce04281cbfdb83ed5c1ecfba4afbf6c969b0150759eafa8d28ee7d53239
+name: lumen-desktop-linux
+  size_in_bytes: 229811195
+  digest: sha256:d5b313a3ef0b8834fa177dba487eee437557fce0cafd2dc2b60dcd94c87cd90f
+name: lumen-desktop-mac
+  size_in_bytes: 535475629
+  digest: sha256:39f23e5d1e13778b55bd653685e77b645d1b9e79e5c4d85851684437437e259d
