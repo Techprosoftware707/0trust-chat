@@ -30,7 +30,7 @@ distribution, and nothing has been published to a store.
 
 | Feature | Web | Windows | macOS | Android | iOS/iPadOS |
 |---|---|---|---|---|---|
-| Server discovery (`/.well-known/matrix/client` with `io.lumen.app`, `/versions`, `/login`) | N/A (served by the server, configured by `config.json`) | E2E (Linux build); CI: picker renders | E2E (Linux build); CI: picker renders | CI (unit, shared vectors, fake HTTP); Built (real network) | CI (simulator unit, shared vectors; launch UI test); Built (real network) |
+| Server discovery (`/.well-known/matrix/client` with `io.lumen.app`, `/versions`, `/login`) | N/A (served by the server, configured by `config.json`) | E2E (Linux build); CI: picker renders | E2E (Linux build); CI: picker renders | CI (unit, shared vectors, fake HTTP; emulator: picker shown, bad input rejected offline); Built (real network) | CI (simulator unit, shared vectors; launch UI test); Built (real network) |
 | SSO through the Lumen portal | E2E | E2E (Linux build): system browser, `io.lumen.secure` return with nonce, stray/replayed callbacks ignored; Built: Windows scheme registration | Built: `open-url` return | Built: Custom Tabs. Server side of the app-scheme return: E2E (`apps-sso.txt`, 10/10) | Built: `ASWebAuthenticationSession`. Server side: E2E (same test) |
 | Sign out: token revoked on the server, local data and keys wiped | E2E | E2E (Linux build) | E2E (Linux build) | CI (wipe logic); Built | Built |
 | Sessions list, rename, sign out other devices | E2E | Same as web | Same as web | Built (removal via the SSO fallback page) | Built (removal via the SSO fallback page) |

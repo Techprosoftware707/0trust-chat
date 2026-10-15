@@ -53,9 +53,9 @@ The short version:
 | | Status |
 |---|---|
 | Source | `apps/android/`: Kotlin and Jetpack Compose, on the Matrix Rust SDK (`org.matrix.rustcomponents:sdk-android:26.09.28`). Module `:core` holds pure logic, `:app` the UI and Android integration. |
-| Build | ANDROID_BUILD |
-| Package | ANDROID_PACKAGE |
-| Functional tests | ANDROID_TESTS |
+| Build | Green on GitHub Actions `ubuntu-24.04`: run 38707281536 (round 3; round 2, 38704288600, also green). JDK 21, AGP 8.13.2, Gradle 8.14.3, compile/target SDK 36, min SDK 26. |
+| Package | Release: per-ABI APKs (`arm64-v8a` 69 MB, `armeabi-v7a`, `x86_64`, `x86`), universal APK and `app-release.aab` (106 MB), all **unsigned**; debug universal APK (debug key, for testing). SHA-256 in `docs/test-results/android-ci.txt`. The size is mostly the Rust SDK (`libmatrix_sdk_ffi.so`, 61 MiB on arm64; 16 KB page-aligned as Play requires). |
+| Functional tests | Unit 64/64 (shared vectors: URL policy, well-known, deep links incl. room-version-12 IDs; native SFU-token/transport handling; delivery mapping; preview policy; app-lock timer…). Lint: 0 errors, 0 warnings. On an API 35 emulator: 8 passed, 1 skipped (it needs a test server): launch and server picker, offline input validation, real Keystore seal/open/wipe, backup disabled, foreground-service types, notification channels, permissions. |
 | Messaging / encryption | Implemented against the Rust SDK (the timeline, encrypted send/receive, verification, recovery). **Not yet run against a server from the app.** |
 | Calling | The bundled call widget, the native SFU-token and transport handling, Core-Telecom and the call notification are implemented. The same call path (Rust SDK widget driver + Lumen widget + native handling) passed a real encrypted call in the Linux harness (`apps-widget-call.txt`, 12/12). The app's WebView call is **not run**. |
 | Notifications | FCM push via Sygnal (`event_id_only`) is implemented and optional at build time. Delivery is **not verified**: it needs a Firebase project, `PUSH_ENABLED` on the server and a device. |
@@ -84,7 +84,7 @@ The short version:
 |---|---|
 | Discovery (`io.lumen.app` in the well-known), SSO return to `io.lumen.secure:/sso-callback`, logout | `apps-sso.txt` 10/10 against the dev stack |
 | Call widget served at `https://app.<domain>/widget/call/` | Deployed and checked on the dev stack (HTTP 200, no-cache HTML, immutable assets); renderer unit test |
-| Push gateway (Sygnal, `event_id_only`, Synapse `push.include_content: false`, route only from private ranges) | Renderer unit tests. Fresh install with `PUSH_ENABLED=true`: see the installer section of [test-report.md](../test-report.md). No real FCM/APNs delivery. |
+| Push gateway (Sygnal, `event_id_only`, Synapse `push.include_content: false`, route only from private ranges) | Renderer unit tests. Fresh install with `PUSH_ENABLED=true` and no credentials: gateway not started, apps not told, a warning (this found and fixed a crash-loop). Then with a throwaway APNs key: gateway healthy and advertised. **No real FCM/APNs delivery**, which needs real credentials and a device. |
 | App links (`assetlinks.json`, `apple-app-site-association`) | Renderer unit tests; served only when configured |
 
 ## Credentials only the operator can supply
