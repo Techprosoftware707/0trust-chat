@@ -59,6 +59,7 @@ class AppGraph(private val app: Application) {
     val calls = CallManager(app, sessions, notifier, settings, scope)
     val appLock = AppLockManager(settings)
     val auth = io.lumen.secure.auth.AuthController(sessions, scope)
+    val callSupport = io.lumen.secure.calls.CallSupport()
 
     private val _roomList = MutableStateFlow<RoomListController?>(null)
     val roomList: StateFlow<RoomListController?> = _roomList.asStateFlow()

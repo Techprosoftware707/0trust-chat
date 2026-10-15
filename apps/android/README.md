@@ -81,6 +81,23 @@ Bridge (integration.md §6.2): `WebViewAssetLoader` at
 what drives the native call UI (`io.lumen.call_state`, flat, nested under `data`, or as an
 acknowledged `fromWidget` request) and what is dropped.
 
+Two widget actions are answered natively next to the driver, because sdk-android 26.09.28 cannot
+serve them against a Lumen server (`core/.../calls/NativeRtc.kt`, a port of
+`tests/apps/widget-harness/src/native_rtc.rs`, which proved a real E2EE call with the same driver):
+
+- `org.matrix.msc4533.rtc_livekit_get_token` (MSC4533, SFU token): `org.matrix.msc4533` is added to
+  the driver's `supported_api_versions` answer; the capability is added to `notify_capabilities`
+  only if the widget requested it; the request is answered with
+  `POST /_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token` (request data verbatim),
+  only for the driver's room and this device's member ID `<userId>:<deviceId>`. The access token
+  stays in `SessionHomeserverApi` (Authorization header to the session's homeserver); the widget
+  receives only the response.
+- `org.matrix.msc4515.get_rtc_transports` (MSC4515): answered, when the driver approved
+  `org.matrix.msc4515.rtc_transports`, from the raw
+  `GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports` (the SDK's parser rejects
+  Lumen's `{type: livekit, url}` form). The same raw endpoint decides whether call buttons are
+  shown (`CallSupport`); `discoverRtcTransports()`/`isLivekitRtcSupported()` are not used.
+
 URL template placeholders are the ones compiled into this SDK build (checked in
 `libmatrix_sdk_ffi.so`): `$matrix_widget_id`, `$matrix_room_id`, `$matrix_user_id`,
 `$org.matrix.msc2873.matrix_device_id`, `$org.matrix.msc4039.matrix_base_url`.

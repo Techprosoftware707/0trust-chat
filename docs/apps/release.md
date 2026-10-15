@@ -12,8 +12,8 @@ published. Platform specifics:
 | Workflow | Runs on | When | Produces |
 |---|---|---|---|
 | `ci.yml` | ubuntu-24.04 | every push and PR | token and renderer checks, shellcheck, TLS-bypass and secret guards, web client checks and build, portal tests |
-| `desktop.yml` | ubuntu-24.04, windows-2025, macos-15 | changes to `apps/desktop`, `services/chat`, `design`, `branding` | Windows `.exe` (NSIS), macOS `.dmg` + `.zip`, Linux `.AppImage` + `.deb`, update metadata, `SHA256SUMS-*.txt` |
-| `android.yml` | ubuntu-24.04 (+ emulator with KVM) | changes to `apps/android` | unit tests, lint, debug + release `.apk`, release `.aab`, instrumented tests on an API 35 emulator |
+| `desktop.yml` | ubuntu-24.04, windows-2025, macos-15 | changes to `apps/desktop`, `apps/shared`, `services/chat`, `design`, `branding` | unit tests (incl. shared vectors), Windows `.exe` (NSIS), macOS `.dmg` + `.zip` (arm64, x64), Linux `.AppImage` + `.deb`, update metadata, a packaged-app smoke test on each OS (`smoke-<os>-<arch>.json`), `SHA256SUMS` |
+| `android.yml` | ubuntu-24.04 (+ emulator with KVM) | changes to `apps/android`, `apps/shared`, `services/chat`, `design` | unit tests, lint, debug + release `.apk`, release `.aab`, instrumented tests on an API 35 emulator |
 | `ios.yml` | macos-15, Xcode 26 | changes to `apps/ios` | generated Xcode project, simulator build and tests (iPhone, iPad), unsigned `.xcarchive` |
 | `release.yml` | all of the above | tag `vX.Y.Z` or manual | everything above, one `SHA256SUMS.txt`, and a **draft** GitHub release whose notes state the signing status of each artifact |
 | `toolchains.yml` | all runners | on demand | inventory of Xcode, SDK and Android versions on the runners |

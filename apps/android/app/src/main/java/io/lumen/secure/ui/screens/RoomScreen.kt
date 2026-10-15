@@ -133,6 +133,9 @@ fun RoomScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, roomI
     val listState = rememberLazyListState()
     val newestFirst = remember(rows) { rows.asReversed() }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    // Calls: the widget must be bundled and the server must advertise an RTC transport (raw check).
+    var serverCalls by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(session) { serverCalls = graph.callSupport.available(session) }
 
     // Read receipts per the privacy setting, only while the newest message is on screen and the app is visible.
     val atBottom by remember { derivedStateOf { listState.firstVisibleItemIndex <= 1 } }
@@ -175,7 +178,7 @@ fun RoomScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, roomI
                 },
                 actions = {
                     val h = header
-                    if (h != null && h.membership == Membership.JOINED && graph.calls.widgetBundled) {
+                    if (h != null && h.membership == Membership.JOINED && graph.calls.widgetBundled && serverCalls != false) {
                         IconButton(onClick = { context.startActivity(CallActivity.startIntent(context, roomId, video = false)) }) {
                             Icon(painterResource(R.drawable.ic_lucide_phone), stringResource(if (h.hasCall) R.string.call_join_voice else R.string.call_start_voice))
                         }

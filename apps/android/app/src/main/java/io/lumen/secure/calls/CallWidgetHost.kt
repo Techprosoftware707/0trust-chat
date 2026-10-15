@@ -23,6 +23,7 @@ import io.lumen.secure.core.calls.BridgeInbound
 import io.lumen.secure.core.calls.CallAction
 import io.lumen.secure.core.calls.CallStateUpdate
 import io.lumen.secure.core.calls.CallWidgetUrl
+import io.lumen.secure.core.calls.NativeRtc
 import io.lumen.secure.core.calls.WidgetBridge
 import io.lumen.secure.log.LumenLog
 import io.lumen.secure.matrix.MatrixSession
@@ -72,6 +73,9 @@ class CallWidgetHost(
     private val widgetId = UUID.randomUUID().toString()
     private var handle: WidgetDriverHandle? = null
     private var driverJob: Job? = null
+
+    /** MSC4533 SFU token and MSC4515 transports, answered next to the driver (see NativeRtc). */
+    private val nativeRtc = NativeRtc(roomId, session.userId, session.deviceId, widgetId, SessionHomeserverApi(session))
 
     @SuppressLint("SetJavaScriptEnabled")
     val webView: WebView = WebView(context).apply {
@@ -150,7 +154,8 @@ class CallWidgetHost(
             val h = driverAndHandle.handle
             while (isActive) {
                 val msg = h.recv() ?: break
-                withContext(Dispatchers.Main) { deliver(msg) }
+                val amended = nativeRtc.onToWidget(msg)
+                withContext(Dispatchers.Main) { deliver(amended) }
             }
         }
         installBridge()
@@ -185,7 +190,13 @@ class CallWidgetHost(
             if (!isMainFrame || sourceOrigin.toString().trimEnd('/') != CallWidgetUrl.ASSET_ORIGIN) return@addWebMessageListener
             val data = message.data ?: return@addWebMessageListener
             when (val m = WidgetBridge.classify(data, widgetId)) {
-                is BridgeInbound.ToDriver -> handle?.send(m.json)
+                is BridgeInbound.ToDriver -> when (val r = nativeRtc.onFromWidget(m.json)) {
+                    NativeRtc.FromWidget.Forward -> handle?.send(m.json)
+                    is NativeRtc.FromWidget.Intercepted -> scope.launch(Dispatchers.IO) {
+                        val answer = nativeRtc.answer(r.request)
+                        withContext(Dispatchers.Main) { deliver(answer) }
+                    }
+                }
                 is BridgeInbound.CallState -> {
                     m.ack?.let(::deliver)
                     listener.onCallState(m.update)
