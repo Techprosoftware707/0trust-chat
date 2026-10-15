@@ -11,6 +11,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
@@ -64,7 +65,7 @@ class CallWidgetHost(
         fun isCallScreenVisible(): Boolean
     }
 
-    enum class Failure { WEBVIEW_TOO_OLD, ROOM_NOT_FOUND, WIDGET_URL_INVALID, DRIVER_FAILED }
+    enum class Failure { WEBVIEW_TOO_OLD, ROOM_NOT_FOUND, WIDGET_URL_INVALID, DRIVER_FAILED, RENDERER_GONE }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val widgetId = UUID.randomUUID().toString()
@@ -86,7 +87,7 @@ class CallWidgetHost(
     }
 
     private val assetLoader = WebViewAssetLoader.Builder()
-        .setDomain(Uri.parse(CallWidgetUrl.ASSET_ORIGIN).host!!)
+        .setDomain(CallWidgetUrl.ASSET_ORIGIN.toUri().host!!)
         .addPathHandler("/call-widget/", WidgetAssets(context))
         .build()
 
@@ -163,6 +164,13 @@ class CallWidgetHost(
             // The widget never navigates; anything else is refused.
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                 !request.url.toString().startsWith(CallWidgetUrl.ASSET_ORIGIN + "/call-widget/")
+
+            // The renderer crashed or was killed for memory: end the call instead of crashing the app.
+            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                LumenLog.w("call", "WebView renderer gone (crash=${detail.didCrash()})")
+                listener.onFatal(Failure.RENDERER_GONE)
+                return true
+            }
         }
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
@@ -181,6 +189,7 @@ class CallWidgetHost(
                 }
             }
         }
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
         WebViewCompat.addWebMessageListener(
             webView,
             "lumenNative",
@@ -190,7 +199,10 @@ class CallWidgetHost(
             val data = message.data ?: return@addWebMessageListener
             when (val m = WidgetBridge.classify(data, widgetId)) {
                 is BridgeInbound.ToDriver -> handle?.send(m.json)
-                is BridgeInbound.CallState -> listener.onCallState(m.update)
+                is BridgeInbound.CallState -> {
+                    m.ack?.let(::deliver)
+                    listener.onCallState(m.update)
+                }
                 is BridgeInbound.Drop -> LumenLog.d("call", "dropped widget message: ${m.reason}")
             }
         }

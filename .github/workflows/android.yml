@@ -76,7 +76,10 @@ jobs:
       - name: Checksums
         run: |
           mkdir -p "$RUNNER_TEMP/out"
-          find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} "$RUNNER_TEMP/out/" \;
+          # Debug: only the universal APK (each per-ABI debug split carries the Rust SDK too).
+          find app/build/outputs/apk/debug -type f -name '*universal*.apk' -exec cp {} "$RUNNER_TEMP/out/" \;
+          find app/build/outputs/apk/release app/build/outputs/bundle/release -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} "$RUNNER_TEMP/out/" \;
+          ls -la "$RUNNER_TEMP/out"
           cd "$RUNNER_TEMP/out" && sha256sum * | tee SHA256SUMS-android.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

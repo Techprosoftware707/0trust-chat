@@ -208,6 +208,10 @@ class CallActivity : FragmentActivity() {
 
     private fun pipParams(): PictureInPictureParams = PictureInPictureParams.Builder()
         .setAspectRatio(Rational(9, 16))
+        .apply {
+            val r = android.graphics.Rect()
+            if (host?.webView?.getGlobalVisibleRect(r) == true) setSourceRectHint(r)
+        }
         .apply { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAutoEnterEnabled(video && stage == Stage.ACTIVE) }
         .build()
 

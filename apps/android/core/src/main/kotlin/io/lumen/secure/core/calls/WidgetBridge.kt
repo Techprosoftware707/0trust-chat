@@ -50,7 +50,8 @@ sealed interface BridgeInbound {
     /** A widget-API message to hand to `WidgetDriverHandle.send` unchanged. */
     data class ToDriver(val json: String) : BridgeInbound
 
-    data class CallState(val update: CallStateUpdate) : BridgeInbound
+    /** [ack] is the widget-API response to post back when the state came as a `fromWidget` request. */
+    data class CallState(val update: CallStateUpdate, val ack: String? = null) : BridgeInbound
 
     data class Drop(val reason: String) : BridgeInbound
 }
@@ -58,9 +59,9 @@ sealed interface BridgeInbound {
 /**
  * The native side of the widget bridge (integration.md §6.2).
  *
- * Widget → native: only `fromWidget` requests and `toWidget` responses for *our* widget ID are
- * forwarded to the Rust widget driver; `io.lumen.call_state` drives the native call UI; everything
- * else is dropped. Envelope of the Lumen messages:
+ * Widget → native: only `fromWidget` requests and `toWidget` responses for *our* widget ID (and
+ * never `io.lumen.*` actions) are forwarded to the Rust widget driver; `io.lumen.call_state`
+ * drives the native call UI; everything else is dropped. Envelope of the Lumen messages:
  * `{"type":"io.lumen.call_state","state":…,"video":…,"muted":…,"e2ee":…}` (the fields may also be
  * nested under `"data"`), and native → widget `{"type":"io.lumen.call_action","action":…}`.
  */
@@ -83,8 +84,17 @@ object WidgetBridge {
 
         val api = obj.str("api") ?: return BridgeInbound.Drop("no api")
         if (obj.str("widgetId") != widgetId) return BridgeInbound.Drop("other widget")
-        if (obj.str("requestId").isNullOrEmpty() || obj.str("action").isNullOrEmpty()) return BridgeInbound.Drop("malformed")
+        val action = obj.str("action")
+        if (obj.str("requestId").isNullOrEmpty() || action.isNullOrEmpty()) return BridgeInbound.Drop("malformed")
         val hasResponse = obj.containsKey("response")
+        // Lumen's own messages never reach the Rust driver. The call state may also arrive as a
+        // widget-API request (integration.md §6.2 item 4); it is answered with an empty response.
+        if (action.startsWith("io.lumen.")) {
+            if (api != "fromWidget" || hasResponse || action != CALL_STATE_TYPE) return BridgeInbound.Drop("unexpected Lumen action")
+            val state = parseCallState(obj) as? BridgeInbound.CallState ?: return BridgeInbound.Drop("unknown call state")
+            val ack = JsonObject(obj + ("response" to JsonObject(emptyMap()))).toString()
+            return state.copy(ack = ack)
+        }
         return when {
             api == "fromWidget" && !hasResponse -> BridgeInbound.ToDriver(raw)
             api == "toWidget" && obj["response"] is JsonObject -> BridgeInbound.ToDriver(raw)

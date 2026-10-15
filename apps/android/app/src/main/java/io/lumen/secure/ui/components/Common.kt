@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -46,7 +47,7 @@ import io.lumen.secure.ui.theme.lumenColors
 
 /** Initials avatar (no remote avatar images are fetched: fewer requests, no tracking pixels). */
 @Composable
-fun Avatar(name: String, size: Dp = 40.dp, modifier: Modifier = Modifier) {
+fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     val palette = listOf(LumenPalette.cyan600, LumenPalette.teal600, LumenPalette.violet600, LumenPalette.midnight600, LumenPalette.amber600)
     val letter = name.trim().removePrefix("@").removePrefix("#").firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     val color = palette[(name.hashCode() and 0x7fffffff) % palette.size]
@@ -185,7 +186,7 @@ fun SwitchRow(title: String, subtitle: String?, checked: Boolean, enabled: Boole
 fun UnreadBadge(count: Long, mention: Boolean) {
     val c = MaterialTheme.lumenColors
     val label = if (count > 99) "99+" else count.toString()
-    val desc = stringResource(R.string.cd_unread, count)
+    val desc = pluralStringResource(R.plurals.cd_unread, count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), count)
     Box(
         Modifier.clip(CircleShape).background(if (mention) c.danger else c.accent).padding(horizontal = 7.dp, vertical = 2.dp)
             .semantics { contentDescription = desc },

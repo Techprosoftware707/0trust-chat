@@ -24,14 +24,13 @@ LUCIDE_REACT = ROOT / "services" / "chat" / "node_modules" / "lucide-react" / "d
 OUT = Path(__file__).resolve().parents[1] / "app" / "src" / "main" / "res" / "drawable"
 
 ICONS = [
-    "arrow-left", "ban", "bell", "bell-off", "bluetooth", "check", "check-check", "chevron-right", "circle-alert",
-    "circle-check", "clock", "cloud-off", "copy", "download", "ear", "external-link", "eye", "eye-off", "file",
-    "file-key", "fingerprint", "globe", "headphones", "image", "info", "key-round", "laptop", "lock", "log-out",
-    "message-circle", "messages-square", "mic", "mic-off", "monitor", "more-horizontal", "paperclip", "pencil",
-    "phone", "phone-incoming", "phone-off", "picture-in-picture-2", "plus", "refresh-cw", "reply", "search",
-    "send", "settings", "shield", "shield-alert", "shield-check", "smartphone", "smile-plus", "switch-camera",
-    "trash-2", "triangle-alert", "upload", "user", "user-check", "user-plus", "user-x", "users", "video",
-    "video-off", "volume-2", "wifi-off", "x",
+    "arrow-left", "ban", "bell", "bluetooth", "check", "check-check", "circle-alert", "clock", "cloud-off",
+    "copy", "download", "ear", "external-link", "eye-off", "file", "headphones", "image", "info",
+    "key-round", "laptop", "lock", "log-out", "message-circle", "messages-square", "more-horizontal",
+    "paperclip", "pencil", "phone", "phone-incoming", "phone-off", "picture-in-picture-2", "plus",
+    "refresh-cw", "reply", "search", "send", "settings", "shield", "shield-alert", "shield-check",
+    "smartphone", "trash-2", "triangle-alert", "user", "user-plus", "user-x", "video", "volume-2",
+    "wifi-off", "x",
 ]
 
 NUM = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")

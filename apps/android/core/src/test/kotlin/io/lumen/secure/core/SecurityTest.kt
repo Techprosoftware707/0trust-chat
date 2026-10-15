@@ -17,6 +17,8 @@ import io.lumen.secure.core.security.SealedBlob
 import io.lumen.secure.core.security.SecretVault
 import io.lumen.secure.core.security.StoredSession
 import io.lumen.secure.core.security.VaultException
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -66,6 +68,25 @@ class SecurityTest {
         // strings are not booleans
         val s = WidgetBridge.classify("""{"type":"io.lumen.call_state","state":"connected","muted":"true"}""", wid) as BridgeInbound.CallState
         assertFalse(s.update.muted)
+    }
+
+    @Test
+    fun `call state as a fromWidget request is acknowledged, never forwarded`() {
+        val req = """{"api":"fromWidget","widgetId":"w-123","requestId":"r9","action":"io.lumen.call_state","data":{"state":"connected","video":false,"muted":true,"e2ee":"waiting-for-key"}}"""
+        val r = WidgetBridge.classify(req, wid) as BridgeInbound.CallState
+        assertEquals(CallPhase.CONNECTED, r.update.phase)
+        assertTrue(r.update.muted)
+        assertEquals(CallE2ee.WAITING_FOR_KEY, r.update.e2ee)
+        val ack = kotlinx.serialization.json.Json.parseToJsonElement(r.ack!!).jsonObject
+        assertEquals("r9", ack["requestId"]!!.jsonPrimitive.content)
+        assertEquals("{}", ack["response"].toString())
+        // other io.lumen.* actions and responses are dropped
+        assertTrue(WidgetBridge.classify(req.replace("io.lumen.call_state", "io.lumen.other"), wid) is BridgeInbound.Drop)
+        assertTrue(WidgetBridge.classify("""{"api":"toWidget","widgetId":"w-123","requestId":"r","action":"io.lumen.call_action","response":{}}""", wid) is BridgeInbound.Drop)
+        // the shape the bundled widget actually posts: {"type":"io.lumen.call_state","data":{…}}
+        val posted = WidgetBridge.classify("""{"type":"io.lumen.call_state","data":{"state":"ended","video":false,"muted":false,"e2ee":"unknown","e2eeLabel":"none","reason":null,"error":true}}""", wid)
+        assertEquals(CallPhase.ENDED, (posted as BridgeInbound.CallState).update.phase)
+        assertNull(posted.ack)
     }
 
     @Test
