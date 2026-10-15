@@ -63,6 +63,7 @@ class TestDiscovery(unittest.TestCase):
         self.assertEqual(app["portal_url"], "https://example.com")
         self.assertEqual(app["signup_url"], "https://example.com/accounts/signup/")
         self.assertEqual(app["sso_idp_id"], "oidc-lumen")
+        self.assertEqual(app["account_delete_url"], "https://example.com/portal/privacy/delete/")
         self.assertEqual(app["call_widget_url"], "https://app.example.com/widget/call/")
         self.assertNotIn("push_gateway_url", app, "no push gateway advertised unless enabled")
         for k, v in app.items():

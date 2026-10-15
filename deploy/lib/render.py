@@ -653,6 +653,8 @@ def client_wellknown(cfg) -> dict:
         "brand": {"name": cfg["BRAND_NAME"], "short_name": cfg["BRAND_SHORT_NAME"]},
         "portal_url": f"https://{p}",
         "account_url": f"https://{p}/portal/security/",
+        # Account deletion must be reachable from inside the apps (App Store guideline 5.1.1(v)).
+        "account_delete_url": f"https://{p}/portal/privacy/delete/",
         "privacy_url": f"https://{p}/privacy/",
         "help_url": f"https://{p}/docs/",
         "sso_idp_id": "oidc-lumen",

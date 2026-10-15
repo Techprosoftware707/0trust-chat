@@ -30,6 +30,7 @@ can pre-fill one with `LUMEN_DEFAULT_SERVER`. Discovery steps:
        "portal_url": "https://example.com",
        "signup_url": "https://example.com/accounts/signup/",
        "account_url": "https://example.com/portal/security/",
+       "account_delete_url": "https://example.com/portal/privacy/delete/",
        "privacy_url": "https://example.com/privacy/",
        "help_url": "https://example.com/docs/",
        "sso_idp_id": "oidc-lumen",
