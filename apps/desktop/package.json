@@ -6,6 +6,8 @@
   "description": "Lumen Secure desktop app (Windows, macOS): the bundled Lumen web client in a hardened Electron shell",
   "license": "AGPL-3.0-or-later",
   "author": "Lumen",
+  "homepage": "https://github.com/Techprosoftware707/0trust-chat",
+  "desktopName": "lumen-secure.desktop",
   "main": "dist/main/index.cjs",
   "engines": {
     "node": ">=22.12.0"

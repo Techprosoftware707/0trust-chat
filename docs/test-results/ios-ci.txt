@@ -1,0 +1,188 @@
+# iOS CI (.github/workflows/ios.yml -> apps/ios/scripts/ci-build.sh), excerpt of the raw job log
+# run: https://github.com/Techprosoftware707/0trust-chat/actions/runs/38700890640 (commit 600911e), runner macos-15
+# excerpt: tool versions, step results, every test case line; no lines were edited
+
+2026-10-15T07:45:42.2226430Z ==> Xcode: Xcode 26.3 Build version 17C529 
+2026-10-15T07:45:44.7491430Z ==> Swift: Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+2026-10-15T07:45:45.3367190Z ==> XcodeGen: Version: 2.46.0
+2026-10-15T07:45:45.5384910Z ==> design tokens up to date
+2026-10-15T07:45:45.5491490Z ==> no disabled TLS verification
+2026-10-15T07:46:04.8729260Z 	 Executed 5 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
+2026-10-15T07:46:04.8736610Z 	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+2026-10-15T07:46:04.8765640Z 	 Executed 10 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
+2026-10-15T07:46:04.8780070Z 	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+2026-10-15T07:46:04.8799840Z 	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+2026-10-15T07:46:04.8805330Z 	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+2026-10-15T07:46:04.8815500Z 	 Executed 8 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+2026-10-15T07:46:04.8821650Z 	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+2026-10-15T07:46:04.8836900Z 	 Executed 8 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+2026-10-15T07:46:04.8848310Z 	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+2026-10-15T07:46:04.8858460Z 	 Executed 7 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
+2026-10-15T07:46:04.8859290Z 	 Executed 62 tests, with 0 failures (0 unexpected) in 0.033 (0.040) seconds
+2026-10-15T07:46:04.8860010Z 	 Executed 62 tests, with 0 failures (0 unexpected) in 0.033 (0.041) seconds
+2026-10-15T07:46:04.8861960Z ==> LumenCore swift test passed
+2026-10-15T07:46:04.9820940Z ==> generated Lumen.xcodeproj
+2026-10-15T07:46:04.9821430Z ==> version 1.0.0 (project default) build 2
+2026-10-15T07:46:36.1347820Z ==> packages resolved (matrix-rust-components-swift 26.10.02)
+2026-10-15T07:47:12.7800320Z warning: services/chat/dist-widget/index.html not found; this build has no bundled call widget and will use the server's call_widget_url.
+2026-10-15T07:47:14.2144070Z ** BUILD SUCCEEDED **
+2026-10-15T07:47:14.2547170Z ==> simulator build succeeded
+2026-10-15T07:47:24.0841370Z warning: services/chat/dist-widget/index.html not found; this build has no bundled call widget and will use the server's call_widget_url.
+2026-10-15T07:50:43.4646770Z ** TEST SUCCEEDED **
+2026-10-15T07:50:47.0519260Z Test case 'AppLevelTests.testBuildConfigurationFromAppBundle()' passed on 'iPhone 17 Pro - xctest (20029)' (0.006 seconds)
+2026-10-15T07:50:47.0520570Z Test case 'AppLevelTests.testElementCallCapabilitiesCoverLumenCallEvents()' passed on 'iPhone 17 Pro - xctest (20029)' (0.066 seconds)
+2026-10-15T07:50:47.0521560Z Test case 'AppLevelTests.testIncomingRingRoundTripsThroughVoIPPayload()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0522570Z Test case 'AppLevelTests.testMessageTextForNotificationsAndPreviews()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0523560Z Test case 'AppLevelTests.testStoredAccountMapsToSDKSession()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0525530Z Test case 'AppLevelTests.testVoIPPayloadCarriesNoMessageContent()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0526540Z Test case 'AppLevelTests.testWidgetTemplateIsAcceptedBySDK()' passed on 'iPhone 17 Pro - xctest (20029)' (0.007 seconds)
+2026-10-15T07:50:47.0528480Z Test case 'AppLockTests.testColdStartLockedWhenEnabled()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0529360Z Test case 'AppLockTests.testDisabledNeverLocks()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0532420Z Test case 'AppLevelTests.testBuildConfigurationFromAppBundle()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0539650Z Test case 'AppLevelTests.testElementCallCapabilitiesCoverLumenCallEvents()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0541580Z Test case 'AppLockTests.testImmediatelyAndClockGoingBackwards()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0542570Z Test case 'AppLockTests.testPrivacyCover()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0544080Z Test case 'AppLockTests.testTimeout()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0545720Z Test case 'CallHistoryTests.testOutcomes()' passed on 'iPhone 17 Pro - xctest (20029)' (0.003 seconds)
+2026-10-15T07:50:47.0546710Z Test case 'AppLevelTests.testIncomingRingRoundTripsThroughVoIPPayload()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0548150Z Test case 'AppLevelTests.testMessageTextForNotificationsAndPreviews()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.012 seconds)
+2026-10-15T07:50:47.0549860Z Test case 'AppLevelTests.testStoredAccountMapsToSDKSession()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0550980Z Test case 'AppLevelTests.testVoIPPayloadCarriesNoMessageContent()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0552140Z Test case 'AppLevelTests.testWidgetTemplateIsAcceptedBySDK()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0553210Z Test case 'CallHistoryTests.testRingPolicy()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0558270Z Test case 'ConfigTests.testBrandFallbacks()' passed on 'iPhone 17 Pro - xctest (20029)' (0.003 seconds)
+2026-10-15T07:50:47.0559660Z Test case 'ConfigTests.testBuildConfigurationFromInfoPlist()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0562070Z Test case 'ConfigTests.testInvalidOptionalLinksAreDroppedNotFatal()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0564120Z Test case 'AppLockTests.testColdStartLockedWhenEnabled()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0566020Z Test case 'AppLockTests.testDisabledNeverLocks()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0566970Z Test case 'AppLockTests.testImmediatelyAndClockGoingBackwards()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0567910Z Test case 'AppLockTests.testPrivacyCover()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0568820Z Test case 'AppLockTests.testTimeout()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0571230Z Test case 'CallHistoryTests.testOutcomes()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0572520Z Test case 'CallHistoryTests.testRingPolicy()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0576000Z Test case 'ConfigTests.testBrandFallbacks()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0577140Z Test case 'ConfigTests.testBuildConfigurationFromInfoPlist()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0578090Z Test case 'ConfigTests.testInvalidOptionalLinksAreDroppedNotFatal()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0579300Z Test case 'ConfigTests.testLoginFlows()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0580210Z Test case 'ConfigTests.testLumenInfoRoundTripsThroughStorage()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0581260Z Test case 'ConfigTests.testPushGatewayMustBeTheNotifyEndpoint()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0582330Z Test case 'ConfigTests.testRejectsNonHTTPSchemesAndCredentials()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0583250Z Test case 'ConfigTests.testRejectsPlainHTTPExceptLoopbackInDebug()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0584090Z Test case 'ConfigTests.testLoginFlows()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0585070Z Test case 'ConfigTests.testLumenInfoRoundTripsThroughStorage()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0598700Z Test case 'ConfigTests.testPushGatewayMustBeTheNotifyEndpoint()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0599590Z Test case 'ConfigTests.testRejectsNonHTTPSchemesAndCredentials()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0600440Z Test case 'ConfigTests.testRejectsPlainHTTPExceptLoopbackInDebug()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0601200Z Test case 'ConfigTests.testServerInputParsing()' passed on 'iPhone 17 Pro - xctest (20029)' (1.012 seconds)
+2026-10-15T07:50:47.0601970Z Test case 'ConfigTests.testSSOProviderIdValidation()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0603420Z Test case 'ConnectionBannerTests.testBanners()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0604730Z Test case 'ConfigTests.testServerInputParsing()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0605710Z Test case 'ConfigTests.testSSOProviderIdValidation()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0607010Z Test case 'ConnectionBannerTests.testBanners()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0608260Z Test case 'DeepLinkTests.testCallbackIsSingleUseOnlyWithPendingAttempt()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (1.041 seconds)
+2026-10-15T07:50:47.0608980Z Test case 'DeepLinkTests.testMatrixIds()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0609750Z Test case 'DeepLinkTests.testCallbackIsSingleUseOnlyWithPendingAttempt()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0610540Z Test case 'DeepLinkTests.testMatrixIds()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0611150Z Test case 'DeepLinkTests.testMatrixToDetails()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0611870Z Test case 'DeepLinkTests.testSSOAttemptBuildsNonceRedirect()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0612710Z Test case 'DeepLinkTests.testWebAppAndPortalLinksOnlyForConfiguredHosts()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0613450Z Test case 'DeepLinkTests.testWhiteLabelScheme()' passed on 'iPhone 17 Pro - xctest (20029)' (0.969 seconds)
+2026-10-15T07:50:47.0614740Z Test case 'DeepLinkTests.testMatrixToDetails()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0615490Z Test case 'DeepLinkTests.testSSOAttemptBuildsNonceRedirect()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0616390Z Test case 'DeepLinkTests.testWebAppAndPortalLinksOnlyForConfiguredHosts()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0617220Z Test case 'DeepLinkTests.testWhiteLabelScheme()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0618580Z Test case 'DeliveryStateTests.testFailuresAndOthersMessages()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0619440Z Test case 'DeliveryStateTests.testLocalEchoIsSendingNeverDelivered()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0620350Z Test case 'DeliveryStateTests.testServerAckIsSentAndOthersReceiptIsRead()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0621620Z Test case 'DevicesAPITests.testDeviceName()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0622400Z Test case 'DeliveryStateTests.testFailuresAndOthersMessages()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0623300Z Test case 'DeliveryStateTests.testLocalEchoIsSendingNeverDelivered()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0625310Z Test case 'DeliveryStateTests.testServerAckIsSentAndOthersReceiptIsRead()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0626920Z Test case 'DevicesAPITests.testDeviceName()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0627650Z Test case 'DevicesAPITests.testListAndUIAFlow()' passed on 'iPhone 17 Pro - xctest (20029)' (0.003 seconds)
+2026-10-15T07:50:47.0628440Z Test case 'DevicesAPITests.testPasswordOnlyUIAIsUnsupported()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0629200Z Test case 'DevicesAPITests.testRenameAndPathEncoding()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0634430Z Test case 'DevicesAPITests.testListAndUIAFlow()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.609 seconds)
+2026-10-15T07:50:47.0635330Z Test case 'DevicesAPITests.testPasswordOnlyUIAIsUnsupported()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0636200Z Test case 'DevicesAPITests.testRenameAndPathEncoding()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0637660Z Test case 'DiscoveryTests.testHomeserverURLInput()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0638620Z Test case 'DiscoveryTests.testInvalidWellKnownIsAnError()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.820 seconds)
+2026-10-15T07:50:47.0639470Z Test case 'DiscoveryTests.testLumenServer()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.003 seconds)
+2026-10-15T07:50:47.0640260Z Test case 'DiscoveryTests.testNoSupportedLogin()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0641140Z Test case 'DiscoveryTests.testNotAMatrixServer()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0643800Z Test case 'DiscoveryTests.testHomeserverURLInput()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0644550Z Test case 'DiscoveryTests.testInvalidWellKnownIsAnError()' passed on 'iPhone 17 Pro - xctest (20029)' (0.832 seconds)
+2026-10-15T07:50:47.0646120Z Test case 'DiscoveryTests.testLumenServer()' passed on 'iPhone 17 Pro - xctest (20029)' (0.004 seconds)
+2026-10-15T07:50:47.0646980Z Test case 'DiscoveryTests.testNoSupportedLogin()' passed on 'iPhone 17 Pro - xctest (20029)' (0.004 seconds)
+2026-10-15T07:50:47.0647660Z Test case 'DiscoveryTests.testNotAMatrixServer()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0650650Z Test case 'DiscoveryTests.testPlainMatrixServerWithoutWellKnownFallsBackToServerName()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0651730Z Test case 'DiscoveryTests.testRequiresSlidingSync()' passed on 'iPhone 17 Pro - xctest (20029)' (0.842 seconds)
+2026-10-15T07:50:47.0652440Z Test case 'DiscoveryTests.testUnreachable()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0653690Z Test case 'IdentityWarningTests.testWarningsFromStatusChanges()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0654720Z Test case 'DiscoveryTests.testPlainMatrixServerWithoutWellKnownFallsBackToServerName()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0657550Z Test case 'DiscoveryTests.testRequiresSlidingSync()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.005 seconds)
+2026-10-15T07:50:47.0658460Z Test case 'DiscoveryTests.testUnreachable()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0659920Z Test case 'IdentityWarningTests.testWarningsFromStatusChanges()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0661140Z Test case 'ListDiffTests.testAllOperations()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0661810Z Test case 'ListDiffTests.testOutOfRangeThrows()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0663430Z Test case 'LogRedactorTests.testRedactsSecretsAndIdentifiers()' passed on 'iPhone 17 Pro - xctest (20029)' (0.003 seconds)
+2026-10-15T07:50:47.0664620Z Test case 'ListDiffTests.testAllOperations()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0665280Z Test case 'ListDiffTests.testOutOfRangeThrows()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0668030Z Test case 'LogRedactorTests.testRedactsSecretsAndIdentifiers()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0669940Z Test case 'NotificationPolicyTests.testHiddenByDefaultShowsNothingAboutSenderRoomOrText()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.006 seconds)
+2026-10-15T07:50:47.0671060Z Test case 'NotificationPolicyTests.testPreferencesDefaultsAndTolerantDecoding()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.007 seconds)
+2026-10-15T07:50:47.0678440Z Test case 'NotificationPolicyTests.testHiddenByDefaultShowsNothingAboutSenderRoomOrText()' passed on 'iPhone 17 Pro - xctest (20029)' (0.005 seconds)
+2026-10-15T07:50:47.0679710Z Test case 'NotificationPolicyTests.testPreferencesDefaultsAndTolerantDecoding()' passed on 'iPhone 17 Pro - xctest (20029)' (0.003 seconds)
+2026-10-15T07:50:47.0680690Z Test case 'NotificationPolicyTests.testPushAvailabilityNeverClaimsPushWithoutGateway()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0681590Z Test case 'NotificationPolicyTests.testPusherConfiguration()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0682320Z Test case 'NotificationPolicyTests.testPushPayload()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0683020Z Test case 'NotificationPolicyTests.testSenderAndText()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0683730Z Test case 'NotificationPolicyTests.testSenderOnly()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0684680Z Test case 'NotificationPolicyTests.testPushAvailabilityNeverClaimsPushWithoutGateway()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0685630Z Test case 'NotificationPolicyTests.testPusherConfiguration()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0686370Z Test case 'NotificationPolicyTests.testPushPayload()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0687100Z Test case 'NotificationPolicyTests.testSenderAndText()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0688020Z Test case 'NotificationPolicyTests.testSenderOnly()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.000 seconds)
+2026-10-15T07:50:47.0689130Z Test case 'NotificationPolicyTests.testStorePassphraseIsRandom32Bytes()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.861 seconds)
+2026-10-15T07:50:47.0690490Z Test case 'RecoveryKeyTests.testConfirmationIsWhitespaceInsensitive()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0691820Z Test case 'SharedVectorsTests.testDeepLinkVectors()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.004 seconds)
+2026-10-15T07:50:47.0692590Z Test case 'SharedVectorsTests.testURLValidationVectors()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0693410Z Test case 'NotificationPolicyTests.testStorePassphraseIsRandom32Bytes()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0694750Z Test case 'RecoveryKeyTests.testConfirmationIsWhitespaceInsensitive()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0696350Z Test case 'SharedVectorsTests.testDeepLinkVectors()' passed on 'iPhone 17 Pro - xctest (20029)' (0.004 seconds)
+2026-10-15T07:50:47.0697270Z Test case 'SharedVectorsTests.testURLValidationVectors()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0698210Z Test case 'SharedVectorsTests.testWellKnownVectors()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0699340Z Test case 'WidgetBridgeTests.testActionMessage()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0700200Z Test case 'WidgetBridgeTests.testAssetResolverRefusesTraversal()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0701160Z Test case 'SharedVectorsTests.testWellKnownVectors()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.369 seconds)
+2026-10-15T07:50:47.0702690Z Test case 'WidgetBridgeTests.testActionMessage()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0703650Z Test case 'WidgetBridgeTests.testAssetResolverRefusesTraversal()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0704740Z Test case 'WidgetBridgeTests.testCallStateIsConsumedAndAcknowledged()' passed on 'iPhone 17 Pro - xctest (20029)' (0.015 seconds)
+2026-10-15T07:50:47.0705780Z Test case 'WidgetBridgeTests.testEncryptionLabelOnlyFromWidgetState()' passed on 'iPhone 17 Pro - xctest (20029)' (0.000 seconds)
+2026-10-15T07:50:47.0706610Z Test case 'WidgetBridgeTests.testForwardsWidgetRequestsAndResponsesOnly()' passed on 'iPhone 17 Pro - xctest (20029)' (0.015 seconds)
+2026-10-15T07:50:47.0707460Z Test case 'WidgetBridgeTests.testPostMessageScriptCannotBreakOut()' passed on 'iPhone 17 Pro - xctest (20029)' (0.002 seconds)
+2026-10-15T07:50:47.0708460Z Test case 'WidgetBridgeTests.testWidgetURLTemplateUsesSDKPlaceholders()' passed on 'iPhone 17 Pro - xctest (20029)' (0.001 seconds)
+2026-10-15T07:50:47.0709540Z Test case 'WidgetBridgeTests.testCallStateIsConsumedAndAcknowledged()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0710600Z Test case 'WidgetBridgeTests.testEncryptionLabelOnlyFromWidgetState()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.217 seconds)
+2026-10-15T07:50:47.0711480Z Test case 'WidgetBridgeTests.testForwardsWidgetRequestsAndResponsesOnly()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.016 seconds)
+2026-10-15T07:50:47.0712460Z Test case 'WidgetBridgeTests.testPostMessageScriptCannotBreakOut()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.002 seconds)
+2026-10-15T07:50:47.0713360Z Test case 'WidgetBridgeTests.testWidgetURLTemplateUsesSDKPlaceholders()' passed on 'iPad Pro 13-inch (M5) - xctest (20028)' (0.001 seconds)
+2026-10-15T07:50:47.0716340Z Test case 'LumenUITests.testDiscoveryShowsSSOButton()' skipped on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (21336)' (1.693 seconds)
+2026-10-15T07:50:47.0717390Z Test case 'LumenUITests.testLaunchShowsServerPicker()' passed on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (21336)' (53.394 seconds)
+2026-10-15T07:50:47.0720400Z Test case 'LumenUITests.testDiscoveryShowsSSOButton()' skipped on 'iPhone 17 Pro - LumenUITests-Runner (25138)' (0.276 seconds)
+2026-10-15T07:50:47.0721360Z Test case 'LumenUITests.testLaunchShowsServerPicker()' passed on 'iPhone 17 Pro - LumenUITests-Runner (25138)' (7.891 seconds)
+2026-10-15T07:50:47.2862300Z ==> tests passed on simulators E952A9B0-CC78-435C-BF08-06AD47FE1076 and 0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049
+2026-10-15T07:51:53.9877210Z warning: services/chat/dist-widget/index.html not found; this build has no bundled call widget and will use the server's call_widget_url.
+2026-10-15T07:51:54.9836110Z ** ARCHIVE SUCCEEDED **
+2026-10-15T07:52:02.0136770Z ==> unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
+2026-10-15T07:52:02.8991780Z ================ iOS build summary ================
+2026-10-15T07:52:02.8995830Z  - unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
+2026-10-15T07:52:02.9044160Z      Lumen-unsigned.xcarchive.zip
+2026-10-15T07:52:02.9044550Z      Lumen.xcodeproj.zip
+2026-10-15T07:52:02.9044920Z      SHA256SUMS-ios.txt
+2026-10-15T07:52:02.9074970Z 4c60e6bc3502d86ada1f9041bbd94385c9c7c3976cc071bddbd6d5e343ac4435  Lumen-unsigned.xcarchive.zip
+2026-10-15T07:52:02.9075600Z 7abca226b5357bd2598cacf9212336b1e49cfeb494dc5a96913e7e83d8b1969c  Lumen.xcodeproj.zip
+2026-10-15T07:52:02.9248720Z   path: apps/ios/build/*.xcarchive.zip
+apps/ios/build/SHA256SUMS-ios.txt
+apps/ios/build/Lumen.xcodeproj.zip
+2026-10-15T07:52:05.9834450Z SHA256 digest of uploaded artifact is 41f2dc6ac5a8870bf98d6dcfae67029e32fa03bbc3601530b6c3910dacd5cc6f

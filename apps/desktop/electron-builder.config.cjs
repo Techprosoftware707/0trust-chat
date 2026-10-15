@@ -158,7 +158,7 @@ module.exports = {
       { target: "AppImage", arch: ["x64"] },
       { target: "deb", arch: ["x64"] },
     ],
-    desktop: { entry: { StartupWMClass: productName } },
+    syncDesktopName: true,
   },
   deb: {
     depends: ["libnss3", "libsecret-1-0", "libnotify4", "libxtst6", "libxss1", "libgbm1", "libasound2t64 | libasound2"],
