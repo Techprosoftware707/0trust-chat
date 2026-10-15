@@ -20,9 +20,9 @@ app.example.com.      3600  IN  AAAA  2001:db8::10
 matrix.example.com.   3600  IN  A     203.0.113.10
 matrix.example.com.   3600  IN  AAAA  2001:db8::10
 
-; Voice/video calls: SFU signalling (wss://rtc.example.com) and the TURN/TLS
-; certificate name (LUMEN_RTC_DOMAIN). Media then flows to the same address on
-; 7882-7889/udp, 7881/tcp, 3478/udp and 5349/tcp, so it must be the server's real
+; Voice/video calls: SFU signalling (wss://rtc.example.com, LUMEN_RTC_DOMAIN).
+; Media then flows to the same address on 7882-7889/udp, 7881/tcp and 3478/udp,
+; so it must be the server's real
 ; public address (no CDN or HTTP proxy in front of this name).
 rtc.example.com.      3600  IN  A     203.0.113.10
 rtc.example.com.      3600  IN  AAAA  2001:db8::10

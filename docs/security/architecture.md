@@ -24,7 +24,7 @@ boundary authenticates. Decisions and rejected alternatives are in
                   │   rtc.example.com      → livekit  (127.0.0.1:7880)  call signalling (wss); /twirp, /metrics,
                   │                                                       /debug, /sfu_webhook → 404 publicly
  Internet ──► 7882-7889/udp, 7881/tcp ── livekit SFU (host network)   encrypted call media (ciphertext frames)
-          ──► 3478/udp, 5349/tcp      ── livekit's embedded TURN      relay to the local SFU only
+          ──► 3478/udp                ── livekit's embedded TURN      relay to the local SFU only
  Calls (default on, CALLS_ENABLED):
    lkjwt      (rtc + backend networks) MatrixRTC authorization service; Synapse proxies get_token to it
    rtc network 172.30.42.0/28: the only place the SFU admin API (/twirp) and metrics answer

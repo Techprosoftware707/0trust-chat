@@ -69,8 +69,7 @@ revisions. This was **not tested** (see the test report).
 - **Public media ports.** Only these are exposed:
   - UDP 7882–7889: ICE/UDP mux;
   - TCP 7881: ICE/TCP fallback;
-  - UDP 3478: TURN;
-  - TCP 5349: TURN/TLS.
+  - UDP 3478: TURN.
 - **Private surfaces.** The Twirp admin API, `/metrics`, `/debug` and the
   webhook path return 404 on the public site. They are reachable only from
   the dedicated `rtc` Docker network (172.30.42.0/28), which the
@@ -116,8 +115,7 @@ user. That is how appservices work, and it is listed in the threat model.
 
 LiveKit's TURN server (pion/turn) is configured as follows:
 
-- UDP 3478 and TLS 5349, using the `rtc.<domain>` certificate copied from
-  Caddy's store and refreshed daily by `lumen-rtc-cert.timer`;
+- UDP 3478;
 - credentials from the same signed token flow (5-minute TTL);
 - relaying to the WireGuard subnet, the `rtc` network and 172.16.0.0/12
   denied;
@@ -126,12 +124,32 @@ LiveKit's TURN server (pion/turn) is configured as follows:
 - no TCP relay allocations.
 
 Removing coturn removed one daemon, one long-lived shared secret and one set
-of ports. The order of ICE paths a client can use:
+of ports.
+
+**Media addresses.** LiveKit uses only the address it advertises
+(`rtc.ips.includes`). Behind 1:1 NAT, it uses only the default-route
+interface (`CALLS_INTERFACE`). Unrestricted, it bound every host address,
+including Docker bridges and wg0. In the call suite it then answered relayed
+connectivity checks from an address the client had not permitted, so TURN
+and ICE/TCP failed. With the restriction both work.
+
+**ICE paths**, in the order a client can use them:
 
 1. direct UDP to the SFU;
 2. ICE/TCP 7881;
-3. TURN/UDP 3478;
-4. TURN/TLS 5349, for networks that allow only TLS.
+3. TURN/UDP 3478.
+
+**No TURN over TLS.** LiveKit 1.13 always advertises TURN/TLS as
+`turns:<domain>:443`, because it expects an external TLS terminator on 443.
+On a single Lumen host, 443 is Caddy's.
+
+- Offering it would need one of these, neither of which Lumen ships in 1.x:
+  - a second public IP with its own `turn.<domain>` name and certificate;
+  - an L4 SNI router in front of Caddy, such as Caddy built with the layer4
+    module, passing `turn.<domain>` to LiveKit with PROXY protocol.
+- Lumen therefore advertises no TURN/TLS rather than a broken one.
+- Clients on networks that allow only HTTPS on 443 cannot join calls. They
+  get a clear connection error (call suite test 15c).
 
 A WireGuard tunnel is **not** assumed to make WebRTC work. Calls were tested
 both with the VPN up and with the SFU address routed through the tunnel
@@ -234,8 +252,7 @@ is in `services/chat/src/calls/`, built on `matrix-js-sdk` (MatrixRTC) and
   - a working path through restrictive networks.
 - **New infrastructure:**
   - two containers;
-  - nine public ports (UDP range 7882–7889 counted as one rule, plus 7881,
-    3478, 5349);
+  - public ports: the UDP range 7882–7889 (one rule), TCP 7881 and UDP 3478;
   - one extra DNS name.
 - **New trust in third-party code:**
   - LiveKit;

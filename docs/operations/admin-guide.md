@@ -12,7 +12,7 @@ DNS knowledge. Disaster recovery has its own guide:
 | OS | Ubuntu Server 24.04 LTS, x86_64 or arm64, systemd | fresh install, nothing else on ports 80/443 |
 | CPU / RAM | 2 vCPU / 4 GB | 4 vCPU / 8 GB (hundreds of active users) |
 | Disk | 20 GB free | 40 GB+ for `/var/lib` and `/var/backups` (media and backups grow) |
-| Network | public IPv4; ports 80/tcp, 443/tcp+udp; for calls 7882–7889/udp, 7881/tcp, 3478/udp, 5349/tcp | IPv6 too; UDP 51820 for WireGuard; bandwidth for calls (see [Calls](#calls)) |
+| Network | public IPv4; ports 80/tcp, 443/tcp+udp; for calls 7882–7889/udp, 7881/tcp, 3478/udp | IPv6 too; UDP 51820 for WireGuard; bandwidth for calls (see [Calls](#calls)) |
 | DNS | A/AAAA records for `example.com`, `app.`, `matrix.`, `rtc.` (calls) and `ops.` (console certificate) | see [dns.md](dns.md) |
 | Time | NTP synchronised (`timedatectl`) | — |
 
@@ -58,7 +58,6 @@ every endpoint check passed; exit 3 means the stack is up but a check failed
 | `/var/lib/lumen/postgres` | PostgreSQL data (portal and homeserver databases) |
 | `/var/lib/lumen/synapse` | homeserver signing key (**server identity**) and media store |
 | `/var/lib/lumen/caddy` | TLS certificates and ACME account |
-| `/var/lib/lumen/livekit/tls` | copy of the `rtc.` certificate for TURN/TLS (refreshed daily by `lumen-rtc-cert.timer`) |
 | `/etc/lumen/rendered/livekit/livekit.yaml` | generated SFU configuration (no secrets; the API key is in `/etc/lumen/secrets/livekit_keys`) |
 | `/var/lib/lumen/www/chat` | built web chat app |
 | `/var/lib/lumen/sockets` | Unix sockets between Caddy and the apps |
@@ -182,9 +181,8 @@ The SFU does see call metadata:
 - audio levels (used for the "speaking" indicator).
 
 **DNS and certificate.** Point `rtc.<domain>` (or `LUMEN_RTC_DOMAIN`) at the
-server; see [dns.md](dns.md). Caddy obtains its certificate. The installer
-copies it for TURN/TLS, and the timer `lumen-rtc-cert.timer` re-copies it
-daily. To do it by hand: `sudo ./lumenctl rtc-cert`.
+server; see [dns.md](dns.md). Caddy obtains its certificate and serves call
+signalling (`wss://rtc.<domain>`) on 443.
 
 **Ports.** The installer opens these in UFW. Open them in your cloud
 provider's firewall or security group as well:
@@ -195,7 +193,16 @@ provider's firewall or security group as well:
 | 7882–7889/udp (`CALLS_UDP_PORTS`) | media (ICE/UDP); the best path |
 | 7881/tcp (`CALLS_TCP_PORT`) | media over TCP when UDP is blocked |
 | 3478/udp (`CALLS_TURN_UDP_PORT`) | TURN relay for clients behind strict NATs |
-| 5349/tcp (`CALLS_TURN_TLS_PORT`) | TURN over TLS, for networks that only allow TLS |
+
+**No TURN over TLS.** LiveKit 1.13 advertises TURN/TLS only as
+`turns:<domain>:443`, because it expects a TLS-terminating load balancer there.
+On a Lumen server, 443 belongs to Caddy, so Lumen does not offer TURN/TLS
+rather than advertise a path that cannot work. What this means:
+
+- Clients behind firewalls that block UDP still connect through **ICE over
+  TCP on 7881**.
+- Clients on networks that allow only HTTPS on port 443 cannot join calls.
+  They see a clear "couldn't connect to the media server" message.
 
 Some ports are never opened:
 

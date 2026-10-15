@@ -37,6 +37,10 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
    all`); public unencrypted rooms are not offered.
 9. **Voice/video calls** (MatrixRTC + LiveKit; see ADR 0002 and the test
    report for what was actually exercised):
+   * **No TURN over TLS.** Calls need UDP (direct or TURN on 3478) or TCP 7881.
+     Networks that allow only HTTPS on port 443 cannot join calls; users see a
+     "couldn't connect to the media server" message. LiveKit 1.13 offers
+     TURN/TLS only on 443, which is Caddy's on a single host (ADR 0002, D4).
    * **One SFU node.** There is no multi-node SFU, no separate TURN host and no
      automatic failover. A LiveKit restart drops active calls; clients
      reconnect.

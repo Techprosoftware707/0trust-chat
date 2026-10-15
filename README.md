@@ -31,7 +31,7 @@ Name, logo, colours and domains are configuration (`BRAND_*`,
 On a fresh Ubuntu Server 24.04 with DNS for `example.com`, `app.`, `matrix.`,
 `rtc.` (calls) and `ops.` pointing at it ([DNS examples](docs/operations/dns.md)).
 Open TCP 80 and 443, UDP 443, and the calls ports (7882–7889/udp, 7881/tcp,
-3478/udp, 5349/tcp) in any cloud firewall in front of the server:
+3478/udp) in any cloud firewall in front of the server:
 
 ```bash
 git clone <your Lumen repository> lumen && cd lumen
@@ -86,7 +86,7 @@ install.sh update.sh backup.sh restore.sh healthcheck.sh diagnose.sh uninstall.s
 docker-compose.yml            the stack (images pinned in deploy/versions.env)
 deploy/lib/                   installer libraries, config renderer (render.py), verification
 deploy/host-agent/            root helper with a fixed operation allow-list (WireGuard, backups, restarts)
-deploy/systemd/               agent, backup, backup-verify, health and rtc-certificate timers
+deploy/systemd/               agent, backup, backup-verify and health timers
 deploy/templates/             PostgreSQL roles, Synapse SSO page templates
 services/portal/              Django project (website, portal, IdP, console, worker) + tests
 services/chat/                web chat client (React + matrix-js-sdk) + unit tests
