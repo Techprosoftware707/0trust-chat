@@ -32,9 +32,31 @@ LEN = re.compile(r"^([0-9.]+)(rem|px)$")
 MS = re.compile(r"^([0-9.]+)ms$")
 
 
+def strip_media_blocks(css: str) -> str:
+    """Remove every top-level @media { ... } block (brace-matched)."""
+    out, i = [], 0
+    while True:
+        j = css.find("@media", i)
+        if j < 0:
+            out.append(css[i:])
+            return "".join(out)
+        out.append(css[i:j])
+        k = css.index("{", j)
+        depth = 0
+        for pos in range(k, len(css)):
+            depth += css[pos] == "{"
+            depth -= css[pos] == "}"
+            if depth == 0:
+                i = pos + 1
+                break
+        else:
+            raise SystemExit("tokens.css: unbalanced braces in @media block")
+
+
 def blocks(css: str) -> tuple[dict[str, str], dict[str, str]]:
     """Returns (light/root declarations, dark declarations)."""
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    css = strip_media_blocks(css)  # base values only (not reduced-motion / OS-dark overrides)
     root: dict[str, str] = {}
     dark: dict[str, str] = {}
     # :root { ... } blocks (the first ones hold palette, scale and light theme)

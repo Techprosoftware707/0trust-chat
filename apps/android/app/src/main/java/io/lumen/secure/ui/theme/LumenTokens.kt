@@ -164,6 +164,6 @@ object LumenDimens {
 }
 
 object LumenMotion {
-    const val durFastMillis = 0
-    const val durMedMillis = 0
+    const val durFastMillis = 120
+    const val durMedMillis = 220
 }

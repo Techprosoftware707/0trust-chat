@@ -159,6 +159,6 @@ enum LumenDimens {
 }
 
 enum LumenMotion {
-    static let durFast: Double = 0
-    static let durMed: Double = 0
+    static let durFast: Double = 0.12
+    static let durMed: Double = 0.22
 }
