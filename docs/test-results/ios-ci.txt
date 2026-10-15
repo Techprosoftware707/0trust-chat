@@ -1,25 +1,14 @@
-# iOS CI (.github/workflows/ios.yml -> apps/ios/scripts/ci-build.sh), excerpt of the raw job log
-# run: https://github.com/Techprosoftware707/0trust-chat/actions/runs/38700890640 (commit 600911e), runner macos-15
-# excerpt: tool versions, step results, every test case line; no lines were edited
+# iOS CI (.github/workflows/ios.yml -> apps/ios/scripts/ci-build.sh): excerpt of the raw job log
+# run: https://github.com/Techprosoftware707/0trust-chat/actions/runs/38700890640 (commit 600911e), runner macos-15, Xcode 26.3
+# Simulators: iPhone 17 Pro and iPad Pro 13-inch (M5), iOS 26.2. LumenTests = 62 LumenCore tests (incl. apps/shared/test-vectors) + 7 app-level tests;
+# LumenUITests = launch test (ran) + discovery test (skipped: LUMEN_UITEST_SERVER not set).
+# Excerpt: tool versions, step results, every test case line, artifacts. Lines are unedited apart from the job/step prefix.
 
 2026-10-15T07:45:42.2226430Z ==> Xcode: Xcode 26.3 Build version 17C529 
 2026-10-15T07:45:44.7491430Z ==> Swift: Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
 2026-10-15T07:45:45.3367190Z ==> XcodeGen: Version: 2.46.0
 2026-10-15T07:45:45.5384910Z ==> design tokens up to date
 2026-10-15T07:45:45.5491490Z ==> no disabled TLS verification
-2026-10-15T07:46:04.8729260Z 	 Executed 5 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
-2026-10-15T07:46:04.8736610Z 	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
-2026-10-15T07:46:04.8765640Z 	 Executed 10 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
-2026-10-15T07:46:04.8780070Z 	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
-2026-10-15T07:46:04.8799840Z 	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
-2026-10-15T07:46:04.8805330Z 	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
-2026-10-15T07:46:04.8815500Z 	 Executed 8 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
-2026-10-15T07:46:04.8821650Z 	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
-2026-10-15T07:46:04.8836900Z 	 Executed 8 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
-2026-10-15T07:46:04.8848310Z 	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
-2026-10-15T07:46:04.8858460Z 	 Executed 7 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
-2026-10-15T07:46:04.8859290Z 	 Executed 62 tests, with 0 failures (0 unexpected) in 0.033 (0.040) seconds
-2026-10-15T07:46:04.8860010Z 	 Executed 62 tests, with 0 failures (0 unexpected) in 0.033 (0.041) seconds
 2026-10-15T07:46:04.8861960Z ==> LumenCore swift test passed
 2026-10-15T07:46:04.9820940Z ==> generated Lumen.xcodeproj
 2026-10-15T07:46:04.9821430Z ==> version 1.0.0 (project default) build 2
@@ -176,13 +165,9 @@
 2026-10-15T07:51:54.9836110Z ** ARCHIVE SUCCEEDED **
 2026-10-15T07:52:02.0136770Z ==> unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
 2026-10-15T07:52:02.8991780Z ================ iOS build summary ================
-2026-10-15T07:52:02.8995830Z  - unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
 2026-10-15T07:52:02.9044160Z      Lumen-unsigned.xcarchive.zip
 2026-10-15T07:52:02.9044550Z      Lumen.xcodeproj.zip
+2026-10-15T07:52:02.9044750Z      LumenTests.xcresult
 2026-10-15T07:52:02.9044920Z      SHA256SUMS-ios.txt
 2026-10-15T07:52:02.9074970Z 4c60e6bc3502d86ada1f9041bbd94385c9c7c3976cc071bddbd6d5e343ac4435  Lumen-unsigned.xcarchive.zip
 2026-10-15T07:52:02.9075600Z 7abca226b5357bd2598cacf9212336b1e49cfeb494dc5a96913e7e83d8b1969c  Lumen.xcodeproj.zip
-2026-10-15T07:52:02.9248720Z   path: apps/ios/build/*.xcarchive.zip
-apps/ios/build/SHA256SUMS-ios.txt
-apps/ios/build/Lumen.xcodeproj.zip
-2026-10-15T07:52:05.9834450Z SHA256 digest of uploaded artifact is 41f2dc6ac5a8870bf98d6dcfae67029e32fa03bbc3601530b6c3910dacd5cc6f
