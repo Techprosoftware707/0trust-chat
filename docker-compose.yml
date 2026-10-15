@@ -295,7 +295,6 @@ services:
       - livekit_keys
     volumes:
       - ${LUMEN_RENDERED_DIR}/livekit/livekit.yaml:/etc/livekit/livekit.yaml:ro
-      - ${LUMEN_DATA_DIR}/livekit/tls:/etc/livekit/tls:ro
     tmpfs:
       - /tmp:size=64m
     pids_limit: 512

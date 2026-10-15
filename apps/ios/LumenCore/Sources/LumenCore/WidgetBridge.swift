@@ -9,6 +9,12 @@ import Foundation
 //
 // Native -> widget: strings from WidgetDriverHandle.recv() and Lumen call
 // actions are delivered with `window.postMessage(<json>, <origin>)`.
+//
+// Lumen envelopes (shared with the Android app):
+//   widget -> native: {"type":"io.lumen.call_state","state":…,"video":…,"muted":…,"e2ee":…}
+//                     (fields may be nested under "data"; a widget-API request with
+//                     action "io.lumen.call_state" is accepted and acknowledged too)
+//   native -> widget: {"type":"io.lumen.call_action","action":"hangup"|"mute"|…}
 
 public enum CallConnectionState: String, Equatable, Sendable {
     case connecting, connected, reconnecting, ended
@@ -18,6 +24,7 @@ public enum CallConnectionState: String, Equatable, Sendable {
 public enum CallEncryptionState: Equatable, Sendable {
     case encrypted
     case waitingForKey
+    case decryptError
     case notEncrypted
     case other(String)
     case unknown
@@ -26,8 +33,9 @@ public enum CallEncryptionState: Equatable, Sendable {
         switch raw {
         case "encrypted": self = .encrypted
         case "waiting-for-key": self = .waitingForKey
+        case "decrypt-error": self = .decryptError
         case "not-encrypted": self = .notEncrypted
-        case nil: self = .unknown
+        case nil, "unknown": self = .unknown
         case let s?: self = .other(String(s.prefix(40)))
         }
     }
@@ -37,6 +45,7 @@ public enum CallEncryptionState: Equatable, Sendable {
         switch self {
         case .encrypted: return "End-to-end encrypted"
         case .waitingForKey: return "Waiting for encryption keys"
+        case .decryptError: return "Decryption error: some media can't be decrypted"
         case .notEncrypted: return "Not end-to-end encrypted"
         case .other(let s): return "Encryption: \(s)"
         case .unknown: return "Encryption status unknown"
@@ -99,7 +108,8 @@ public struct WidgetMessageFilter: Sendable {
         let action = obj["action"] as? String
         if action == WidgetMessageFilter.callStateAction || obj["type"] as? String == WidgetMessageFilter.callStateAction {
             if let w = obj["widgetId"] as? String, w != widgetId { return .drop(reason: "other widget") }
-            guard let update = WidgetMessageFilter.parseCallState(obj["data"] ?? obj["content"]) else {
+            // Fields under "data" (widget-API style) or at the top level (as the Android bridge accepts).
+            guard let update = WidgetMessageFilter.parseCallState(obj["data"] ?? obj["content"] ?? obj) else {
                 return .drop(reason: "invalid call state")
             }
             var reply: String?
@@ -133,14 +143,13 @@ public struct WidgetMessageFilter: Sendable {
         )
     }
 
-    /// A `toWidget` request carrying an `io.lumen.call_action`.
-    public func actionMessage(_ action: CallAction, requestId: String = UUID().uuidString) -> String {
+    /// `{"type":"io.lumen.call_action","action":"mute"}`, the same envelope the
+    /// Android app sends to the shared call widget. It is not a widget-API
+    /// message, so matrix-widget-api's transport ignores it.
+    public func actionMessage(_ action: CallAction) -> String {
         WidgetMessageFilter.jsonString([
-            "api": "toWidget",
-            "widgetId": widgetId,
-            "requestId": requestId,
-            "action": WidgetMessageFilter.callActionAction,
-            "data": ["action": action.rawValue],
+            "type": WidgetMessageFilter.callActionAction,
+            "action": action.rawValue,
         ]) ?? "{}"
     }
 

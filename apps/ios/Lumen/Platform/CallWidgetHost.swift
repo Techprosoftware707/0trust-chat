@@ -98,9 +98,10 @@ final class CallWidgetHost: NSObject {
         config.userContentController = controller
         webView = WKWebView(frame: .zero, configuration: config)
         super.init()
+        // WKWebView copies its configuration: register on the web view's own controller.
         let proxy = WeakScriptHandler(self)
-        controller.add(proxy, name: "lumenNative")
-        controller.add(proxy, name: "lumenBootstrap")
+        webView.configuration.userContentController.add(proxy, name: "lumenNative")
+        webView.configuration.userContentController.add(proxy, name: "lumenBootstrap")
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.isOpaque = false

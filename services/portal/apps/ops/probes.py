@@ -317,24 +317,19 @@ def _stun_binding(host: str, port: int) -> bool:
 
 
 def probe_turn() -> ProbeResult:
-    """LiveKit's embedded TURN: answers STUN on UDP, and its TLS listener's certificate."""
+    """LiveKit's embedded TURN answers STUN on UDP. (No TURN/TLS: LiveKit 1.13 advertises it
+    only on :443, which is Caddy's — see docs/adr/0002-calling.md D4.)"""
     if not settings.CALLS_ENABLED:
         return ProbeResult("unknown", "calls disabled")
     host = settings.RTC_GATEWAY_IP or "127.0.0.1"
     port = settings.CALLS_TURN_UDP_PORT
-    detail: dict = {"udp_port": port, "tls_port": settings.CALLS_TURN_TLS_PORT}
+    detail: dict = {"udp_port": port}
     try:
         if not _stun_binding(host, port):
             return ProbeResult("degraded", "unexpected STUN response", detail)
     except OSError as exc:
         return ProbeResult("failed", f"TURN did not answer STUN on udp/{port} ({type(exc).__name__})", detail)
-    try:
-        secs, _version = _cert_seconds_left(settings.RTC_DOMAIN, settings.CALLS_TURN_TLS_PORT, connect_host=host)
-        detail["tls_seconds_left"] = secs
-    except (OSError, ssl.SSLError, ValueError) as exc:
-        detail["tls_error"] = type(exc).__name__
-        return ProbeResult("degraded", f"TURN/UDP ok; TURN/TLS on tcp/{settings.CALLS_TURN_TLS_PORT} unavailable ({type(exc).__name__}) — run lumenctl rtc-cert", detail)
-    return ProbeResult("ok", f"TURN answers on udp/{port}; TURN/TLS certificate valid ({_human(secs)} left)", detail)
+    return ProbeResult("ok", f"TURN answers STUN on udp/{port}", detail)
 
 
 def _prom(text: str) -> dict[str, float]:

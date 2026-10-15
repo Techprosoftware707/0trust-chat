@@ -14,6 +14,7 @@ struct MessageBubbleView: View {
     var onDelete: () -> Void
     var onRetry: () -> Void
     var onCancelSend: () -> Void
+    var onReport: () -> Void
     @Environment(\.lumen) private var c
     @State private var confirmDelete = false
 
@@ -157,6 +158,9 @@ struct MessageBubbleView: View {
         }
         if message.isOwn, message.eventId != nil {
             Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+        }
+        if !message.isOwn, message.eventId != nil {
+            Button(role: .destructive, action: onReport) { Label("Report", systemImage: "flag") }
         }
         if message.isOwn, !message.readBy.isEmpty {
             Text("Read by \(message.readBy.count)")

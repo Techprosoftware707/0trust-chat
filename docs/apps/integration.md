@@ -175,7 +175,7 @@ user's session, so the widget never holds an access token.
 
 ```
 ?widgetId=$WIDGET_ID&parentUrl=<widget page origin>&roomId=$matrix_room_id
-&userId=$matrix_user_id&deviceId=$org.matrix.msc3819.matrix_device_id
+&userId=$matrix_user_id&deviceId=$org.matrix.msc2873.matrix_device_id
 &baseUrl=$org.matrix.msc4039.matrix_base_url&lang=<lang>&theme=<light|dark>
 &intent=<start_call|join_existing>&video=<true|false>&notify=<ring|notification|none>
 ```
@@ -195,14 +195,39 @@ user's session, so the widget never holds an access token.
    `WidgetDriverHandle.send(json)`. Strings from `WidgetDriverHandle.recv()`
    are delivered with `window.postMessage(<json>, "<widget origin>")` through
    `evaluateJavascript`.
-3. **Call-state events.** The widget sends `io.lumen.call_state` messages to
-   the native object, with `{state: "connecting"|"connected"|"reconnecting"|"ended",
-   video, muted, e2ee: "encrypted"|"waiting-for-key"|"not-encrypted"|…}`. The
-   native layer uses them to drive CallKit / `ConnectionService`. These
-   messages never contain keys.
-4. **Native → widget actions.** Native sends `io.lumen.call_action` with
-   `{action: "hangup"|"mute"|"unmute"|"video_on"|"video_off"|"switch_camera"}`,
-   for example from the CallKit UI or a Bluetooth headset button.
+3. **Start-up handshake.** Both apps create the driver with
+   `initAfterContentLoad = true`. The widget must therefore send the widget-API
+   `content_loaded` action (`WidgetApi.sendContentLoaded()`) once it is ready.
+   Until it does, the driver never starts the capability negotiation.
+4. **Call-state events, widget → native.** The widget posts this through the
+   same native object. It is not a widget-API message, and it never contains
+   keys:
+
+   ```json
+   {"type": "io.lumen.call_state", "state": "connecting|connected|reconnecting|ended",
+    "video": true, "muted": false,
+    "e2ee": "encrypted|waiting-for-key|decrypt-error|not-encrypted|unknown"}
+   ```
+
+   - The apps also accept the same fields nested under `"data"`, and a
+     widget-API `fromWidget` request whose action is `io.lumen.call_state`
+     (acknowledged).
+   - The native layer uses these events to drive CallKit / `ConnectionService`.
+5. **Call actions, native → widget.** Native delivers this with
+   `window.postMessage`. It is not a widget-API message, so
+   `matrix-widget-api`'s transport ignores it, and the widget listens for it
+   with its own `message` listener:
+
+   ```json
+   {"type": "io.lumen.call_action", "action": "hangup|mute|unmute|video_on|video_off|switch_camera"}
+   ```
+
+   It is used, for example, for the CallKit UI or a Bluetooth headset button.
+6. **Driver lifetime (SDK 26.09/26.10).** `WidgetDriver.run` does not return
+   when the widget goes away, and uniffi futures cannot be cancelled from
+   Swift or Kotlin. After a call the apps detach the page and discard the
+   driver's messages, so an idle driver task stays alive until the app
+   process exits.
 
 **Capabilities.** The driver's capability provider grants exactly what
 `getElementCallRequiredPermissions(userId, deviceId)` returns, because that is

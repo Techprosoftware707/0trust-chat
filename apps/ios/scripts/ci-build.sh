@@ -77,8 +77,10 @@ note "XcodeGen: $("$XCODEGEN" --version)"
 # --- Checks ------------------------------------------------------------------
 python3 "$REPO/design/tools/gen_tokens.py" --check || fail "generated design tokens are out of date (run python3 design/tools/gen_tokens.py)"
 note "design tokens up to date"
-if grep -rn "disableSslVerification\|disableSSLVerification" "$IOS" --include='*.swift' >/dev/null; then
-  fail "TLS verification must never be disabled (found disableSslVerification in apps/ios)"
+# The SDK builder's TLS-bypass call, assembled so this file doesn't contain it.
+TLS_BYPASS="disable""SslVerification"
+if grep -rniE "\.${TLS_BYPASS}[[:space:]]*\(" "$IOS" --include='*.swift' >/dev/null; then
+  fail "TLS certificate validation must never be disabled (a call to the SDK's TLS-bypass builder method was found)"
 fi
 note "no disabled TLS verification"
 
@@ -94,6 +96,16 @@ fi
 note "generated Lumen.xcodeproj"
 
 declare -a SETTINGS=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO)
+# Versions (docs/apps/release.md): CFBundleShortVersionString = release tag
+# vX.Y.Z (or LUMEN_VERSION), CFBundleVersion = CI run number.
+VERSION="${LUMEN_VERSION:-}"
+if [[ -z "$VERSION" && "${GITHUB_REF_NAME:-}" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then VERSION="${BASH_REMATCH[1]}"; fi
+if [[ -n "$VERSION" ]]; then
+  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "LUMEN_VERSION must be MAJOR.MINOR.PATCH"
+  SETTINGS+=("MARKETING_VERSION=$VERSION")
+fi
+if [[ -n "${GITHUB_RUN_NUMBER:-}" ]]; then SETTINGS+=("CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER"); fi
+note "version ${VERSION:-1.0.0 (project default)} build ${GITHUB_RUN_NUMBER:-1}"
 if [[ -n "${LUMEN_DEFAULT_SERVER:-}" ]]; then
   SETTINGS+=("LUMEN_DEFAULT_SERVER=$LUMEN_DEFAULT_SERVER")
   note "default server: $LUMEN_DEFAULT_SERVER"

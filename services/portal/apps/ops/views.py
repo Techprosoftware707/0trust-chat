@@ -560,7 +560,6 @@ def calls(request):
             (f"{settings.CALLS_UDP_PORTS}/udp", "WebRTC media (UDP mux)"),
             (f"{settings.CALLS_TCP_PORT}/tcp", "ICE over TCP when UDP is blocked"),
             (f"{settings.CALLS_TURN_UDP_PORT}/udp", "TURN relay"),
-            (f"{settings.CALLS_TURN_TLS_PORT}/tcp", "TURN over TLS"),
             ("443/tcp", "signalling (wss) through Caddy"),
         ],
     }

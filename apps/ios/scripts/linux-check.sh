@@ -5,9 +5,9 @@
 #  1. LumenCore: build in Swift 6 mode and run its XCTest suite (incl. the
 #     shared test vectors in apps/shared/test-vectors).
 #  2. Type-check the SDK-facing app code (Lumen/Matrix, Lumen/Shared minus the
-#     Keychain file) against the real Matrix Rust SDK Swift bindings of the
-#     pinned release and the C headers from its xcframework. Nothing is
-#     linked: the Rust library is Apple-only.
+#     Keychain file) and LumenTests' app-level tests against the real Matrix
+#     Rust SDK Swift bindings of the pinned release and the C headers from its
+#     xcframework. Nothing is linked: the Rust library is Apple-only.
 #
 # SwiftUI/UIKit/CallKit/PushKit/WebKit code and the NSE need Xcode (CI).
 #
@@ -41,7 +41,7 @@ echo "$SDK_SHA256  $ZIP" | sha256sum -c -
 
 H="$WORK/harness"
 rm -rf "$H/Sources"
-mkdir -p "$H/Sources/MatrixSDKFFI/include" "$H/Sources/MatrixRustSDK" "$H/Sources/LumenCore" "$H/Sources/LumenAppCheck"
+mkdir -p "$H/Sources/MatrixSDKFFI/include" "$H/Sources/MatrixRustSDK" "$H/Sources/LumenCore" "$H/Sources/LumenAppCheck" "$H/Sources/LumenTestsCheck"
 unzip -q -o -j "$ZIP" 'MatrixSDKFFI.xcframework/ios-arm64/Headers/MatrixSDKFFI/*.h' -d "$H/Sources/MatrixSDKFFI/include"
 # The shipped module map `use`s Darwin; on Linux list the headers only.
 {
@@ -54,7 +54,12 @@ echo "/* headers only, never linked */" > "$H/Sources/MatrixSDKFFI/shim.c"
 ln -sf "$WORK"/sdk/Sources/MatrixRustSDK/*.swift "$H/Sources/MatrixRustSDK/"
 ln -sf "$IOS"/LumenCore/Sources/LumenCore/*.swift "$H/Sources/LumenCore/"
 ln -sf "$IOS"/Lumen/Matrix/*.swift "$H/Sources/LumenAppCheck/"
-for f in AppEnvironment ClientFactory NotificationMapping; do ln -sf "$IOS/Lumen/Shared/$f.swift" "$H/Sources/LumenAppCheck/"; done
+for f in AppEnvironment ClientFactory NotificationMapping; do
+  ln -sf "$IOS/Lumen/Shared/$f.swift" "$H/Sources/LumenAppCheck/"
+  ln -sf "$IOS/Lumen/Shared/$f.swift" "$H/Sources/LumenTestsCheck/"
+done
+# LumenTests' app-level tests, compiled like the Xcode logic-test bundle (no linking).
+ln -sf "$IOS"/LumenTests/*.swift "$H/Sources/LumenTestsCheck/"
 cat > "$H/Package.swift" <<'EOF'
 // swift-tools-version:5.9
 import PackageDescription
@@ -66,8 +71,10 @@ let package = Package(
         .target(name: "LumenCore", path: "Sources/LumenCore", swiftSettings: [.unsafeFlags(["-swift-version", "6"])]),
         .target(name: "LumenAppCheck", dependencies: ["MatrixRustSDK", "LumenCore"], path: "Sources/LumenAppCheck",
                 swiftSettings: [.unsafeFlags(["-swift-version", "5", "-strict-concurrency=complete", "-warnings-as-errors"])]),
+        .target(name: "LumenTestsCheck", dependencies: ["MatrixRustSDK", "LumenCore"], path: "Sources/LumenTestsCheck",
+                swiftSettings: [.unsafeFlags(["-swift-version", "5"])]),
     ]
 )
 EOF
-(cd "$H" && nice -n 15 swift build -j 2 --target LumenAppCheck)
+(cd "$H" && nice -n 15 swift build -j 2 --target LumenAppCheck && nice -n 15 swift build -j 2 --target LumenTestsCheck)
 echo "OK: LumenCore tests passed; SDK-facing code type-checks against matrix-rust-components-swift $SDK_VERSION"

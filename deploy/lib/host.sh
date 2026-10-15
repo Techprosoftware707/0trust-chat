@@ -90,17 +90,21 @@ configure_firewall() {
   run ufw allow 80/tcp comment 'lumen: http (ACME + redirect)' && added+=(80/tcp)
   run ufw allow 443/tcp comment 'lumen: https' && added+=(443/tcp)
   run ufw allow 443/udp comment 'lumen: http3' && added+=(443/udp)
-  # Legacy coturn rules (Lumen 1.0 1:1 calls) are no longer needed.
+  # Rules that earlier Lumen versions opened and that are no longer used: coturn (1.0) and
+  # LiveKit TURN/TLS on 5349 (LiveKit advertises TURN/TLS only on :443, see ADR 0002).
+  local legacy
+  while read -r legacy; do
+    [[ -n "$legacy" ]] && yes | ufw delete "$legacy" >/dev/null 2>&1 || true
+  done < <(ufw status numbered 2>/dev/null | grep "# lumen: calls turn tls" | sed -E 's/^\[ *([0-9]+)\].*/\1/' | sort -rn)
   ufw status | grep -q "lumen: turn relay" && run ufw delete allow "$(conf_get TURN_MIN_PORT 49160):$(conf_get TURN_MAX_PORT 49200)/udp" || true
   ufw status | grep -qE "^3478/tcp .*lumen: turn" && run ufw delete allow 3478/tcp || true
   if calls_enabled; then
-    local udp tcp tturn tls
+    local udp tcp tturn
     udp="$(conf_get CALLS_UDP_PORTS 7882-7889)"; tcp="$(conf_get CALLS_TCP_PORT 7881)"
-    tturn="$(conf_get CALLS_TURN_UDP_PORT 3478)"; tls="$(conf_get CALLS_TURN_TLS_PORT 5349)"
+    tturn="$(conf_get CALLS_TURN_UDP_PORT 3478)"
     run ufw allow "${udp/-/:}/udp" comment 'lumen: calls media (webrtc udp)' && added+=("$udp/udp")
     run ufw allow "$tcp/tcp" comment 'lumen: calls media (ice tcp)' && added+=("$tcp/tcp")
     run ufw allow "$tturn/udp" comment 'lumen: calls turn udp' && added+=("$tturn/udp")
-    run ufw allow "$tls/tcp" comment 'lumen: calls turn tls' && added+=("$tls/tcp")
   else
     # Calls turned off: close the ports Lumen opened for them (only its own labelled rules).
     local num
@@ -177,7 +181,13 @@ EOF
   fi
   run systemctl daemon-reload
   run systemctl enable --now lumen-agent.service || die "lumen-agent failed to start; see journalctl -u lumen-agent"
-  run systemctl enable --now lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer lumen-rtc-cert.timer
+  run systemctl enable --now lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer
+  # lumen-rtc-cert.timer (TURN/TLS certificate copy) existed in earlier versions only.
+  if [[ -e /etc/systemd/system/lumen-rtc-cert.timer ]]; then
+    systemctl disable --now lumen-rtc-cert.timer >/dev/null 2>&1 || true
+    rm -f /etc/systemd/system/lumen-rtc-cert.timer /etc/systemd/system/lumen-rtc-cert.service
+    systemctl daemon-reload
+  fi
   ok "systemd units installed: lumen-agent, lumen-backup.timer ($backup_time daily), lumen-healthcheck.timer"
 }
 

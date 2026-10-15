@@ -27,8 +27,8 @@ enum SessionError: Error, LocalizedError {
 }
 
 /// Builds Rust SDK clients with the store, crypto and sync settings Lumen uses.
-/// TLS validation uses the platform defaults; `disableSslVerification()` is
-/// never called (CI greps for it).
+/// TLS validation uses the platform defaults. The builder's switch that turns
+/// certificate validation off is never called; CI fails if it appears.
 struct ClientFactory: Sendable {
     let paths: StorePaths
     let userAgent: String

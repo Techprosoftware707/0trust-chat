@@ -173,6 +173,14 @@ class TestHeadersAndLimits:
         assert "camera=()" in r["Permissions-Policy"]
         assert r["Cross-Origin-Opener-Policy"] == "same-origin"
 
+    def test_form_action_allows_the_app_sso_return(self):
+        # Browsers apply form-action to the redirects after the sign-in POST, which end at the
+        # native/desktop apps' private-use scheme (docs/apps/integration.md section 3).
+        csp = Client().get("/accounts/login/")["Content-Security-Policy"]
+        form_action = next(d for d in csp.split(";") if d.strip().startswith("form-action"))
+        assert "io.lumen.secure:" in form_action.split()
+        assert "'self'" in form_action and "*" not in form_action.split()
+
     def test_authenticated_pages_not_cached(self):
         u = make_user()
         c = Client(); c.force_login(u)

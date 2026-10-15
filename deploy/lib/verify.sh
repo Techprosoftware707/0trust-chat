@@ -159,9 +159,6 @@ verify_endpoints() {
     if [[ "${LUMEN_VERIFY_MEDIA:-0}" == 1 ]]; then
       vcheck "calls: SFU forwarded real audio+video to test subscribers (self-test from this host)" calls_selftest 8
     fi
-    if [[ -s "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/livekit/tls/tls.crt" ]]; then
-      vcheck "calls: TURN/TLS certificate valid on tcp/$(conf_get CALLS_TURN_TLS_PORT 5349)" _tls_ok "$rtc" "$(conf_get CALLS_TURN_TLS_PORT 5349)"
-    fi
   fi
   vcheck "security: PostgreSQL is not listening on a public address" _no_public_listener 5432
   vcheck "security: Synapse is not listening on a public address" _no_public_listener 8008

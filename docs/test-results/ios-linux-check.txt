@@ -1,0 +1,201 @@
+# apps/ios/scripts/linux-check.sh — raw output
+# date: 2026-10-15T07:43:13Z
+# host: Ubuntu 24.04.5 LTS x86_64
+# toolchain: swift.org swift-6.3.3-RELEASE-ubuntu24.04 (GPG signature checked against the Swift 6.x release key 52BB7E3DE28A71BE22EC05FFEF80A866B47A981F)
+# tree: b5b786c + uncommitted apps/ios changes
+# What this proves: LumenCore builds (Swift 6) and its tests pass on Linux; Lumen/Matrix, the SDK-facing Lumen/Shared files and LumenTests/AppLevelTests.swift type-check against matrix-rust-components-swift 26.10.02 (Swift bindings + xcframework headers, checksum-verified). Nothing is linked or run against the Rust SDK; no SwiftUI/UIKit/CallKit/WebKit/NSE code is compiled here.
+
+Swift version 6.3.3 (swift-6.3.3-RELEASE)
+== 1. LumenCore swift test
+[0/1] Planning build
+Building for debugging...
+Build complete! (0.25s)
+Test Suite 'All tests' started at 2026-10-15 07:43:14.179
+Test Suite 'debug.xctest' started at 2026-10-15 07:43:14.181
+Test Suite 'AppLockTests' started at 2026-10-15 07:43:14.181
+Test Case 'AppLockTests.testColdStartLockedWhenEnabled' started at 2026-10-15 07:43:14.181
+Test Case 'AppLockTests.testColdStartLockedWhenEnabled' passed (0.001 seconds)
+Test Case 'AppLockTests.testDisabledNeverLocks' started at 2026-10-15 07:43:14.183
+Test Case 'AppLockTests.testDisabledNeverLocks' passed (0.0 seconds)
+Test Case 'AppLockTests.testImmediatelyAndClockGoingBackwards' started at 2026-10-15 07:43:14.183
+Test Case 'AppLockTests.testImmediatelyAndClockGoingBackwards' passed (0.0 seconds)
+Test Case 'AppLockTests.testPrivacyCover' started at 2026-10-15 07:43:14.183
+Test Case 'AppLockTests.testPrivacyCover' passed (0.0 seconds)
+Test Case 'AppLockTests.testTimeout' started at 2026-10-15 07:43:14.184
+Test Case 'AppLockTests.testTimeout' passed (0.0 seconds)
+Test Suite 'AppLockTests' passed at 2026-10-15 07:43:14.184
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'CallHistoryTests' started at 2026-10-15 07:43:14.184
+Test Case 'CallHistoryTests.testOutcomes' started at 2026-10-15 07:43:14.184
+Test Case 'CallHistoryTests.testOutcomes' passed (0.001 seconds)
+Test Case 'CallHistoryTests.testRingPolicy' started at 2026-10-15 07:43:14.185
+Test Case 'CallHistoryTests.testRingPolicy' passed (0.001 seconds)
+Test Suite 'CallHistoryTests' passed at 2026-10-15 07:43:14.185
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ConfigTests' started at 2026-10-15 07:43:14.185
+Test Case 'ConfigTests.testBrandFallbacks' started at 2026-10-15 07:43:14.185
+Test Case 'ConfigTests.testBrandFallbacks' passed (0.001 seconds)
+Test Case 'ConfigTests.testBuildConfigurationFromInfoPlist' started at 2026-10-15 07:43:14.186
+Test Case 'ConfigTests.testBuildConfigurationFromInfoPlist' passed (0.001 seconds)
+Test Case 'ConfigTests.testInvalidOptionalLinksAreDroppedNotFatal' started at 2026-10-15 07:43:14.187
+Test Case 'ConfigTests.testInvalidOptionalLinksAreDroppedNotFatal' passed (0.0 seconds)
+Test Case 'ConfigTests.testLoginFlows' started at 2026-10-15 07:43:14.187
+Test Case 'ConfigTests.testLoginFlows' passed (0.001 seconds)
+Test Case 'ConfigTests.testLumenInfoRoundTripsThroughStorage' started at 2026-10-15 07:43:14.188
+Test Case 'ConfigTests.testLumenInfoRoundTripsThroughStorage' passed (0.001 seconds)
+Test Case 'ConfigTests.testPushGatewayMustBeTheNotifyEndpoint' started at 2026-10-15 07:43:14.189
+Test Case 'ConfigTests.testPushGatewayMustBeTheNotifyEndpoint' passed (0.0 seconds)
+Test Case 'ConfigTests.testRejectsNonHTTPSchemesAndCredentials' started at 2026-10-15 07:43:14.190
+Test Case 'ConfigTests.testRejectsNonHTTPSchemesAndCredentials' passed (0.0 seconds)
+Test Case 'ConfigTests.testRejectsPlainHTTPExceptLoopbackInDebug' started at 2026-10-15 07:43:14.190
+Test Case 'ConfigTests.testRejectsPlainHTTPExceptLoopbackInDebug' passed (0.0 seconds)
+Test Case 'ConfigTests.testSSOProviderIdValidation' started at 2026-10-15 07:43:14.190
+Test Case 'ConfigTests.testSSOProviderIdValidation' passed (0.0 seconds)
+Test Case 'ConfigTests.testServerInputParsing' started at 2026-10-15 07:43:14.190
+Test Case 'ConfigTests.testServerInputParsing' passed (0.0 seconds)
+Test Suite 'ConfigTests' passed at 2026-10-15 07:43:14.191
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.005 (0.005) seconds
+Test Suite 'ConnectionBannerTests' started at 2026-10-15 07:43:14.191
+Test Case 'ConnectionBannerTests.testBanners' started at 2026-10-15 07:43:14.191
+Test Case 'ConnectionBannerTests.testBanners' passed (0.0 seconds)
+Test Suite 'ConnectionBannerTests' passed at 2026-10-15 07:43:14.191
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'DeepLinkTests' started at 2026-10-15 07:43:14.191
+Test Case 'DeepLinkTests.testCallbackIsSingleUseOnlyWithPendingAttempt' started at 2026-10-15 07:43:14.191
+Test Case 'DeepLinkTests.testCallbackIsSingleUseOnlyWithPendingAttempt' passed (0.0 seconds)
+Test Case 'DeepLinkTests.testMatrixIds' started at 2026-10-15 07:43:14.191
+Test Case 'DeepLinkTests.testMatrixIds' passed (0.001 seconds)
+Test Case 'DeepLinkTests.testMatrixToDetails' started at 2026-10-15 07:43:14.192
+Test Case 'DeepLinkTests.testMatrixToDetails' passed (0.003 seconds)
+Test Case 'DeepLinkTests.testSSOAttemptBuildsNonceRedirect' started at 2026-10-15 07:43:14.195
+Test Case 'DeepLinkTests.testSSOAttemptBuildsNonceRedirect' passed (0.0 seconds)
+Test Case 'DeepLinkTests.testWebAppAndPortalLinksOnlyForConfiguredHosts' started at 2026-10-15 07:43:14.196
+Test Case 'DeepLinkTests.testWebAppAndPortalLinksOnlyForConfiguredHosts' passed (0.0 seconds)
+Test Case 'DeepLinkTests.testWhiteLabelScheme' started at 2026-10-15 07:43:14.196
+Test Case 'DeepLinkTests.testWhiteLabelScheme' passed (0.0 seconds)
+Test Suite 'DeepLinkTests' passed at 2026-10-15 07:43:14.196
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.005 (0.005) seconds
+Test Suite 'DeliveryStateTests' started at 2026-10-15 07:43:14.196
+Test Case 'DeliveryStateTests.testFailuresAndOthersMessages' started at 2026-10-15 07:43:14.196
+Test Case 'DeliveryStateTests.testFailuresAndOthersMessages' passed (0.0 seconds)
+Test Case 'DeliveryStateTests.testLocalEchoIsSendingNeverDelivered' started at 2026-10-15 07:43:14.196
+Test Case 'DeliveryStateTests.testLocalEchoIsSendingNeverDelivered' passed (0.0 seconds)
+Test Case 'DeliveryStateTests.testServerAckIsSentAndOthersReceiptIsRead' started at 2026-10-15 07:43:14.196
+Test Case 'DeliveryStateTests.testServerAckIsSentAndOthersReceiptIsRead' passed (0.0 seconds)
+Test Suite 'DeliveryStateTests' passed at 2026-10-15 07:43:14.196
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'DevicesAPITests' started at 2026-10-15 07:43:14.196
+Test Case 'DevicesAPITests.testDeviceName' started at 2026-10-15 07:43:14.196
+Test Case 'DevicesAPITests.testDeviceName' passed (0.0 seconds)
+Test Case 'DevicesAPITests.testListAndUIAFlow' started at 2026-10-15 07:43:14.196
+Test Case 'DevicesAPITests.testListAndUIAFlow' passed (0.0 seconds)
+Test Case 'DevicesAPITests.testPasswordOnlyUIAIsUnsupported' started at 2026-10-15 07:43:14.197
+Test Case 'DevicesAPITests.testPasswordOnlyUIAIsUnsupported' passed (0.0 seconds)
+Test Case 'DevicesAPITests.testRenameAndPathEncoding' started at 2026-10-15 07:43:14.197
+Test Case 'DevicesAPITests.testRenameAndPathEncoding' passed (0.0 seconds)
+Test Suite 'DevicesAPITests' passed at 2026-10-15 07:43:14.197
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'DiscoveryTests' started at 2026-10-15 07:43:14.197
+Test Case 'DiscoveryTests.testHomeserverURLInput' started at 2026-10-15 07:43:14.197
+Test Case 'DiscoveryTests.testHomeserverURLInput' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testInvalidWellKnownIsAnError' started at 2026-10-15 07:43:14.198
+Test Case 'DiscoveryTests.testInvalidWellKnownIsAnError' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testLumenServer' started at 2026-10-15 07:43:14.198
+Test Case 'DiscoveryTests.testLumenServer' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testNoSupportedLogin' started at 2026-10-15 07:43:14.198
+Test Case 'DiscoveryTests.testNoSupportedLogin' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testNotAMatrixServer' started at 2026-10-15 07:43:14.199
+Test Case 'DiscoveryTests.testNotAMatrixServer' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testPlainMatrixServerWithoutWellKnownFallsBackToServerName' started at 2026-10-15 07:43:14.199
+Test Case 'DiscoveryTests.testPlainMatrixServerWithoutWellKnownFallsBackToServerName' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testRequiresSlidingSync' started at 2026-10-15 07:43:14.199
+Test Case 'DiscoveryTests.testRequiresSlidingSync' passed (0.0 seconds)
+Test Case 'DiscoveryTests.testUnreachable' started at 2026-10-15 07:43:14.199
+Test Case 'DiscoveryTests.testUnreachable' passed (0.0 seconds)
+Test Suite 'DiscoveryTests' passed at 2026-10-15 07:43:14.200
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'IdentityWarningTests' started at 2026-10-15 07:43:14.200
+Test Case 'IdentityWarningTests.testWarningsFromStatusChanges' started at 2026-10-15 07:43:14.200
+Test Case 'IdentityWarningTests.testWarningsFromStatusChanges' passed (0.0 seconds)
+Test Suite 'IdentityWarningTests' passed at 2026-10-15 07:43:14.200
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'ListDiffTests' started at 2026-10-15 07:43:14.200
+Test Case 'ListDiffTests.testAllOperations' started at 2026-10-15 07:43:14.200
+Test Case 'ListDiffTests.testAllOperations' passed (0.0 seconds)
+Test Case 'ListDiffTests.testOutOfRangeThrows' started at 2026-10-15 07:43:14.200
+Test Case 'ListDiffTests.testOutOfRangeThrows' passed (0.0 seconds)
+Test Suite 'ListDiffTests' passed at 2026-10-15 07:43:14.200
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'LogRedactorTests' started at 2026-10-15 07:43:14.200
+Test Case 'LogRedactorTests.testRedactsSecretsAndIdentifiers' started at 2026-10-15 07:43:14.200
+Test Case 'LogRedactorTests.testRedactsSecretsAndIdentifiers' passed (0.002 seconds)
+Test Suite 'LogRedactorTests' passed at 2026-10-15 07:43:14.202
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'NotificationPolicyTests' started at 2026-10-15 07:43:14.202
+Test Case 'NotificationPolicyTests.testHiddenByDefaultShowsNothingAboutSenderRoomOrText' started at 2026-10-15 07:43:14.202
+Test Case 'NotificationPolicyTests.testHiddenByDefaultShowsNothingAboutSenderRoomOrText' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testPreferencesDefaultsAndTolerantDecoding' started at 2026-10-15 07:43:14.203
+Test Case 'NotificationPolicyTests.testPreferencesDefaultsAndTolerantDecoding' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testPushAvailabilityNeverClaimsPushWithoutGateway' started at 2026-10-15 07:43:14.203
+Test Case 'NotificationPolicyTests.testPushAvailabilityNeverClaimsPushWithoutGateway' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testPushPayload' started at 2026-10-15 07:43:14.204
+Test Case 'NotificationPolicyTests.testPushPayload' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testPusherConfiguration' started at 2026-10-15 07:43:14.204
+Test Case 'NotificationPolicyTests.testPusherConfiguration' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testSenderAndText' started at 2026-10-15 07:43:14.204
+Test Case 'NotificationPolicyTests.testSenderAndText' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testSenderOnly' started at 2026-10-15 07:43:14.204
+Test Case 'NotificationPolicyTests.testSenderOnly' passed (0.0 seconds)
+Test Case 'NotificationPolicyTests.testStorePassphraseIsRandom32Bytes' started at 2026-10-15 07:43:14.204
+Test Case 'NotificationPolicyTests.testStorePassphraseIsRandom32Bytes' passed (0.0 seconds)
+Test Suite 'NotificationPolicyTests' passed at 2026-10-15 07:43:14.204
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'RecoveryKeyTests' started at 2026-10-15 07:43:14.204
+Test Case 'RecoveryKeyTests.testConfirmationIsWhitespaceInsensitive' started at 2026-10-15 07:43:14.204
+Test Case 'RecoveryKeyTests.testConfirmationIsWhitespaceInsensitive' passed (0.0 seconds)
+Test Suite 'RecoveryKeyTests' passed at 2026-10-15 07:43:14.205
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'SharedVectorsTests' started at 2026-10-15 07:43:14.205
+Test Case 'SharedVectorsTests.testDeepLinkVectors' started at 2026-10-15 07:43:14.205
+Test Case 'SharedVectorsTests.testDeepLinkVectors' passed (0.002 seconds)
+Test Case 'SharedVectorsTests.testURLValidationVectors' started at 2026-10-15 07:43:14.206
+Test Case 'SharedVectorsTests.testURLValidationVectors' passed (0.001 seconds)
+Test Case 'SharedVectorsTests.testWellKnownVectors' started at 2026-10-15 07:43:14.207
+Test Case 'SharedVectorsTests.testWellKnownVectors' passed (0.001 seconds)
+Test Suite 'SharedVectorsTests' passed at 2026-10-15 07:43:14.208
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'WidgetBridgeTests' started at 2026-10-15 07:43:14.208
+Test Case 'WidgetBridgeTests.testActionMessage' started at 2026-10-15 07:43:14.208
+Test Case 'WidgetBridgeTests.testActionMessage' passed (0.0 seconds)
+Test Case 'WidgetBridgeTests.testAssetResolverRefusesTraversal' started at 2026-10-15 07:43:14.208
+Test Case 'WidgetBridgeTests.testAssetResolverRefusesTraversal' passed (0.0 seconds)
+Test Case 'WidgetBridgeTests.testCallStateIsConsumedAndAcknowledged' started at 2026-10-15 07:43:14.208
+Test Case 'WidgetBridgeTests.testCallStateIsConsumedAndAcknowledged' passed (0.0 seconds)
+Test Case 'WidgetBridgeTests.testEncryptionLabelOnlyFromWidgetState' started at 2026-10-15 07:43:14.209
+Test Case 'WidgetBridgeTests.testEncryptionLabelOnlyFromWidgetState' passed (0.0 seconds)
+Test Case 'WidgetBridgeTests.testForwardsWidgetRequestsAndResponsesOnly' started at 2026-10-15 07:43:14.209
+Test Case 'WidgetBridgeTests.testForwardsWidgetRequestsAndResponsesOnly' passed (0.038 seconds)
+Test Case 'WidgetBridgeTests.testPostMessageScriptCannotBreakOut' started at 2026-10-15 07:43:14.247
+Test Case 'WidgetBridgeTests.testPostMessageScriptCannotBreakOut' passed (0.001 seconds)
+Test Case 'WidgetBridgeTests.testWidgetURLTemplateUsesSDKPlaceholders' started at 2026-10-15 07:43:14.248
+Test Case 'WidgetBridgeTests.testWidgetURLTemplateUsesSDKPlaceholders' passed (0.0 seconds)
+Test Suite 'WidgetBridgeTests' passed at 2026-10-15 07:43:14.248
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.04 (0.04) seconds
+Test Suite 'debug.xctest' passed at 2026-10-15 07:43:14.248
+	 Executed 62 tests, with 0 failures (0 unexpected) in 0.065 (0.065) seconds
+Test Suite 'All tests' passed at 2026-10-15 07:43:14.248
+	 Executed 62 tests, with 0 failures (0 unexpected) in 0.065 (0.065) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.3.3 (48d727cc1cf4eda)
+↳ Target Platform: x86_64-unknown-linux-gnu
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+== 2. SDK bindings type-check (26.10.02)
+/tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/lcheck/MatrixSDKFFI.xcframework.zip: OK
+[0/1] Planning build
+Building for debugging...
+Build of target: 'LumenAppCheck' complete! (64.95s)
+[0/1] Planning build
+Building for debugging...
+Build of target: 'LumenTestsCheck' complete! (1.11s)
+OK: LumenCore tests passed; SDK-facing code type-checks against matrix-rust-components-swift 26.10.02
+# exit: 0

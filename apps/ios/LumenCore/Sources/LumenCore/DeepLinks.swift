@@ -178,11 +178,19 @@ public struct DeepLinkRouter: Sendable {
             return routeMatrixTo(fragment: frag)
         }
         if let webHost = webAppHost, host == webHost, let frag = fragment {
-            // "#/room/<id>" as produced by the web client's roomHash().
-            guard frag.hasPrefix("/room/") else { return .reject }
-            let raw = String(frag.dropFirst("/room/".count))
-            guard let id = raw.removingPercentEncoding, MatrixID.isValidRoomId(id) || MatrixID.isValidRoomAlias(id) else { return .reject }
-            return .room(id: id, eventId: nil, via: [])
+            // "#/room/<id>" (the web client's roomHash()); "#/dm/<user>" (web
+            // client route) and "#/user/<user>" (the server's AASA pattern).
+            if frag.hasPrefix("/room/") {
+                let raw = String(frag.dropFirst("/room/".count))
+                guard let id = raw.removingPercentEncoding, MatrixID.isValidRoomId(id) || MatrixID.isValidRoomAlias(id) else { return .reject }
+                return .room(id: id, eventId: nil, via: [])
+            }
+            for prefix in ["/dm/", "/user/"] where frag.hasPrefix(prefix) {
+                let raw = String(frag.dropFirst(prefix.count))
+                guard let id = raw.removingPercentEncoding, MatrixID.isValidUserId(id) else { return .reject }
+                return .user(id: id)
+            }
+            return .reject
         }
         if let portal = portalHost, host == portal, fragment == nil {
             let parts = comps.path.split(separator: "/")

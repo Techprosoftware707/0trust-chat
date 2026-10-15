@@ -1,8 +1,0 @@
-[Unit]
-Description=Lumen: install a renewed certificate for the calls TURN/TLS listener
-After=docker.service
-
-[Service]
-Type=oneshot
-ExecStart=@LUMEN_REPO_DIR@/lumenctl rtc-cert
-TimeoutStartSec=5min

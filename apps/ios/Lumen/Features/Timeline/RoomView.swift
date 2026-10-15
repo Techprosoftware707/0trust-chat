@@ -18,6 +18,9 @@ struct RoomView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var importingFile = false
     @State private var sending = false
+    @State private var reportTarget: MessageRow?
+    @State private var reportReason = ""
+    @State private var reported = false
 
     init(session: SessionModel, room: Room) {
         self.session = session
@@ -92,6 +95,24 @@ struct RoomView: View {
         .alert("Something went wrong", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK") {}
         } message: { Text(actionError ?? "") }
+        .alert("Report this message?", isPresented: Binding(get: { reportTarget != nil }, set: { if !$0 { reportTarget = nil } })) {
+            TextField("Reason (optional)", text: $reportReason)
+            Button("Report", role: .destructive) {
+                guard let id = reportTarget?.eventId else { return }
+                let reason = reportReason.trimmingCharacters(in: .whitespacesAndNewlines)
+                reportReason = ""
+                run {
+                    try await model.report(eventId: id, reason: reason.isEmpty ? nil : reason)
+                    reported = true
+                }
+            }
+            Button("Cancel", role: .cancel) { reportReason = "" }
+        } message: {
+            Text("The report goes to your server's administrators. In an encrypted room they receive the message's ID and your reason, not its text. To stop seeing this person, block them from the room details.")
+        }
+        .alert("Reported", isPresented: $reported) {
+            Button("OK") {}
+        } message: { Text("Thank you. The server's administrators have been notified.") }
     }
 
     private var typingText: String {
@@ -171,7 +192,8 @@ struct RoomView: View {
                 onReact: { key in run { try await model.toggleReaction(m.itemId, key: key) } },
                 onDelete: { run { try await model.redact(m.itemId) } },
                 onRetry: { run { try await model.retrySend(m.itemId) } },
-                onCancelSend: { run { try await model.cancelSend(m.itemId) } }
+                onCancelSend: { run { try await model.cancelSend(m.itemId) } },
+                onReport: { reportTarget = m }
             )
         }
     }

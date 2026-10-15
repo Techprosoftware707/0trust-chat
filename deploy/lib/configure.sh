@@ -62,7 +62,7 @@ interactive_configure() {
   ask fedmode "Federation: open, allowlist or closed" "open" '^(open|allowlist|closed)$'
   allow=""
   [[ "$fedmode" == allowlist ]] && ask allow "Allowed servers (comma-separated server names)" "" '^[a-z0-9.,:-]+$'
-  ask_yn calls "Enable voice/video calls (LiveKit SFU; opens UDP 7882-7889, TCP 7881, UDP 3478, TCP 5349)?" y
+  ask_yn calls "Enable voice/video calls (LiveKit SFU; opens UDP 7882-7889, TCP 7881, UDP 3478)?" y
   ask_yn wg "Enable WireGuard for private operator access (opens UDP 51820)?" n
   ask tls "TLS: acme (Let's Encrypt, production) or internal (test CA, testing only)" "acme" '^(acme|internal)$'
   ask smtp_host "SMTP server for account emails (empty = no email)" "" '^[a-z0-9.-]*$'

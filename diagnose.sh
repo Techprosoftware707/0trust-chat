@@ -164,15 +164,9 @@ else
     || problem "the token check for calls did not answer as expected" "sudo ./lumenctl logs lkjwt; sudo ./lumenctl logs synapse | grep -i rtc"
   turn_udp="$(conf_get CALLS_TURN_UDP_PORT 3478)"
   _stun_ok "$turn_udp" && ok "TURN answers on udp/$turn_udp" || problem "TURN does not answer on udp/$turn_udp" "sudo ./lumenctl logs livekit"
-  if [[ -s "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/livekit/tls/tls.crt" ]]; then
-    _tls_ok "$rtc" "$(conf_get CALLS_TURN_TLS_PORT 5349)" && ok "TURN/TLS certificate valid" \
-      || problem "TURN/TLS certificate invalid or expiring" "sudo ./lumenctl rtc-cert (copies Caddy's current certificate for $rtc)"
-  else
-    problem "no TURN/TLS certificate yet: clients on TLS-only networks cannot connect" "once Caddy has a certificate for $rtc: sudo ./lumenctl rtc-cert"
-  fi
   if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
     missing=""
-    for rule in "$(conf_get CALLS_UDP_PORTS 7882-7889 | tr - :)/udp" "$(conf_get CALLS_TCP_PORT 7881)/tcp" "$turn_udp/udp" "$(conf_get CALLS_TURN_TLS_PORT 5349)/tcp"; do
+    for rule in "$(conf_get CALLS_UDP_PORTS 7882-7889 | tr - :)/udp" "$(conf_get CALLS_TCP_PORT 7881)/tcp" "$turn_udp/udp"; do
       ufw status 2>/dev/null | grep -q "^$rule " || missing+=" $rule"
     done
     [[ -z "$missing" ]] && ok "host firewall allows the calls ports" || problem "host firewall does not allow:$missing" "re-run sudo bash install.sh (it adds them), or: sudo ufw allow <port>"

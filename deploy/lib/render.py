@@ -48,12 +48,17 @@ DEFAULTS: dict[str, str] = {
     "PRESENCE_ENABLED": "true",
     # Voice/video calls: MatrixRTC + LiveKit SFU (with its embedded TURN) + lk-jwt-service.
     "CALLS_ENABLED": "true",
-    "LUMEN_RTC_DOMAIN": "",  # default rtc.<primary>: SFU signalling, TURN/TLS certificate name
+    "LUMEN_RTC_DOMAIN": "",  # default rtc.<primary>: SFU signalling (wss) through Caddy
     "CALLS_PUBLIC_IP": "",  # IP advertised in ICE candidates; empty = discover with STUN
     "CALLS_UDP_PORTS": "7882-7889",  # WebRTC media over UDP (LiveKit UDP mux), one port or a range
     "CALLS_TCP_PORT": "7881",  # ICE over TCP when UDP is blocked
     "CALLS_TURN_UDP_PORT": "3478",  # TURN/UDP
-    "CALLS_TURN_TLS_PORT": "5349",  # TURN over TLS (needs the rtc certificate)
+    # Deprecated, ignored: LiveKit 1.13 only advertises TURN/TLS as turns:<domain>:443 (it expects
+    # a TLS-terminating L4 proxy there), and 443 is Caddy's, so Lumen does not offer TURN/TLS.
+    "CALLS_TURN_TLS_PORT": "",
+    # Interface LiveKit uses for media when CALLS_PUBLIC_IP is not an address of this host
+    # (1:1 NAT, STUN discovery). Empty = the interface of the default route, detected at render.
+    "CALLS_INTERFACE": "",
     "CALLS_MAX_PARTICIPANTS": "0",  # per call; 0 = no fixed limit (bounded by server capacity)
     "CALLS_ALLOW_PRIVATE_NODE_IP": "false",  # test labs only: TURN may relay to a private node IP
     "RTC_NETWORK_SUBNET": "172.30.42.0/28",  # Docker network: authorization service <-> host
@@ -226,7 +231,7 @@ def validate(cfg: dict[str, str]) -> None:
             errors.append("WG_SUBNET must be a private IPv4 network of /29 or larger")
     except ValueError:
         errors.append("WG_SUBNET is not a valid network (e.g. 10.77.0.0/24)")
-    num_keys = ("CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "CALLS_TURN_TLS_PORT", "CALLS_MAX_PARTICIPANTS", "WG_PORT",
+    num_keys = ("CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "CALLS_MAX_PARTICIPANTS", "WG_PORT",
                 "LUMEN_OPS_PORT", "SMTP_PORT", "BILLING_GRACE_DAYS", "DEFAULT_MAX_UPLOAD_MB")
     for k in num_keys:
         if not cfg[k].isdigit():
@@ -237,9 +242,11 @@ def validate(cfg: dict[str, str]) -> None:
             raise ValueError
     except ValueError:
         errors.append("CALLS_UDP_PORTS must be a port or a range of at most 64 ports above 1024 (e.g. 7882-7889)")
-    call_ports = [cfg[k] for k in ("CALLS_TCP_PORT", "CALLS_TURN_TLS_PORT", "LUMEN_OPS_PORT") if cfg[k].isdigit()]
+    call_ports = [cfg[k] for k in ("CALLS_TCP_PORT", "LUMEN_OPS_PORT") if cfg[k].isdigit()]
     if len(set(call_ports)) != len(call_ports) or {"80", "443"} & set(call_ports):
-        errors.append("CALLS_TCP_PORT, CALLS_TURN_TLS_PORT and LUMEN_OPS_PORT must differ from each other and from 80/443")
+        errors.append("CALLS_TCP_PORT and LUMEN_OPS_PORT must differ from each other and from 80/443")
+    if cfg["CALLS_INTERFACE"] and not re.fullmatch(r"[A-Za-z0-9_.:@-]{1,15}", cfg["CALLS_INTERFACE"]):
+        errors.append("CALLS_INTERFACE must be a network interface name (e.g. eth0)")
     if cfg["CALLS_PUBLIC_IP"]:
         try:
             ipaddress.ip_address(cfg["CALLS_PUBLIC_IP"])
@@ -675,7 +682,7 @@ def app_links_handlers(cfg) -> list[str]:
                   f"		respond `{json.dumps(assetlinks, separators=(',', ':'))}` 200", "	}"]
     if cfg["APP_LINKS_APPLE_TEAM_ID"]:
         app_id = f"{cfg['APP_LINKS_APPLE_TEAM_ID']}.{cfg['APP_LINKS_APPLE_BUNDLE_ID']}"
-        aasa = {"applinks": {"details": [{"appIDs": [app_id], "components": [{"#": "/room/*"}, {"#": "/user/*"}]}]}}
+        aasa = {"applinks": {"details": [{"appIDs": [app_id], "components": [{"#": "/room/*"}, {"#": "/dm/*"}, {"#": "/user/*"}]}]}}
         lines += ["	handle /.well-known/apple-app-site-association {", "		header Content-Type application/json",
                   f"		respond `{json.dumps(aasa, separators=(',', ':'))}` 200", "	}"]
     return lines
@@ -925,10 +932,42 @@ def rtc_site(cfg) -> list[str]:
     ]
 
 
+def _ip_json(*args: str):
+    """`ip -j ...` on this host, or None when unavailable (renders off-host, tests)."""
+    import subprocess
+    try:
+        res = subprocess.run(["ip", "-j", *args], capture_output=True, text=True, timeout=5, check=True)
+        return json.loads(res.stdout or "null")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def media_scope(cfg) -> dict:
+    """Which local addresses LiveKit may use for media (ICE host candidates and sockets).
+
+    Unrestricted, LiveKit binds every address of the host — Docker bridges, wg0, lab
+    bridges — and can answer connectivity checks from an address the client never
+    granted a TURN permission for (seen in the calls lab: relayed checks to the node IP
+    went unanswered while replies left from another bridge address). So: only the
+    advertised address when it is assigned to this host, otherwise only the interface
+    that carries the default route (1:1 NAT, STUN discovery) or CALLS_INTERFACE.
+    """
+    ip = cfg["CALLS_PUBLIC_IP"]
+    if ip:
+        addrs = _ip_json("addr", "show") or []
+        local = {a.get("local") for i in addrs for a in i.get("addr_info", [])}
+        if ip in local:
+            return {"ips": {"includes": [f"{ip}/{128 if ':' in ip else 32}"]}}
+    iface = cfg["CALLS_INTERFACE"]
+    if not iface:
+        route = _ip_json("route", "get", "1.1.1.1") or []
+        iface = route[0].get("dev", "") if route else ""
+    return {"interfaces": {"includes": [iface]}} if iface else {}
+
+
 def render_livekit(cfg, out: Path, secrets: Path) -> None:
     if not truthy(cfg["CALLS_ENABLED"]):
         return
-    data_dir = Path(cfg["LUMEN_DATA_DIR"])
     lo, hi = udp_port_range(cfg["CALLS_UDP_PORTS"])
     rtc: dict = {
         "tcp_port": int(cfg["CALLS_TCP_PORT"]),
@@ -942,7 +981,7 @@ def render_livekit(cfg, out: Path, secrets: Path) -> None:
         rtc["node_ip"] = cfg["CALLS_PUBLIC_IP"]
     else:
         rtc["use_external_ip"] = True
-    tls_ok = (data_dir / "livekit" / "tls" / "tls.crt").is_file() and (data_dir / "livekit" / "tls" / "tls.key").is_file()
+    rtc.update(media_scope(cfg))
     turn: dict = {
         "enabled": True,
         "domain": cfg["LUMEN_RTC_DOMAIN"],
@@ -955,10 +994,6 @@ def render_livekit(cfg, out: Path, secrets: Path) -> None:
         # Never relay into the admin VPN or the Docker networks.
         "deny_peer_cidrs": [cfg["WG_SUBNET"], cfg["RTC_NETWORK_SUBNET"], "172.16.0.0/12"],
     }
-    if tls_ok:
-        turn["tls_port"] = int(cfg["CALLS_TURN_TLS_PORT"])
-        turn["cert_file"] = "/etc/livekit/tls/tls.crt"
-        turn["key_file"] = "/etc/livekit/tls/tls.key"
     if truthy(cfg["CALLS_ALLOW_PRIVATE_NODE_IP"]) and cfg["CALLS_PUBLIC_IP"]:
         # Test labs where the SFU's address is private: allow relaying to exactly it.
         turn["allow_restricted_peer_cidrs"] = [f"{cfg['CALLS_PUBLIC_IP']}/32"]
@@ -986,8 +1021,8 @@ def render_livekit(cfg, out: Path, secrets: Path) -> None:
         "logging": {"level": "info", "pion_level": "error", "json": True},
     }
     header = ("# Generated by Lumen (deploy/lib/render.py). Do not edit.\n"
-              "# API keys are read from /run/secrets/livekit_keys; TURN/TLS is enabled once the\n"
-              f"# certificate for {cfg['LUMEN_RTC_DOMAIN']} has been copied from Caddy (lumenctl rtc-cert).\n")
+              "# API keys are read from /run/secrets/livekit_keys. No TURN/TLS listener: LiveKit would\n"
+              "# advertise it on :443, which is Caddy's (see docs/adr/0002-calling.md D4).\n")
     write(out / "livekit" / "livekit.yaml", header + to_yaml(conf), 0o644)
 
 
@@ -1099,11 +1134,11 @@ def render_app_env(cfg, out: Path) -> None:
         "LUMEN_PRIMARY_DOMAIN", "LUMEN_APP_DOMAIN", "LUMEN_MATRIX_DOMAIN", "LUMEN_OPS_DOMAIN", "LUMEN_OPS_PORT",
         "MATRIX_SERVER_NAME", "REGISTRATION_MODE", "FEDERATION_MODE", "FEDERATION_ALLOWLIST",
         "FEDERATION_PROBE_NOTARY", "PRESENCE_ENABLED", "CALLS_ENABLED", "LUMEN_RTC_DOMAIN", "CALLS_PUBLIC_IP",
-        "CALLS_UDP_PORTS", "CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "CALLS_TURN_TLS_PORT", "WIREGUARD_ENABLED", "SMTP_HOST",
+        "CALLS_UDP_PORTS", "CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "WIREGUARD_ENABLED", "SMTP_HOST",
         "SMTP_PORT", "SMTP_USER", "SMTP_SECURITY", "SMTP_FROM", "BILLING_PROVIDER", "BILLING_CURRENCY",
         "BILLING_GRACE_DAYS", "STRIPE_PUBLISHABLE_KEY", "BRAND_NAME", "BRAND_SHORT_NAME", "BRAND_TAGLINE",
         "BRAND_LEGAL_NAME", "BRAND_JURISDICTION", "SUPPORT_EMAIL", "SECURITY_EMAIL", "PRIVACY_EMAIL",
-        "PUBLIC_STATUS_PAGE", "SYNAPSE_OIDC_CLIENT_ID", "LOG_LEVEL", "TLS_MODE",
+        "PUBLIC_STATUS_PAGE", "SYNAPSE_OIDC_CLIENT_ID", "LOG_LEVEL", "TLS_MODE", "APP_URL_SCHEME",
     ]
     text = "# Generated by Lumen. Non-secret application settings.\n"
     text += "".join(f"{k}={cfg[k]}\n" for k in keys)

@@ -110,23 +110,27 @@ final class WidgetBridgeTests: XCTestCase {
         XCTAssertEqual(u2.e2ee, .waitingForKey)
         XCTAssertNil(reply2)
         if case .drop = filter.classify(#"{"type":"io.lumen.call_state","data":{"state":"bogus"}}"#) {} else { XCTFail() }
+
+        // Flat envelope, as the Android bridge accepts it.
+        guard case .callState(let u3, nil) = filter.classify(#"{"type":"io.lumen.call_state","state":"connected","video":false,"muted":true,"e2ee":"decrypt-error"}"#) else { return XCTFail() }
+        XCTAssertEqual(u3, CallStateUpdate(state: .connected, video: false, muted: true, e2ee: .decryptError))
+        XCTAssertFalse(u3.e2ee.isEncrypted)
     }
 
     func testEncryptionLabelOnlyFromWidgetState() {
         XCTAssertEqual(CallEncryptionState.encrypted.label, "End-to-end encrypted")
-        for s in [CallEncryptionState.waitingForKey, .notEncrypted, .unknown, .other("x")] {
+        for s in [CallEncryptionState.waitingForKey, .decryptError, .notEncrypted, .unknown, .other("x")] {
             XCTAssertFalse(s.isEncrypted)
             XCTAssertNotEqual(s.label, "End-to-end encrypted")
         }
     }
 
     func testActionMessage() throws {
-        let m = filter.actionMessage(.switchCamera, requestId: "a1")
-        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(m.utf8)) as? [String: Any])
-        XCTAssertEqual(obj["api"] as? String, "toWidget")
-        XCTAssertEqual(obj["action"] as? String, "io.lumen.call_action")
-        XCTAssertEqual(obj["widgetId"] as? String, "w1")
-        XCTAssertEqual((obj["data"] as? [String: Any])?["action"] as? String, "switch_camera")
+        let m = filter.actionMessage(.switchCamera)
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(m.utf8)) as? [String: String])
+        XCTAssertEqual(obj, ["type": "io.lumen.call_action", "action": "switch_camera"])
+        XCTAssertNil(obj["api"], "not a widget-API message")
+        XCTAssertEqual(CallAction.allCases.map(\.rawValue), ["hangup", "mute", "unmute", "video_on", "video_off", "switch_camera"])
     }
 
     func testPostMessageScriptCannotBreakOut() throws {

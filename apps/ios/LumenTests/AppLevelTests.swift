@@ -1,11 +1,12 @@
 import LumenCore
 import MatrixRustSDK
 import XCTest
-@testable import Lumen
 
-/// App-level tests that need the app module or the Matrix SDK types. The
-/// platform-independent logic is tested by the LumenCore tests, which this
-/// bundle also runs (see project.yml), including apps/shared/test-vectors.
+/// Tests of the app's SDK-facing shared code. LumenTests is a logic-test
+/// bundle without a host app: project.yml compiles Lumen/Shared/
+/// {AppEnvironment,ClientFactory,NotificationMapping}.swift into it and links
+/// the SDK once. It also runs all LumenCore tests, including
+/// apps/shared/test-vectors.
 final class AppLevelTests: XCTestCase {
     func testIncomingRingRoundTripsThroughVoIPPayload() {
         let ring = IncomingRing(roomId: "!r:example.com", eventId: "$e1", sender: "@bob:example.com", senderName: "Bob", roomName: "Bob", isVideo: true, sentAt: Date(timeIntervalSince1970: 1000), expiresAt: Date(timeIntervalSince1970: 1030))
@@ -43,6 +44,7 @@ final class AppLevelTests: XCTestCase {
         XCTAssertFalse(b.bundleIdentifier.isEmpty)
         XCTAssertEqual(b.ssoRedirectBase, "\(b.urlScheme):/sso-callback")
         XCTAssertTrue(b.isDebug, "tests run against the Debug configuration")
+        XCTAssertEqual(b.urlPolicy, .debug)
     }
 
     func testWidgetTemplateIsAcceptedBySDK() throws {

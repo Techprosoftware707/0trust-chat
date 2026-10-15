@@ -29,6 +29,9 @@ final class CallCoordinator {
     @ObservationIgnored private var pendingRings: [IncomingRing] = []
     @ObservationIgnored private var declineHandles: [String: TaskHandle] = [:]
     @ObservationIgnored private var declineTasks: [String: Task<Void, Never>] = [:]
+    /// A call answered or started before the session finished restoring
+    /// (for example when a ring launched the app).
+    @ObservationIgnored private var pendingLaunch: (call: CallKitController.Call, intent: CallIntent)?
 
     private static let insecureKey = "lumen.widget.bundledInsecure"
 
@@ -47,6 +50,10 @@ final class CallCoordinator {
             let rings = pendingRings
             pendingRings.removeAll()
             for r in rings { trackRing(r) }
+            if let p = pendingLaunch {
+                pendingLaunch = nil
+                if callKit.calls[p.call.uuid] != nil { openWidget(for: p.call, intent: p.intent) }
+            }
         }
     }
 
@@ -110,7 +117,11 @@ final class CallCoordinator {
 
     private func openWidget(for call: CallKitController.Call, intent: CallIntent) {
         if let ring = call.ring { stopTracking(ring.eventId) }
-        guard let s = sessionModel, let room = try? s.client.getRoom(roomId: call.roomId) else {
+        guard let s = sessionModel else {
+            pendingLaunch = (call, intent)
+            return
+        }
+        guard let room = try? s.client.getRoom(roomId: call.roomId) else {
             error = "The call's room isn't available on this device."
             callKit.reportEnded(call.uuid, reason: .failed)
             return

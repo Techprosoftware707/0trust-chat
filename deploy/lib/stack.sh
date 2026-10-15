@@ -98,29 +98,6 @@ REG
   chown "root:$GID_SECRETS" "$reg"; chmod 0440 "$reg"
 }
 
-# rtc_cert_path — Caddy's certificate for the rtc domain (ACME or internal CA), if issued.
-rtc_cert_path() {
-  local rtc; rtc="$(rtc_domain)"
-  find "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/caddy/data/caddy/certificates" -path "*/$rtc/$rtc.crt" -type f \
-    -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-
-}
-
-# sync_rtc_cert — copy the rtc certificate for LiveKit's TURN/TLS listener.
-# Returns 0 if the copy changed (LiveKit must be re-rendered/restarted), 1 otherwise.
-sync_rtc_cert() {
-  calls_enabled || return 1
-  local crt key dir
-  crt="$(rtc_cert_path)"; [[ -n "$crt" ]] || return 1
-  key="${crt%.crt}.key"; [[ -f "$key" ]] || return 1
-  dir="$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/livekit/tls"
-  install -d -m 0750 -o root -g "$UID_LIVEKIT" "$dir"
-  if cmp -s "$crt" "$dir/tls.crt" && cmp -s "$key" "$dir/tls.key"; then return 1; fi
-  install -m 0440 -o root -g "$UID_LIVEKIT" "$crt" "$dir/tls.crt"
-  install -m 0440 -o root -g "$UID_LIVEKIT" "$key" "$dir/tls.key"
-  _log "TURN/TLS certificate updated from $crt"
-  return 0
-}
-
 # --- Directories -----------------------------------------------------------------
 
 ensure_dirs() {
@@ -135,7 +112,6 @@ ensure_dirs() {
   install -d -m 2770 -o root -g "$GID_SOCKETS" "$sockets"
   install -d -m 0755 "$data/status" "$data/www" "$data/www/chat"
   install -d -m 0755 "$data/livekit"
-  install -d -m 0750 -o root -g "$UID_LIVEKIT" "$data/livekit/tls"
   install -d -m 0750 -o root -g "$GID_SECRETS" "$LUMEN_CONFIG_DIR"
   install -d -m 0755 "$LUMEN_BRANDING_DIR" "$LUMEN_CONFIG_DIR/ca"
   for f in logo.svg favicon.svg theme.css; do
@@ -434,17 +410,8 @@ calls_selftest() {
   printf '%s' "$out" | grep -E '^│ Total +│' | head -n1
 }
 
-# start_calls — the SFU and authorization service. TURN/TLS needs Caddy's certificate
-# for the rtc domain: once it exists, copy it and re-render LiveKit's configuration.
+# start_calls — the SFU and authorization service must answer.
 start_calls() {
-
-  for _ in $(seq 1 30); do [[ -n "$(rtc_cert_path)" ]] && break; sleep 2; done
-  if sync_rtc_cert; then
-    refresh_livekit_config
-    ok "TURN/TLS certificate installed for $(rtc_domain)"
-  elif [[ -z "$(rtc_cert_path)" ]]; then
-    warn "no certificate for $(rtc_domain) yet (DNS?); TURN/TLS stays off until 'lumenctl rtc-cert' succeeds"
-  fi
   if ! wait_health lkjwt healthy 120; then
     compose logs --tail 80 lkjwt >>"$_log_file" 2>&1 || true
     die "The calls authorization service (lkjwt) did not become healthy. See $_log_file"

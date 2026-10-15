@@ -37,7 +37,9 @@ jobs:
       - name: No TLS-verification bypass in any client
         run: |
           # The apps must never disable certificate validation (docs/apps/integration.md section 2).
-          if git grep -nE 'disableSslVerification|ignore-certificate-errors|setIgnoreCertificateErrors|NODE_TLS_REJECT_UNAUTHORIZED|onReceivedSslError|allowsAnyHTTPSCertificate|ServerTrust.*performDefaultHandling: *false|TrustAllCerts|X509TrustManager *\{' -- apps services/chat ':!**/*.md'; then
+          # Matches actual use, not the deny-lists that name these options in order to block them.
+          pattern='\.disableSslVerification\(|appendSwitch\(\s*["'"'"']ignore-certificate-errors|ignoreHTTPSErrors:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*[:=]\s*["'"'"']?0|rejectUnauthorized:\s*false|setCertificateVerifyProc|handler\.proceed\(|checkServerTrusted\([^)]*\)\s*\{\s*\}|URLCredential\(trust:|usesCleartextTraffic="true"|NSAllowsArbitraryLoads</key>\s*<true'
+          if git grep -nP "$pattern" -- apps services/chat ':!**/*.md'; then
             echo "::error::TLS validation bypass found"; exit 1
           fi
       - name: No private keys or live tokens committed

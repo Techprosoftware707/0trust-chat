@@ -13,8 +13,10 @@ Every value comes from the environment rendered by the installer
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.csp import CSP
 
 from .env import env, env_bool, env_int, env_list, secret
@@ -282,6 +284,11 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+# URL scheme of the Lumen mobile/desktop apps (SSO returns to <scheme>:/sso-callback).
+APP_URL_SCHEME = env("APP_URL_SCHEME", "io.lumen.secure")
+if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_-]*)+", APP_URL_SCHEME, re.I):
+    raise ImproperlyConfigured("APP_URL_SCHEME must be a reverse-DNS URL scheme")
+
 SECURE_CSP = {
     "default-src": [CSP.SELF],
     "script-src": [CSP.SELF],
@@ -292,8 +299,10 @@ SECURE_CSP = {
     "object-src": [CSP.NONE],
     "base-uri": [CSP.NONE],
     "frame-ancestors": [CSP.NONE],
-    # OIDC: the consent POST redirects to the homeserver callback.
-    "form-action": [CSP.SELF, MATRIX_BASE_URL, APP_BASE_URL] + (
+    # OIDC: the sign-in/consent POST redirects through the homeserver callback to the client:
+    # the web app, or a native/desktop app's private-use scheme (browsers apply form-action
+    # to every redirect that follows a form submission).
+    "form-action": [CSP.SELF, MATRIX_BASE_URL, APP_BASE_URL, f"{APP_URL_SCHEME}:"] + (
         ["https://checkout.stripe.com", "https://billing.stripe.com"] if env("BILLING_PROVIDER", "none") == "stripe" else []
     ),
 }
@@ -338,7 +347,6 @@ CALLS_PUBLIC_IP = env("CALLS_PUBLIC_IP", "")
 CALLS_UDP_PORTS = env("CALLS_UDP_PORTS", "7882-7889")
 CALLS_TCP_PORT = env_int("CALLS_TCP_PORT", 7881)
 CALLS_TURN_UDP_PORT = env_int("CALLS_TURN_UDP_PORT", 3478)
-CALLS_TURN_TLS_PORT = env_int("CALLS_TURN_TLS_PORT", 5349)
 # Inside the worker container: the host as seen from the rtc Docker network.
 RTC_GATEWAY_IP = env("RTC_GATEWAY_IP", "")
 LKJWT_INTERNAL_URL = env("LKJWT_INTERNAL_URL", "http://lkjwt:8080")

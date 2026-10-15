@@ -5,3 +5,73 @@
 
 exit=0
 ## npm run lint
+> lumen-chat@1.0.0 lint
+> eslint .
+
+## npm test
+ Test Files  8 passed (8)
+      Tests  87 passed (87)
+## npm run test:e2ee
+
+> lumen-chat@1.0.0 test:e2ee
+> node --test --test-force-exit --test-reporter=spec ../../tests/chat/e2ee.test.mjs
+
+✔ creates an encrypted DM and both users join (2329.088535ms)
+✔ alice -> bob message is encrypted on the wire and decrypted by bob (317.241212ms)
+✔ bob -> alice message is encrypted and decrypted by alice (231.271026ms)
+✔ encrypted attachment: ciphertext on the server, plaintext only after decryption (210.000692ms)
+✔ the server never saw plaintext: /messages and the admin API only hold ciphertext (44.754231ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3591.735233
+## npm run test:ui
+rendering chunks...
+dist/index.html                                                  0.93 kB
+dist/assets/logo-D6mvRjln.svg                                    0.93 kB
+dist/licenses/LICENSE-Inter.txt                                  4.47 kB
+dist/licenses/LICENSE-JetBrainsMono.txt                          4.52 kB
+dist/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
+dist/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
+dist/licenses/third-party.md                                    92.72 kB
+dist/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
+dist/assets/matrix_sdk_crypto_wasm_bg-DQQaknxI.wasm          7,805.48 kB
+dist/assets/index-DF9-EPzf.css                                  74.32 kB
+dist/assets/rust-crypto-r8H_7gP6.js                            226.02 kB
+dist/assets/index-BO6T_hd4.js                                1,933.42 kB
+✓ built in 2.17s
+✔ login screen renders under the production CSP (3032.02944ms)
+✔ both users sign in; Ada sets up secure backup, Grace postpones (7329.650756ms)
+✔ Ada starts an encrypted DM; Grace accepts and both exchange messages (3301.507797ms)
+✔ reply, reaction and edit round-trip (1497.337921ms)
+✔ encrypted image attachment is decrypted and shown inline by the receiver (1022.208395ms)
+✔ Grace sets up backup from Settings, then they verify each other with emoji (7128.873448ms)
+✔ deleting a message removes it for the other side (961.113649ms)
+✔ on-device search finds decrypted messages (430.22946ms)
+✔ screenshots: desktop and 390px mobile, light and dark (2549.539921ms)
+✔ profile: display name and avatar upload (1870.805081ms)
+✔ groups: encrypted by default; an unencrypted group is labelled honestly; history pagination; upload limit (7480.604942ms)
+✔ deep links: existing DM opens directly; a new contact needs confirmation; reload restores the session (4234.278236ms)
+✔ notifications: only requested from settings, follow push rules, previews off by default (3639.073093ms)
+✔ offline: banner, failed send with retry after reconnecting (947.81912ms)
+✔ new device: history is unreadable until verified with the recovery key, then restored from backup (5126.25708ms)
+✔ self-verification: a new device is verified by an existing one with emoji (5426.847909ms)
+✔ sessions: rename, and sign out other devices with password confirmation (6661.745072ms)
+✔ identity reset: a verified contact's new identity triggers a warning (3986.6361ms)
+✔ identity change of an unverified contact: 'I understand' pins the new identity (3291.691271ms)
+✔ appearance: theme switch is stored like the website's (1134.20723ms)
+✔ sign out wipes local data (2826.420683ms)
+✔ no CSP violations or uncaught errors in any browser (1.192425ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74557.941333

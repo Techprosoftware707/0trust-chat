@@ -229,6 +229,13 @@ final class TimelineModel {
         }
     }
 
+    /// Reports a message to the server's administrators (App Review 1.2).
+    /// In encrypted rooms the server receives only the event ID and the reason,
+    /// not the decrypted text.
+    func report(eventId: String, reason: String?) async throws {
+        try await room.reportContent(eventId: eventId, reason: reason)
+    }
+
     func displayName(of userId: String) async -> String {
         (try? await room.memberDisplayName(userId: userId)).flatMap { $0 } ?? userId
     }

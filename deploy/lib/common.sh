@@ -116,9 +116,9 @@ rtc_domain() { conf_get LUMEN_RTC_DOMAIN "rtc.$(conf_get LUMEN_PRIMARY_DOMAIN)";
 push_enabled() { truthy "$(conf_get PUSH_ENABLED false)"; }
 
 calls_ports_human() {
-  printf '%s/udp (media), %s/tcp (ICE/TCP), %s/udp (TURN), %s/tcp (TURN/TLS)' \
+  printf '%s/udp (media), %s/tcp (ICE/TCP), %s/udp (TURN)' \
     "$(conf_get CALLS_UDP_PORTS 7882-7889)" "$(conf_get CALLS_TCP_PORT 7881)" \
-    "$(conf_get CALLS_TURN_UDP_PORT 3478)" "$(conf_get CALLS_TURN_TLS_PORT 5349)"
+    "$(conf_get CALLS_TURN_UDP_PORT 3478)"
 }
 
 compose_env_file() { printf '%s' "$LUMEN_RENDERED_DIR/compose.env"; }

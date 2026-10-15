@@ -103,13 +103,12 @@ if [[ "$(get CALLS_ENABLED)" != false ]]; then
   echo "--- calls (SFU, TURN, authorization)"
   RTC="$(get LUMEN_RTC_DOMAIN)"; RTC="${RTC:-rtc.$P}"
   tcp_port="$(get CALLS_TCP_PORT)"; tcp_port="${tcp_port:-7881}"
-  tls_port="$(get CALLS_TURN_TLS_PORT)"; tls_port="${tls_port:-5349}"
   turn_port="$(get CALLS_TURN_UDP_PORT)"; turn_port="${turn_port:-3478}"
   udp_range="$(get CALLS_UDP_PORTS)"; udp_range="${udp_range:-7882-7889}"
   lk_listen="$(echo "$listeners" | grep livekit || true)"
-  bad_tcp="$(awk -v a="$tcp_port" -v b="$tls_port" '$1=="tcp" { n=split($2,x,":"); port=x[n]; addr=substr($2,1,length($2)-length(port)-1);
-    if (addr=="127.0.0.1" && (port==7880 || port==6789)) next; if (port==a || port==b) next; print $2 }' <<<"$lk_listen")"
-  [[ -n "$lk_listen" && -z "$bad_tcp" ]] && ok "SFU TCP: signalling and metrics on loopback only; public only ICE/TCP $tcp_port and TURN/TLS $tls_port" || bad "SFU TCP listeners" "${bad_tcp:-none found}"
+  bad_tcp="$(awk -v a="$tcp_port" '$1=="tcp" { n=split($2,x,":"); port=x[n]; addr=substr($2,1,length($2)-length(port)-1);
+    if (addr=="127.0.0.1" && (port==7880 || port==6789)) next; if (port==a) next; print $2 }' <<<"$lk_listen")"
+  [[ -n "$lk_listen" && -z "$bad_tcp" ]] && ok "SFU TCP: signalling and metrics on loopback only; public only ICE/TCP $tcp_port" || bad "SFU TCP listeners" "${bad_tcp:-none found}"
   bad_udp="$(awk -v lo="${udp_range%-*}" -v hi="${udp_range#*-}" -v t="$turn_port" '$1=="udp" { n=split($2,x,":"); port=x[n]+0;
     if ((port>=lo && port<=hi) || port==t || (port>=40000 && port<=40999)) next; print $2 }' <<<"$lk_listen")"
   [[ -z "$bad_udp" ]] && ok "SFU UDP: only media $udp_range, TURN $turn_port and TURN relay allocations" || bad "SFU UDP listeners" "$bad_udp"
@@ -138,10 +137,10 @@ PY
   [[ "$noroom" == 404 ]] && ok "a valid token cannot create rooms (auto-create off: unknown room → 404)" || bad "SFU room auto-create" "$noroom"
   code="$(c "$MX" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "https://$MX/_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token")"
   [[ "$code" == 401 ]] && ok "SFU token endpoint requires a signed-in Matrix user (401)" || bad "anonymous SFU token" "$code"
-  for v in tls1 tls1_1; do
-    if echo | openssl s_client -connect "127.0.0.1:$tls_port" -servername "$RTC" "-$v" >/dev/null 2>&1; then bad "TURN/TLS accepts ${v/_/.}"; else ok "TURN/TLS refuses ${v/_/.}"; fi
-  done
   lkconf=/etc/lumen/rendered/livekit/livekit.yaml
+  # LiveKit would advertise a TURN/TLS listener as turns:<domain>:443 (Caddy's port): none must exist.
+  grep -q 'tls_port' "$lkconf" && bad "SFU config enables TURN/TLS (would be advertised on :443, Caddy's port)" || ok "no TURN/TLS listener advertised on Caddy's port 443"
+  grep -qE '^  (ips|interfaces):' "$lkconf" && ok "SFU media restricted to the advertised address/interface (no Docker/VPN host candidates)" || bad "SFU media not restricted to an address or interface"
   rtc_net="$(get RTC_NETWORK_SUBNET)"; wg_net="$(get WG_SUBNET)"
   python3 - "$lkconf" "${rtc_net:-172.30.42.0/28}" "${wg_net:-10.77.0.0/24}" <<'PY' && ok "TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created" || bad "SFU/TURN configuration" "$lkconf"
 import sys

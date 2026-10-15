@@ -9,7 +9,8 @@
  *    layers, B receives a lower resolution, audio continues; recovery after the limit is lifted
  * 10 10 % packet loss on B's uplink → voice continues, loss/concealment/FEC numbers
  * 15 TURN: no direct media path (all UDP but TURN/UDP 3478, and ICE/TCP 7881 blocked) → relay over TURN/UDP;
- *    all UDP blocked → ICE/TCP; all UDP and ICE/TCP blocked → TURN/TLS (relay over TLS)
+ *    all UDP blocked → ICE/TCP; all UDP and ICE/TCP blocked → no path: Lumen offers no TURN/TLS
+ *    (LiveKit 1.13 advertises it only on :443, which is Caddy's), so the call must fail visibly
  * 16 link down for ~5 s → reconnecting state shown → media resumes
  */
 import assert from "node:assert/strict";
@@ -132,7 +133,7 @@ try {
       nackCount: outB?.nackCount,
       sfuReportedLoss: outB?.remoteLoss,
     });
-    log("note: Chrome counts only FlexFEC/ULPFEC in fecPacketsReceived; Opus in-band FEC recovery isn't exposed in getStats, and the SFU's NACK retransmissions repair most of the uplink loss before it reaches A");
+    log("note: Chrome counts only FlexFEC/ULPFEC in fecPacketsReceived; Opus in-band FEC recovery isn't exposed in getStats (it shows up as less concealment than loss). Audio isn't retransmitted (NACK counts above), so the uplink loss reaches A; the SFU's fractionLost is its last receiver-report interval only");
     assert.ok(inn.dLost > 0 || (outB?.remoteLoss?.packetsLost ?? 0) > 0 || (outB?.retransmittedPacketsSent ?? 0) > 0, "loss is measured (end-to-end, at the SFU, or as retransmissions)");
     const heard = await hearRemoteTones(A, 4000);
     log("A hears B under loss:", heard);
@@ -191,7 +192,7 @@ try {
     await B.page.locator(".call-screen").waitFor({ state: "detached", timeout: T });
   });
 
-  await step("15c: all UDP and ICE/TCP blocked for B → TURN over TLS (5349), media flows", async () => {
+  await step("15c: all UDP and ICE/TCP blocked for B → no media path; B is told the call could not connect", async () => {
     await hangUpAll(A, B);
     resetNet();
     log(lab("block-udp", "lab-b"));
@@ -200,15 +201,21 @@ try {
     await acceptIncoming(B, "audio");
     await B.page.waitForTimeout(10_000);
     log("B's ICE candidate pairs after 10 s:", await icePairs(B));
-    await waitE2EE(B, 90_000);
-    await B.page.waitForTimeout(3000);
-    const p = await pathOf(B);
-    log("B selected ICE path(s):", p);
-    assert.ok(p.some((x) => /^relay\/.* via tls/.test(x)), "B relays over TURN/TLS");
-    expectTone(await hearRemoteTones(B), A.userId, 440, "B hears A via TURN/TLS");
-    expectTone(await hearRemoteTones(A), B.userId, 660, "A hears B via TURN/TLS");
-    await leave(A);
-    await B.page.locator(".call-screen").waitFor({ state: "detached", timeout: T });
+    // No TURN/TLS is offered (ADR 0002 D4), so B has no media path: it must never show
+    // "connected", and its status must say what is happening (connecting / reconnecting /
+    // an end reason) — no silent or fake call.
+    const phases = new Set();
+    for (let i = 0; i < 45; i++) {
+      phases.add(await B.page.locator(".call-screen").getAttribute("data-phase").catch(() => "gone"));
+      await B.page.waitForTimeout(1000);
+    }
+    const status = (await B.page.locator('[data-testid="call-status"]').innerText().catch(() => "")).trim();
+    log("B's call phases over 45 s:", [...phases], "status:", status || "(call screen closed)");
+    assert.ok(!phases.has("connected"), "B never reports a connected call without a media path");
+    assert.ok(phases.has("connecting") || phases.has("reconnecting") || phases.has("ended") || phases.has("gone"), "B shows a non-connected state");
+    if (phases.has("ended")) assert.ok(status.length > 0, "an ended call says why");
+    await leave(A).catch(() => {});
+    await B.page.locator(".call-screen").waitFor({ state: "detached", timeout: T }).catch(() => {});
     log(lab("unblock-all", "lab-b"));
   });
 

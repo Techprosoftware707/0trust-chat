@@ -4,7 +4,6 @@
 #   sudo ./lumenctl status                          containers, health, versions
 #   sudo ./lumenctl logs <service> [-f]             service logs (portal|ops|worker|synapse|caddy|postgres|livekit|lkjwt)
 #   sudo ./lumenctl calls-selftest                  send real audio+video through the SFU (from this host)
-#   sudo ./lumenctl rtc-cert                        install a renewed calls TURN/TLS certificate (restarts LiveKit if changed)
 #   sudo ./lumenctl restart <service>...
 #   sudo ./lumenctl compose <args...>               raw docker compose with the right env/files
 #   sudo ./lumenctl create-operator <user> <email> [role]
@@ -190,18 +189,6 @@ case "$cmd" in
       ok "SFU forwarded real audio and video to 2 test subscribers: ${summary//│/ }"
     else
       die "SFU media self-test failed; see $_log_file"
-    fi
-    ;;
-  rtc-cert)
-    log_init lumenctl
-    calls_enabled || { ok "calls are disabled"; exit 0; }
-    if sync_rtc_cert; then
-      refresh_livekit_config
-      ok "TURN/TLS certificate updated; LiveKit restarted (active calls reconnect automatically)"
-    elif [[ -z "$(rtc_cert_path)" ]]; then
-      warn "Caddy has no certificate for $(rtc_domain) yet; check DNS and 'lumenctl logs caddy'"
-    else
-      ok "TURN/TLS certificate is current"
     fi
     ;;
   apply)
