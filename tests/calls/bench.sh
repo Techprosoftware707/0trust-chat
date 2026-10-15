@@ -38,7 +38,14 @@ run_scenario() { # name, load-test args...
   local room statsf; room="bench-$(openssl rand -hex 3)"; statsf="$(mktemp)"
   lk room create "$room" >/dev/null 2>&1 || { echo "!! $name: could not create room"; return; }
   local in0 out0; in0="$(metric livekit_packet_bytes incoming)"; out0="$(metric livekit_packet_bytes outgoing)"
-  ( for _ in $(seq 1 $((DUR + 20))); do docker stats --no-stream --format '{{.CPUPerc}} {{.MemUsage}}' lumen-livekit-1; sleep 1; done ) >"$statsf" 2>/dev/null &
+  # CPU time and resident memory of the SFU process, read from /proc (works whatever the
+  # cgroup setup; `docker stats` reports zeros on hosts without the cgroup controllers).
+  local pid; pid="$(docker inspect -f '{{.State.Pid}}' lumen-livekit-1 2>/dev/null)"
+  ( for _ in $(seq 1 $((DUR + 120))); do
+      [[ -r "/proc/$pid/stat" ]] && printf '%s %s %s\n' "$(date +%s.%N)" \
+        "$(awk '{print $14 + $15}' "/proc/$pid/stat")" "$(awk '/^VmRSS/ {print $2}' "/proc/$pid/status")"
+      sleep 1
+    done ) >"$statsf" 2>/dev/null &
   local sp=$!
   local t0 out; t0=$(date +%s)
   out="$(timeout $((DUR + 120)) docker run --rm --network "${COMPOSE_PROJECT_NAME}_rtc" --env-file "$envf" --add-host "$RTC:$RTC_GATEWAY_IP" \
@@ -51,8 +58,15 @@ run_scenario() { # name, load-test args...
   local secs=$((t1 - t0))
   echo "=== $name  (load-test $*)"
   printf '%s\n' "$out" | grep -E '^│ Total|^│ Tester|^┌|^└|^├' | tail -n 5
-  awk '{gsub("%","",$1); c+=$1; if ($1>m) m=$1; n++} END {if (n) printf "SFU CPU: avg %.0f%%  peak %.0f%% (100%% = one vCPU) over %d samples\n", c/n, m, n}' "$statsf"
-  awk '{print $2}' "$statsf" | sort -h | tail -n1 | sed 's/^/SFU memory peak: /'
+  awk -v hz="$(getconf CLK_TCK)" '
+    NR == 1 {t0 = $1; c0 = $2}
+    NR > 1 {p = ($2 - pc) / hz / ($1 - pt) * 100; if (p > peak) peak = p}
+    {pt = $1; pc = $2; if ($3 > rss) rss = $3; n++}
+    END {
+      if (n < 2) {print "SFU CPU and memory: unavailable (could not read /proc for the SFU process)"; exit}
+      printf "SFU CPU: avg %.0f%%  peak %.0f%% (100%% = one vCPU) over %d one-second samples\n", ($2 - c0) / hz / ($1 - t0) * 100, peak, n - 1
+      printf "SFU memory (resident) peak: %.0f MiB\n", rss / 1024
+    }' "$statsf"
   awk -v a="$in0" -v b="$in1" -v c="$out0" -v d="$out1" -v s="$secs" 'BEGIN {printf "SFU forwarded: in %.1f Mbit/s, out %.1f Mbit/s (averaged over %ds incl. ramp-up)\n", (b-a)*8/s/1e6, (d-c)*8/s/1e6, s}'
   echo
   rm -f "$statsf"
@@ -61,12 +75,17 @@ run_scenario() { # name, load-test args...
 run_scenario "1:1 voice (2 participants, audio only)" --audio-publishers 2 --subscribers 2
 run_scenario "1:1 video call (2 x 720p simulcast + audio)" --video-publishers 2 --audio-publishers 2 --subscribers 2 --video-resolution high
 run_scenario "4-person video meeting (720p simulcast)" --video-publishers 4 --audio-publishers 4 --subscribers 4 --video-resolution high
-run_scenario "8-person video meeting (720p simulcast)" --video-publishers 8 --audio-publishers 8 --subscribers 8 --video-resolution high
-run_scenario "12-person video meeting (720p simulcast)" --video-publishers 12 --audio-publishers 12 --subscribers 12 --video-resolution high
-run_scenario "25-person audio call" --audio-publishers 25 --subscribers 25
+# The load tester's subscribers subscribe to what a layout would show (default "speaker":
+# a few tiles); larger meetings use a grid layout big enough for every participant.
+run_scenario "8-person video meeting (720p simulcast, 3x3 grid)" --video-publishers 8 --audio-publishers 8 --subscribers 8 --video-resolution high --layout 3x3
+run_scenario "12-person video meeting (720p simulcast, 4x4 grid)" --video-publishers 12 --audio-publishers 12 --subscribers 12 --video-resolution high --layout 4x4
+run_scenario "25-person audio call (5x5 grid)" --audio-publishers 25 --subscribers 25 --layout 5x5
 run_scenario "webinar: 2 speakers on video, 40 listeners" --video-publishers 2 --audio-publishers 2 --subscribers 40 --video-resolution high
 
 cat <<'EOF'
+Tracks x/y: x tracks were received by all subscribers together; y is every published track
+times the number of subscribers. Subscribers only take what their simulated layout shows,
+so x < y means tiles not on screen, not an SFU failure.
 Caveats: load-test participants run on the same host (they compete with the SFU for
 CPU and memory); browser-side E2EE is not exercised (it does not change the SFU's
 forwarding work); links are LAN-speed without loss; a single LiveKit node. Numbers are

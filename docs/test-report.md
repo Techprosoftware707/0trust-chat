@@ -42,6 +42,7 @@ or just before the commit that adds this file. Raw outputs are in
 | **Installer: fresh install with the current code** (new Ubuntu 24.04.5 systemd test server, calls on, `PUSH_ENABLED=true` without credentials, app links configured) | everything above with the current code (no TURN/TLS; push gateway; app discovery block; call widget served). The first two attempts found two installer bugs, both fixed: a transient registry 502 aborted the install (no retry), and with push enabled but no credential the push gateway crash-looped. The installer reported this honestly as INCOMPLETE, exit 3. Then: a throwaway P-256 key stored as the APNs credential (`lumenctl set-secret` + `apply`) → gateway healthy, advertised to the apps, FCM still reported as missing | **SUCCESS, exit 0**, 73 checks. Push: a warning, not a failure, until a credential is stored; with the APNs key, the gateway answers `/health` with 200 | `installer-fresh-install-current.txt` |
 | **Installer lifecycle with the current code**, round 1 (same fresh server: calls on, push on with a throwaway APNs key so the gateway runs) | the lifecycle above, now also covering the push gateway | **46/47**: after uninstall the push gateway container was still running (`uninstall.sh` stopped only the calls and tools profiles) → fixed | `installer-lifecycle-current-round1.txt` |
 | **Installer lifecycle with calls** | the lifecycle above plus a media self-test after re-install, SFU restart (`lumenctl restart livekit lkjwt`: config unchanged, data untouched), restore, update, uninstall + re-install; calls off (containers removed, Lumen's calls firewall rules closed, SFU no longer advertised, app without calls) and on again (rules back, media flows) | round 1: 37/38 (**bug: re-running the installer failed preflight on Lumen's own SFU ports**) → fixed → round 2 on a new server: **47/47** | `installer-lifecycle-calls-round1.txt`, `…-round2.txt` |
+| **SFU capacity benchmark** (`tests/calls/bench.sh 30`, LiveKit load tester on the same host) | 1:1 voice and video, 4/8/12-person 720p simulcast meetings, a 25-person audio call, a webinar with 2 speakers and 40 listeners. SFU CPU and memory are read from `/proc` of the SFU process: `docker stats` reports zeros on this host, which the first run printed as 0 %; fixed | every scenario: all tracks received, **0 % packet loss**. SFU CPU averaged 6 % (1:1 voice) to 86 % of one vCPU (25-person audio; peak 106 %); a 12-person 720p meeting used 54 % on average (peak 82 %); the webinar sent 68 Mbit/s out. Memory 141–333 MiB. Same-host load generator, LAN links: not a capacity guarantee | `calls-sfu-benchmark.txt` |
 | **Calls × WireGuard** (`tests/calls/wg_calls.sh`) | a client namespace with a real WireGuard profile issued by the host agent; real WebRTC participants (LiveKit load tester) publish audio + video through the SFU: (1) profile as issued (split tunnel): media flows; (2) SFU address routed through the tunnel: media flows and ~2.8 MB crossed the tunnel interface | **3/3** | `calls-wireguard.txt` |
 | **Disaster recovery** (`tests/installer/dr.sh`) | a *second* fresh server installs, then restores the first server's backup with the offline key and `--with-config`: same server identity, accounts present, healthy, installer converges | **10/10** | `installer-disaster-recovery.txt` |
 
@@ -61,8 +62,8 @@ simulated in the app.
 | 4 | Mute/unmute seen remotely | PASS | 50.3 → 4.5 packets/s when muted (DTX), silence at the receiver |
 | 5 | Mic and speaker selection | PASS | `deviceId` and `sinkId` change |
 | 6 | AEC/NS/AGC applied; High-Fidelity mode | PASS | voice: all three on, mono 48 kHz. High-Fidelity: processing off, 2 channels, `stereo=1`, no DTX, ~127 kbit/s. Echo/noise *performance* needs real acoustics (not measured). |
-| 7 | 720p video | PASS (relaxed, see below) | 1280×720 capture, simulcast 180/360/720 sent, but encoder CPU-limited to 11–12 fps; receiver decoded 960×540 @ 18 fps |
-| 8 | 1080p video | PASS for what it checks | 1080p capture and top layer offered. **1080p30 end to end was not achieved on this host** (encoder CPU-limited). |
+| 7 | 720p video | PASS | **Quiet host (`calls-core-quiet-host.txt`): A sent 1280×720 @ 28 fps (1.1 Mbit/s, no quality limitation); B decoded 1280×720 @ 30 fps, 1.2 Mbit/s.** Earlier runs under heavy CPU load: encoder limited to 11–19 fps, receiver at 960×540. |
+| 8 | 1080p video | PASS for what it checks | 1080p capture and top layer offered. **1080p30 end to end was not achieved on this host**, even when quiet: the software VP8 encoder reported `qualityLimitationReason=cpu`, sent 1280×720 at about 19 fps, and B received 1280×720. |
 | 9 | Adaptation under a 300 kbit/s cap | PASS | upper layers paused, receiver at 320×180 @ 20 fps, audio continuous; back to 1280×720 within 40 s after the cap |
 | 10 | 10 % packet loss | PASS | 10.8 % loss, 10.1 % concealment, tone still detected; UI shows "Poor network" |
 | 11 | Group call, 3 clients | PASS | every client hears the other two (441/662/877 Hz) |
@@ -83,12 +84,15 @@ reported `qualityLimitationReason=cpu`, and B received 1280×720.
 
 **Not demonstrated:**
 
-- **720p30 and 1080p30 delivery.** In this environment 3–4 agent builds
-  (rustc, Gradle, cc1) ran on the same 4 vCPUs at a load average of 7–18, and
-  the software VP8 encoder of each headless Chromium was CPU-limited. Test 7
-  was relaxed so that a CPU-limited encoder passes with its numbers logged.
-  Without CPU limitation, the test still requires exact 180/360/720 layers.
-  A quiet-host rerun is needed for a clean 720p30 or 1080p30 claim.
+- **1080p30 delivery.** 720p30 was shown end to end once the host was quiet
+  (`calls-core-quiet-host.txt`). During the earlier runs, 3–4 agent builds
+  (rustc, Gradle, cc1) shared the 4 vCPUs at a load average of 7–18, and the
+  software VP8 encoder of each headless Chromium was CPU-limited. Test 7 is
+  relaxed so that a CPU-limited encoder passes with its numbers logged; without
+  CPU limitation it still requires exact 180/360/720 layers. At 1080p the
+  encoder was CPU-limited even on the quiet host, because both browsers and
+  the SFU share 4 vCPUs. 1080p30 needs a faster machine or hardware encoding
+  to demonstrate.
 - **Not exercised:**
   - token expiry after 1 h;
   - delegated delayed leave;

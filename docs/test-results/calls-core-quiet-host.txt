@@ -1,0 +1,22 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+
+--- sign in A (lab-a) and B (lab-b) through portal SSO; A opens an encrypted DM with B
+DM !4Vnk5hKxxudAFlRBA09SRmSwa8QNMOi6aDjpkRKob20
+PASS sign in A (lab-a) and B (lab-b) through portal SSO; A opens an encrypted DM with B (10.4 s)
+
+--- 7: 1:1 video call at 720p: negotiated resolution and frame rate from outbound/inbound-rtp
+A outbound video layers: ["f video/VP8 1280x720@28 1130 kbit/s limit=none","q video/VP8 320x180@20 161 kbit/s limit=none","h video/VP8 640x360@20 385 kbit/s limit=none"]
+B inbound video: ["video/VP8 1280x720@30 1200 kbit/s decoded+114"]
+A camera capture: 1280x720@30; encodings: q: ÷4 max 160 kbit/s 20fps | h: ÷2 max 450 kbit/s 20fps | f: ÷1 max 1700 kbit/s 30fps
+PASS 7: 1:1 video call at 720p: negotiated resolution and frame rate from outbound/inbound-rtp (31.9 s)
+
+--- 8: 1080p: A picks 'Highest available' → 1920×1080 capture and a 1080p simulcast layer; B (1920×1080 screen) decodes the layer the SFU forwards (logged)
+A outbound video layers (highest): ["q 427x240@18 569 kbit/s limit=cpu","f 1280x720@19 505 kbit/s limit=cpu","h 853x480@18 1001 kbit/s limit=cpu"]
+B inbound video (1920×1080 viewport): ["1280x720@13 663 kbit/s decoded+66"]
+A camera capture: 1920x1080@30
+NOTE: the encoder scaled the 1080p layer down: qualityLimitationReason=cpu (software VP8 on 4 shared cores)
+NOTE: B receives 1280x720; the SFU/adaptive stream chose a lower layer
+PASS 8: 1080p: A picks 'Highest available' → 1920×1080 capture and a 1080p simulcast layer; B (1920×1080 screen) decodes the layer the SFU forwards (logged) (68.1 s)
+CSP violations / page errors: none
+
+core: 3 passed, 0 failed, 0 skipped (started 2026-10-15T09:25:10.643Z, finished 2026-10-15T09:27:01.935Z) — partial rerun, --only ^(7|8):

@@ -1,0 +1,84 @@
+Lumen SFU benchmark — 2026-10-15T09:20:39Z
+Host: 4 vCPU, 15 GB RAM, 6.18.44-fc-v114; LiveKit livekit/livekit-server:v1.13.10
+Duration per scenario: 30s
+
+=== 1:1 voice (2 participants, audio only)  (load-test --audio-publishers 2 --subscribers 2)
+┌────────┬────────┬─────────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks │ Bitrate                 │ Total Pkt. Loss │ Error │
+├────────┼────────┼─────────────────────────┼─────────────────┼───────┤
+│ Total  │ 4/4    │ 84.0kbps (42.0kbps avg) │ 0 (0%)          │ 0     │
+└────────┴────────┴─────────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 6%  peak 12% (100% = one vCPU) over 30 one-second samples
+SFU memory (resident) peak: 209 MiB
+SFU forwarded: in 0.1 Mbit/s, out 0.1 Mbit/s (averaged over 31s incl. ramp-up)
+
+=== 1:1 video call (2 x 720p simulcast + audio)  (load-test --video-publishers 2 --audio-publishers 2 --subscribers 2 --video-resolution high)
+┌────────┬────────┬───────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks │ Bitrate               │ Total Pkt. Loss │ Error │
+├────────┼────────┼───────────────────────┼─────────────────┼───────┤
+│ Total  │ 8/8    │ 3.8mbps (1.9mbps avg) │ 0 (0%)          │ 0     │
+└────────┴────────┴───────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 12%  peak 19% (100% = one vCPU) over 30 one-second samples
+SFU memory (resident) peak: 209 MiB
+SFU forwarded: in 4.6 Mbit/s, out 3.6 Mbit/s (averaged over 32s incl. ramp-up)
+
+=== 4-person video meeting (720p simulcast)  (load-test --video-publishers 4 --audio-publishers 4 --subscribers 4 --video-resolution high)
+┌────────┬────────┬────────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks │ Bitrate                │ Total Pkt. Loss │ Error │
+├────────┼────────┼────────────────────────┼─────────────────┼───────┤
+│ Total  │ 32/32  │ 12.3mbps (3.1mbps avg) │ 0 (0%)          │ 0     │
+└────────┴────────┴────────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 22%  peak 32% (100% = one vCPU) over 31 one-second samples
+SFU memory (resident) peak: 141 MiB
+SFU forwarded: in 9.9 Mbit/s, out 12.0 Mbit/s (averaged over 32s incl. ramp-up)
+
+=== 8-person video meeting (720p simulcast, 3x3 grid)  (load-test --video-publishers 8 --audio-publishers 8 --subscribers 8 --video-resolution high --layout 3x3)
+┌────────┬─────────┬────────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks  │ Bitrate                │ Total Pkt. Loss │ Error │
+├────────┼─────────┼────────────────────────┼─────────────────┼───────┤
+│ Total  │ 128/128 │ 37.7mbps (4.7mbps avg) │ 0 (0%)          │ 0     │
+└────────┴─────────┴────────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 38%  peak 51% (100% = one vCPU) over 33 one-second samples
+SFU memory (resident) peak: 162 MiB
+SFU forwarded: in 9.3 Mbit/s, out 35.6 Mbit/s (averaged over 34s incl. ramp-up)
+
+=== 12-person video meeting (720p simulcast, 4x4 grid)  (load-test --video-publishers 12 --audio-publishers 12 --subscribers 12 --video-resolution high --layout 4x4)
+┌────────┬─────────┬────────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks  │ Bitrate                │ Total Pkt. Loss │ Error │
+├────────┼─────────┼────────────────────────┼─────────────────┼───────┤
+│ Total  │ 288/288 │ 42.3mbps (3.5mbps avg) │ 0 (0%)          │ 0     │
+└────────┴─────────┴────────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 54%  peak 82% (100% = one vCPU) over 34 one-second samples
+SFU memory (resident) peak: 242 MiB
+SFU forwarded: in 10.8 Mbit/s, out 40.3 Mbit/s (averaged over 35s incl. ramp-up)
+
+=== 25-person audio call (5x5 grid)  (load-test --audio-publishers 25 --subscribers 25 --layout 5x5)
+┌────────┬─────────┬──────────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks  │ Bitrate                  │ Total Pkt. Loss │ Error │
+├────────┼─────────┼──────────────────────────┼─────────────────┼───────┤
+│ Total  │ 625/625 │ 11.7mbps (469.5kbps avg) │ 0 (0%)          │ 0     │
+└────────┴─────────┴──────────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 86%  peak 106% (100% = one vCPU) over 39 one-second samples
+SFU memory (resident) peak: 310 MiB
+SFU forwarded: in 0.7 Mbit/s, out 12.7 Mbit/s (averaged over 41s incl. ramp-up)
+
+=== webinar: 2 speakers on video, 40 listeners  (load-test --video-publishers 2 --audio-publishers 2 --subscribers 40 --video-resolution high)
+┌────────┬─────────┬────────────────────────┬─────────────────┬───────┐
+│ Tester │ Tracks  │ Bitrate                │ Total Pkt. Loss │ Error │
+├────────┼─────────┼────────────────────────┼─────────────────┼───────┤
+│ Total  │ 160/160 │ 68.6mbps (1.7mbps avg) │ 0 (0%)          │ 0     │
+└────────┴─────────┴────────────────────────┴─────────────────┴───────┘
+SFU CPU: avg 48%  peak 65% (100% = one vCPU) over 38 one-second samples
+SFU memory (resident) peak: 333 MiB
+SFU forwarded: in 4.7 Mbit/s, out 67.7 Mbit/s (averaged over 39s incl. ramp-up)
+
+Tracks x/y: x tracks were received by all subscribers together; y is every published track
+times the number of subscribers. Subscribers only take what their simulated layout shows,
+so x < y means tiles not on screen, not an SFU failure.
+Caveats: load-test participants run on the same host (they compete with the SFU for
+CPU and memory); browser-side E2EE is not exercised (it does not change the SFU's
+forwarding work); links are LAN-speed without loss; a single LiveKit node. Numbers are
+what this host did in this run, not a guaranteed capacity — size real deployments by
+outbound bandwidth first: each subscriber receives roughly one high layer per visible
+video tile (~1.2-2.5 Mbit/s at 720p) plus ~30-50 kbit/s per speaking audio track.
+exit 0
