@@ -208,7 +208,7 @@ fi
 VERIFY_OK=1
 if ((DO_VERIFY)); then
   phase "Verifying public endpoints"
-  verify_endpoints
+  LUMEN_VERIFY_MEDIA=1 verify_endpoints
   ((${#VERIFY_FAILURES[@]} == 0)) || VERIFY_OK=0
 fi
 

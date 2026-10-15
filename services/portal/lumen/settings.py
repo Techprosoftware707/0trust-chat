@@ -332,7 +332,16 @@ FEDERATION_MODE = env("FEDERATION_MODE", "open")  # open | allowlist | closed
 FEDERATION_ALLOWLIST = env_list("FEDERATION_ALLOWLIST")
 FEDERATION_PROBE_NOTARY = env("FEDERATION_PROBE_NOTARY", "")
 TLS_MODE = env("TLS_MODE", "acme")  # acme (public CA) | internal (Caddy local CA, test/lab only)
-VOIP_ENABLED = env_bool("VOIP_ENABLED", False)
+CALLS_ENABLED = env_bool("CALLS_ENABLED", True)
+RTC_DOMAIN = env("LUMEN_RTC_DOMAIN", f"rtc.{PRIMARY_DOMAIN}")
+CALLS_PUBLIC_IP = env("CALLS_PUBLIC_IP", "")
+CALLS_UDP_PORTS = env("CALLS_UDP_PORTS", "7882-7889")
+CALLS_TCP_PORT = env_int("CALLS_TCP_PORT", 7881)
+CALLS_TURN_UDP_PORT = env_int("CALLS_TURN_UDP_PORT", 3478)
+CALLS_TURN_TLS_PORT = env_int("CALLS_TURN_TLS_PORT", 5349)
+# Inside the worker container: the host as seen from the rtc Docker network.
+RTC_GATEWAY_IP = env("RTC_GATEWAY_IP", "")
+LKJWT_INTERNAL_URL = env("LKJWT_INTERNAL_URL", "http://lkjwt:8080")
 PRESENCE_ENABLED = env_bool("PRESENCE_ENABLED", True)
 DEFAULT_MAX_UPLOAD_MB = env_int("DEFAULT_MAX_UPLOAD_MB", 50)
 

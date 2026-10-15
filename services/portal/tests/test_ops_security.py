@@ -259,3 +259,41 @@ class TestCryptoPosture:
         assert "Cryptography in use" in body
         assert body.count("Hybrid</span>") == 1  # only the host that negotiated ML-KEM
         assert "classical; no interoperable PQ Matrix protocol exists yet" in body
+
+
+class TestCallsMonitoring:
+    def test_prometheus_parsing_and_rates(self):
+        from apps.ops.probes import _prom
+        from apps.ops.views import calls_rates
+
+        text = """# HELP x
+livekit_packet_bytes{country="",direction="incoming",node_id="N"} 1000
+livekit_packet_bytes{country="",direction="outgoing",node_id="N"} 4000
+livekit_room_total{node_id="N"} 2
+livekit_track_published_total{kind="AUDIO",node_id="N"} 3
+process_cpu_seconds_total 10
+"""
+        p = _prom(text)
+        assert p["livekit_packet_bytes:incoming"] == 1000 and p["livekit_packet_bytes:outgoing"] == 4000
+        assert p["livekit_room_total"] == 2 and p["livekit_track_published_total:AUDIO"] == 3
+        old = {"at": 0, "started_at": 5, "bytes_in": 0, "bytes_out": 0, "cpu_seconds": 10, "rtt_ms": [0, 0], "jitter_us": [0, 0], "loss_pct": [0, 0]}
+        new = {"at": 60, "started_at": 5, "bytes_in": 7.5e6, "bytes_out": 15e6, "cpu_seconds": 40, "rtt_ms": [300, 10], "jitter_us": [20000, 10], "loss_pct": [1, 10]}
+        r = calls_rates(new, old)
+        assert round(r["mbps_in"], 2) == 1.0 and round(r["mbps_out"], 2) == 2.0
+        assert round(r["cpu_pct"]) == 50 and r["rtt_ms"] == 30 and r["jitter_ms"] == 2 and r["loss_pct"] == 0.1
+        assert calls_rates({**new, "started_at": 99}, old) is None  # SFU restarted: no fake rate
+
+    def test_calls_page_and_selftest_permissions(self, monkeypatch):
+        from apps.core.models import AuditEvent, HealthSnapshot
+        from apps.ops import agent
+
+        HealthSnapshot.objects.create(component="calls", status="ok", summary="up", detail={"rooms": 1, "participants": 3, "at": 1, "started_at": 1, "bytes_in": 0, "bytes_out": 0, "cpu_seconds": 0, "rss_bytes": 1})
+        auditor = make_user("calls-aud", staff_role="auditor", mfa=True)
+        body = ops_client(auditor).get("/ops/calls/").content.decode()
+        assert "Active calls" in body and "Run media self-test" not in body
+        assert ops_client(auditor).post("/ops/calls/").status_code == 403
+        monkeypatch.setattr(agent, "safe_call", lambda op, **kw: ({"ok": True, "output": "Total 4/4"}, None))
+        admin = make_user("calls-adm", staff_role="admin", mfa=True)
+        body = ops_client(admin).post("/ops/calls/").content.decode()
+        assert "Media self-test passed" in body
+        assert AuditEvent.objects.filter(action="ops.calls_selftest").exists()

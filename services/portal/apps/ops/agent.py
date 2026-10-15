@@ -28,6 +28,7 @@ ALLOWED_OPS = {
     "update.status",
     "diagnose.run",
     "service.restart",
+    "calls.selftest",
     "tls.probe",
 }
 

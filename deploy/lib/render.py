@@ -963,6 +963,7 @@ def render_app_env(cfg, out: Path) -> None:
     text += "POSTGRES_HOST=postgres\nPOSTGRES_DB=lumen\nPOSTGRES_USER=lumen_app\n"
     text += "HOST_AGENT_SOCKET=/run/lumen-agent/agent.sock\nLUMEN_STATUS_DIR=/var/lib/lumen/status\n"
     text += "LUMEN_DISK_PROBE_PATH=/var/lib/lumen/status\n"
+    text += f"RTC_GATEWAY_IP={rtc_ips(cfg)['gateway']}\n"
     if cfg["TLS_MODE"] == "internal":
         text += "LUMEN_PROBE_CA_BUNDLE=/etc/lumen-ca/ca.crt\nREQUESTS_CA_BUNDLE=/etc/lumen-ca/ca.crt\n"
     write(out / "app.env", text, 0o640)

@@ -115,7 +115,7 @@ configure_firewall
 install_systemd_units
 
 step "Verifying"
-verify_endpoints
+LUMEN_VERIFY_MEDIA=1 verify_endpoints
 if ((${#VERIFY_FAILURES[@]})); then
   rollback
   fail_update "${#VERIFY_FAILURES[@]} endpoint check(s) failed after the update"

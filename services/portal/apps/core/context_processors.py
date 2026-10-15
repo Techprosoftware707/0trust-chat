@@ -26,7 +26,7 @@ def lumen(request):
             "billing_provider": settings.BILLING_PROVIDER,
             "registration_mode": registration_mode,
             "federation_mode": settings.FEDERATION_MODE,
-            "voip_enabled": settings.VOIP_ENABLED,
+            "calls_enabled": settings.CALLS_ENABLED,
             "maintenance": maintenance,
             "maintenance_message": maintenance_message,
             "announcement": announcement,

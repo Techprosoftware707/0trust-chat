@@ -3,6 +3,7 @@
 #
 #   sudo ./lumenctl status                          containers, health, versions
 #   sudo ./lumenctl logs <service> [-f]             service logs (portal|ops|worker|synapse|caddy|postgres|livekit|lkjwt)
+#   sudo ./lumenctl calls-selftest                  send real audio+video through the SFU (from this host)
 #   sudo ./lumenctl rtc-cert                        install a renewed calls TURN/TLS certificate (restarts LiveKit if changed)
 #   sudo ./lumenctl restart <service>
 #   sudo ./lumenctl compose <args...>               raw docker compose with the right env/files
@@ -167,6 +168,15 @@ case "$cmd" in
     mv -f "$LUMEN_SECRETS_DIR/$name.new" "$LUMEN_SECRETS_DIR/$name"
     unset value
     ok "$name stored in $LUMEN_SECRETS_DIR (not printed). Run 'sudo ./lumenctl apply' to use it."
+    ;;
+  calls-selftest)
+    log_init lumenctl
+    calls_enabled || die "calls are disabled (CALLS_ENABLED=false)"
+    if summary="$(calls_selftest 10)"; then
+      ok "SFU forwarded real audio and video to 2 test subscribers: ${summary//│/ }"
+    else
+      die "SFU media self-test failed; see $_log_file"
+    fi
     ;;
   rtc-cert)
     log_init lumenctl

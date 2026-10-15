@@ -476,6 +476,13 @@ def op_diagnose(args: dict) -> dict:
     return {"exit_code": r.returncode, "output": ANSI.sub("", (r.stdout + r.stderr))[-20000:]}
 
 
+def op_calls_selftest(args: dict) -> dict:
+    """Real audio+video through the SFU (LiveKit load tester on the internal network)."""
+    r = run([str(repo_dir() / "lumenctl"), "calls-selftest"], timeout=150)
+    out = ANSI.sub("", r.stdout + r.stderr)
+    return {"ok": r.returncode == 0, "output": out[-4000:]}
+
+
 def op_service_restart(args: dict) -> dict:
     svc = str(args.get("service", ""))
     if svc not in RESTARTABLE:
@@ -511,6 +518,7 @@ OPS = {
     "update.status": op_update_status,
     "diagnose.run": op_diagnose,
     "service.restart": op_service_restart,
+    "calls.selftest": op_calls_selftest,
 }
 NEEDS_ACTOR = {"wg.add_peer", "wg.remove_peer"}
 

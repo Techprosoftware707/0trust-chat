@@ -20,7 +20,7 @@ from allauth.usersessions.models import UserSession
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse
@@ -55,6 +55,7 @@ COMPONENTS = [
     ("tls", "TLS certificates"),
     ("email", "Email delivery"),
     ("billing", "Payment provider"),
+    ("calls", "Calls (SFU)"),
     ("turn", "TURN relay"),
     ("backups", "Backups"),
     ("disk", "Disk space"),
@@ -510,6 +511,64 @@ def health(request):
         request,
         "ops/health.html",
         _ctx(request, rows=component_status(COMPONENTS), history=history, host=host, host_error=host_error),
+    )
+
+
+def calls_rates(newer: dict, older: dict) -> dict | None:
+    """Rates between two `calls` probe samples (None across an SFU restart)."""
+    dt = (newer.get("at") or 0) - (older.get("at") or 0)
+    if dt <= 0 or newer.get("started_at") != older.get("started_at"):
+        return None
+
+    def avg(key):
+        (s2, c2), (s1, c1) = newer.get(key, [0, 0]), older.get(key, [0, 0])
+        return (s2 - s1) / (c2 - c1) if c2 > c1 else None
+
+    jitter = avg("jitter_us")
+    return {
+        "mbps_in": max(0.0, (newer["bytes_in"] - older["bytes_in"]) * 8 / dt / 1e6),
+        "mbps_out": max(0.0, (newer["bytes_out"] - older["bytes_out"]) * 8 / dt / 1e6),
+        "cpu_pct": max(0.0, (newer["cpu_seconds"] - older["cpu_seconds"]) / dt * 100),
+        "rtt_ms": avg("rtt_ms"),
+        "jitter_ms": jitter / 1000 if jitter is not None else None,
+        "loss_pct": avg("loss_pct"),
+    }
+
+
+@ops_view("view_platform")
+def calls(request):
+    snaps = list(HealthSnapshot.objects.filter(component="calls", status="ok").order_by("-at")[:31])
+    rows = []
+    for newer, older in zip(snaps, snaps[1:]):
+        rows.append({"at": newer.at, "d": newer.detail, "r": calls_rates(newer.detail, older.detail)})
+    selftest = None
+    if request.method == "POST":
+        if not has_perm(request.user, "manage_platform"):
+            raise PermissionDenied
+        selftest, err = agent.safe_call("calls.selftest", actor=request.user.username)
+        if err:
+            selftest = {"ok": False, "output": err}
+        audit(request, "ops.calls_selftest", metadata={"ok": bool(selftest and selftest.get("ok"))})
+    latest = snaps[0] if snaps else None
+    probe = HealthSnapshot.objects.filter(component="calls").order_by("-at").first()
+    turn = HealthSnapshot.objects.filter(component="turn").order_by("-at").first()
+    config = {
+        "enabled": settings.CALLS_ENABLED,
+        "rtc_domain": settings.RTC_DOMAIN,
+        "public_ip": settings.CALLS_PUBLIC_IP or "discovered with STUN",
+        "ports": [
+            (f"{settings.CALLS_UDP_PORTS}/udp", "WebRTC media (UDP mux)"),
+            (f"{settings.CALLS_TCP_PORT}/tcp", "ICE over TCP when UDP is blocked"),
+            (f"{settings.CALLS_TURN_UDP_PORT}/udp", "TURN relay"),
+            (f"{settings.CALLS_TURN_TLS_PORT}/tcp", "TURN over TLS"),
+            ("443/tcp", "signalling (wss) through Caddy"),
+        ],
+    }
+    return render(
+        request,
+        "ops/calls.html",
+        _ctx(request, rows=rows[:30], latest=latest, rate=rows[0]["r"] if rows else None, probe=probe, turn=turn,
+             config=config, selftest=selftest),
     )
 
 

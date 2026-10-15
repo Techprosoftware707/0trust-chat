@@ -23,6 +23,7 @@ urlpatterns = [
     path("subscriptions/<int:sub_id>/reconcile/", views.subscription_reconcile, name="subscription_reconcile"),
     path("webhooks/", views.webhooks, name="webhooks"),
     path("health/", views.health, name="health"),
+    path("calls/", views.calls, name="calls"),
     path("federation/", views.federation, name="federation"),
     path("backups/", views.backups, name="backups"),
     path("backups/run/", views.backup_run, name="backup_run"),

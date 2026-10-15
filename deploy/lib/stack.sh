@@ -237,16 +237,16 @@ rollback_config() {
 pull_images() {
   # shellcheck disable=SC1091
   set -a; source "$(compose_env_file)"; set +a
-  local img
-  for img in "$POSTGRES_IMAGE" "$SYNAPSE_IMAGE" "$CADDY_IMAGE" "$PYTHON_BASE_IMAGE" "$NODE_BASE_IMAGE"; do
-    run docker pull -q "$img" || die "Could not pull $img. Check internet access to the registry."
+  local img imgs=("$POSTGRES_IMAGE" "$SYNAPSE_IMAGE" "$CADDY_IMAGE" "$PYTHON_BASE_IMAGE" "$NODE_BASE_IMAGE") pulled=0 present=0
+  calls_enabled && imgs+=("$LIVEKIT_IMAGE" "$LKJWT_IMAGE" "$LIVEKIT_CLI_IMAGE")
+  for img in "${imgs[@]}"; do
+    # References are pinned by digest, so a local copy is exactly the pinned image:
+    # don't contact the registry again (re-runs, rate limits, pre-loaded images).
+    if docker image inspect "$img" >/dev/null 2>&1; then present=$((present + 1)); continue; fi
+    run docker pull -q "$img" || die "Could not pull $img. Check internet access to the registry (or rate limits)."
+    pulled=$((pulled + 1))
   done
-  if calls_enabled; then
-    for img in "$LIVEKIT_IMAGE" "$LKJWT_IMAGE"; do
-      run docker pull -q "$img" || die "Could not pull $img"
-    done
-  fi
-  ok "base images pulled (pinned by digest)"
+  ok "images ready, pinned by digest ($pulled pulled, $present already present)"
 }
 
 # Optional build-time CA for networks with TLS inspection (empty by default).
@@ -359,6 +359,34 @@ refresh_livekit_config() {
   cat "$staging/livekit/livekit.yaml" >"$LUMEN_RENDERED_DIR/livekit/livekit.yaml"
   rm -rf "$staging"
   run compose restart livekit || die "Could not restart LiveKit. See $_log_file"
+}
+
+# calls_selftest [seconds] — real WebRTC media through the SFU: LiveKit's load tester
+# (from the internal rtc network) publishes audio+video and two subscribers must
+# receive both with packets flowing. Proves the SFU, its UDP media path and TURN-free
+# connectivity *from this host*; reachability from the internet depends on firewalls.
+calls_selftest() {
+  local secs="${1:-10}" envf room out rc=0
+  # shellcheck disable=SC1091
+  set -a; source "$(compose_env_file)"; source "$LUMEN_REPO_DIR/deploy/versions.env"; set +a
+  docker image inspect "$LIVEKIT_CLI_IMAGE" >/dev/null 2>&1 || run docker pull -q "$LIVEKIT_CLI_IMAGE" || return 1
+  envf="$(mktemp)"; chmod 600 "$envf"
+  printf 'LIVEKIT_URL=https://%s\nLIVEKIT_API_KEY=%s\nLIVEKIT_API_SECRET=%s\n' "$(rtc_domain)" \
+    "$(cut -d: -f1 "$LUMEN_SECRETS_DIR/livekit_keys")" "$(cut -d: -f2 "$LUMEN_SECRETS_DIR/livekit_keys" | tr -d ' \n')" >"$envf"
+  local lk=(docker run --rm --network "${COMPOSE_PROJECT_NAME:-lumen}_rtc" --env-file "$envf"
+    --add-host "$(rtc_domain):$RTC_GATEWAY_IP" -v "$CA_BUNDLE_HOST_PATH:/etc/lumen-ca.crt:ro"
+    -e SSL_CERT_FILE="$( [[ "$CA_BUNDLE_HOST_PATH" == /dev/null ]] && echo /etc/ssl/certs/ca-certificates.crt || echo /etc/lumen-ca.crt)"
+    "$LIVEKIT_CLI_IMAGE")
+  room="lumen-selftest-$(openssl rand -hex 4)"
+  "${lk[@]}" room create "$room" >>"$_log_file" 2>&1 || { rm -f "$envf"; return 1; }
+  out="$(timeout $((secs + 60)) "${lk[@]}" load-test --url "wss://$(rtc_domain)" --room "$room" \
+    --audio-publishers 1 --video-publishers 1 --subscribers 2 --duration "${secs}s" 2>&1)" || rc=1
+  "${lk[@]}" room delete "$room" >>"$_log_file" 2>&1 || true
+  rm -f "$envf"
+  printf '%s\n' "$out" >>"$_log_file"
+  # Both subscribers must have received both tracks.
+  [[ $rc -eq 0 ]] && printf '%s' "$out" | grep -Eq '^│ Total +│ 4/4 ' || return 1
+  printf '%s' "$out" | grep -E '^│ Total +│' | head -n1
 }
 
 # start_calls — the SFU and authorization service. TURN/TLS needs Caddy's certificate

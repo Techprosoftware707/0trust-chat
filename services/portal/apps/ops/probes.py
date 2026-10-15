@@ -113,9 +113,10 @@ def probe_chat_app() -> ProbeResult:
 # --- TLS ---------------------------------------------------------------------------
 
 
-def _cert_seconds_left(host: str, port: int = 443) -> tuple[int, str]:
+def _cert_seconds_left(host: str, port: int = 443, connect_host: str | None = None) -> tuple[int, str]:
     ctx = ssl.create_default_context(cafile=os.environ.get("LUMEN_PROBE_CA_BUNDLE") or None)
-    with socket.create_connection((os.environ.get("LUMEN_PROBE_CONNECT_HOST", host), port), timeout=8) as sock:
+    target = connect_host or os.environ.get("LUMEN_PROBE_CONNECT_HOST", host)
+    with socket.create_connection((target, port), timeout=8) as sock:
         with ctx.wrap_socket(sock, server_hostname=host) as tls:
             cert = tls.getpeercert()
             version = tls.version() or ""
@@ -305,23 +306,96 @@ def probe_email() -> ProbeResult:
     return ProbeResult("ok", f"SMTP handshake{' and login' if settings.EMAIL_HOST_USER else ''} succeeded")
 
 
-def probe_turn() -> ProbeResult:
-    if not settings.VOIP_ENABLED:
-        return ProbeResult("unknown", "voice/video disabled")
-    host = os.environ.get("TURN_PROBE_HOST", "127.0.0.1")
-    port = int(os.environ.get("TURN_PROBE_PORT", "3478"))
+def _stun_binding(host: str, port: int) -> bool:
     txid = os.urandom(12)
     request = struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, txid)  # STUN Binding Request
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.settimeout(3)
+        s.sendto(request, (host, port))
+        data, _ = s.recvfrom(2048)
+    return len(data) >= 20 and struct.unpack("!H", data[:2])[0] == 0x0101 and data[8:20] == txid
+
+
+def probe_turn() -> ProbeResult:
+    """LiveKit's embedded TURN: answers STUN on UDP, and its TLS listener's certificate."""
+    if not settings.CALLS_ENABLED:
+        return ProbeResult("unknown", "calls disabled")
+    host = settings.RTC_GATEWAY_IP or "127.0.0.1"
+    port = settings.CALLS_TURN_UDP_PORT
+    detail: dict = {"udp_port": port, "tls_port": settings.CALLS_TURN_TLS_PORT}
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.settimeout(3)
-            s.sendto(request, (host, port))
-            data, _ = s.recvfrom(2048)
+        if not _stun_binding(host, port):
+            return ProbeResult("degraded", "unexpected STUN response", detail)
     except OSError as exc:
-        return ProbeResult("failed", f"no STUN response from {host}:{port} ({type(exc).__name__})")
-    if len(data) >= 20 and struct.unpack("!H", data[:2])[0] == 0x0101 and data[8:20] == txid:
-        return ProbeResult("ok", f"STUN binding response from {host}:{port}")
-    return ProbeResult("degraded", "unexpected STUN response")
+        return ProbeResult("failed", f"TURN did not answer STUN on udp/{port} ({type(exc).__name__})", detail)
+    try:
+        secs, _version = _cert_seconds_left(settings.RTC_DOMAIN, settings.CALLS_TURN_TLS_PORT, connect_host=host)
+        detail["tls_seconds_left"] = secs
+    except (OSError, ssl.SSLError, ValueError) as exc:
+        detail["tls_error"] = type(exc).__name__
+        return ProbeResult("degraded", f"TURN/UDP ok; TURN/TLS on tcp/{settings.CALLS_TURN_TLS_PORT} unavailable ({type(exc).__name__}) — run lumenctl rtc-cert", detail)
+    return ProbeResult("ok", f"TURN answers on udp/{port}; TURN/TLS certificate valid ({_human(secs)} left)", detail)
+
+
+def _prom(text: str) -> dict[str, float]:
+    """Sum Prometheus samples by metric name (+ `direction`/`kind` label when present)."""
+    out: dict[str, float] = {}
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        try:
+            name_labels, value = line.rsplit(" ", 1)
+            v = float(value)
+        except ValueError:
+            continue
+        name, _, labels = name_labels.partition("{")
+        key = name
+        for lab in ("direction", "kind"):
+            m = re.search(lab + r'="([^"]*)"', labels)
+            if m:
+                key += f":{m.group(1)}"
+        out[key] = out.get(key, 0.0) + v
+    return out
+
+
+def probe_calls() -> ProbeResult:
+    """SFU signalling + metrics (from the rtc network) and the authorization service."""
+    if not settings.CALLS_ENABLED:
+        return ProbeResult("unknown", "calls disabled")
+    s = _session()
+    base = f"https://{settings.RTC_DOMAIN}"
+    try:
+        r = s.get(base + "/", timeout=5)
+        if r.status_code != 200:
+            return ProbeResult("failed", f"SFU signalling returned HTTP {r.status_code}")
+        m = s.get(base + "/metrics", timeout=5)
+        plain = requests.Session()
+        plain.trust_env = False
+        a = plain.get(settings.LKJWT_INTERNAL_URL + "/healthz", timeout=5)
+    except requests.RequestException as exc:
+        return ProbeResult("failed", f"SFU unreachable ({type(exc).__name__})")
+    if a.status_code != 200:
+        return ProbeResult("failed", f"authorization service unhealthy (HTTP {a.status_code})")
+    if m.status_code != 200:
+        return ProbeResult("degraded", f"SFU up; metrics unavailable (HTTP {m.status_code})")
+    p = _prom(m.text)
+    detail = {
+        "rooms": int(p.get("livekit_room_total", 0)),
+        "participants": int(p.get("livekit_participant_total", 0)),
+        "tracks_published": {k: int(p.get(f"livekit_track_published_total:{k}", 0)) for k in ("AUDIO", "VIDEO")},
+        "tracks_subscribed": {k: int(p.get(f"livekit_track_subscribed_total:{k}", 0)) for k in ("AUDIO", "VIDEO")},
+        "bytes_in": p.get("livekit_packet_bytes:incoming", 0.0),
+        "bytes_out": p.get("livekit_packet_bytes:outgoing", 0.0),
+        "cpu_seconds": p.get("process_cpu_seconds_total", 0.0),
+        "rss_bytes": p.get("process_resident_memory_bytes", 0.0),
+        "started_at": p.get("process_start_time_seconds", 0.0),
+        # Server-side measurements of clients' connections (histogram sums/counts).
+        "rtt_ms": [p.get("livekit_rtt_ms_sum", 0.0), p.get("livekit_rtt_ms_count", 0.0)],
+        "jitter_us": [p.get("livekit_jitter_us_sum", 0.0), p.get("livekit_jitter_us_count", 0.0)],
+        "loss_pct": [p.get("livekit_packet_loss_percent_sum", 0.0), p.get("livekit_packet_loss_percent_count", 0.0)],
+        "at": time.time(),
+    }
+    return ProbeResult("ok", f"SFU and authorization service up; {detail['rooms']} active call(s), {detail['participants']} participant(s)", detail)
 
 
 def probe_backups() -> ProbeResult:
@@ -391,6 +465,7 @@ PROBES = {
     "federation": probe_federation,
     "email": probe_email,
     "turn": probe_turn,
+    "calls": probe_calls,
     "backups": probe_backups,
     "disk": probe_disk,
     "billing": probe_billing,

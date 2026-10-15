@@ -16,6 +16,34 @@ _vcurl() {
   curl -sS --noproxy '*' --max-time 15 --resolve "$host:$port:127.0.0.1" "${ca_args[@]}" "$@"
 }
 
+# _rtc_api HOST METHOD PATH [JSON] -> prints "<http code> <body>" for a homeserver
+# request authenticated as the console's service account (root-only token file).
+_rtc_api() {
+  local tok; tok="$(cat "$LUMEN_SECRETS_DIR/synapse_admin_token" 2>/dev/null)"; [[ -n "$tok" ]] || return 1
+  _vcurl "$1" 443 -X "$2" -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' \
+    ${4:+-d "$4"} -w ' %{http_code}' "https://$1$3"
+}
+_calls_transport_ok() { # mx rtc
+  local out; out="$(_rtc_api "$1" GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports)" || return 1
+  [[ "$out" == *"\"url\":\"wss://$2\""* && "$out" == *" 200" ]]
+}
+_calls_membership_enforced() { # mx rtc server-name: token for a room we are not in -> 403
+  local out body
+  body="{\"url\":\"wss://$2\",\"server_name\":\"$3\",\"room_id\":\"!lumen-readiness-check:$3\",\"slot_id\":\"m.call#ROOM\",\"member_id\":\"readiness\"}"
+  out="$(_rtc_api "$1" POST /_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token "$body")" || return 1
+  [[ "$out" == *M_FORBIDDEN*" 403" ]]
+}
+_calls_anonymous_refused() { # mx
+  local code
+  code="$(_vcurl "$1" 443 -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' \
+    "https://$1/_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token")" || return 1
+  [[ "$code" == 401 ]]
+}
+_listening() { # proto port
+  local flag="-ltn"; [[ "$1" == udp ]] && flag="-lun"
+  ss -H "$flag" "sport = :$2" 2>/dev/null | grep -q .
+}
+
 # _stun_ok PORT — a STUN Binding Request to the local TURN relay gets a matching response.
 _stun_ok() {
   python3 - "$1" <<'PY'
@@ -104,8 +132,23 @@ verify_endpoints() {
   vcheck "security: operator console paths are not public" _expect_status "$p" 443 /ops/ 404
   vcheck "security: internal API is not public" _expect_status "$p" 443 /internal/v1/healthz 404
   vcheck "operator console reachable on the private port ($ops:$ops_port via loopback)" _expect_status "$ops" "$ops_port" /accounts/login/ 200
-  if truthy "$(conf_get VOIP_ENABLED false)"; then
-    vcheck "voice/video: TURN relay answers STUN on udp/3478" _stun_ok 3478
+  if calls_enabled; then
+    local rtc udp; rtc="$(rtc_domain)"; udp="$(conf_get CALLS_UDP_PORTS 7882-7889)"
+    vcheck "calls: TLS certificate valid for $rtc" _tls_ok "$rtc" 443
+    vcheck "calls: SFU signalling answers on https://$rtc/" _expect_status "$rtc" 443 / 200
+    vcheck "calls: homeserver advertises the SFU (MatrixRTC transports)" _calls_transport_ok "$mx" "$rtc"
+    vcheck "calls: SFU tokens require sign-in (anonymous request refused)" _calls_anonymous_refused "$mx"
+    vcheck "calls: SFU tokens only for room members (authorization service via homeserver)" _calls_membership_enforced "$mx" "$rtc" "$sn"
+    vcheck "security: SFU admin API is not public" _expect_status "$rtc" 443 /twirp/livekit.RoomService/ListRooms 404
+    vcheck "calls: WebRTC media listening on udp/${udp%-*}" _listening udp "${udp%-*}"
+    vcheck "calls: ICE/TCP listening on tcp/$(conf_get CALLS_TCP_PORT 7881)" _listening tcp "$(conf_get CALLS_TCP_PORT 7881)"
+    vcheck "calls: TURN answers STUN on udp/$(conf_get CALLS_TURN_UDP_PORT 3478)" _stun_ok "$(conf_get CALLS_TURN_UDP_PORT 3478)"
+    if [[ "${LUMEN_VERIFY_MEDIA:-0}" == 1 ]]; then
+      vcheck "calls: SFU forwarded real audio+video to test subscribers (self-test from this host)" calls_selftest 8
+    fi
+    if [[ -s "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/livekit/tls/tls.crt" ]]; then
+      vcheck "calls: TURN/TLS certificate valid on tcp/$(conf_get CALLS_TURN_TLS_PORT 5349)" _tls_ok "$rtc" "$(conf_get CALLS_TURN_TLS_PORT 5349)"
+    fi
   fi
   vcheck "security: PostgreSQL is not listening on a public address" _no_public_listener 5432
   vcheck "security: Synapse is not listening on a public address" _no_public_listener 8008

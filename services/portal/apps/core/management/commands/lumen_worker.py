@@ -33,7 +33,7 @@ def job_probes_fast():
     from apps.core.models import HealthSnapshot
     from apps.ops.probes import run_probe
 
-    for name in ["website", "ops", "homeserver", "database", "disk", "backups", "billing", "turn", "chat_app"]:
+    for name in ["website", "ops", "homeserver", "database", "disk", "backups", "billing", "calls", "turn", "chat_app"]:
         r = run_probe(name)
         HealthSnapshot.objects.create(component=name, status=r.status, summary=r.summary[:300], detail=r.detail, latency_ms=r.latency_ms)
 

@@ -19,6 +19,7 @@
       <div class="nav-label">Platform</div>
       <a href="{% url 'ops:health' %}" {% nav_current '/ops/health' %}>{% icon "heart-pulse" %} Service health</a>
       <a href="{% url 'ops:federation' %}" {% nav_current '/ops/federation' %}>{% icon "globe" %} Homeserver &amp; federation</a>
+      <a href="{% url 'ops:calls' %}" {% nav_current '/ops/calls' %}>{% icon "video" %} Calls</a>
       <a href="{% url 'ops:backups' %}" {% nav_current '/ops/backups' %}>{% icon "archive" %} Backups &amp; updates</a>
       <a href="{% url 'ops:wireguard' %}" {% nav_current '/ops/wireguard' %}>{% icon "network" %} WireGuard</a>
       <a href="{% url 'ops:maintenance' %}" {% nav_current '/ops/maintenance' %}>{% icon "wrench" %} Maintenance</a>
