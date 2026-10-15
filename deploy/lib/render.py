@@ -818,6 +818,17 @@ def render_caddy(cfg, out: Path) -> None:
         "\t}",
         brand.rstrip("\n"),
         *app_links_handlers(cfg),
+        # The call widget for the mobile apps (docs/apps/integration.md 6.2); the apps bundle
+        # their own copy and use this one only where their bundled copy cannot run.
+        "\thandle /widget/call/* {",
+        "\t\troot * /srv/www/chat",
+        "\t\ttry_files {path} /widget/call/index.html",
+        "\t\tfile_server",
+        "\t\t@widget_assets path /widget/call/assets/*",
+        '\t\theader @widget_assets Cache-Control "public, max-age=31536000, immutable"',
+        "\t\t@widget_html path /widget/call/ /widget/call/index.html",
+        '\t\theader @widget_html Cache-Control "no-cache"',
+        "\t}",
         "\thandle /config.json {",
         "\t\troot * /srv/chat-config",
         "\t\tfile_server",

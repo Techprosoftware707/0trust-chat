@@ -210,6 +210,9 @@ user's session, so the widget never holds an access token.
     "e2ee": "encrypted|waiting-for-key|decrypt-error|not-encrypted|unknown"}
    ```
 
+   - The widget may add informational fields (`e2eeLabel`, `remoteTotal`,
+     `remoteEncrypted`, `ringing`, `reason`, `error`). The apps may display
+     them but must not depend on them.
    - The apps also accept the same fields nested under `"data"`, and a
      widget-API `fromWidget` request whose action is `io.lumen.call_state`
      (acknowledged).
@@ -238,8 +241,24 @@ the same MatrixRTC event set:
 - encrypted to-device `io.element.call.encryption_keys`;
 - delayed events;
 - RTC transports;
-- `m.room.member` / `m.room.create` / name / avatar reads;
+- `m.room.member` / `m.room.create` / room name reads (not `m.room.avatar`);
 - RTC notification and decline send/read.
+
+**Two widget actions the app must answer itself.** The Rust SDK widget
+driver pinned by the apps (matrix-rust-sdk `2a3db80e`, sdk-android 26.09.28)
+does not cover two actions the call widget needs. The native host intercepts
+them in the bridge, before they reach the driver. It calls the homeserver
+with the session's access token and passes the JSON answer back unchanged.
+The widget never sees the token.
+
+| Widget action | Why the driver can't | Native answer |
+|---|---|---|
+| `org.matrix.msc4533.rtc_livekit_get_token` (SFU token) | the driver has no such action | Add `org.matrix.msc4533` to the `supported_api_versions` reply, and grant the capability only if the widget asked for it. Then call `POST /_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token`, but only for the driver's own room and the caller's own member ID (`<user>:<device>`). Not the OpenID `/get_token` route: it produces a LiveKit identity web clients don't expect. |
+| `org.matrix.msc4515.get_rtc_transports` | the SDK's parser (ruma-client-api 0.25) only knows `{type: livekit, livekit_service_url}` and rejects Lumen's `{type: livekit, url}` | Answer from `GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports`, passed through raw. For the same reason, don't use the FFI's `discoverRtcTransports()` / `isLivekitRtcSupported()` to decide whether calls are available. |
+
+The reference implementation is `tests/apps/widget-harness/src/native_rtc.rs`.
+It is proven in a real E2EE call with a web user (`tests/apps/widget-call.test.mjs`,
+12/12).
 
 **Media permissions.** Camera and microphone come from the OS permission. The
 WebView's permission request is granted only for the widget origin, and only

@@ -78,6 +78,13 @@ class TestDiscovery(unittest.TestCase):
         wk = wellknown((rendered("CALLS_ENABLED=false\n") / "caddy" / "Caddyfile").read_text())
         self.assertNotIn("call_widget_url", wk["io.lumen.app"])
 
+    def test_call_widget_is_served_where_wellknown_points(self):
+        caddy = (rendered() / "caddy" / "Caddyfile").read_text()
+        block = re.search(r"handle /widget/call/\* \{(.*?)\n\t\}", caddy, re.S).group(1)
+        self.assertIn("try_files {path} /widget/call/index.html", block)
+        self.assertIn('@widget_html path /widget/call/ /widget/call/index.html', block)
+        self.assertIn('header @widget_html Cache-Control "no-cache"', block)
+
     def test_wellknown_contains_no_secret_like_values(self):
         text = (rendered("PUSH_ENABLED=true\nPUSH_FCM_PROJECT_ID=lumen-test-1\n") / "caddy" / "Caddyfile").read_text()
         wk = json.dumps(wellknown(text))

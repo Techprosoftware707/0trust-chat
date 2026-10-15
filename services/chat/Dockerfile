@@ -28,7 +28,12 @@ COPY services/chat /src/services/chat
 RUN npm run build \
  && test -f dist/index.html \
  && ls dist/assets/*.wasm >/dev/null \
- && ! ls dist/assets/*.map >/dev/null 2>&1
+ && ! ls dist/assets/*.map >/dev/null 2>&1 \
+ && npm run build:widget \
+ && test -f dist-widget/index.html \
+ && ! ls dist-widget/assets/*.map >/dev/null 2>&1 \
+ && mkdir -p dist/widget/call \
+ && cp -r dist-widget/. dist/widget/call/
 
 # Final stage: only the static files, at /.
 FROM scratch AS dist
