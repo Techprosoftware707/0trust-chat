@@ -63,6 +63,9 @@ module.exports = {
     onlyLoadAppFromAsar: true,
     loadBrowserProcessSpecificV8Snapshot: false,
     grantFileProtocolExtraPrivileges: false,
+    // Unsigned macOS builds: re-apply the ad-hoc signature after flipping fuses (arm64 refuses
+    // to run binaries with a broken signature). Signed builds are signed after the fuses anyway.
+    resetAdHocDarwinSignature: !macSigning,
   },
   // No spaces in file names: GitHub release assets and update feeds rewrite them.
   artifactName: `${productName.replace(/\s+/g, "-")}-\${version}-\${os}-\${arch}.\${ext}`,
@@ -75,7 +78,9 @@ module.exports = {
       { target: "dmg", arch: ["arm64", "x64"] },
       { target: "zip", arch: ["arm64", "x64"] },
     ],
-    hardenedRuntime: true,
+    // Hardened runtime for Developer ID builds (required for notarization). An ad-hoc signed
+    // build can't use it without disabling library validation, so unsigned test builds go without.
+    hardenedRuntime: macSigning,
     gatekeeperAssess: false,
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.inherit.plist",

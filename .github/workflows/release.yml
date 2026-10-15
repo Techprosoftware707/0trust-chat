@@ -48,7 +48,8 @@ jobs:
       - name: Checksums and release notes
         run: |
           cd dist
-          rm -f SHA256SUMS-*.txt
+          # per-platform checksum files and smoke reports are build evidence, not release assets
+          rm -f SHA256SUMS SHA256SUMS-*.txt smoke-*.json
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           signed() { [ "$1" = true ] && echo "signed" || echo "**UNSIGNED** (no signing secret configured; for testing only)"; }

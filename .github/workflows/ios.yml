@@ -9,6 +9,7 @@ on:
       - "apps/ios/**"
       - "services/chat/**"
       - "design/**"
+      - "apps/shared/**"
       - ".github/workflows/ios.yml"
   pull_request:
     paths:

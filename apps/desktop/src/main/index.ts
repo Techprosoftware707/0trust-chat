@@ -38,136 +38,136 @@ if (forbidden.length) {
 }
 
 function main(): void {
-const selfCheck = selfCheckArg(process.argv);
-ctx.selfCheck = selfCheck.enabled;
-if (selfCheck.enabled) {
-  // Throw-away profile: the self-check never touches the user's data or the running instance.
-  app.setPath("userData", fs.mkdtempSync(path.join(os.tmpdir(), "lumen-self-check-")));
-}
+  const selfCheck = selfCheckArg(process.argv);
+  ctx.selfCheck = selfCheck.enabled;
+  if (selfCheck.enabled) {
+    // Throw-away profile: the self-check never touches the user's data or the running instance.
+    app.setPath("userData", fs.mkdtempSync(path.join(os.tmpdir(), "lumen-self-check-")));
+  }
 
-registerPrivilegedScheme();
-// Every renderer is sandboxed regardless of webPreferences. (Exception: an unpackaged
-// development/test run started with --no-sandbox, e.g. as root in a CI container; a released
-// build refuses --no-sandbox above.)
-if (app.isPackaged || !app.commandLine.hasSwitch("no-sandbox")) app.enableSandbox();
-if (process.platform === "win32") app.setAppUserModelId(APP_ID);
+  registerPrivilegedScheme();
+  // Every renderer is sandboxed regardless of webPreferences. (Exception: an unpackaged
+  // development/test run started with --no-sandbox, e.g. as root in a CI container; a released
+  // build refuses --no-sandbox above.)
+  if (app.isPackaged || !app.commandLine.hasSwitch("no-sandbox")) app.enableSandbox();
+  if (process.platform === "win32") app.setAppUserModelId(APP_ID);
 
-// ---- 2. Single instance: a second launch (e.g. the OS opening io.lumen.secure:…) hands its
-//         command line to the running instance and exits. ----
-const primary = selfCheck.enabled || app.requestSingleInstanceLock();
-if (!primary) {
-  app.quit();
-} else {
-  let pendingLink: string | null = findAppLinkInArgv(process.argv);
-
-  app.on("second-instance", (_e, argv) => {
-    const link = findAppLinkInArgv(argv);
-    if (link) handleAppLink(link);
-    else showMainWindow();
-  });
-  // macOS delivers URLs through open-url (also before 'ready').
-  app.on("will-finish-launching", () => {
-    app.on("open-url", (e, url) => {
-      e.preventDefault();
-      if (app.isReady()) handleAppLink(url);
-      else pendingLink = url;
-    });
-  });
-
-  app.on("web-contents-created", (_e, contents) => hardenWebContents(contents));
-
-  app.on("before-quit", () => {
-    ctx.quitting = true;
-  });
-
-  const quit = () => {
-    ctx.quitting = true;
+  // ---- 2. Single instance: a second launch (e.g. the OS opening io.lumen.secure:…) hands its
+  //         command line to the running instance and exits. ----
+  const primary = selfCheck.enabled || app.requestSingleInstanceLock();
+  if (!primary) {
     app.quit();
-  };
+  } else {
+    let pendingLink: string | null = findAppLinkInArgv(process.argv);
 
-  app.whenReady().then(async () => {
-    initLog(app.getPath("userData"));
-    log.info(`starting ${app.getName()} ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform}/${process.arch}, packaged=${app.isPackaged})`);
-
-    const ses = session.defaultSession;
-    handleAppProtocol(ses, { webRoot: distPath("web"), pagesRoot: distPath("pages"), getProfile: getServerProfile });
-    installPermissionHandlers(ses);
-    installDisplayMediaHandler(ses);
-    installDownloadHandler(ses);
-    // Windows and macOS use the OS spellchecker. On Linux Chromium would download Hunspell
-    // dictionaries from Google's CDN, a third-party request: spellcheck is off there.
-    if (process.platform === "linux") {
-      ses.setSpellCheckerEnabled(false);
-      ses.setSpellCheckerLanguages([]);
-    }
-    initSafeStorage();
-    if (process.platform === "linux") {
-      const sp = storageProtection();
-      if (sp.level !== "os") log.warn(`OS keyring not available (safeStorage backend: ${sp.backend}); secrets are only obfuscated`);
-    }
-    registerIpc();
-
-    const win = createMainWindow();
-    if (selfCheck.enabled) {
-      loadMainContent();
-      void runSelfCheck(selfCheck.report);
-      return;
-    }
-
-    // Lock before anything is shown if an app-lock PIN is set.
-    if (applock.lockEnabled()) applock.lock("start");
-    loadMainContent();
-
-    win.on("close", (e) => {
-      if (ctx.quitting) return;
-      const s = getSettings();
-      if (process.platform === "darwin" || (s.closeToTray && ctx.tray)) {
+    app.on("second-instance", (_e, argv) => {
+      const link = findAppLinkInArgv(argv);
+      if (link) handleAppLink(link);
+      else showMainWindow();
+    });
+    // macOS delivers URLs through open-url (also before 'ready').
+    app.on("will-finish-launching", () => {
+      app.on("open-url", (e, url) => {
         e.preventDefault();
-        win.hide();
-        if (process.platform !== "darwin") trayHint();
+        if (app.isReady()) handleAppLink(url);
+        else pendingLink = url;
+      });
+    });
+
+    app.on("web-contents-created", (_e, contents) => hardenWebContents(contents));
+
+    app.on("before-quit", () => {
+      ctx.quitting = true;
+    });
+
+    const quit = () => {
+      ctx.quitting = true;
+      app.quit();
+    };
+
+    app.whenReady().then(async () => {
+      initLog(app.getPath("userData"));
+      log.info(`starting ${app.getName()} ${app.getVersion()} (Electron ${process.versions.electron}, ${process.platform}/${process.arch}, packaged=${app.isPackaged})`);
+
+      const ses = session.defaultSession;
+      handleAppProtocol(ses, { webRoot: distPath("web"), pagesRoot: distPath("pages"), getProfile: getServerProfile });
+      installPermissionHandlers(ses);
+      installDisplayMediaHandler(ses);
+      installDownloadHandler(ses);
+      // Windows and macOS use the OS spellchecker. On Linux Chromium would download Hunspell
+      // dictionaries from Google's CDN, a third-party request: spellcheck is off there.
+      if (process.platform === "linux") {
+        ses.setSpellCheckerEnabled(false);
+        ses.setSpellCheckerLanguages([]);
+      }
+      initSafeStorage();
+      if (process.platform === "linux") {
+        const sp = storageProtection();
+        if (sp.level !== "os") log.warn(`OS keyring not available (safeStorage backend: ${sp.backend}); secrets are only obfuscated`);
+      }
+      registerIpc();
+
+      const win = createMainWindow();
+      if (selfCheck.enabled) {
+        loadMainContent();
+        void runSelfCheck(selfCheck.report);
+        return;
+      }
+
+      // Lock before anything is shown if an app-lock PIN is set.
+      if (applock.lockEnabled()) applock.lock("start");
+      loadMainContent();
+
+      win.on("close", (e) => {
+        if (ctx.quitting) return;
+        const s = getSettings();
+        if (process.platform === "darwin" || (s.closeToTray && ctx.tray)) {
+          e.preventDefault();
+          win.hide();
+          if (process.platform !== "darwin") trayHint();
+        }
+      });
+
+      const lockNow = () => applock.lock("user");
+      const menuActions = { changeServer: () => void changeServer(), lockNow, lockAvailable: applock.lockEnabled, quit };
+      buildMenu(menuActions);
+      createTray({ lockNow, lockAvailable: applock.lockEnabled, openSettings: openSettingsWindow, quit });
+      applock.onLockChanged(() => buildMenu(menuActions));
+      onSettingsChanged(() => refreshTrayMenu());
+      applock.startAutoLock();
+      setUnreadCount(0);
+
+      if (app.isPackaged && !app.isDefaultProtocolClient(APP_ID)) {
+        // Installers register the scheme too (NSIS registry keys, Info.plist, .desktop file).
+        app.setAsDefaultProtocolClient(APP_ID);
+      }
+      const startHidden = process.argv.includes("--hidden"); // Windows "open at login" starts in the tray
+      if (startHidden) win.once("ready-to-show", () => win.hide());
+
+      if (pendingLink) {
+        handleAppLink(pendingLink);
+        pendingLink = null;
+      }
+      void initUpdates().catch((e: unknown) => log.error("updater", e));
+    });
+
+    app.on("activate", () => {
+      // macOS: clicking the Dock icon shows the window again.
+      if (ctx.mainWindow) showMainWindow();
+      else if (app.isReady() && BrowserWindow.getAllWindows().length === 0) {
+        createMainWindow();
+        loadMainContent();
       }
     });
 
-    const lockNow = () => applock.lock("user");
-    const menuActions = { changeServer: () => void changeServer(), lockNow, lockAvailable: applock.lockEnabled, quit };
-    buildMenu(menuActions);
-    createTray({ lockNow, lockAvailable: applock.lockEnabled, openSettings: openSettingsWindow, quit });
-    applock.onLockChanged(() => buildMenu(menuActions));
-    onSettingsChanged(() => refreshTrayMenu());
-    applock.startAutoLock();
-    setUnreadCount(0);
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") app.quit();
+    });
 
-    if (app.isPackaged && !app.isDefaultProtocolClient(APP_ID)) {
-      // Installers register the scheme too (NSIS registry keys, Info.plist, .desktop file).
-      app.setAsDefaultProtocolClient(APP_ID);
-    }
-    const startHidden = process.argv.includes("--hidden"); // Windows "open at login" starts in the tray
-    if (startHidden) win.once("ready-to-show", () => win.hide());
-
-    if (pendingLink) {
-      handleAppLink(pendingLink);
-      pendingLink = null;
-    }
-    void initUpdates().catch((e: unknown) => log.error("updater", e));
-  });
-
-  app.on("activate", () => {
-    // macOS: clicking the Dock icon shows the window again.
-    if (ctx.mainWindow) showMainWindow();
-    else if (app.isReady() && BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-      loadMainContent();
-    }
-  });
-
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
-  });
-
-  process.on("uncaughtException", (e) => {
-    log.error("uncaught exception", e);
-    if (!app.isReady()) return;
-    dialog.showErrorBox("Lumen", "An unexpected error occurred. The app will continue; if something doesn't work, restart it.");
-  });
-}
+    process.on("uncaughtException", (e) => {
+      log.error("uncaught exception", e);
+      if (!app.isReady()) return;
+      dialog.showErrorBox("Lumen", "An unexpected error occurred. The app will continue; if something doesn't work, restart it.");
+    });
+  }
 }

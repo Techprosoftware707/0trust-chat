@@ -1,40 +1,12 @@
 {
-  "description": "parseWellKnown(json) -> {homeserver, lumen} or error. 'homeserver' is the validated m.homeserver.base_url. 'lumen' is null when the io.lumen.app block is absent or not version 1; inside it, each *_url field that fails URL validation (non-debug rules) becomes null, unknown keys are ignored, and sso_idp_id must match ^[A-Za-z0-9._~-]{1,255}$ or becomes null.",
+  "description": "parseWellKnown(json) -> {homeserver, lumen} or error. 'homeserver' is the validated m.homeserver.base_url. 'lumen' is null when the io.lumen.app block is absent or not version 1; inside it, each *_url field that fails URL validation (non-debug rules) becomes null, unknown keys are ignored (account_delete_url, added later, is a known optional URL field), and sso_idp_id must match ^[A-Za-z0-9._~-]{1,255}$ or becomes null.",
   "cases": [
-    {
-      "name": "full Lumen server",
-      "input": {"m.homeserver": {"base_url": "https://matrix.example.com"}, "io.lumen.app": {"version": 1, "brand": {"name": "Lumen Secure", "short_name": "Lumen"}, "portal_url": "https://example.com", "signup_url": "https://example.com/accounts/signup/", "account_url": "https://example.com/portal/security/", "privacy_url": "https://example.com/privacy/", "help_url": "https://example.com/docs/", "sso_idp_id": "oidc-lumen", "web_app_url": "https://app.example.com", "call_widget_url": "https://app.example.com/widget/call/", "push_gateway_url": "https://matrix.example.com/_matrix/push/v1/notify"}},
-      "expect": {"homeserver": "https://matrix.example.com", "lumen": {"brand_name": "Lumen Secure", "brand_short_name": "Lumen", "portal_url": "https://example.com", "signup_url": "https://example.com/accounts/signup/", "account_url": "https://example.com/portal/security/", "privacy_url": "https://example.com/privacy/", "help_url": "https://example.com/docs/", "sso_idp_id": "oidc-lumen", "web_app_url": "https://app.example.com", "call_widget_url": "https://app.example.com/widget/call/", "push_gateway_url": "https://matrix.example.com/_matrix/push/v1/notify"}}
-    },
-    {
-      "name": "plain Matrix server (no Lumen block)",
-      "input": {"m.homeserver": {"base_url": "https://matrix-client.matrix.org"}},
-      "expect": {"homeserver": "https://matrix-client.matrix.org", "lumen": null}
-    },
-    {
-      "name": "unknown future block version is ignored",
-      "input": {"m.homeserver": {"base_url": "https://matrix.example.com"}, "io.lumen.app": {"version": 2, "portal_url": "https://example.com"}},
-      "expect": {"homeserver": "https://matrix.example.com", "lumen": null}
-    },
-    {
-      "name": "bad optional URLs are dropped, not followed",
-      "input": {"m.homeserver": {"base_url": "https://matrix.example.com"}, "io.lumen.app": {"version": 1, "portal_url": "http://example.com", "signup_url": "javascript:alert(1)", "push_gateway_url": "https://u:p@evil.example/notify", "help_url": "https://example.com/docs/", "sso_idp_id": "bad id with spaces", "extra": {"x": 1}}},
-      "expect": {"homeserver": "https://matrix.example.com", "lumen": {"brand_name": null, "brand_short_name": null, "portal_url": null, "signup_url": null, "account_url": null, "privacy_url": null, "help_url": "https://example.com/docs/", "sso_idp_id": null, "web_app_url": null, "call_widget_url": null, "push_gateway_url": null}}
-    },
-    {
-      "name": "homeserver must be https",
-      "input": {"m.homeserver": {"base_url": "http://matrix.example.com"}},
-      "expect": {"error": "invalid_homeserver"}
-    },
-    {
-      "name": "missing homeserver",
-      "input": {"io.lumen.app": {"version": 1}},
-      "expect": {"error": "missing_homeserver"}
-    },
-    {
-      "name": "not an object",
-      "input": ["https://matrix.example.com"],
-      "expect": {"error": "invalid_document"}
-    }
+    {"name": "full Lumen server", "input": {"m.homeserver": {"base_url": "https://matrix.example.com"}, "io.lumen.app": {"version": 1, "brand": {"name": "Lumen Secure", "short_name": "Lumen"}, "portal_url": "https://example.com", "signup_url": "https://example.com/accounts/signup/", "account_url": "https://example.com/portal/security/", "privacy_url": "https://example.com/privacy/", "help_url": "https://example.com/docs/", "sso_idp_id": "oidc-lumen", "web_app_url": "https://app.example.com", "call_widget_url": "https://app.example.com/widget/call/", "push_gateway_url": "https://matrix.example.com/_matrix/push/v1/notify", "account_delete_url": "https://example.com/portal/privacy/delete/"}}, "expect": {"homeserver": "https://matrix.example.com", "lumen": {"brand_name": "Lumen Secure", "brand_short_name": "Lumen", "portal_url": "https://example.com", "signup_url": "https://example.com/accounts/signup/", "account_url": "https://example.com/portal/security/", "privacy_url": "https://example.com/privacy/", "help_url": "https://example.com/docs/", "sso_idp_id": "oidc-lumen", "web_app_url": "https://app.example.com", "call_widget_url": "https://app.example.com/widget/call/", "push_gateway_url": "https://matrix.example.com/_matrix/push/v1/notify", "account_delete_url": "https://example.com/portal/privacy/delete/"}}},
+    {"name": "plain Matrix server (no Lumen block)", "input": {"m.homeserver": {"base_url": "https://matrix-client.matrix.org"}}, "expect": {"homeserver": "https://matrix-client.matrix.org", "lumen": null}},
+    {"name": "unknown future block version is ignored", "input": {"m.homeserver": {"base_url": "https://matrix.example.com"}, "io.lumen.app": {"version": 2, "portal_url": "https://example.com"}}, "expect": {"homeserver": "https://matrix.example.com", "lumen": null}},
+    {"name": "bad optional URLs are dropped, not followed", "input": {"m.homeserver": {"base_url": "https://matrix.example.com"}, "io.lumen.app": {"version": 1, "portal_url": "http://example.com", "signup_url": "javascript:alert(1)", "push_gateway_url": "https://u:p@evil.example/notify", "help_url": "https://example.com/docs/", "sso_idp_id": "bad id with spaces", "extra": {"x": 1}, "account_delete_url": "http://example.com/portal/privacy/delete/"}}, "expect": {"homeserver": "https://matrix.example.com", "lumen": {"brand_name": null, "brand_short_name": null, "portal_url": null, "signup_url": null, "account_url": null, "privacy_url": null, "help_url": "https://example.com/docs/", "sso_idp_id": null, "web_app_url": null, "call_widget_url": null, "push_gateway_url": null, "account_delete_url": null}}},
+    {"name": "homeserver must be https", "input": {"m.homeserver": {"base_url": "http://matrix.example.com"}}, "expect": {"error": "invalid_homeserver"}},
+    {"name": "missing homeserver", "input": {"io.lumen.app": {"version": 1}}, "expect": {"error": "missing_homeserver"}},
+    {"name": "not an object", "input": ["https://matrix.example.com"], "expect": {"error": "invalid_document"}}
   ]
 }

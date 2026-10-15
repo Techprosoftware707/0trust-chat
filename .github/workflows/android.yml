@@ -8,6 +8,7 @@ on:
       - "apps/android/**"
       - "services/chat/**"
       - "design/**"
+      - "apps/shared/**"
       - ".github/workflows/android.yml"
   pull_request:
     paths:
