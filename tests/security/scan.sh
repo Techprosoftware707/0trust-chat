@@ -142,11 +142,19 @@ PY
     if echo | openssl s_client -connect "127.0.0.1:$tls_port" -servername "$RTC" "-$v" >/dev/null 2>&1; then bad "TURN/TLS accepts ${v/_/.}"; else ok "TURN/TLS refuses ${v/_/.}"; fi
   done
   lkconf=/etc/lumen/rendered/livekit/livekit.yaml
-  python3 - "$lkconf" "$(get WG_SUBNET)" <<'PY' && ok "TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created" || bad "SFU/TURN configuration" "$lkconf"
-import sys, json
+  rtc_net="$(get RTC_NETWORK_SUBNET)"; wg_net="$(get WG_SUBNET)"
+  python3 - "$lkconf" "${rtc_net:-172.30.42.0/28}" "${wg_net:-10.77.0.0/24}" <<'PY' && ok "TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created" || bad "SFU/TURN configuration" "$lkconf"
+import sys
 text = open(sys.argv[1]).read()
-need = ["ttl_seconds: 300", "auto_create: false", "172.16.0.0/12"] + ([sys.argv[2]] if sys.argv[2] else [])
-sys.exit(0 if all(n in text for n in need) else 1)
+need = ["ttl_seconds: 300", "auto_create: false", f'"{sys.argv[2]}"', f'"{sys.argv[3]}"']
+# 172.16.0.0/12 is denied in production; a lab whose SFU address lies inside it
+# (CALLS_ALLOW_PRIVATE_NODE_IP) instead allows only that /32 on top of LiveKit's
+# default private-range restriction.
+if "allow_restricted_peer_cidrs" not in text:
+    need.append('"172.16.0.0/12"')
+missing = [n for n in need if n not in text]
+print("     missing:", missing) if missing else None
+sys.exit(1 if missing else 0)
 PY
   ufw_relay="$(ufw status 2>/dev/null | grep -E '^40000' || true)"
   [[ -z "$ufw_relay" ]] && ok "TURN relay port range is not opened in the firewall" || bad "relay ports open" "$ufw_relay"
