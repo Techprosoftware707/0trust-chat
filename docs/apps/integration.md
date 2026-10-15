@@ -45,7 +45,10 @@ can pre-fill one with `LUMEN_DEFAULT_SERVER`. Discovery steps:
      Synapse, matrix.org) has none, and the apps then work as generic Matrix
      clients.
    - `push_gateway_url` is present only when the operator enabled push
-     (`PUSH_ENABLED=true` with credentials).
+     (`PUSH_ENABLED=true`) and stored the credential of at least one platform
+     (FCM or APNs). If only one platform has credentials, the gateway rejects
+     the other platform's pushers and the homeserver removes them, so that
+     app behaves as without push.
    - Every URL is validated before use:
      - `https` only;
      - no user-info;

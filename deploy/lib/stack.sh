@@ -329,7 +329,7 @@ run_migrations() {
 start_services() {
   local svc=(synapse portal ops worker caddy)
   calls_enabled && svc+=(lkjwt livekit)
-  push_enabled && svc+=(sygnal)
+  push_active && svc+=(sygnal)
   local recreate=()
   [[ "${LUMEN_FORCE_RECREATE:-0}" == 1 ]] && recreate=(--force-recreate)
   run compose up -d --remove-orphans "${recreate[@]}" "${svc[@]}" || die "Could not start services. See $_log_file"
@@ -351,15 +351,18 @@ start_services() {
   else
     stop_calls
   fi
-  if push_enabled; then
+  if push_active; then
     start_push
   else
     remove_services sygnal
+    if push_enabled; then
+      warn "push gateway not started: no push credential yet (sudo ./lumenctl set-secret push_fcm_service_account or push_apns_key < <file>, then sudo ./lumenctl apply)"
+    fi
   fi
 }
 
-# start_push — the push gateway must answer its health endpoint; a missing credential
-# file is reported (Sygnal starts without that platform rather than with a bad key).
+# start_push — the push gateway must answer its health endpoint. A platform whose credential
+# is missing is left out of sygnal.yaml by render.py (reported here) until it is supplied.
 start_push() {
   local f
   for f in push_fcm_service_account:PUSH_FCM_PROJECT_ID push_apns_key:PUSH_APNS_KEY_ID; do

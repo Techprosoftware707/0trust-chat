@@ -324,6 +324,11 @@ settings. To enable push:
 3. In `lumen.conf`, set `PUSH_ENABLED=true`, `PUSH_FCM_PROJECT_ID`,
    `PUSH_APNS_TEAM_ID` and `PUSH_APNS_KEY_ID`, then run `sudo bash install.sh`.
 
+A platform is switched on only when its credential is stored. With
+`PUSH_ENABLED=true` but no credential yet, the gateway isn't started, the
+apps aren't told about it, and the installer says so (a warning, not a
+failure). After `set-secret`, run `sudo ./lumenctl apply`.
+
 How the gateway runs:
 
 - **Where.** The Sygnal push gateway runs on this server, listening on

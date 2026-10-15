@@ -38,7 +38,7 @@ add() { # status component message
 step "Containers"
 services=(postgres synapse portal ops worker caddy)
 calls_enabled && services+=(lkjwt livekit)
-push_enabled && services+=(sygnal)
+push_active && services+=(sygnal)
 for s in "${services[@]}"; do
   st="$(container_health "$s")"
   case "$st" in

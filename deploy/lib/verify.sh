@@ -140,7 +140,10 @@ verify_endpoints() {
   vcheck "operator console reachable on the private port ($ops:$ops_port via loopback)" _expect_status "$ops" "$ops_port" /accounts/login/ 200
   vcheck "apps: discovery block (io.lumen.app) in /.well-known/matrix/client" _expect_json "$sn" 443 /.well-known/matrix/client \
     "d['m.homeserver']['base_url'] == 'https://$mx' and d['io.lumen.app']['version'] == 1"
-  if push_enabled; then
+  if push_enabled && ! push_active; then
+    warn "push: enabled, but no platform credential yet, so the gateway is not running and the apps are not told about it"
+  fi
+  if push_active; then
     vcheck "push: gateway answers /health on 127.0.0.1:$(conf_get PUSH_PORT 5000)" \
       curl -fsS --noproxy '*' --max-time 5 -o /dev/null "http://127.0.0.1:$(conf_get PUSH_PORT 5000)/health"
     vcheck "push: homeserver path to the gateway (POST /_matrix/push/v1/notify through Caddy)" _push_route_ok "$mx"

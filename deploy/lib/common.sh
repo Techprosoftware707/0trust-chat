@@ -114,6 +114,9 @@ truthy() { case "${1,,}" in 1 | true | yes | on) return 0 ;; *) return 1 ;; esac
 calls_enabled() { truthy "$(conf_get CALLS_ENABLED true)"; }
 rtc_domain() { conf_get LUMEN_RTC_DOMAIN "rtc.$(conf_get LUMEN_PRIMARY_DOMAIN)"; }
 push_enabled() { truthy "$(conf_get PUSH_ENABLED false)"; }
+# push_active — push is enabled AND at least one platform has its credential. render.py writes
+# sygnal.yaml only then: Sygnal refuses to start with no app or with an empty key file.
+push_active() { push_enabled && [[ -s "$LUMEN_RENDERED_DIR/sygnal/sygnal.yaml" ]]; }
 
 calls_ports_human() {
   printf '%s/udp (media), %s/tcp (ICE/TCP), %s/udp (TURN)' \

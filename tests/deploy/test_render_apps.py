@@ -24,12 +24,14 @@ TLS_MODE=acme
 FP = "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99"
 
 
-def rendered(extra: str = "") -> Path:
+def rendered(extra: str = "", secret_files: dict[str, str] | None = None) -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="lumen-render-"))
     conf = tmp / "lumen.conf"
     conf.write_text(BASE + extra)
     secrets = tmp / "secrets"
     secrets.mkdir()
+    for name, content in (secret_files or {}).items():
+        (secrets / name).write_text(content)
     out = tmp / "out"
     rc = render.main(["--conf", str(conf), "--secrets", str(secrets), "--repo", str(REPO), "--out", str(out)])
     if rc != 0:
@@ -126,8 +128,12 @@ class TestPush(unittest.TestCase):
         self.assertIn("respond @push_off 404", caddy)
         self.assertNotIn("reverse_proxy 127.0.0.1:5000", caddy)
 
+    PUSH_CONF = "PUSH_ENABLED=true\nPUSH_FCM_PROJECT_ID=lumen-test-1\nPUSH_APNS_TEAM_ID=ABCDE12345\nPUSH_APNS_KEY_ID=KEY1234567\n"
+    # Placeholders: the renderer only checks that the credential files exist and aren't empty.
+    CREDS = {"push_fcm_service_account": '{"type": "service_account"}', "push_apns_key": "placeholder"}
+
     def test_push_enabled_route_only_from_private_ranges(self):
-        out = rendered("PUSH_ENABLED=true\nPUSH_FCM_PROJECT_ID=lumen-test-1\nPUSH_APNS_TEAM_ID=ABCDE12345\nPUSH_APNS_KEY_ID=KEY1234567\n")
+        out = rendered(self.PUSH_CONF, self.CREDS)
         caddy = (out / "caddy" / "Caddyfile").read_text()
         block = re.search(r"@push_gw \{(.*?)\}", caddy, re.S).group(1)
         self.assertIn("path /_matrix/push/v1/notify", block)
@@ -144,6 +150,24 @@ class TestPush(unittest.TestCase):
         self.assertIn('- "127.0.0.1"', syg)
         self.assertIn('level: "WARNING"', syg, "push keys and room IDs are not logged at INFO")
         self.assertNotRegex(syg, r"BEGIN|private_key\"?:")
+
+    def test_platform_without_its_credential_is_left_out(self):
+        # Sygnal refuses to start when a configured platform's credential file is empty
+        # (seen on a fresh install), and apps must not be told about a gateway that can't deliver.
+        out = rendered(self.PUSH_CONF)
+        # No credential at all: Sygnal won't start without an app, so no config is written
+        # (the installer then doesn't start the gateway) and the route answers 404.
+        self.assertFalse((out / "sygnal" / "sygnal.yaml").exists())
+        caddy = (out / "caddy" / "Caddyfile").read_text()
+        self.assertNotIn("push_gateway_url", json.dumps(wellknown(caddy)))
+        self.assertIn("respond @push_off 404", caddy)
+        self.assertNotIn("reverse_proxy 127.0.0.1:5000", caddy)
+
+        out = rendered(self.PUSH_CONF, {"push_apns_key": "placeholder", "push_fcm_service_account": ""})
+        syg = (out / "sygnal" / "sygnal.yaml").read_text()
+        self.assertNotIn('type: "gcm"', syg)
+        self.assertIn('io.lumen.secure.ios:\n    type: "apns"', syg)
+        self.assertIn("push_gateway_url", wellknown((out / "caddy" / "Caddyfile").read_text())["io.lumen.app"])
 
     def test_push_needs_a_platform(self):
         self.assertIn("PUSH_ENABLED needs", config_error("PUSH_ENABLED=true\n"))
