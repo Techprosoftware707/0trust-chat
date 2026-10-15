@@ -1,6 +1,5 @@
 Django==6.1.2
-django-allauth[mfa]==65.19.7
-django-oauth-toolkit==3.4.1
+django-allauth[mfa,idp-oidc]==65.19.7
 psycopg[binary]==3.3.6
 gunicorn==26.2.0
 whitenoise==6.12.0

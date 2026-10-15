@@ -1,0 +1,8 @@
+.primary-button, .primary-button:visited { display:block; text-align:center; padding:12px 18px; border-radius:999px; background:var(--accent); color:#fff; font-weight:600; text-decoration:none; border:0; cursor:pointer; margin-top:18px; }
+@media (prefers-color-scheme: dark) { .primary-button, .primary-button:visited { color:#04111f; } }
+.profile-details { display:flex; align-items:center; gap:12px; margin: 12px 0; }
+.profile-details .avatar { width:44px; height:44px; border-radius:50%; }
+.display-name { font-weight:700; }
+.user-id { color: var(--muted); font-family: ui-monospace, monospace; font-size: 0.9rem; }
+.confirm-trust { margin: 20px 0; }
+footer { margin-top: 18px; font-size: 0.85rem; color: var(--muted); }

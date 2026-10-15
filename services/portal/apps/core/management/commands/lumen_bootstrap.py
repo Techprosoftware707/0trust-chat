@@ -31,7 +31,8 @@ class Command(BaseCommand):
                 defaults={"name": "Lumen homeserver"},
             )
             client.name = "Lumen homeserver"
-            client.secret = settings.SYNAPSE_OIDC_CLIENT_SECRET
+            if not client.check_secret(settings.SYNAPSE_OIDC_CLIENT_SECRET):
+                client.set_secret(settings.SYNAPSE_OIDC_CLIENT_SECRET)  # stored hashed
             client.type = Client.Type.CONFIDENTIAL
             client.scopes = "openid\nprofile\nemail"
             client.default_scopes = "openid\nprofile"

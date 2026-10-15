@@ -1,0 +1,336 @@
+# Lumen Secure — single-host deployment.
+#
+# Do not run this file by hand with a plain `docker compose up`: values come
+# from /etc/lumen/rendered/compose.env, which install.sh / update.sh generate.
+# Use `sudo ./lumenctl compose <args>` for manual operations.
+#
+# Network exposure (by design):
+#   * caddy  — host network, ports 80/443 (TCP+UDP) and the private operator
+#              port (default 8443, IP-allow-listed in Caddy + firewall).
+#   * coturn — host network, 3478 + relay range (only with the `voip` profile).
+#   * everything else — no published ports. Caddy reaches portal, ops and
+#     synapse through Unix sockets in ${LUMEN_SOCKET_DIR}; postgres is on an
+#     internal-only network.
+
+name: ${COMPOSE_PROJECT_NAME:-lumen}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging: *logging
+
+x-app: &app
+  <<: *hardening
+  image: ${PORTAL_IMAGE}
+  build:
+    context: ${LUMEN_REPO_DIR}
+    dockerfile: services/portal/Dockerfile
+    args:
+      PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE}
+    secrets:
+      - build_extra_ca
+  # Primary group = socket group, so gunicorn's Unix sockets are reachable by Caddy.
+  user: "${UID_APP}:${GID_SOCKETS}"
+  group_add:
+    - "${GID_SECRETS}"
+  env_file:
+    - ${LUMEN_RENDERED_DIR}/app.env
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  pids_limit: 256
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+x-app-env: &app-env
+  LUMEN_VERSION: ${LUMEN_VERSION}
+  DJANGO_SECRET_KEY_FILE: /run/secrets/django_secret_key
+  POSTGRES_PASSWORD_FILE: /run/secrets/postgres_app_password
+
+services:
+  postgres:
+    <<: *hardening
+    image: ${POSTGRES_IMAGE}
+    user: "70:70"
+    group_add:
+      - "${GID_SECRETS}"
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_superuser_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    secrets:
+      - postgres_superuser_password
+      - postgres_app_password
+      - synapse_db_password
+    volumes:
+      - ${LUMEN_DATA_DIR}/postgres:/var/lib/postgresql/data
+      - ${LUMEN_RENDERED_DIR}/postgres:/etc/postgresql:ro
+      - ${LUMEN_REPO_DIR}/deploy/templates/postgres/10-lumen-roles.sh:/docker-entrypoint-initdb.d/10-lumen-roles.sh:ro
+    tmpfs:
+      - /var/run/postgresql:mode=0775,uid=70,gid=70
+      - /tmp
+    shm_size: 256m
+    pids_limit: 512
+    stop_grace_period: 90s
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  synapse:
+    <<: *hardening
+    image: ${SYNAPSE_IMAGE}
+    user: "991:991"
+    group_add:
+      - "${GID_SECRETS}"
+      - "${GID_SOCKETS}"
+    environment:
+      SYNAPSE_CONFIG_PATH: /config/homeserver.yaml
+      PYTHONPATH: /modules
+      SSL_CERT_FILE: ${SYNAPSE_SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
+    secrets:
+      - synapse_pgpass
+      - synapse_macaroon
+      - synapse_form_secret
+      - synapse_registration_secret
+      - synapse_oidc_client_secret
+      - internal_api_token
+      - turn_shared_secret
+    volumes:
+      - ${LUMEN_DATA_DIR}/synapse:/data
+      - ${LUMEN_RENDERED_DIR}/synapse:/config:ro
+      - ${LUMEN_REPO_DIR}/services/synapse-module:/modules:ro
+      - ${LUMEN_SOCKET_DIR}:/sockets
+      - ${CA_BUNDLE_HOST_PATH}:/etc/lumen-ca/ca.crt:ro
+    tmpfs:
+      - /tmp:size=256m
+    extra_hosts:
+      - "${LUMEN_PRIMARY_DOMAIN}:${EXTRA_HOSTS_IP}"
+    pids_limit: 512
+    stop_grace_period: 60s
+    networks:
+      - backend
+      - egress
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8008/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  portal:
+    <<: *app
+    command: ["web"]
+    environment:
+      <<: *app-env
+      LUMEN_SURFACE: public
+      LUMEN_SOCKET_PATH: /sockets/portal.sock
+      GUNICORN_WORKERS: ${PORTAL_WORKERS:-3}
+      OIDC_PRIVATE_KEY_FILE: /run/secrets/oidc_private_key
+      SYNAPSE_OIDC_CLIENT_SECRET_FILE: /run/secrets/synapse_oidc_client_secret
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
+      STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
+      STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
+    secrets:
+      - django_secret_key
+      - postgres_app_password
+      - oidc_private_key
+      - synapse_oidc_client_secret
+      - smtp_password
+      - stripe_secret_key
+      - stripe_webhook_secret
+    volumes:
+      - ${LUMEN_SOCKET_DIR}:/sockets
+    networks:
+      - backend
+      - egress
+
+  ops:
+    <<: *app
+    command: ["web"]
+    environment:
+      <<: *app-env
+      LUMEN_SURFACE: ops
+      LUMEN_SOCKET_PATH: /sockets/ops.sock
+      GUNICORN_WORKERS: ${OPS_WORKERS:-2}
+      SYNAPSE_ADMIN_TOKEN_FILE: /run/secrets/synapse_admin_token
+      INTERNAL_API_TOKEN_FILE: /run/secrets/internal_api_token
+      OPS_GATEWAY_SECRET_FILE: /run/secrets/ops_gateway_secret
+    secrets:
+      - django_secret_key
+      - postgres_app_password
+      - synapse_admin_token
+      - internal_api_token
+      - ops_gateway_secret
+    volumes:
+      - ${LUMEN_SOCKET_DIR}:/sockets
+      - ${LUMEN_STATUS_DIR}:/var/lib/lumen/status:ro
+      - ${LUMEN_AGENT_DIR}:/run/lumen-agent
+    # Internal network only: the console has no route to the internet.
+    networks:
+      - backend
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    environment:
+      <<: *app-env
+      LUMEN_SURFACE: worker
+      SYNAPSE_ADMIN_TOKEN_FILE: /run/secrets/synapse_admin_token
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
+      STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
+      STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
+      LUMEN_PORTAL_INTERNAL_URL: http://portal:8000
+      LUMEN_OPS_INTERNAL_URL: http://ops:8000
+      TURN_PROBE_HOST: lumen-host
+    secrets:
+      - django_secret_key
+      - postgres_app_password
+      - synapse_admin_token
+      - smtp_password
+      - stripe_secret_key
+      - stripe_webhook_secret
+    volumes:
+      - ${LUMEN_STATUS_DIR}:/var/lib/lumen/status:ro
+      - ${CA_BUNDLE_HOST_PATH}:/etc/lumen-ca/ca.crt:ro
+    extra_hosts:
+      - "${LUMEN_PRIMARY_DOMAIN}:${EXTRA_HOSTS_IP}"
+      - "${LUMEN_APP_DOMAIN}:${EXTRA_HOSTS_IP}"
+      - "${LUMEN_MATRIX_DOMAIN}:${EXTRA_HOSTS_IP}"
+      - "lumen-host:${EXTRA_HOSTS_IP}"
+    networks:
+      - backend
+      - egress
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time() - os.path.getmtime('/tmp/worker-heartbeat') < 180 else 1)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # One-shot: database migrations + bootstrap (plans, OIDC client).
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["migrate"]
+    profiles: ["tools"]
+    environment:
+      <<: *app-env
+      LUMEN_SURFACE: public
+      OIDC_PRIVATE_KEY_FILE: /run/secrets/oidc_private_key
+      SYNAPSE_OIDC_CLIENT_SECRET_FILE: /run/secrets/synapse_oidc_client_secret
+    secrets:
+      - django_secret_key
+      - postgres_app_password
+      - oidc_private_key
+      - synapse_oidc_client_secret
+    networks:
+      - backend
+
+  caddy:
+    <<: *hardening
+    image: ${CADDY_IMAGE}
+    user: "${UID_CADDY}:${UID_CADDY}"
+    group_add:
+      - "${GID_SECRETS}"
+      - "${GID_SOCKETS}"
+    cap_add:
+      - NET_BIND_SERVICE
+    network_mode: host
+    environment:
+      XDG_DATA_HOME: /data
+      XDG_CONFIG_HOME: /config
+    secrets:
+      - ops_gateway_secret
+    volumes:
+      - ${LUMEN_RENDERED_DIR}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${LUMEN_DATA_DIR}/caddy/data:/data
+      - ${LUMEN_DATA_DIR}/caddy/config:/config
+      - ${LUMEN_SOCKET_DIR}:/sockets
+      - ${LUMEN_CHAT_DIST}:/srv/chat:ro
+      - ${LUMEN_RENDERED_DIR}/chat:/srv/chat-config:ro
+      - ${LUMEN_BRANDING_DIR}:/srv/brand:ro
+    tmpfs:
+      - /tmp
+    pids_limit: 256
+    stop_grace_period: 30s
+
+  coturn:
+    <<: *hardening
+    image: ${COTURN_IMAGE}
+    profiles: ["voip"]
+    user: "65534:65534"
+    group_add:
+      - "${GID_SECRETS}"
+    network_mode: host
+    command: ["-c", "/etc/coturn/turnserver.conf", "--pidfile=/tmp/turnserver.pid"]
+    volumes:
+      - ${LUMEN_RENDERED_DIR}/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    tmpfs:
+      - /tmp
+      - /var/tmp
+    pids_limit: 256
+
+networks:
+  backend:
+    driver: bridge
+    internal: true
+  egress:
+    driver: bridge
+
+secrets:
+  # Build-time only; empty unless LUMEN_BUILD_EXTRA_CA points at a CA file.
+  build_extra_ca:
+    file: ${LUMEN_BUILD_EXTRA_CA:-/dev/null}
+  django_secret_key:
+    file: ${LUMEN_SECRETS_DIR}/django_secret_key
+  postgres_superuser_password:
+    file: ${LUMEN_SECRETS_DIR}/postgres_superuser_password
+  postgres_app_password:
+    file: ${LUMEN_SECRETS_DIR}/postgres_app_password
+  synapse_db_password:
+    file: ${LUMEN_SECRETS_DIR}/synapse_db_password
+  synapse_pgpass:
+    file: ${LUMEN_SECRETS_DIR}/synapse_pgpass
+  synapse_macaroon:
+    file: ${LUMEN_SECRETS_DIR}/synapse_macaroon
+  synapse_form_secret:
+    file: ${LUMEN_SECRETS_DIR}/synapse_form_secret
+  synapse_registration_secret:
+    file: ${LUMEN_SECRETS_DIR}/synapse_registration_secret
+  synapse_oidc_client_secret:
+    file: ${LUMEN_SECRETS_DIR}/synapse_oidc_client_secret
+  synapse_admin_token:
+    file: ${LUMEN_SECRETS_DIR}/synapse_admin_token
+  oidc_private_key:
+    file: ${LUMEN_SECRETS_DIR}/oidc_private_key.pem
+  internal_api_token:
+    file: ${LUMEN_SECRETS_DIR}/internal_api_token
+  ops_gateway_secret:
+    file: ${LUMEN_SECRETS_DIR}/ops_gateway_secret
+  turn_shared_secret:
+    file: ${LUMEN_SECRETS_DIR}/turn_shared_secret
+  smtp_password:
+    file: ${LUMEN_SECRETS_DIR}/smtp_password
+  stripe_secret_key:
+    file: ${LUMEN_SECRETS_DIR}/stripe_secret_key
+  stripe_webhook_secret:
+    file: ${LUMEN_SECRETS_DIR}/stripe_webhook_secret

@@ -10,6 +10,7 @@ import logging
 import signal
 import time
 from datetime import timedelta
+from pathlib import Path
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -187,6 +188,7 @@ class Command(BaseCommand):
                 time.sleep(15)
                 continue
             now = time.monotonic()
+            Path("/tmp/worker-heartbeat").touch()
             for job in jobs:
                 if self._stop:
                     break

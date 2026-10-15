@@ -248,6 +248,10 @@ IDP_OIDC_ID_TOKEN_EXPIRES_IN = 300
 IDP_OIDC_ACCESS_TOKEN_EXPIRES_IN = 300
 IDP_OIDC_AUTHORIZATION_CODE_EXPIRES_IN = 60
 IDP_OIDC_RP_INITIATED_LOGOUT_ASKS_FOR_OP_LOGOUT = True
+# Only confidential clients posting their secret. (client_secret_basic is not
+# offered: with oauthlib's OIDC dispatcher it yields token responses without an
+# id_token, because the code lookup needs client_id in the request body.)
+IDP_OIDC_AUTH_METHODS = ["client_secret_post"]
 SYNAPSE_OIDC_CLIENT_ID = env("SYNAPSE_OIDC_CLIENT_ID", "lumen-synapse")
 SYNAPSE_OIDC_CLIENT_SECRET = secret("SYNAPSE_OIDC_CLIENT_SECRET") if SURFACE in {"public", "test"} else ""
 

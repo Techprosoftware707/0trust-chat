@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/__pycache__
+**/*.pyc
+services/chat/dist
+services/portal/staticfiles
+tests/**/output
+*.pem
+.env

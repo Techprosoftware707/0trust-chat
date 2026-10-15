@@ -1,0 +1,10 @@
+:root { color-scheme: light dark; --bg:#f6f8fb; --card:#fff; --text:#121a2b; --muted:#4f5a6e; --border:#dde3ec; --accent:#0e8fb0; }
+@media (prefers-color-scheme: dark) { :root { --bg:#050b1a; --card:#0f1a33; --text:#e9eef7; --muted:#a9b4c9; --border:#22325a; --accent:#5cd0e6; } }
+body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height:1.55; }
+.lumen-shell { max-width: 520px; margin: 0 auto; padding: 48px 20px; }
+.mx_Header { margin-bottom: 28px; }
+.lumen-brand { display:inline-flex; align-items:center; gap:10px; color:var(--text); text-decoration:none; font-weight:700; letter-spacing:-0.02em; font-size:1.1rem; }
+header h1, h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0 0 12px; }
+main, .error_page { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 24px; }
+p, small { color: var(--muted); }
+a { color: var(--accent); }

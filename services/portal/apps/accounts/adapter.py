@@ -69,6 +69,13 @@ class AccountAdapter(DefaultAccountAdapter):
             return
         super().send_mail(template_prefix, email, context)
 
+    def get_client_ip(self, request) -> str:
+        # Requests arrive from Caddy over a Unix socket (no REMOTE_ADDR); Caddy
+        # sets X-Real-IP from the TCP peer and overwrites any client value.
+        from apps.core.ratelimit import client_ip
+
+        return client_ip(request)
+
     def get_login_redirect_url(self, request):
         if settings.SURFACE == "ops":
             return reverse("ops:dashboard")

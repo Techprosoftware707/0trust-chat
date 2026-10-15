@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>{% block title %}{% endblock %} · __BRAND_NAME__</title>
+    <style type="text/css">
+      {%- include 'style.css' without context %}
+    </style>
+    {% block header %}{% endblock %}
+</head>
+<body>
+<div class="lumen-shell">
+<header class="mx_Header">
+    <a class="lumen-brand" href="__PORTAL_URL__"><svg viewBox="0 0 64 64" width="36" height="36" aria-hidden="true"><defs><linearGradient id="g" x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5CD0E6"/><stop offset=".55" stop-color="#3CCFB6"/><stop offset="1" stop-color="#8676F4"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="18" fill="#0A1630"/><path d="M21 16v22.5A9.5 9.5 0 0 0 30.5 48H46" fill="none" stroke="url(#g)" stroke-width="7" stroke-linecap="round"/><circle cx="42" cy="22" r="5.5" fill="url(#g)"/></svg><span>__BRAND_NAME__</span></a>
+</header>
+{% block body %}{% endblock %}
+</div>
+</body>
+</html>
