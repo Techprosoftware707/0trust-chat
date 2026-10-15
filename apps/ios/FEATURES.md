@@ -10,12 +10,13 @@ Status values:
 
 Current state (2026-10-15):
 
-- **CI** ([run 38700890640](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38700890640),
-  Xcode 26.3, raw excerpt in `docs/test-results/ios-ci.txt`):
-  - the app and the NSE build for the simulator;
+- **CI** ([run 38703895070](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38703895070),
+  commit 05cc2fb, Xcode 26.3; first green run 38700890640, raw excerpt in
+  `docs/test-results/ios-ci.txt`):
+  - the app and the NSE build for the simulator with no compiler warnings;
   - the unsigned Release archive builds;
   - on an iPhone 17 Pro and an iPad Pro 13-inch (M5) simulator (iOS 26.2),
-    all 69 unit tests pass: the 62 LumenCore tests (incl.
+    all 70 unit tests pass on each: the 63 LumenCore tests (incl.
     `apps/shared/test-vectors`) and 7 app-level tests against the SDK;
   - the launch UI test passes;
   - the discovery UI test was skipped: no `LUMEN_UITEST_SERVER`.

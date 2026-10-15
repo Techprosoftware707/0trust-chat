@@ -10,7 +10,8 @@
  * the web client with a session.
  */
 import fs from "node:fs";
-import { app, session, type BrowserWindow } from "electron";
+import path from "node:path";
+import { app, BrowserWindow, session } from "electron";
 import { buildDesktopPageCsp } from "../core/csp.ts";
 import { ctx, PAGE } from "./context.ts";
 import { log } from "./log.ts";
@@ -166,5 +167,15 @@ export async function runSelfCheck(reportPath: string | null): Promise<void> {
   }
   for (const c of checks) console.log(`[self-check] ${c.ok ? "PASS" : c.required ? "FAIL" : "info"} ${c.name}${c.detail ? ` — ${c.detail}` : ""}`);
   console.log(`[self-check] ${ok ? "OK" : "FAILED"}`);
+  // Remove the throw-away profile (best effort: Chromium may still hold a file open on Windows).
+  const profile = app.getPath("userData");
+  for (const w of BrowserWindow.getAllWindows()) w.destroy();
+  await session.defaultSession.flushStorageData();
+  await sleep(300);
+  try {
+    if (path.basename(profile).startsWith("lumen-self-check-")) fs.rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
+  } catch {
+    /* left for the OS temp cleaner */
+  }
   app.exit(ok ? 0 : 1);
 }
