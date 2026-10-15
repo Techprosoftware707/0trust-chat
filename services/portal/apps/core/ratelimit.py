@@ -44,7 +44,7 @@ def hit(key: str, limit: int, window_seconds: int) -> Decision:
 def client_ip(request: HttpRequest) -> str:
     # Caddy (the only ingress) sets X-Real-IP / X-Forwarded-For from the TCP peer
     # and replaces any client-supplied value.
-    return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or "0.0.0.0"
+    return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or "0.0.0.0"  # nosec B104 - fallback label, not a bind address
 
 
 def check_request(request: HttpRequest, scope: str, limit: int, window_seconds: int, *, per_user: bool = False) -> Decision:

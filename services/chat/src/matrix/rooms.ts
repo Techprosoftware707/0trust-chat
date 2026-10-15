@@ -10,6 +10,7 @@ import {
   type MatrixEvent,
   type Room,
 } from "matrix-js-sdk";
+import { parseMessage, stripReplyFallback, toPlainText } from "../lib/markdown";
 
 export const MEGOLM_ALGORITHM = "m.megolm.v1.aes-sha2";
 
@@ -39,6 +40,12 @@ export function dmPartner(client: MatrixClient, room: Room, dmMap = getDmMap(cli
     if (inviter) return inviter;
   }
   return null;
+}
+
+/** Message text without markdown markers or a legacy reply fallback, on one line. */
+function plainPreview(ev: MatrixEvent, body: string): string {
+  const text = ev.replyEventId ? stripReplyFallback(body) : body;
+  return toPlainText(parseMessage(text.slice(0, 2000))).replace(/\s+/g, " ").trim().slice(0, 140);
 }
 
 const PREVIEW_TYPES = new Set<string>([EventType.RoomMessage, EventType.RoomMessageEncrypted, EventType.Sticker]);
@@ -81,7 +88,7 @@ export function previewText(ev: MatrixEvent | undefined, myUserId: string): stri
     case "m.audio":
       return `${who}Sent audio`;
     default:
-      return typeof c.body === "string" ? who + c.body.replace(/\s+/g, " ").slice(0, 140) : "";
+      return typeof c.body === "string" ? who + plainPreview(ev, c.body) : "";
   }
 }
 

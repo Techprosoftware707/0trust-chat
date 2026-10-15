@@ -1,0 +1,12 @@
+# Disposable "fresh Ubuntu 24.04 server" for installer tests: systemd as PID 1,
+# nothing else preinstalled beyond what a minimal cloud image ships with.
+FROM ubuntu:24.04
+ENV container=docker DEBIAN_FRONTEND=noninteractive
+RUN apt-get update -q \
+ && apt-get install -y -q --no-install-recommends systemd systemd-sysv dbus iproute2 iptables kmod \
+      curl ca-certificates git sudo openssh-server python3 rsync less \
+ && apt-get clean && rm -rf /var/lib/apt/lists/* \
+ && systemctl mask systemd-logind.service getty.target console-getty.service systemd-udevd.service \
+      systemd-udev-trigger.service systemd-resolved.service systemd-networkd-wait-online.service || true
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

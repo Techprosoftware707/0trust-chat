@@ -1,0 +1,124 @@
+import { ArrowLeft, BadgeCheck, Info, Lock, Phone, Search, ShieldAlert, ShieldOff, Video } from "lucide-react";
+import type { Room } from "matrix-js-sdk";
+import { useMatrix } from "../../matrix/context";
+import { usePresence, useUserTrust } from "../../hooks/matrix";
+import { formatRelative } from "../../lib/format";
+import { Avatar } from "../primitives/Avatar";
+import { presenceDot } from "../Sidebar";
+import { useUi } from "../UiContext";
+
+export function EncryptionBadge({ encrypted }: { encrypted: boolean | null }) {
+  if (encrypted === null) return null;
+  return encrypted ? (
+    <span className="badge badge-success badge-plain" title="Messages are end-to-end encrypted: only members' devices can read them">
+      <Lock aria-hidden="true" /> Encrypted
+    </span>
+  ) : (
+    <span className="badge badge-warning badge-plain" title="Messages in this conversation are not end-to-end encrypted">
+      <ShieldOff aria-hidden="true" /> Not encrypted
+    </span>
+  );
+}
+
+function presenceText(p: ReturnType<typeof usePresence>): string | null {
+  if (!p) return null;
+  if (p.presence === "online") return p.currentlyActive ? "Online" : "Online · idle";
+  if (p.presence === "unavailable") return "Away";
+  return p.lastActiveAgo ? `Last seen ${formatRelative(Date.now() - p.lastActiveAgo)}`.replace("Last seen Just now", "Last seen just now") : "Offline";
+}
+
+export function TrustBadge({ userId, onVerify }: { userId: string; onVerify: () => void }) {
+  const { client } = useMatrix();
+  const { status } = useUserTrust(client, userId);
+  if (!status) return null;
+  if (status.isCrossSigningVerified())
+    return (
+      <span className="badge badge-success badge-plain" title="You've verified this person's identity">
+        <BadgeCheck aria-hidden="true" /> Verified
+      </span>
+    );
+  if (status.needsUserApproval || status.wasCrossSigningVerified())
+    return (
+      <button type="button" className="badge badge-danger badge-plain badge-button" onClick={onVerify} title="Their identity changed. Verify them again.">
+        <ShieldAlert aria-hidden="true" /> Identity changed
+      </button>
+    );
+  return (
+    <button type="button" className="badge badge-plain badge-button" onClick={onVerify} title="Compare emoji to verify this person">
+      <ShieldAlert aria-hidden="true" /> Not verified
+    </button>
+  );
+}
+
+export function RoomHeader({
+  room,
+  dmUserId,
+  encrypted,
+  isMobile,
+  panel,
+  onCall,
+}: {
+  room: Room;
+  dmUserId: string | null;
+  encrypted: boolean | null;
+  isMobile: boolean;
+  panel: "info" | "search" | null;
+  onCall?: (video: boolean) => void;
+}) {
+  const { client } = useMatrix();
+  const ui = useUi();
+  const presence = usePresence(client, dmUserId);
+  const members = room.getJoinedMemberCount();
+  const sub = dmUserId ? (presenceText(presence) ?? dmUserId) : `${members} member${members === 1 ? "" : "s"}`;
+  const mxc = room.getMxcAvatarUrl() ?? (dmUserId ? room.getMember(dmUserId)?.getMxcAvatarUrl() : null) ?? null;
+  return (
+    <header className="room-header">
+      {isMobile ? (
+        <a href="#/" className="icon-btn" aria-label="Back to conversations">
+          <ArrowLeft aria-hidden="true" />
+        </a>
+      ) : null}
+      <Avatar name={room.name} seed={dmUserId ?? room.roomId} mxc={mxc} size={40} presence={dmUserId ? presenceDot(presence) : null} />
+      <div className="room-header-titles">
+        <h1 className="room-title">{room.name}</h1>
+        <p className="room-sub">{sub}</p>
+      </div>
+      <div className="room-header-badges">
+        <EncryptionBadge encrypted={encrypted} />
+        {dmUserId ? <TrustBadge userId={dmUserId} onVerify={() => void ui.verifyUser(dmUserId)} /> : null}
+      </div>
+      <div className="room-header-actions">
+        {onCall ? (
+          <>
+            <button type="button" className="icon-btn" aria-label="Voice call" title="Voice call" onClick={() => onCall(false)}>
+              <Phone aria-hidden="true" />
+            </button>
+            <button type="button" className="icon-btn" aria-label="Video call" title="Video call" onClick={() => onCall(true)}>
+              <Video aria-hidden="true" />
+            </button>
+          </>
+        ) : null}
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Search messages"
+          title="Search messages"
+          aria-pressed={panel === "search"}
+          onClick={() => ui.openPanel(panel === "search" ? null : "search")}
+        >
+          <Search aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Conversation details"
+          title="Conversation details"
+          aria-pressed={panel === "info"}
+          onClick={() => ui.openPanel(panel === "info" ? null : "info")}
+        >
+          <Info aria-hidden="true" />
+        </button>
+      </div>
+    </header>
+  );
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1090  # _log_file/colours come from common.sh; env files are generated
 # Public-endpoint verification shared by install.sh, update.sh and healthcheck.sh.
 # Requests go to this host (--resolve 127.0.0.1) but TLS is verified against the
 # real hostname, so a pass means the certificate and routing are correct.
@@ -55,8 +56,9 @@ _tls_ok() {
   # is failing. Caddy's internal test CA issues 12-hour certificates.
   local min=$((7 * 86400))
   [[ "$(conf_get TLS_MODE acme)" == internal ]] && min=600
-  echo | openssl s_client -connect "127.0.0.1:$2" -servername "$1" -verify_return_error \
-      $( [[ "$(conf_get TLS_MODE acme)" == internal ]] && echo "-CAfile $LUMEN_CONFIG_DIR/ca/caddy-local-root.crt" ) 2>/dev/null \
+  local ca_args=()
+  [[ "$(conf_get TLS_MODE acme)" == internal ]] && ca_args=(-CAfile "$LUMEN_CONFIG_DIR/ca/caddy-local-root.crt")
+  echo | openssl s_client -connect "127.0.0.1:$2" -servername "$1" -verify_return_error "${ca_args[@]}" 2>/dev/null \
     | openssl x509 -noout -checkend "$min" >/dev/null 2>&1
 }
 

@@ -180,11 +180,13 @@ class StripeProvider(BaseProvider):
 
     def handle_webhook(self, payload: bytes, signature: str | None) -> WebhookResult:
         try:
-            event = self.verify(payload, signature)
+            verified = self.verify(payload, signature)
         except WebhookRejected as exc:
             WebhookEvent.objects.create(provider="stripe", event_id="", outcome="rejected", error=str(exc)[:300])
             return WebhookResult(400, "rejected", str(exc))
-        obj = event["data"]["object"]
+        # stripe-python >= 15 objects are not dicts; work on a plain copy.
+        event = verified.to_dict() if hasattr(verified, "to_dict") else dict(verified)
+        obj = (event.get("data") or {}).get("object") or {}
         try:
             with transaction.atomic():
                 record = WebhookEvent.objects.create(

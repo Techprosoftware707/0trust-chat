@@ -188,7 +188,7 @@ class Command(BaseCommand):
                 time.sleep(15)
                 continue
             now = time.monotonic()
-            Path("/tmp/worker-heartbeat").touch()
+            Path("/tmp/worker-heartbeat").touch()  # nosec B108 - container-private tmpfs, health check only
             for job in jobs:
                 if self._stop:
                     break

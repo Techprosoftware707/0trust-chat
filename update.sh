@@ -63,7 +63,9 @@ if ((PULL)) && [[ -d "$LUMEN_REPO_DIR/.git" ]]; then
   # Re-exec so the rest runs with the updated scripts.
   if [[ "${LUMEN_UPDATE_REEXEC:-0}" != 1 ]]; then
     flock -u 9 || true
-    LUMEN_UPDATE_REEXEC=1 exec "$LUMEN_REPO_DIR/update.sh" --no-pull --no-backup $( ((ASSUME_YES)) && echo --yes)
+    reexec_args=(--no-pull --no-backup)
+    ((ASSUME_YES)) && reexec_args+=(--yes)
+    LUMEN_UPDATE_REEXEC=1 exec "$LUMEN_REPO_DIR/update.sh" "${reexec_args[@]}"
   fi
 fi
 new_version="$(grep -E '^LUMEN_VERSION=' "$LUMEN_REPO_DIR/deploy/versions.env" | cut -d= -f2)"

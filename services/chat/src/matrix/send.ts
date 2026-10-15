@@ -1,4 +1,5 @@
 /** Builders for outgoing message content (pure, unit-tested). */
+import { RelationType } from "matrix-js-sdk";
 import { hasFormatting, parseMessage, toHtml } from "../lib/markdown";
 
 export interface TextContent {
@@ -37,7 +38,7 @@ export function editContent(originalEventId: string, newBody: string): TextConte
 }
 
 export function reactionContent(eventId: string, key: string) {
-  return { "m.relates_to": { rel_type: "m.annotation" as const, event_id: eventId, key } };
+  return { "m.relates_to": { rel_type: RelationType.Annotation as const, event_id: eventId, key } };
 }
 
 export const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉", "😮", "😢"];

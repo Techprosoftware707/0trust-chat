@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1090  # _log_file/colours come from common.sh; env files are generated
 # Optional WireGuard: private operator access to the console port. Never used for
 # chat or federation traffic, never required.
 

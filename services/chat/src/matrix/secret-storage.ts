@@ -20,8 +20,9 @@ export function setSecretStorageKeyPrompt(fn: SecretStorageKeyPrompt | null): vo
   prompt = fn;
 }
 
+/** Caches a copy of the key (the copy is zeroed when the operation ends). */
 export function cacheSecretStorageKey(keyId: string, key: KeyBytes): void {
-  cache.set(keyId, key);
+  cache.set(keyId, new Uint8Array(key));
 }
 
 export function clearSecretStorageKeyCache(): void {
@@ -49,10 +50,10 @@ export const cryptoCallbacks: CryptoCallbacks = {
     const keyId = ids[0];
     const key = await prompt(keyId, keys[keyId]);
     if (!key) return null;
-    cache.set(keyId, key);
-    return [keyId, key];
+    cacheSecretStorageKey(keyId, key);
+    return [keyId, cache.get(keyId)!];
   },
   cacheSecretStorageKey(keyId, _keyInfo, key) {
-    cache.set(keyId, key);
+    cacheSecretStorageKey(keyId, key);
   },
 };

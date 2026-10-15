@@ -70,7 +70,7 @@ export function buildTimeline(events: MatrixEvent[], nameOf: NameOf): TimelineIt
     const key = ev.getId() ?? ev.getTxnId() ?? `${ts}-${items.length}`;
     let item: TimelineItem | null = null;
     if (isMessageEvent(ev)) {
-      const continuation =
+      const continuation: boolean =
         prevMessage !== null &&
         prevMessage.getSender() === ev.getSender() &&
         !prevMessage.isRedacted() &&

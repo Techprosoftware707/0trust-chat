@@ -58,8 +58,11 @@ if [[ "$SCRIPT_DIR" != "$INSTALL_DIR" ]]; then
   else
     cp -a "$SCRIPT_DIR/." "$INSTALL_DIR/"
   fi
-  exec bash "$INSTALL_DIR/install.sh" ${CONFIG_SRC:+--config "$(realpath "$CONFIG_SRC")"} \
-    $( ((ASSUME_YES)) && echo --yes) $( ((DO_VERIFY)) || echo --no-verify) --install-dir "$INSTALL_DIR"
+  args=(--install-dir "$INSTALL_DIR")
+  [[ -n "$CONFIG_SRC" ]] && args+=(--config "$(realpath "$CONFIG_SRC")")
+  ((ASSUME_YES)) && args+=(--yes)
+  ((DO_VERIFY)) || args+=(--no-verify)
+  exec bash "$INSTALL_DIR/install.sh" "${args[@]}"
 fi
 
 export LUMEN_REPO_DIR="$INSTALL_DIR"
@@ -212,7 +215,7 @@ fi
 if ((VERIFY_OK)); then
   state_set install_status complete
   state_set installed_at "$(date -u +%FT%TZ)"
-  state_set phase done
+  state_set phase "done"
 fi
 write_status_json update "last_update_at=$(date -u +%FT%TZ)" "last_result=$( ((VERIFY_OK)) && echo installed || echo installed-with-failures)" "version=$VERSION"
 

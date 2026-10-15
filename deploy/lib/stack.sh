@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1090  # _log_file/colours come from common.sh; env files are generated
 # Stack lifecycle: secrets, directories, rendering, validation, build, start.
 # Sourced by install.sh / update.sh / lumenctl.
 
@@ -102,6 +103,14 @@ render_staging() {
   fi
 }
 
+# docker_run_failed <exit-code> <message> — tell Docker failures from tool failures.
+docker_run_failed() {
+  if (($1 == 125 || $1 == 126 || $1 == 127)); then
+    die "Docker could not start a container (exit $1): storage driver, runtime or image problem — not a configuration error. See $_log_file"
+  fi
+  die "$2. See $_log_file"
+}
+
 # validate_staging — validate rendered config with the real tools before use.
 validate_staging() {
   local staging="$LUMEN_CONFIG_DIR/rendered.staging"
@@ -113,7 +122,7 @@ validate_staging() {
     -v "$LUMEN_SECRETS_DIR/ops_gateway_secret:/run/secrets/ops_gateway_secret:ro" \
     -e XDG_DATA_HOME=/tmp -e XDG_CONFIG_HOME=/tmp \
     "$CADDY_IMAGE" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >>"$_log_file" 2>&1 \
-    || die "Caddy rejected the generated configuration. See $_log_file"
+    || docker_run_failed $? "Caddy rejected the generated configuration"
   ok "Caddy configuration valid"
   info "validating homeserver configuration (and generating the signing key if missing)"
   local data; data="$(conf_get LUMEN_DATA_DIR /var/lib/lumen)"
@@ -130,7 +139,7 @@ validate_staging() {
     -v "$LUMEN_SECRETS_DIR/internal_api_token:/run/secrets/internal_api_token:ro" \
     -v "$LUMEN_SECRETS_DIR/turn_shared_secret:/run/secrets/turn_shared_secret:ro" \
     "$SYNAPSE_IMAGE" -m synapse.app.homeserver --config-path /config/homeserver.yaml --generate-keys >>"$_log_file" 2>&1 \
-    || die "The homeserver rejected the generated configuration. See $_log_file"
+    || docker_run_failed $? "The homeserver rejected the generated configuration"
   ok "homeserver configuration valid; signing key present"
   info "validating Compose file"
   LUMEN_RENDERED_DIR="$staging" docker compose --project-directory "$LUMEN_REPO_DIR" --env-file "$staging/compose.env" \
@@ -172,8 +181,22 @@ pull_images() {
   ok "base images pulled (pinned by digest)"
 }
 
+# Optional build-time CA for networks with TLS inspection (empty by default).
+build_secret_args() {
+  local ca; ca="$(conf_get LUMEN_BUILD_EXTRA_CA "")"
+  [[ -n "$ca" && -s "$ca" ]] && printf -- '--secret\nid=build_extra_ca,src=%s\n' "$ca"
+  return 0
+}
+
 build_portal() {
-  run compose build portal || die "Building the portal image failed. See $_log_file"
+  # shellcheck disable=SC1091
+  set -a; source "$(compose_env_file)"; set +a
+  local secret_args=()
+  mapfile -t secret_args < <(build_secret_args)
+  run docker build --file "$LUMEN_REPO_DIR/services/portal/Dockerfile" \
+    --build-arg "PYTHON_BASE_IMAGE=$PYTHON_BASE_IMAGE" "${secret_args[@]}" \
+    --tag "$PORTAL_IMAGE" "$LUMEN_REPO_DIR" \
+    || die "Building the portal image failed. See $_log_file"
   ok "portal image built ($PORTAL_IMAGE)"
 }
 
@@ -182,8 +205,10 @@ build_chat() {
   set -a; source "$(compose_env_file)"; set +a
   local dest="$LUMEN_CHAT_DIST" tmp
   tmp="$(mktemp -d "$(dirname "$dest")/.chat-build.XXXXXX")"
+  local secret_args=()
+  mapfile -t secret_args < <(build_secret_args)
   run docker build --file "$LUMEN_REPO_DIR/services/chat/Dockerfile" \
-    --build-arg "NODE_BASE_IMAGE=$NODE_BASE_IMAGE" \
+    --build-arg "NODE_BASE_IMAGE=$NODE_BASE_IMAGE" "${secret_args[@]}" \
     --target dist --output "type=local,dest=$tmp" "$LUMEN_REPO_DIR" \
     || { rm -rf "$tmp"; die "Building the web chat app failed. See $_log_file"; }
   [[ -f "$tmp/index.html" ]] || { rm -rf "$tmp"; die "Chat build produced no index.html"; }

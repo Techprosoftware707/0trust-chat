@@ -37,8 +37,7 @@ x-app: &app
     dockerfile: services/portal/Dockerfile
     args:
       PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE}
-    secrets:
-      - build_extra_ca
+  pull_policy: never  # built locally by install.sh / update.sh with `docker build`
   # Primary group = socket group, so gunicorn's Unix sockets are reachable by Caddy.
   user: "${UID_APP}:${GID_SOCKETS}"
   group_add:
@@ -297,9 +296,6 @@ networks:
     driver: bridge
 
 secrets:
-  # Build-time only; empty unless LUMEN_BUILD_EXTRA_CA points at a CA file.
-  build_extra_ca:
-    file: ${LUMEN_BUILD_EXTRA_CA:-/dev/null}
   django_secret_key:
     file: ${LUMEN_SECRETS_DIR}/django_secret_key
   postgres_superuser_password:

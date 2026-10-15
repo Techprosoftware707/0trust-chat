@@ -39,7 +39,9 @@ def icon(name: str, extra_class: str = "", label: str = ""):
         a11y = f'role="img" aria-label="{escape(label)}"'
     else:
         a11y = 'aria-hidden="true" focusable="false"'
-    return mark_safe(f'<svg class="{cls}" viewBox="0 0 24 24" {a11y}>{inner}</svg>')
+    # Reviewed: `inner` comes from repository-bundled SVG files selected by a
+    # validated name; class and label are escaped above.
+    return mark_safe(f'<svg class="{cls}" viewBox="0 0 24 24" {a11y}>{inner}</svg>')  # nosec B308 B703
 
 
 @register.filter

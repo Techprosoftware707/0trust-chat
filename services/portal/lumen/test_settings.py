@@ -1,0 +1,37 @@
+"""Settings for the automated test-suite (environment prepared before import).
+
+Tests run against PostgreSQL (the audit-log trigger, advisory locks and the
+atomic rate limiter are PostgreSQL features). Point POSTGRES_* at a disposable
+server, e.g. `docker run -d -p 127.0.0.1:55432:5432 -e POSTGRES_USER=lumen_app
+-e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=lumen postgres:17-alpine`.
+"""
+
+
+import os
+import subprocess
+import tempfile
+
+_key = os.path.join(tempfile.gettempdir(), "lumen-test-oidc.pem")
+if not os.path.exists(_key):
+    subprocess.run(["openssl", "genrsa", "-out", _key, "2048"], check=True, capture_output=True)
+
+os.environ.update(
+    {
+        "LUMEN_SURFACE": "test",
+        "LUMEN_ALLOW_ENV_SECRETS": "1",
+        "DJANGO_SECRET_KEY": "test-secret-key-0123456789abcdef0123456789abcdef",
+        "LUMEN_PRIMARY_DOMAIN": "lumen.test",
+        "OPS_GATEWAY_SECRET": "test-gateway",
+        "INTERNAL_API_TOKEN": "test-internal-token",
+        "SYNAPSE_OIDC_CLIENT_SECRET": "test-oidc-client-secret",
+        "OIDC_PRIVATE_KEY_FILE": _key,
+        "LUMEN_SIMPLE_STATIC": "1",
+        "LUMEN_TEST_EMAIL_LOCMEM": "1",
+        "SYNAPSE_ADMIN_TOKEN": "",
+    }
+)
+os.environ.setdefault("POSTGRES_HOST", "127.0.0.1")
+os.environ.setdefault("POSTGRES_PORT", "55432")
+os.environ.setdefault("POSTGRES_PASSWORD", "devpass")
+
+from .settings import *  # noqa: E402,F401,F403

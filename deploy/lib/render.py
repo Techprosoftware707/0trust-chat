@@ -776,8 +776,6 @@ def render_compose_env(cfg, out: Path, repo: Path) -> None:
         "TURN_MIN_PORT": cfg["TURN_MIN_PORT"],
         "TURN_MAX_PORT": cfg["TURN_MAX_PORT"],
     }
-    if cfg["LUMEN_BUILD_EXTRA_CA"]:
-        env["LUMEN_BUILD_EXTRA_CA"] = cfg["LUMEN_BUILD_EXTRA_CA"]
     if cfg["TLS_MODE"] == "internal":
         # Test/staging only: trust the bundle that includes Caddy's local CA.
         env["SYNAPSE_SSL_CERT_FILE"] = "/etc/lumen-ca/ca.crt"

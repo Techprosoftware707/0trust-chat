@@ -67,12 +67,12 @@ case "$cmd" in
     [[ -f "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/status/backup.json" ]] && { echo "Backups:"; cat "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/status/backup.json"; echo; }
     ;;
   logs)
-    svc="${1:?service name required}"; shift
-    compose logs --tail 200 "$@" "$svc"
+    service="${1:?service name required}"; shift
+    compose logs --tail 200 "$@" "$service"
     ;;
   restart)
-    svc="${1:?service name required}"
-    compose restart "$svc"
+    service="${1:?service name required}"
+    compose restart "$service"
     ;;
   compose)
     compose "$@"

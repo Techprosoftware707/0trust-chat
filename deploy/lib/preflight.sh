@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1090  # _log_file/colours come from common.sh; env files are generated
 # Pre-installation checks. Read-only: nothing here changes the system.
 # Each check records a result; preflight_report prints them and decides.
 

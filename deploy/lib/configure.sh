@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1090  # _log_file/colours come from common.sh; env files are generated
 # Builds /etc/lumen/lumen.conf interactively, or validates a provided file.
 
 ask() {

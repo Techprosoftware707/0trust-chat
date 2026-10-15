@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1090  # _log_file/colours come from common.sh; env files are generated
 # Host-level setup: packages, Docker, firewall, automatic updates, systemd units.
 
 apt_install() {
