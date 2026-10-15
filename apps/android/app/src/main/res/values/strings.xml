@@ -292,6 +292,8 @@
     <string name="settings_security_desc">What this app protects, and what it cannot</string>
     <string name="settings_about">About</string>
     <string name="settings_sign_out">Sign out</string>
+    <string name="settings_delete_account">Delete account…</string>
+    <string name="settings_delete_account_desc">Opens your provider\'s account deletion page in the browser</string>
     <string name="sign_out_body">This removes the session from the server and deletes all chats, keys and settings from this device. Make sure you have your recovery key or another verified device, or you will not be able to read your encrypted history again.</string>
 
     <!-- Security overview (no post-quantum claims) -->

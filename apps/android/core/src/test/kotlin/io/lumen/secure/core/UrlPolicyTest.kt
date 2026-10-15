@@ -71,6 +71,16 @@ class UrlPolicyTest {
     }
 
     @Test
+    fun `optional account_delete_url is validated like every other link`() {
+        fun parse(v: String) = (WellKnownParser.parse("""{"m.homeserver":{"base_url":"https://m.example.com"},"io.lumen.app":{"version":1,"account_delete_url":$v}}""") as WellKnownResult.Ok).lumen
+        assertEquals("https://example.com/portal/privacy/delete/", parse("\"https://example.com/portal/privacy/delete/\"")?.accountDeleteUrl)
+        assertNull(parse("\"http://example.com/portal/privacy/delete/\"")?.accountDeleteUrl)
+        assertNull(parse("\"javascript:alert(1)\"")?.accountDeleteUrl)
+        assertNull(parse("7")?.accountDeleteUrl)
+        assertNull((WellKnownParser.parse(full) as WellKnownResult.Ok).lumen?.accountDeleteUrl)
+    }
+
+    @Test
     fun `version must be the number 1`() {
         val r = WellKnownParser.parse("""{"m.homeserver":{"base_url":"https://m.example.com"},"io.lumen.app":{"version":"1"}}""") as WellKnownResult.Ok
         assertNull(r.lumen)

@@ -124,6 +124,13 @@ fun SettingsScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel) {
         server?.lumen?.helpUrl?.let { u -> SettingRow(stringResource(R.string.link_help), null, R.drawable.ic_lucide_external_link, onClick = { openInBrowser(context, u) }) }
 
         SettingRow(stringResource(R.string.settings_sign_out), null, R.drawable.ic_lucide_log_out, onClick = { confirmSignOut = true })
+        // Account deletion is a portal function (Play's account-deletion requirement): opened in the browser.
+        server?.lumen?.accountDeleteUrl?.let { url ->
+            SettingRow(
+                stringResource(R.string.settings_delete_account), stringResource(R.string.settings_delete_account_desc),
+                R.drawable.ic_lucide_user_x, onClick = { openInBrowser(context, url) },
+            )
+        }
     }
 
     if (confirmSignOut) {

@@ -34,6 +34,7 @@ class ServerInfoStore(context: Context) {
             LumenAppInfo(
                 ls("brand_name"), ls("brand_short_name"), ls("portal_url"), ls("signup_url"), ls("account_url"), ls("privacy_url"),
                 ls("help_url"), ls("sso_idp_id"), ls("web_app_url"), ls("call_widget_url"), ls("push_gateway_url"),
+                ls("account_delete_url"),
             )
         }
         return ServerInfo(s("server_name"), hs, lumen)
@@ -58,6 +59,7 @@ class ServerInfoStore(context: Context) {
                         l.webAppUrl?.let { put("web_app_url", it) }
                         l.callWidgetUrl?.let { put("call_widget_url", it) }
                         l.pushGatewayUrl?.let { put("push_gateway_url", it) }
+                        l.accountDeleteUrl?.let { put("account_delete_url", it) }
                     },
                 )
             }

@@ -73,6 +73,7 @@ class SharedVectorsTest {
                 "portal_url" to l.portalUrl, "signup_url" to l.signupUrl, "account_url" to l.accountUrl,
                 "privacy_url" to l.privacyUrl, "help_url" to l.helpUrl, "sso_idp_id" to l.ssoIdpId,
                 "web_app_url" to l.webAppUrl, "call_widget_url" to l.callWidgetUrl, "push_gateway_url" to l.pushGatewayUrl,
+                "account_delete_url" to l.accountDeleteUrl,
             )
             for ((k, v) in lumen.jsonObject) assertEquals("$name: $k", v.strOrNull(), actual[k] ?: if (k in actual) null else error("unknown key $k"))
         }

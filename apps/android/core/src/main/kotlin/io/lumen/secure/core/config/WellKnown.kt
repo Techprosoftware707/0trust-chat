@@ -19,6 +19,8 @@ data class LumenAppInfo(
     val webAppUrl: String?,
     val callWidgetUrl: String?,
     val pushGatewayUrl: String?,
+    /** Optional (added after the shared vectors): the portal's account-deletion page. */
+    val accountDeleteUrl: String? = null,
 )
 
 enum class WellKnownError(val code: String) {
@@ -81,6 +83,7 @@ object WellKnownParser {
             webAppUrl = url("web_app_url"),
             callWidgetUrl = url("call_widget_url"),
             pushGatewayUrl = url("push_gateway_url"),
+            accountDeleteUrl = url("account_delete_url"),
         )
     }
 
