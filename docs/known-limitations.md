@@ -27,12 +27,31 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
 
 ## Product scope
 
-7. **Chat client — not implemented:** QR-code verification, threads, spaces,
+7. **Web chat client — not implemented:** QR-code verification, threads, spaces,
    rich-text editor, @mentions, rendering received HTML (plain-text body is
    shown), persistent search index (on-device search covers loaded history),
    web push, room settings beyond enabling encryption, multiple
-   accounts, native mobile/desktop apps (the web app is responsive; any Matrix
-   client works).
+   accounts.
+7a. **Client apps** (Windows, macOS, Android, iOS/iPadOS; per-feature status in
+   [apps/feature-matrix.md](apps/feature-matrix.md)):
+   * **Nothing has run on a physical device**, and no build is signed for
+     distribution or published to a store. Signing, notarization, store review
+     and auto-update need the operator's own certificates and accounts
+     ([apps/release.md](apps/release.md)).
+   * **Android and iOS** were built and unit-tested in CI (iOS simulators,
+     Android emulator for a subset), but have not signed in to a real server
+     from the app. Their call path (Rust SDK widget driver + Lumen call widget +
+     native SFU-token/transport answers) passed a real encrypted call only in
+     the Linux harness, not inside the apps.
+   * **Push notifications** to closed mobile apps need a Firebase project, an
+     APNs key and `PUSH_ENABLED=true`; delivery was not tested. Without push,
+     incoming calls ring only while the app runs, and the apps say so.
+   * **Mobile gaps:** no screen sharing; no verified state for your other
+     devices (the Rust SDK FFI doesn't expose it); Android shows formatted
+     messages as plain text; iOS has no message search.
+   * **Desktop:** calls hosted on another homeserver's SFU are outside the
+     app's content security policy and don't connect. On Linux without a
+     keyring the store key is only obfuscated (the app shows a warning).
 8. **All rooms are encrypted** (`encryption_enabled_by_default_for_room_type:
    all`); public unencrypted rooms are not offered.
 9. **Voice/video calls** (MatrixRTC + LiveKit; see ADR 0002 and the test

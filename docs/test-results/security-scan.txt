@@ -51,7 +51,7 @@ PASS no open redirect via ?next= on sign-out
 PASS homeserver offers no password login (SSO only)
 PASS homeserver open registration disabled (403)
 --- calls (SFU, TURN, authorization)
-PASS SFU TCP: signalling and metrics on loopback only; public only ICE/TCP 7881 and TURN/TLS 5349
+PASS SFU TCP: signalling and metrics on loopback only; public only ICE/TCP 7881
 PASS SFU UDP: only media 7882-7889, TURN 3478 and TURN relay allocations
 PASS SFU private path hidden on the public site (/twirp/livekit.RoomService/ListRooms → 404)
 PASS SFU private path hidden on the public site (/twirp/livekit.Egress/StartRoomCompositeEgress → 404)
@@ -62,8 +62,8 @@ PASS SFU API refused to containers outside the calls network (same client reache
 PASS SFU rejects a token not signed by this server's key (401)
 PASS a valid token cannot create rooms (auto-create off: unknown room → 404)
 PASS SFU token endpoint requires a signed-in Matrix user (401)
-PASS TURN/TLS refuses tls1
-PASS TURN/TLS refuses tls1.1
+PASS no TURN/TLS listener advertised on Caddy's port 443
+PASS SFU media restricted to the advertised address/interface (no Docker/VPN host candidates)
 PASS TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created
 PASS TURN relay port range is not opened in the firewall
 PASS no recording/egress service running (calls are not recorded)
@@ -90,13 +90,6 @@ PASS lumen-caddy-1 drops all capabilities
 PASS lumen-caddy-1 no-new-privileges
 PASS lumen-caddy-1 has no Docker socket
 PASS lumen-caddy-1: no secret values in environment
-PASS lumen-worker-1 runs as non-root (10001:10300)
-PASS lumen-worker-1 read-only root filesystem
-PASS lumen-worker-1 not privileged
-PASS lumen-worker-1 drops all capabilities
-PASS lumen-worker-1 no-new-privileges
-PASS lumen-worker-1 has no Docker socket
-PASS lumen-worker-1: no secret values in environment
 PASS lumen-portal-1 runs as non-root (10001:10300)
 PASS lumen-portal-1 read-only root filesystem
 PASS lumen-portal-1 not privileged
@@ -111,6 +104,13 @@ PASS lumen-ops-1 drops all capabilities
 PASS lumen-ops-1 no-new-privileges
 PASS lumen-ops-1 has no Docker socket
 PASS lumen-ops-1: no secret values in environment
+PASS lumen-worker-1 runs as non-root (10001:10300)
+PASS lumen-worker-1 read-only root filesystem
+PASS lumen-worker-1 not privileged
+PASS lumen-worker-1 drops all capabilities
+PASS lumen-worker-1 no-new-privileges
+PASS lumen-worker-1 has no Docker socket
+PASS lumen-worker-1: no secret values in environment
 PASS lumen-livekit-1 runs as non-root (10400:10400)
 PASS lumen-livekit-1 read-only root filesystem
 PASS lumen-livekit-1 not privileged
@@ -130,3 +130,4 @@ PASS no private keys or live tokens in tracked files
 PASS portal image ENV carries no secrets
 PASS build-time CA secret not baked into image layers
 security scan: 123 passed, 0 failed
+exit 0

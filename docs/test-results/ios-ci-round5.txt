@@ -1,0 +1,768 @@
+iOS CI evidence: GitHub Actions run 38706433166 (workflow_dispatch), commit cbd9cec
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/38706433166
+Unsigned build (no Apple signing secrets). Simulator tests only; nothing ran on a device. Excerpts copied verbatim from the job logs.
+
+=== job: Build, test, archive (unsigned) (macos-15) job id 116326895312 ===
+(workflow "ios", run attempt 1, conclusion success, head_sha cbd9cece7a579600c630daa32ebf2c30e0162f9b; job url https://github.com/Techprosoftware707/0trust-chat/actions/runs/38706433166/job/116326895312)
+
+--- toolchain ---
+[runner image / OS]
+##[group]Operating System
+macOS
+15.7.9
+24G830
+##[endgroup]
+##[group]Runner Image
+Image: macos-15-arm64
+Version: 20260907.0337.1
+Included Software: https://github.com/actions/runner-images/blob/macos-15-arm64/20260907.0337/images/macos/macos-15-arm64-Readme.md
+Image Release: https://github.com/actions/runner-images/releases/tag/macos-15-arm64%2F20260907.0337
+##[endgroup]
+[node step]
+##[group]Environment details
+node: v22.22.0
+npm: 10.9.4
+yarn: 1.22.22
+[ci-build.sh toolchain lines]
+==> Xcode: Xcode 26.3 Build version 17C529 
+==> Swift: Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+==> XcodeGen: Version: 2.46.0
+==> design tokens up to date
+==> no disabled TLS verification
+[SDK lines: clang probe of the iOS Simulator SDK and the iOS device SDK]
+ExecuteExternalTool /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode_26.3.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -x c -c /dev/null
+ExecuteExternalTool /Applications/Xcode_26.3.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode_26.3.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.2.sdk -x c -c /dev/null
+[simulator destinations chosen by xcodebuild (OS:26.2)]
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049, OS:26.2, name:iPad Pro 13-inch (M5) }
+{ platform:iOS Simulator, arch:x86_64, id:0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049, OS:26.2, name:iPad Pro 13-inch (M5) }
+[xcodebuild test invocation, destinations by simulator id]
+    /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/xcodebuild -project /Users/runner/work/0trust-chat/0trust-chat/apps/ios/Lumen.xcodeproj -scheme Lumen -derivedDataPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData -clonedSourcePackagesDirPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/SourcePackages -configuration Debug -destination id=E952A9B0-CC78-435C-BF08-06AD47FE1076 -destination id=0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049 -resultBundlePath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/LumenTests.xcresult -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION=8
+
+--- call widget build (node step before the app build) ---
+##[group]Run npm ci --ignore-scripts && npm run --if-present build:widget
+npm ci --ignore-scripts && npm run --if-present build:widget
+shell: /bin/bash -e {0}
+##[endgroup]
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/css-color@7.1.5',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.4',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'jsdom@30.1.2',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'w3c-xmlserializer@6.0.0',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+
+added 245 packages, and audited 246 packages in 3s
+
+59 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+> lumen-chat@1.0.0 build:widget
+> tsc -p tsconfig.json --noEmit && vite build --config vite.widget.config.ts
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vite.widget.config.ts:20:18). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2204 modules transformed.
+rendering chunks...
+dist-widget/assets/logo-D6mvRjln.svg                                    0.93 kB
+dist-widget/widget.html                                                 1.44 kB
+dist-widget/licenses/LICENSE-Inter.txt                                  4.47 kB
+dist-widget/licenses/LICENSE-JetBrainsMono.txt                          4.52 kB
+dist-widget/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
+dist-widget/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
+dist-widget/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
+dist-widget/licenses/third-party.md                                    72.33 kB
+dist-widget/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
+dist-widget/assets/widget-IC4TFhlI.css                                 74.85 kB
+dist-widget/assets/_lumen-widget-no-rust-crypto-CYotQddD.js             0.12 kB
+dist-widget/assets/widget-Drn22d7I.js                               1,728.51 kB
+
+✓ built in 349ms
+
+--- call widget bundled into the app ---
+[Debug simulator build]
+
+PhaseScriptExecution Bundle\ the\ call\ widget /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData/Build/Intermediates.noindex/Lumen.build/Debug-iphonesimulator/Lumen.build/Script-B344FCDB0C8FA9B82B85C22C.sh (in target 'Lumen' from project 'Lumen')
+    cd /Users/runner/work/0trust-chat/0trust-chat/apps/ios
+    /bin/sh -c /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData/Build/Intermediates.noindex/Lumen.build/Debug-iphonesimulator/Lumen.build/Script-B344FCDB0C8FA9B82B85C22C.sh
+Bundled call widget from /Users/runner/work/0trust-chat/0trust-chat/apps/ios/../../services/chat/dist-widget (12 files)
+note: Run script build phase 'Bundle the call widget' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Lumen' from project 'Lumen')
+[Debug build for test]
+
+PhaseScriptExecution Bundle\ the\ call\ widget /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData/Build/Intermediates.noindex/Lumen.build/Debug-iphonesimulator/Lumen.build/Script-B344FCDB0C8FA9B82B85C22C.sh (in target 'Lumen' from project 'Lumen')
+    cd /Users/runner/work/0trust-chat/0trust-chat/apps/ios
+    /bin/sh -c /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData/Build/Intermediates.noindex/Lumen.build/Debug-iphonesimulator/Lumen.build/Script-B344FCDB0C8FA9B82B85C22C.sh
+Bundled call widget from /Users/runner/work/0trust-chat/0trust-chat/apps/ios/../../services/chat/dist-widget (12 files)
+note: Run script build phase 'Bundle the call widget' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Lumen' from project 'Lumen')
+[Release archive]
+
+PhaseScriptExecution Bundle\ the\ call\ widget /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData/Build/Intermediates.noindex/ArchiveIntermediates/Lumen/IntermediateBuildFilesPath/Lumen.build/Release-iphoneos/Lumen.build/Script-B344FCDB0C8FA9B82B85C22C.sh (in target 'Lumen' from project 'Lumen')
+    cd /Users/runner/work/0trust-chat/0trust-chat/apps/ios
+    /bin/sh -c /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData/Build/Intermediates.noindex/ArchiveIntermediates/Lumen/IntermediateBuildFilesPath/Lumen.build/Release-iphoneos/Lumen.build/Script-B344FCDB0C8FA9B82B85C22C.sh
+Bundled call widget from /Users/runner/work/0trust-chat/0trust-chat/apps/ios/../../services/chat/dist-widget (12 files)
+note: Run script build phase 'Bundle the call widget' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Lumen' from project 'Lumen')
+
+--- build / test / archive ---
+[simulator build: xcodebuild invocation and result]
+    /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/xcodebuild -project /Users/runner/work/0trust-chat/0trust-chat/apps/ios/Lumen.xcodeproj -scheme Lumen -derivedDataPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData -clonedSourcePackagesDirPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/SourcePackages -configuration Debug -destination "generic/platform=iOS Simulator" build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION=8
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 8
+** BUILD SUCCEEDED **
+
+==> simulator build succeeded
+[test: xcodebuild invocation and result]
+    /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/xcodebuild -project /Users/runner/work/0trust-chat/0trust-chat/apps/ios/Lumen.xcodeproj -scheme Lumen -derivedDataPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData -clonedSourcePackagesDirPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/SourcePackages -configuration Debug -destination id=E952A9B0-CC78-435C-BF08-06AD47FE1076 -destination id=0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049 -resultBundlePath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/LumenTests.xcresult -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 test CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION=8
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 8
+2026-10-15 08:37:02.141 xcodebuild[3870:16357] [MT] IDETestOperationsObserverDebug: 123.613 elapsed -- Testing started completed.
+2026-10-15 08:37:02.141 xcodebuild[3870:16357] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-15 08:37:02.141 xcodebuild[3870:16357] [MT] IDETestOperationsObserverDebug: 123.613 sec, +123.613 sec -- end
+2026-10-15 08:38:09.414 xcodebuild[3870:16357] [MT] IDETestOperationsObserverDebug: 190.886 elapsed -- Testing started completed.
+2026-10-15 08:38:09.414 xcodebuild[3870:16357] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-15 08:38:09.414 xcodebuild[3870:16357] [MT] IDETestOperationsObserverDebug: 190.886 sec, +190.886 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/LumenTests.xcresult
+
+** TEST SUCCEEDED **
+[archive: xcodebuild invocation and result]
+    /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/xcodebuild -project /Users/runner/work/0trust-chat/0trust-chat/apps/ios/Lumen.xcodeproj -scheme Lumen -derivedDataPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/DerivedData -clonedSourcePackagesDirPath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/SourcePackages -configuration Release -destination generic/platform=iOS -archivePath /Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/Lumen.xcarchive archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CURRENT_PROJECT_VERSION=8
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 8
+** ARCHIVE SUCCEEDED **
+
+==> unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
+
+[ci-build.sh final summary]
+================ iOS build summary ================
+ - Xcode: Xcode 26.3 Build version 17C529 
+ - Swift: Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+ - XcodeGen: Version: 2.46.0
+ - design tokens up to date
+ - no disabled TLS verification
+ - LumenCore swift test passed
+ - generated Lumen.xcodeproj
+ - version 1.0.0 (project default) build 8
+ - packages resolved (matrix-rust-components-swift 26.10.02)
+ - simulator build succeeded
+ - tests passed on simulators E952A9B0-CC78-435C-BF08-06AD47FE1076 and 0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049
+ - unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
+ - artifacts in apps/ios/build:
+     Lumen-unsigned.xcarchive.zip
+     Lumen.xcodeproj.zip
+     LumenTests.xcresult
+     SHA256SUMS-ios.txt
+31541430a3bb905c4394053e10cbe6d6c9d7364cd1e9274bc646027070a1ae26  Lumen-unsigned.xcarchive.zip
+39bac7720dc54257025f2652f93b996f98cba2d39027e59903df999a524a200f  Lumen.xcodeproj.zip
+
+--- xcresult ---
+Writing result bundle at path:
+	/Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/LumenTests.xcresult
+Test session results, code coverage, and logs:
+	/Users/runner/work/0trust-chat/0trust-chat/apps/ios/build/LumenTests.xcresult
+(xcresult summary with test counts: not found in the log)
+(warning count summary line: not found in the log)
+
+--- LumenCore swift test (macOS host, run by ci-build.sh before the Xcode build) ---
+Building for debugging...
+[0/7] /Users/runner/work/0trust-chat/0trust-chat/apps/ios/LumenCore/.build/arm64-apple-macosx/debug/LumenCorePackageTests.derived/runner.swift
+[1/7] Write sources
+[4/7] Write swift-version-1977FEB4D2752686.txt
+[6/19] Compiling LumenCore Messaging.swift
+[7/19] Compiling LumenCore NativeRtc.swift
+[8/19] Compiling LumenCore Notifications.swift
+[9/21] Compiling LumenCore ServerConfig.swift
+[10/21] Compiling LumenCore Settings.swift
+[11/21] Emitting module LumenCore
+[12/21] Compiling LumenCore AppLock.swift
+[13/21] Compiling LumenCore CallHistory.swift
+[14/21] Compiling LumenCore DeepLinks.swift
+[15/21] Compiling LumenCore Devices.swift
+[16/21] Compiling LumenCore Discovery.swift
+[17/21] Compiling LumenCore HTTP.swift
+[18/21] Compiling LumenCore URLPolicy.swift
+[19/21] Compiling LumenCore WidgetBridge.swift
+[20/26] Compiling LumenCoreTests RoutingAndStateTests.swift
+[21/27] Compiling LumenCoreTests ConfigDiscoveryTests.swift
+[22/27] Compiling LumenCoreTests NativeRtcTests.swift
+[23/27] Emitting module LumenCoreTests
+[24/27] Compiling LumenCoreTests PlatformPolicyTests.swift
+[25/27] Compiling LumenCoreTests SharedVectorsTests.swift
+[26/29] Compiling LumenCorePackageTests runner.swift
+[27/29] Emitting module LumenCorePackageTests
+[27/29] Write Objects.LinkFileList
+[28/29] Linking LumenCorePackageTests
+Build complete! (12.58s)
+Test Suite 'All tests' started at 2026-10-15 08:33:30.155.
+Test Suite 'LumenCorePackageTests.xctest' started at 2026-10-15 08:33:30.156.
+Test Suite 'AppLockTests' started at 2026-10-15 08:33:30.156.
+Test Case '-[LumenCoreTests.AppLockTests testColdStartLockedWhenEnabled]' started.
+Test Case '-[LumenCoreTests.AppLockTests testColdStartLockedWhenEnabled]' passed (0.002 seconds).
+Test Case '-[LumenCoreTests.AppLockTests testDisabledNeverLocks]' started.
+Test Case '-[LumenCoreTests.AppLockTests testDisabledNeverLocks]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.AppLockTests testImmediatelyAndClockGoingBackwards]' started.
+Test Case '-[LumenCoreTests.AppLockTests testImmediatelyAndClockGoingBackwards]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.AppLockTests testPrivacyCover]' started.
+Test Case '-[LumenCoreTests.AppLockTests testPrivacyCover]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.AppLockTests testTimeout]' started.
+Test Case '-[LumenCoreTests.AppLockTests testTimeout]' passed (0.000 seconds).
+Test Suite 'AppLockTests' passed at 2026-10-15 08:33:30.159.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'CallHistoryTests' started at 2026-10-15 08:33:30.159.
+Test Case '-[LumenCoreTests.CallHistoryTests testOutcomes]' started.
+Test Case '-[LumenCoreTests.CallHistoryTests testOutcomes]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.CallHistoryTests testRingPolicy]' started.
+Test Case '-[LumenCoreTests.CallHistoryTests testRingPolicy]' passed (0.000 seconds).
+Test Suite 'CallHistoryTests' passed at 2026-10-15 08:33:30.160.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'ConfigTests' started at 2026-10-15 08:33:30.160.
+Test Case '-[LumenCoreTests.ConfigTests testAccountDeleteURLIsOptionalAndValidated]' started.
+Test Case '-[LumenCoreTests.ConfigTests testAccountDeleteURLIsOptionalAndValidated]' passed (0.002 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testBrandFallbacks]' started.
+Test Case '-[LumenCoreTests.ConfigTests testBrandFallbacks]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testBuildConfigurationFromInfoPlist]' started.
+Test Case '-[LumenCoreTests.ConfigTests testBuildConfigurationFromInfoPlist]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testInvalidOptionalLinksAreDroppedNotFatal]' started.
+Test Case '-[LumenCoreTests.ConfigTests testInvalidOptionalLinksAreDroppedNotFatal]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testLoginFlows]' started.
+Test Case '-[LumenCoreTests.ConfigTests testLoginFlows]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testLumenInfoRoundTripsThroughStorage]' started.
+Test Case '-[LumenCoreTests.ConfigTests testLumenInfoRoundTripsThroughStorage]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testPushGatewayMustBeTheNotifyEndpoint]' started.
+Test Case '-[LumenCoreTests.ConfigTests testPushGatewayMustBeTheNotifyEndpoint]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testRejectsNonHTTPSchemesAndCredentials]' started.
+Test Case '-[LumenCoreTests.ConfigTests testRejectsNonHTTPSchemesAndCredentials]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testRejectsPlainHTTPExceptLoopbackInDebug]' started.
+Test Case '-[LumenCoreTests.ConfigTests testRejectsPlainHTTPExceptLoopbackInDebug]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testServerInputParsing]' started.
+Test Case '-[LumenCoreTests.ConfigTests testServerInputParsing]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ConfigTests testSSOProviderIdValidation]' started.
+Test Case '-[LumenCoreTests.ConfigTests testSSOProviderIdValidation]' passed (0.000 seconds).
+Test Suite 'ConfigTests' passed at 2026-10-15 08:33:30.164.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'ConnectionBannerTests' started at 2026-10-15 08:33:30.164.
+Test Case '-[LumenCoreTests.ConnectionBannerTests testBanners]' started.
+Test Case '-[LumenCoreTests.ConnectionBannerTests testBanners]' passed (0.000 seconds).
+Test Suite 'ConnectionBannerTests' passed at 2026-10-15 08:33:30.164.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'DeepLinkTests' started at 2026-10-15 08:33:30.165.
+Test Case '-[LumenCoreTests.DeepLinkTests testCallbackIsSingleUseOnlyWithPendingAttempt]' started.
+Test Case '-[LumenCoreTests.DeepLinkTests testCallbackIsSingleUseOnlyWithPendingAttempt]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeepLinkTests testMatrixIds]' started.
+Test Case '-[LumenCoreTests.DeepLinkTests testMatrixIds]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeepLinkTests testMatrixToDetails]' started.
+Test Case '-[LumenCoreTests.DeepLinkTests testMatrixToDetails]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeepLinkTests testSSOAttemptBuildsNonceRedirect]' started.
+Test Case '-[LumenCoreTests.DeepLinkTests testSSOAttemptBuildsNonceRedirect]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeepLinkTests testWebAppAndPortalLinksOnlyForConfiguredHosts]' started.
+Test Case '-[LumenCoreTests.DeepLinkTests testWebAppAndPortalLinksOnlyForConfiguredHosts]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeepLinkTests testWhiteLabelScheme]' started.
+Test Case '-[LumenCoreTests.DeepLinkTests testWhiteLabelScheme]' passed (0.000 seconds).
+Test Suite 'DeepLinkTests' passed at 2026-10-15 08:33:30.166.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'DeliveryStateTests' started at 2026-10-15 08:33:30.166.
+Test Case '-[LumenCoreTests.DeliveryStateTests testFailuresAndOthersMessages]' started.
+Test Case '-[LumenCoreTests.DeliveryStateTests testFailuresAndOthersMessages]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeliveryStateTests testLocalEchoIsSendingNeverDelivered]' started.
+Test Case '-[LumenCoreTests.DeliveryStateTests testLocalEchoIsSendingNeverDelivered]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DeliveryStateTests testServerAckIsSentAndOthersReceiptIsRead]' started.
+Test Case '-[LumenCoreTests.DeliveryStateTests testServerAckIsSentAndOthersReceiptIsRead]' passed (0.000 seconds).
+Test Suite 'DeliveryStateTests' passed at 2026-10-15 08:33:30.167.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'DevicesAPITests' started at 2026-10-15 08:33:30.167.
+Test Case '-[LumenCoreTests.DevicesAPITests testDeviceName]' started.
+Test Case '-[LumenCoreTests.DevicesAPITests testDeviceName]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DevicesAPITests testListAndUIAFlow]' started.
+Test Case '-[LumenCoreTests.DevicesAPITests testListAndUIAFlow]' passed (0.001 seconds).
+Test Case '-[LumenCoreTests.DevicesAPITests testPasswordOnlyUIAIsUnsupported]' started.
+Test Case '-[LumenCoreTests.DevicesAPITests testPasswordOnlyUIAIsUnsupported]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DevicesAPITests testRenameAndPathEncoding]' started.
+Test Case '-[LumenCoreTests.DevicesAPITests testRenameAndPathEncoding]' passed (0.000 seconds).
+Test Suite 'DevicesAPITests' passed at 2026-10-15 08:33:30.169.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'DiscoveryTests' started at 2026-10-15 08:33:30.169.
+Test Case '-[LumenCoreTests.DiscoveryTests testHomeserverURLInput]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testHomeserverURLInput]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testInvalidWellKnownIsAnError]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testInvalidWellKnownIsAnError]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testLumenServer]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testLumenServer]' passed (0.001 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testNoSupportedLogin]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testNoSupportedLogin]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testNotAMatrixServer]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testNotAMatrixServer]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testPlainMatrixServerWithoutWellKnownFallsBackToServerName]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testPlainMatrixServerWithoutWellKnownFallsBackToServerName]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testRequiresSlidingSync]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testRequiresSlidingSync]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.DiscoveryTests testUnreachable]' started.
+Test Case '-[LumenCoreTests.DiscoveryTests testUnreachable]' passed (0.000 seconds).
+Test Suite 'DiscoveryTests' passed at 2026-10-15 08:33:30.172.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'IdentityWarningTests' started at 2026-10-15 08:33:30.172.
+Test Case '-[LumenCoreTests.IdentityWarningTests testWarningsFromStatusChanges]' started.
+Test Case '-[LumenCoreTests.IdentityWarningTests testWarningsFromStatusChanges]' passed (0.000 seconds).
+Test Suite 'IdentityWarningTests' passed at 2026-10-15 08:33:30.173.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'ListDiffTests' started at 2026-10-15 08:33:30.173.
+Test Case '-[LumenCoreTests.ListDiffTests testAllOperations]' started.
+Test Case '-[LumenCoreTests.ListDiffTests testAllOperations]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.ListDiffTests testOutOfRangeThrows]' started.
+Test Case '-[LumenCoreTests.ListDiffTests testOutOfRangeThrows]' passed (0.000 seconds).
+Test Suite 'ListDiffTests' passed at 2026-10-15 08:33:30.173.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'LogRedactorTests' started at 2026-10-15 08:33:30.173.
+Test Case '-[LumenCoreTests.LogRedactorTests testRedactsSecretsAndIdentifiers]' started.
+Test Case '-[LumenCoreTests.LogRedactorTests testRedactsSecretsAndIdentifiers]' passed (0.001 seconds).
+Test Suite 'LogRedactorTests' passed at 2026-10-15 08:33:30.175.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'NativeRtcTests' started at 2026-10-15 08:33:30.175.
+Test Case '-[LumenCoreTests.NativeRtcTests testDescribeTransports]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testDescribeTransports]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testHomeserverErrorsAreReportedWithoutTheToken]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testHomeserverErrorsAreReportedWithoutTheToken]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testRouting]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testRouting]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testSupportedApiVersionsGetsMSC4533Once]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testSupportedApiVersionsGetsMSC4533Once]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testTokenCapabilityGrantedOnlyIfRequested]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testTokenCapabilityGrantedOnlyIfRequested]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testTokenOnlyForOwnRoomAndOwnMember]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testTokenOnlyForOwnRoomAndOwnMember]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testTransportsAnsweredFromRawEndpoint]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testTransportsAnsweredFromRawEndpoint]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NativeRtcTests testTransportsNeedTheDriverApproval]' started.
+Test Case '-[LumenCoreTests.NativeRtcTests testTransportsNeedTheDriverApproval]' passed (0.000 seconds).
+Test Suite 'NativeRtcTests' passed at 2026-10-15 08:33:30.177.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'NotificationPolicyTests' started at 2026-10-15 08:33:30.177.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testHiddenByDefaultShowsNothingAboutSenderRoomOrText]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testHiddenByDefaultShowsNothingAboutSenderRoomOrText]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPreferencesDefaultsAndTolerantDecoding]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPreferencesDefaultsAndTolerantDecoding]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPushAvailabilityNeverClaimsPushWithoutGateway]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPushAvailabilityNeverClaimsPushWithoutGateway]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPusherConfiguration]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPusherConfiguration]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPushPayload]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testPushPayload]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testSenderAndText]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testSenderAndText]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testSenderOnly]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testSenderOnly]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.NotificationPolicyTests testStorePassphraseIsRandom32Bytes]' started.
+Test Case '-[LumenCoreTests.NotificationPolicyTests testStorePassphraseIsRandom32Bytes]' passed (0.000 seconds).
+Test Suite 'NotificationPolicyTests' passed at 2026-10-15 08:33:30.180.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'RecoveryKeyTests' started at 2026-10-15 08:33:30.180.
+Test Case '-[LumenCoreTests.RecoveryKeyTests testConfirmationIsWhitespaceInsensitive]' started.
+Test Case '-[LumenCoreTests.RecoveryKeyTests testConfirmationIsWhitespaceInsensitive]' passed (0.000 seconds).
+Test Suite 'RecoveryKeyTests' passed at 2026-10-15 08:33:30.180.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'SharedVectorsTests' started at 2026-10-15 08:33:30.180.
+Test Case '-[LumenCoreTests.SharedVectorsTests testDeepLinkVectors]' started.
+Test Case '-[LumenCoreTests.SharedVectorsTests testDeepLinkVectors]' passed (0.002 seconds).
+Test Case '-[LumenCoreTests.SharedVectorsTests testURLValidationVectors]' started.
+Test Case '-[LumenCoreTests.SharedVectorsTests testURLValidationVectors]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.SharedVectorsTests testWellKnownVectors]' started.
+Test Case '-[LumenCoreTests.SharedVectorsTests testWellKnownVectors]' passed (0.000 seconds).
+Test Suite 'SharedVectorsTests' passed at 2026-10-15 08:33:30.183.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'WidgetBridgeTests' started at 2026-10-15 08:33:30.183.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testActionMessage]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testActionMessage]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.WidgetBridgeTests testAssetResolverRefusesTraversal]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testAssetResolverRefusesTraversal]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.WidgetBridgeTests testCallStateIsConsumedAndAcknowledged]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testCallStateIsConsumedAndAcknowledged]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.WidgetBridgeTests testEncryptionLabelOnlyFromWidgetState]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testEncryptionLabelOnlyFromWidgetState]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.WidgetBridgeTests testForwardsWidgetRequestsAndResponsesOnly]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testForwardsWidgetRequestsAndResponsesOnly]' passed (0.013 seconds).
+Test Case '-[LumenCoreTests.WidgetBridgeTests testPostMessageScriptCannotBreakOut]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testPostMessageScriptCannotBreakOut]' passed (0.000 seconds).
+Test Case '-[LumenCoreTests.WidgetBridgeTests testWidgetURLTemplateUsesSDKPlaceholders]' started.
+Test Case '-[LumenCoreTests.WidgetBridgeTests testWidgetURLTemplateUsesSDKPlaceholders]' passed (0.000 seconds).
+Test Suite 'WidgetBridgeTests' passed at 2026-10-15 08:33:30.198.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.014 (0.014) seconds
+Test Suite 'LumenCorePackageTests.xctest' passed at 2026-10-15 08:33:30.198.
+	 Executed 71 tests, with 0 failures (0 unexpected) in 0.033 (0.041) seconds
+Test Suite 'All tests' passed at 2026-10-15 08:33:30.198.
+	 Executed 71 tests, with 0 failures (0 unexpected) in 0.033 (0.043) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+==> LumenCore swift test passed
+
+--- tests: iPhone 17 Pro (simulator id E952A9B0-CC78-435C-BF08-06AD47FE1076) ---
+[LumenTests unit tests]
+Test suite 'All tests' started on 'iPhone 17 Pro - xctest (4402)'
+Test suite 'LumenTests.xctest' started on 'iPhone 17 Pro - xctest (4402)'
+Test suite 'AppLevelTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'AppLevelTests.testBuildConfigurationFromAppBundle()' passed on 'iPhone 17 Pro - xctest (4402)' (0.013 seconds)
+Test case 'AppLevelTests.testElementCallCapabilitiesCoverLumenCallEvents()' passed on 'iPhone 17 Pro - xctest (4402)' (0.005 seconds)
+Test case 'AppLevelTests.testIncomingRingRoundTripsThroughVoIPPayload()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test case 'AppLevelTests.testMessageTextForNotificationsAndPreviews()' passed on 'iPhone 17 Pro - xctest (4402)' (0.040 seconds)
+Test case 'AppLevelTests.testStoredAccountMapsToSDKSession()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'AppLevelTests.testVoIPPayloadCarriesNoMessageContent()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'AppLevelTests.testWidgetTemplateIsAcceptedBySDK()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'AppLockTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'AppLockTests.testColdStartLockedWhenEnabled()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'AppLockTests.testDisabledNeverLocks()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'AppLockTests.testImmediatelyAndClockGoingBackwards()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'AppLockTests.testPrivacyCover()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'AppLockTests.testTimeout()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test suite 'CallHistoryTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'CallHistoryTests.testOutcomes()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'CallHistoryTests.testRingPolicy()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test suite 'ConfigTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'ConfigTests.testAccountDeleteURLIsOptionalAndValidated()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test case 'ConfigTests.testBrandFallbacks()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'ConfigTests.testBuildConfigurationFromInfoPlist()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'ConfigTests.testInvalidOptionalLinksAreDroppedNotFatal()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'ConfigTests.testLoginFlows()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test case 'ConfigTests.testLumenInfoRoundTripsThroughStorage()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'ConfigTests.testPushGatewayMustBeTheNotifyEndpoint()' passed on 'iPhone 17 Pro - xctest (4402)' (0.019 seconds)
+Test case 'ConfigTests.testRejectsNonHTTPSchemesAndCredentials()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'ConfigTests.testRejectsPlainHTTPExceptLoopbackInDebug()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'ConfigTests.testServerInputParsing()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'ConfigTests.testSSOProviderIdValidation()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test suite 'ConnectionBannerTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'ConnectionBannerTests.testBanners()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test suite 'DeepLinkTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'DeepLinkTests.testCallbackIsSingleUseOnlyWithPendingAttempt()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DeepLinkTests.testMatrixIds()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'DeepLinkTests.testMatrixToDetails()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DeepLinkTests.testSSOAttemptBuildsNonceRedirect()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'DeepLinkTests.testWebAppAndPortalLinksOnlyForConfiguredHosts()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'DeepLinkTests.testWhiteLabelScheme()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test suite 'DeliveryStateTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'DeliveryStateTests.testFailuresAndOthersMessages()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DeliveryStateTests.testLocalEchoIsSendingNeverDelivered()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DeliveryStateTests.testServerAckIsSentAndOthersReceiptIsRead()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test suite 'DevicesAPITests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'DevicesAPITests.testDeviceName()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DevicesAPITests.testListAndUIAFlow()' passed on 'iPhone 17 Pro - xctest (4402)' (0.003 seconds)
+Test case 'DevicesAPITests.testPasswordOnlyUIAIsUnsupported()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'DevicesAPITests.testRenameAndPathEncoding()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'DiscoveryTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'DiscoveryTests.testHomeserverURLInput()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DiscoveryTests.testInvalidWellKnownIsAnError()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test case 'DiscoveryTests.testLumenServer()' passed on 'iPhone 17 Pro - xctest (4402)' (0.003 seconds)
+Test case 'DiscoveryTests.testNoSupportedLogin()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DiscoveryTests.testNotAMatrixServer()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DiscoveryTests.testPlainMatrixServerWithoutWellKnownFallsBackToServerName()' passed on 'iPhone 17 Pro - xctest (4402)' (0.062 seconds)
+Test case 'DiscoveryTests.testRequiresSlidingSync()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'DiscoveryTests.testUnreachable()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'IdentityWarningTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'IdentityWarningTests.testWarningsFromStatusChanges()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'ListDiffTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'ListDiffTests.testAllOperations()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'ListDiffTests.testOutOfRangeThrows()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'LogRedactorTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'LogRedactorTests.testRedactsSecretsAndIdentifiers()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test suite 'NativeRtcTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'NativeRtcTests.testDescribeTransports()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NativeRtcTests.testHomeserverErrorsAreReportedWithoutTheToken()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NativeRtcTests.testRouting()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NativeRtcTests.testSupportedApiVersionsGetsMSC4533Once()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NativeRtcTests.testTokenCapabilityGrantedOnlyIfRequested()' passed on 'iPhone 17 Pro - xctest (4402)' (0.168 seconds)
+Test case 'NativeRtcTests.testTokenOnlyForOwnRoomAndOwnMember()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test case 'NativeRtcTests.testTransportsAnsweredFromRawEndpoint()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NativeRtcTests.testTransportsNeedTheDriverApproval()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'NotificationPolicyTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'NotificationPolicyTests.testHiddenByDefaultShowsNothingAboutSenderRoomOrText()' passed on 'iPhone 17 Pro - xctest (4402)' (0.004 seconds)
+Test case 'NotificationPolicyTests.testPreferencesDefaultsAndTolerantDecoding()' passed on 'iPhone 17 Pro - xctest (4402)' (0.004 seconds)
+Test case 'NotificationPolicyTests.testPushAvailabilityNeverClaimsPushWithoutGateway()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'NotificationPolicyTests.testPusherConfiguration()' passed on 'iPhone 17 Pro - xctest (4402)' (0.092 seconds)
+Test case 'NotificationPolicyTests.testPushPayload()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NotificationPolicyTests.testSenderAndText()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'NotificationPolicyTests.testSenderOnly()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'NotificationPolicyTests.testStorePassphraseIsRandom32Bytes()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'RecoveryKeyTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'RecoveryKeyTests.testConfirmationIsWhitespaceInsensitive()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test suite 'SharedVectorsTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'SharedVectorsTests.testDeepLinkVectors()' passed on 'iPhone 17 Pro - xctest (4402)' (0.097 seconds)
+Test case 'SharedVectorsTests.testURLValidationVectors()' passed on 'iPhone 17 Pro - xctest (4402)' (0.002 seconds)
+Test case 'SharedVectorsTests.testWellKnownVectors()' passed on 'iPhone 17 Pro - xctest (4402)' (0.003 seconds)
+Test suite 'WidgetBridgeTests' started on 'iPhone 17 Pro - xctest (4402)'
+Test case 'WidgetBridgeTests.testActionMessage()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'WidgetBridgeTests.testAssetResolverRefusesTraversal()' passed on 'iPhone 17 Pro - xctest (4402)' (0.334 seconds)
+Test case 'WidgetBridgeTests.testCallStateIsConsumedAndAcknowledged()' passed on 'iPhone 17 Pro - xctest (4402)' (0.003 seconds)
+Test case 'WidgetBridgeTests.testEncryptionLabelOnlyFromWidgetState()' passed on 'iPhone 17 Pro - xctest (4402)' (0.000 seconds)
+Test case 'WidgetBridgeTests.testForwardsWidgetRequestsAndResponsesOnly()' passed on 'iPhone 17 Pro - xctest (4402)' (0.013 seconds)
+Test case 'WidgetBridgeTests.testPostMessageScriptCannotBreakOut()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+Test case 'WidgetBridgeTests.testWidgetURLTemplateUsesSDKPlaceholders()' passed on 'iPhone 17 Pro - xctest (4402)' (0.001 seconds)
+[LumenUITests]
+Test suite 'All tests' started on 'iPhone 17 Pro - LumenUITests-Runner (7827)'
+Test suite 'LumenUITests.xctest' started on 'iPhone 17 Pro - LumenUITests-Runner (7827)'
+Test suite 'LumenUITests' started on 'iPhone 17 Pro - LumenUITests-Runner (7827)'
+Test case 'LumenUITests.testDiscoveryShowsSSOButton()' skipped on 'iPhone 17 Pro - LumenUITests-Runner (7827)' (0.508 seconds)
+Test case 'LumenUITests.testLaunchShowsServerPicker()' passed on 'iPhone 17 Pro - LumenUITests-Runner (7827)' (15.596 seconds)
+Testing passed on 'iPhone 17 Pro'
+("Executed N tests, with M failures" line for the xcodebuild simulator run: not found in the log)
+
+--- tests: iPad Pro 13-inch (M5) (simulator id 0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049) ---
+[LumenTests unit tests]
+Test suite 'All tests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test suite 'LumenTests.xctest' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test suite 'AppLevelTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'AppLevelTests.testBuildConfigurationFromAppBundle()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.003 seconds)
+Test case 'AppLevelTests.testElementCallCapabilitiesCoverLumenCallEvents()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.077 seconds)
+Test case 'AppLevelTests.testIncomingRingRoundTripsThroughVoIPPayload()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'AppLevelTests.testMessageTextForNotificationsAndPreviews()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.005 seconds)
+Test case 'AppLevelTests.testStoredAccountMapsToSDKSession()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.002 seconds)
+Test case 'AppLevelTests.testVoIPPayloadCarriesNoMessageContent()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'AppLevelTests.testWidgetTemplateIsAcceptedBySDK()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.018 seconds)
+Test suite 'AppLockTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'AppLockTests.testColdStartLockedWhenEnabled()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'AppLockTests.testDisabledNeverLocks()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'AppLockTests.testImmediatelyAndClockGoingBackwards()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'AppLockTests.testPrivacyCover()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.002 seconds)
+Test case 'AppLockTests.testTimeout()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test suite 'CallHistoryTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'CallHistoryTests.testOutcomes()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'CallHistoryTests.testRingPolicy()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.003 seconds)
+Test suite 'ConfigTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'ConfigTests.testAccountDeleteURLIsOptionalAndValidated()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.004 seconds)
+Test case 'ConfigTests.testBrandFallbacks()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'ConfigTests.testBuildConfigurationFromInfoPlist()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'ConfigTests.testInvalidOptionalLinksAreDroppedNotFatal()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.802 seconds)
+Test case 'ConfigTests.testLoginFlows()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'ConfigTests.testLumenInfoRoundTripsThroughStorage()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'ConfigTests.testPushGatewayMustBeTheNotifyEndpoint()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.002 seconds)
+Test case 'ConfigTests.testRejectsNonHTTPSchemesAndCredentials()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'ConfigTests.testRejectsPlainHTTPExceptLoopbackInDebug()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (1.377 seconds)
+Test case 'ConfigTests.testServerInputParsing()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'ConfigTests.testSSOProviderIdValidation()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test suite 'ConnectionBannerTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'ConnectionBannerTests.testBanners()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'DeepLinkTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'DeepLinkTests.testCallbackIsSingleUseOnlyWithPendingAttempt()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DeepLinkTests.testMatrixIds()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DeepLinkTests.testMatrixToDetails()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DeepLinkTests.testSSOAttemptBuildsNonceRedirect()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DeepLinkTests.testWebAppAndPortalLinksOnlyForConfiguredHosts()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'DeepLinkTests.testWhiteLabelScheme()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test suite 'DeliveryStateTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'DeliveryStateTests.testFailuresAndOthersMessages()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.006 seconds)
+Test case 'DeliveryStateTests.testLocalEchoIsSendingNeverDelivered()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DeliveryStateTests.testServerAckIsSentAndOthersReceiptIsRead()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test suite 'DevicesAPITests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'DevicesAPITests.testDeviceName()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'DevicesAPITests.testListAndUIAFlow()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.002 seconds)
+Test case 'DevicesAPITests.testPasswordOnlyUIAIsUnsupported()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'DevicesAPITests.testRenameAndPathEncoding()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'DiscoveryTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'DiscoveryTests.testHomeserverURLInput()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DiscoveryTests.testInvalidWellKnownIsAnError()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.003 seconds)
+Test case 'DiscoveryTests.testLumenServer()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.002 seconds)
+Test case 'DiscoveryTests.testNoSupportedLogin()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DiscoveryTests.testNotAMatrixServer()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DiscoveryTests.testPlainMatrixServerWithoutWellKnownFallsBackToServerName()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'DiscoveryTests.testRequiresSlidingSync()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.585 seconds)
+Test case 'DiscoveryTests.testUnreachable()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'IdentityWarningTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'IdentityWarningTests.testWarningsFromStatusChanges()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'ListDiffTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'ListDiffTests.testAllOperations()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'ListDiffTests.testOutOfRangeThrows()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'LogRedactorTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'LogRedactorTests.testRedactsSecretsAndIdentifiers()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.003 seconds)
+Test suite 'NativeRtcTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'NativeRtcTests.testDescribeTransports()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'NativeRtcTests.testHomeserverErrorsAreReportedWithoutTheToken()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.003 seconds)
+Test case 'NativeRtcTests.testRouting()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'NativeRtcTests.testSupportedApiVersionsGetsMSC4533Once()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.167 seconds)
+Test case 'NativeRtcTests.testTokenCapabilityGrantedOnlyIfRequested()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'NativeRtcTests.testTokenOnlyForOwnRoomAndOwnMember()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'NativeRtcTests.testTransportsAnsweredFromRawEndpoint()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'NativeRtcTests.testTransportsNeedTheDriverApproval()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'NotificationPolicyTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'NotificationPolicyTests.testHiddenByDefaultShowsNothingAboutSenderRoomOrText()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.004 seconds)
+Test case 'NotificationPolicyTests.testPreferencesDefaultsAndTolerantDecoding()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.003 seconds)
+Test case 'NotificationPolicyTests.testPushAvailabilityNeverClaimsPushWithoutGateway()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'NotificationPolicyTests.testPusherConfiguration()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'NotificationPolicyTests.testPushPayload()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'NotificationPolicyTests.testSenderAndText()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'NotificationPolicyTests.testSenderOnly()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'NotificationPolicyTests.testStorePassphraseIsRandom32Bytes()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test suite 'RecoveryKeyTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'RecoveryKeyTests.testConfirmationIsWhitespaceInsensitive()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.541 seconds)
+Test suite 'SharedVectorsTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'SharedVectorsTests.testDeepLinkVectors()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.005 seconds)
+Test case 'SharedVectorsTests.testURLValidationVectors()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'SharedVectorsTests.testWellKnownVectors()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test suite 'WidgetBridgeTests' started on 'iPad Pro 13-inch (M5) - xctest (4403)'
+Test case 'WidgetBridgeTests.testActionMessage()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'WidgetBridgeTests.testAssetResolverRefusesTraversal()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.064 seconds)
+Test case 'WidgetBridgeTests.testCallStateIsConsumedAndAcknowledged()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'WidgetBridgeTests.testEncryptionLabelOnlyFromWidgetState()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+Test case 'WidgetBridgeTests.testForwardsWidgetRequestsAndResponsesOnly()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.013 seconds)
+Test case 'WidgetBridgeTests.testPostMessageScriptCannotBreakOut()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.001 seconds)
+Test case 'WidgetBridgeTests.testWidgetURLTemplateUsesSDKPlaceholders()' passed on 'iPad Pro 13-inch (M5) - xctest (4403)' (0.000 seconds)
+[LumenUITests]
+Test suite 'All tests' started on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (5460)'
+Test suite 'LumenUITests.xctest' started on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (5460)'
+Test suite 'LumenUITests' started on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (5460)'
+Test case 'LumenUITests.testDiscoveryShowsSSOButton()' skipped on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (5460)' (3.165 seconds)
+Test case 'LumenUITests.testLaunchShowsServerPicker()' passed on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (5460)' (23.123 seconds)
+Testing passed on 'iPad Pro 13-inch (M5)'
+("Executed N tests, with M failures" line for the xcodebuild simulator run: not found in the log)
+
+--- tests: lines before the per-destination blocks ---
+Testing started
+Testing started
+==> tests passed on simulators E952A9B0-CC78-435C-BF08-06AD47FE1076 and 0DE52589-6E0B-47D4-B4A7-7E4E3D9C1049
+
+--- skipped tests ---
+Test case 'LumenUITests.testDiscoveryShowsSSOButton()' skipped on 'iPad Pro 13-inch (M5) - LumenUITests-Runner (5460)' (3.165 seconds)
+Test case 'LumenUITests.testDiscoveryShowsSSOButton()' skipped on 'iPhone 17 Pro - LumenUITests-Runner (7827)' (0.508 seconds)
+(reason for the skip, and any mention of LUMEN_UITEST_SERVER: not found in the log)
+
+--- warnings (lines containing "warning:"; no warning count summary is printed) ---
+2026-10-15 08:33:31.621 xcodebuild[1460:7688] warning:  The file reference for "../Lumen/Shared" is a member of multiple groups ("Lumen" and "Shared"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:33:31.621 xcodebuild[1460:7688] warning:  The file reference for "../Lumen/Shared/AppEnvironment.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:33:31.621 xcodebuild[1460:7688] warning:  The file reference for "../Lumen/Shared/ClientFactory.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:33:31.621 xcodebuild[1460:7688] warning:  The file reference for "../Lumen/Shared/NotificationMapping.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:33:31.622 xcodebuild[1460:7688] warning:  The file reference for "../LumenCore/Tests/LumenCoreTests" is a member of multiple groups ("Tests" and "LumenCoreTests"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:03.007 xcodebuild[2150:11065] warning:  The file reference for "../Lumen/Shared" is a member of multiple groups ("Lumen" and "Shared"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:03.007 xcodebuild[2150:11065] warning:  The file reference for "../Lumen/Shared/AppEnvironment.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:03.008 xcodebuild[2150:11065] warning:  The file reference for "../Lumen/Shared/ClientFactory.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:03.008 xcodebuild[2150:11065] warning:  The file reference for "../Lumen/Shared/NotificationMapping.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:03.008 xcodebuild[2150:11065] warning:  The file reference for "../LumenCore/Tests/LumenCoreTests" is a member of multiple groups ("Tests" and "LumenCoreTests"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:40.322 appintentsmetadataprocessor[3599:15271] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:34:45.563 appintentsmetadataprocessor[3834:16152] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:34:48.517 xcodebuild[3870:16357] warning:  The file reference for "../Lumen/Shared" is a member of multiple groups ("Lumen" and "Shared"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:48.517 xcodebuild[3870:16357] warning:  The file reference for "../Lumen/Shared/AppEnvironment.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:48.517 xcodebuild[3870:16357] warning:  The file reference for "../Lumen/Shared/ClientFactory.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:48.517 xcodebuild[3870:16357] warning:  The file reference for "../Lumen/Shared/NotificationMapping.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:48.517 xcodebuild[3870:16357] warning:  The file reference for "../LumenCore/Tests/LumenCoreTests" is a member of multiple groups ("Tests" and "LumenCoreTests"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:34:55.079 appintentsmetadataprocessor[4056:16956] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:34:56.565 appintentsmetadataprocessor[4080:17075] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:34:57.465 appintentsmetadataprocessor[4141:17252] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:34:58.353 appintentsmetadataprocessor[4153:17370] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:38:15.639 xcodebuild[8712:37133] warning:  The file reference for "../Lumen/Shared" is a member of multiple groups ("Lumen" and "Shared"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:38:15.639 xcodebuild[8712:37133] warning:  The file reference for "../Lumen/Shared/AppEnvironment.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:38:15.639 xcodebuild[8712:37133] warning:  The file reference for "../Lumen/Shared/ClientFactory.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:38:15.639 xcodebuild[8712:37133] warning:  The file reference for "../Lumen/Shared/NotificationMapping.swift" is a member of multiple groups ("Shared" and "AppSources"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:38:15.639 xcodebuild[8712:37133] warning:  The file reference for "../LumenCore/Tests/LumenCoreTests" is a member of multiple groups ("Tests" and "LumenCoreTests"); this indicates a malformed project.  Only the membership in one of the groups will be preserved (but membership in targets will be unaffected).  If you want a reference to the same file in more than one group, please add another reference to the same path.
+2026-10-15 08:39:13.213 appintentsmetadataprocessor[10589:42913] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-10-15 08:39:29.780 appintentsmetadataprocessor[11876:46098] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+[npm / vite warnings]
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/css-color@7.1.5',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.4',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'jsdom@30.1.2',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'w3c-xmlserializer@6.0.0',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - import "./vite.config" without a file extension (vite.widget.config.ts:20:18). Add the file extension
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+--- signing / unsigned notices ---
+Complete job name: Build, test, archive (unsigned)
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 8
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 8
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    CODE_SIGNING_REQUIRED = NO
+    CURRENT_PROJECT_VERSION = 8
+Ignoring --strip-bitcode because --sign was not passed
+Ignoring --strip-bitcode because --sign was not passed
+Ignoring --strip-bitcode because --sign was not passed
+Ignoring --strip-bitcode because --sign was not passed
+Ignoring --strip-bitcode because --sign was not passed
+==> unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
+ - unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)
+(codesign / provisioning profile / signing identity lines: not found in the log)
+
+--- SHA256SUMS-ios.txt (checksum lines as printed by ci-build.sh) ---
+31541430a3bb905c4394053e10cbe6d6c9d7364cd1e9274bc646027070a1ae26  Lumen-unsigned.xcarchive.zip
+39bac7720dc54257025f2652f93b996f98cba2d39027e59903df999a524a200f  Lumen.xcodeproj.zip
+(the SHA256SUMS-ios.txt file itself is inside the lumen-ios artifact; only these two lines are printed in the log)
+
+=== artifacts ===
+[upload step in the log]
+##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+with:
+  name: lumen-ios
+  path: apps/ios/build/*.xcarchive.zip
+apps/ios/build/*.xcresult
+apps/ios/build/SHA256SUMS-ios.txt
+apps/ios/build/Lumen.xcodeproj.zip
+apps/ios/build/logs/*.log
+
+  if-no-files-found: warn
+  retention-days: 14
+  compression-level: 6
+  overwrite: false
+  include-hidden-files: false
+  archive: true
+##[endgroup]
+With the provided path, there will be 418 files uploaded
+Uploading artifact: lumen-ios.zip
+SHA256 digest of uploaded artifact is 0e077937b6ad3d902a36e0cd6695a019087193b6692cac4936d9333486b9df88
+Artifact lumen-ios successfully finalized. Artifact ID 11958179337
+Artifact lumen-ios has been successfully uploaded! Final size is 84775372 bytes. Artifact ID is 11958179337
+Artifact download URL: https://github.com/Techprosoftware707/0trust-chat/actions/runs/38706433166/artifacts/11958179337
+[artifact list from the Actions API]
+lumen-ios 84775372 sha256:0e077937b6ad3d902a36e0cd6695a019087193b6692cac4936d9333486b9df88
+(artifact id 11958179337, created 2026-10-15T08:39:44Z, expires 2026-10-29T08:39:40Z, expired: false)
+
+--- notes (written by the person collecting this evidence, not log text) ---
+Counts below were made by counting the 'Test case' lines copied above; the log itself prints no Executed/failures total for the xcodebuild simulator run.
+iPhone 17 Pro, LumenTests: 78 passed, 0 failed, 0 skipped.
+iPhone 17 Pro, LumenUITests: 1 passed, 0 failed, 1 skipped.
+iPad Pro 13-inch (M5), LumenTests: 78 passed, 0 failed, 0 skipped.
+iPad Pro 13-inch (M5), LumenUITests: 1 passed, 0 failed, 1 skipped.
+LumenCore swift test on the macOS host: 71 tests, 0 failures (verbatim in the section above: "Executed 71 tests, with 0 failures (0 unexpected)").
+Edits to the log text: the leading ISO timestamp of each log line was removed, and ANSI colour escape codes were removed from 6 lines of the node step output. Nothing else was changed.

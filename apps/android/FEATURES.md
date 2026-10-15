@@ -5,12 +5,17 @@ Legend:
 - **Tested** — implemented, and its logic is covered by JVM unit tests that ran and passed
   (`./gradlew :app:testDebugUnitTest`, which includes `:core:test` and the shared vectors in
   `apps/shared/test-vectors`).
+- **Tested on emulator** — covered by an instrumented test that passed in CI on an Android 15
+  (API 35, google_apis x86_64) emulator: GitHub Actions run 38704288600, job "Instrumented tests
+  (emulator)", 9 tests: 8 passed, 1 skipped (needs `LUMEN_TEST_SERVER`), 0 failed.
 - **Builds, unverified** — implemented against the real Matrix Rust SDK API (type-checked by
-  the compiler against `sdk-android 26.09.28`), but never run here: this build host has no
-  emulator (no KVM) and no device. Instrumented tests exist for some items and run in CI.
+  the compiler against `sdk-android 26.09.28`), but not exercised: this build host has no
+  emulator (no KVM) and no device, and the CI emulator tests do not sign in to a server.
 - **Not implemented** — said plainly.
 
-Nothing below has been exercised against a live Lumen server from this app.
+Nothing below has been exercised against a live Lumen server from this app. The call path
+(widget driver + the native MSC4533/MSC4515 answers) was proven separately by the Rust widget
+harness in `tests/apps/widget-harness`, not by this app.
 
 | Area | Feature | Status | Notes / where |
 |---|---|---|---|
@@ -23,8 +28,8 @@ Nothing below has been exercised against a live Lumen server from this app.
 | Auth | Password login only when the server offers it and no SSO | Builds, unverified | `AuthScreens.PasswordForm` |
 | Auth | Sign-up button → `signup_url`; "Manage account" → `account_url`; "Delete account…" → `account_delete_url` (browser, shown only when the server advertises it) | Tested (parsing/validation, incl. shared vectors) / Builds, unverified (UI) | `SettingsScreen` |
 | Auth | Device display name "Lumen on <model>" (PUT /devices after SSO; `SsoHandler.finish` takes no name) | Builds, unverified | `SessionManager.nameThisDevice` |
-| Storage | Session JSON + 32-byte SQLite store key sealed with AES-256-GCM in Android Keystore (StrongBox when present, no user-auth binding) | Tested (vault logic with a software AES-GCM stand-in) / instrumented test written (`KeystoreTest`) | `KeystoreKeyWrapper`, `SecretVault`, `SessionStore` |
-| Storage | Rust SDK stores in `noBackupFilesDir/sessions/<random>`; `allowBackup=false`; data-extraction rules exclude everything | Builds, unverified (instrumented `backupIsDisabled` written) | manifest, `xml/data_extraction_rules.xml` |
+| Storage | Session JSON + 32-byte SQLite store key sealed with AES-256-GCM in Android Keystore (StrongBox when present, no user-auth binding) | Tested (vault logic with a software AES-GCM stand-in) / Tested on emulator (`KeystoreTest`: real AndroidKeyStore seal/open/wipe, ciphertext on disk) | `KeystoreKeyWrapper`, `SecretVault`, `SessionStore` |
+| Storage | Rust SDK stores in `noBackupFilesDir/sessions/<random>`; `allowBackup=false`; data-extraction rules exclude everything | Tested on emulator (`backupIsDisabled`) | manifest, `xml/data_extraction_rules.xml` |
 | Storage | Sign-out: server logout, then delete stores, cache, sealed session, Keystore key, prefs, WebView storage | Tested (wipe logic) / Builds, unverified (on device) | `SessionManager.signOut`, `AppGraph.onSignedOut` |
 | Sessions | Device list (`GET /devices`), removal with UIA via the SSO fallback page in Custom Tabs | Builds, unverified | `DevicesApi`, `DevicesScreen`. Password-only UIA is **not implemented** (the app says to use the web app). |
 | Sessions | Verification state per device | **Partly**: this device only | The SDK FFI exposes no per-device trust for other devices; the list says so. |
@@ -52,9 +57,9 @@ Nothing below has been exercised against a live Lumen server from this app.
 | Push | `setPusher` (http, `event_id_only`, app_id `<applicationId>.android`) only with `push_gateway_url` | Tested (policy) / Builds, unverified (registration) | `PusherPolicy`, `PushManager.register` |
 | Push | FCM message → expedited WorkManager → `NotificationClient.getNotification` → notification | Builds, unverified | `LumenMessagingService`, `PushWorker` |
 | Push | Preview hidden by default; sender / sender+text options; lock-screen version always hidden | Tested (policy) / Builds, unverified (posting) | `NotificationPreviewPolicy`, `Notifier` |
-| Push | Channels (messages, calls, ongoing call, connection), POST_NOTIFICATIONS request on 13+ | Builds, unverified (instrumented `notificationChannelsExist` written) | |
+| Push | Channels (messages, calls, ongoing call, connection), POST_NOTIFICATIONS request on 13+ | Tested on emulator (`notificationChannelsExist`, `notificationPermissionIsRuntimeOnAndroid13`) / permission prompt UI unverified | |
 | Push | Sync-delivered notifications while the app runs (`registerNotificationHandler`), de-duplicated by event ID | Builds, unverified | `AppGraph` |
-| Push | Opt-in "Stay connected" foreground service (`specialUse`) | Builds, unverified | `KeepConnectedService`; does not restart after reboot until the app is opened |
+| Push | Opt-in "Stay connected" foreground service (`specialUse`) | Tested on emulator (declared type) / Builds, unverified (running service) | `KeepConnectedService`; does not restart after reboot until the app is opened |
 | Push | Actual delivery through Sygnal + FCM | **Unverified** (needs an FCM project, a server with `PUSH_ENABLED`, a device) | |
 | Calls | Bundled widget via WebViewAssetLoader; absent widget → "Calls unavailable in this build", buttons hidden | Builds, unverified | `copyCallWidget`, `CallWidgetBundle` |
 | Calls | Bridge exactly per integration.md §6.2 (addWebMessageListener, evaluateJavascript postMessage), filtering | Tested (filter, call-state parsing incl. the widget's real `{type,data}` shape, ack, JS generation) / Builds, unverified (WebView) | `WidgetBridge`, `CallWidgetHost` |
@@ -63,7 +68,7 @@ Nothing below has been exercised against a live Lumen server from this app.
 | Calls | Call buttons only when the server advertises an RTC transport (raw `/rtc/transports`, not the SDK parser) | Tested (parser) / Builds, unverified | `CallSupport` |
 | Calls | WebView camera/mic granted only for the widget origin, only while the call screen is visible, only with the runtime permission | Builds, unverified | `onPermissionRequest` |
 | Calls | Jetpack Core-Telecom (`CallsManager`): system call, audio routing (earpiece/speaker/Bluetooth/wired via call endpoints), system mute → widget | Builds, unverified | `CallManager` |
-| Calls | Ongoing-call notification (CallStyle), FGS `phoneCall\|microphone\|camera` | Builds, unverified (instrumented FGS-type check written) | `CallService` |
+| Calls | Ongoing-call notification (CallStyle), FGS `phoneCall\|microphone\|camera` | Tested on emulator (declared FGS types `phoneCall\|microphone\|camera`, not exported) / Builds, unverified (running service) | `CallService` |
 | Calls | Incoming ring → full-screen CallStyle notification (USE_FULL_SCREEN_INTENT; Settings link on 14+ when not granted), answer, decline via `declineCall`, stop on decline elsewhere / answered elsewhere / call ended / timeout, missed-call notification | Builds, unverified | `CallManager.onIncomingRing` |
 | Calls | `io.lumen.call_action` (hangup, mute/unmute from system); `io.lumen.call_state` drives Telecom + notification; E2EE label only from the widget's `e2ee` | Tested (messages, label mapping) / Builds, unverified | |
 | Calls | Picture-in-picture for video calls (auto-enter on 12+) | Builds, unverified | |
@@ -76,4 +81,5 @@ Nothing below has been exercised against a live Lumen server from this app.
 | Logging | Redacting logger; release builds: no debug logs, Rust SDK logs off; no crash/analytics SDKs | Tested (redactor) | `Redactor`, `LumenLog`, `RustPlatform` |
 | Release | Env-var signing, R8 code shrinking + keep rules for JNA/uniffi (resource shrinking off, see README), AAB + per-ABI APKs + universal | Built locally and in CI (unsigned); signed build **unverified** here (no keystore); the R8-processed release build has not been run on a device | |
 | Policy | `disableSslVerification` never referenced (Gradle check + unit test) | Tested | `checkNoTlsBypass`, `TlsPolicyTest` |
-| Tests | Instrumented: launch → server picker, invalid input, Keystore round trip, manifest/FGS/channels, runtime permissions; server test only with `LUMEN_TEST_SERVER` | Written and compiled; **not run here** (no emulator) | `app/src/androidTest` |
+| Tests | Instrumented: launch → server picker, invalid input rejected without network, Keystore round trip, backup off, FGS types, channels, runtime permissions; server discovery test only with `LUMEN_TEST_SERVER` | Tested on emulator in CI (API 35): 8 passed, 1 skipped; not runnable on this build host (no KVM) | `app/src/androidTest` |
+| UI | Launch on a fresh install → splash → server picker; invalid server input refused locally | Tested on emulator (`LaunchTest`) | |

@@ -10,14 +10,16 @@ Status values:
 
 Current state (2026-10-15):
 
-- **CI** ([run 38703895070](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38703895070),
-  commit 05cc2fb, Xcode 26.3; first green run 38700890640, raw excerpt in
+- **CI** ([run 38706433166](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38706433166),
+  commit cbd9cec, Xcode 26.3; first green run 38700890640, raw excerpt in
   `docs/test-results/ios-ci.txt`):
-  - the app and the NSE build for the simulator with no compiler warnings;
+  - the app and the NSE build for the simulator with no compiler warnings,
+    with the call widget (`services/chat/dist-widget`) bundled;
   - the unsigned Release archive builds;
   - on an iPhone 17 Pro and an iPad Pro 13-inch (M5) simulator (iOS 26.2),
-    all 70 unit tests pass on each: the 63 LumenCore tests (incl.
-    `apps/shared/test-vectors`) and 7 app-level tests against the SDK;
+    all 78 unit tests pass on each: the 71 LumenCore tests (incl.
+    `apps/shared/test-vectors` and the native MSC4533/MSC4515 interception)
+    and 7 app-level tests against the SDK;
   - the launch UI test passes;
   - the discovery UI test was skipped: no `LUMEN_UITEST_SERVER`.
 - **Linux** (`docs/test-results/ios-linux-check.txt`): the same LumenCore
@@ -115,10 +117,12 @@ Current state (2026-10-15):
 
 | Feature | iOS | Notes |
 |---|---|---|
-| Lumen call widget in WKWebView via `lumen-widget://` scheme handler | implemented-unverified | Path resolver unit-tested; the widget build (`build:widget`) doesn't exist yet in `services/chat` |
+| Lumen call widget in WKWebView via `lumen-widget://` scheme handler | implemented-unverified | Path resolver unit-tested; the widget is bundled by CI (12 files); not yet loaded on a simulator or device |
 | Secure-context check, fallback to the server's `call_widget_url`, shown in About | implemented-unverified | Needs a device |
 | Widget bridge (integration.md §6.2): message filtering, envelopes, script escaping | implemented | Unit-tested; the WKWebView wiring around it is unverified (no widget build yet) |
 | Capabilities = `getElementCallRequiredPermissions` | implemented | App-level test against the SDK on iOS simulators |
+| SFU token (MSC4533 `rtc_livekit_get_token`) answered natively: own room and own member ID only; access token never reaches the widget | implemented-unverified | Interception unit-tested; the SDK driver at 26.10.02 lacks the action. Not yet run in a real call on iOS |
+| RTC transports (MSC4515) answered natively from the raw `/rtc/transports` (the SDK's ruma rejects Lumen's `{type, url}`) | implemented-unverified | Interception unit-tested; not yet run in a real call on iOS |
 | Camera/microphone granted only to the widget origin while the call screen shows | implemented-unverified | |
 | CallKit start / answer / decline (MSC4310 decline via SDK) / end / mute | implemented-unverified | |
 | Ring cancelled when declined on another device or expired | implemented-unverified | |
