@@ -404,6 +404,53 @@ try {
     log("  click on the notification showed the window and opened the room");
   }
 
+  async function openDesktopSettings() {
+    const existing = app.windows().find((p) => p.url() === "app://desktop/settings.html");
+    if (existing) return existing;
+    const settingsPromise = app.waitForEvent("window", { timeout: T });
+    await app.evaluate(({ Menu }) => {
+      const find = (items) => {
+        for (const i of items) {
+          if (/Desktop settings|Settings…/.test(i.label)) return i;
+          const sub = i.submenu && find(i.submenu.items);
+          if (sub) return sub;
+        }
+        return null;
+      };
+      find(Menu.getApplicationMenu().items).click();
+    });
+    const settings = await settingsPromise;
+    await settings.waitForURL("app://desktop/settings.html", { timeout: T });
+    await settings.locator("#dnd").waitFor({ timeout: T });
+    return settings;
+  }
+
+  await step("(e2) Do not disturb suppresses notifications; unread badge reported", async () => {
+    const settings = await openDesktopSettings();
+    await settings.check("#dnd");
+    await settings.waitForTimeout(300);
+    const before = await app.evaluate(() => globalThis.__shown?.length ?? 0);
+    const osBefore = notifyService.notifications().length;
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().startsWith("app://lumen"))?.hide());
+    await win.waitForFunction(() => !document.hasFocus(), null, { timeout: 10_000 });
+    await win.evaluate(() => (location.hash = "#/"));
+    const text = `While do-not-disturb is on ${Date.now()}`;
+    await bPage.locator("#composer").fill(text);
+    await bPage.keyboard.press("Enter");
+    await win.locator(".room-preview", { hasText: text }).first().waitFor({ timeout: T });
+    await win.waitForTimeout(3000);
+    assert.equal(await app.evaluate(() => globalThis.__shown?.length ?? 0), before, "no notification while do-not-disturb is on");
+    assert.equal(notifyService.notifications().length, osBefore, "nothing reached the OS notification service");
+    log("  message arrived (decrypted in the room list), no notification while do-not-disturb is on");
+    const badge = await app.evaluate(({ app }) => app.getBadgeCount());
+    log(`  app.getBadgeCount() = ${badge} (Linux only shows it on Unity-style launchers)`);
+    await settings.uncheck("#dnd");
+    const updateMsg = await settings.locator("#update-msg").innerText();
+    log(`  updates: "${updateMsg}"`);
+    await settings.close();
+    await showAppWindow();
+  });
+
   async function hangUp() {
     for (const p of [win, bPage]) {
       const btn = p.getByRole("button", { name: "Leave call" });
@@ -494,20 +541,7 @@ try {
   }
 
   await step("(f) app lock: PIN set in desktop settings, lock hides the app, wrong PIN refused, right PIN unlocks, OS lock event locks", async () => {
-    const settingsPromise = app.waitForEvent("window", { timeout: T });
-    await app.evaluate(({ Menu }) => {
-      const find = (items) => {
-        for (const i of items) {
-          if (/Desktop settings|Settings…/.test(i.label)) return i;
-          const sub = i.submenu && find(i.submenu.items);
-          if (sub) return sub;
-        }
-        return null;
-      };
-      find(Menu.getApplicationMenu().items).click();
-    });
-    const settings = await settingsPromise;
-    await settings.waitForURL("app://desktop/settings.html", { timeout: T });
+    const settings = await openDesktopSettings();
     await settings.locator("#pin-new").waitFor({ timeout: T });
     const storageText = await settings.locator("#storage").innerText();
     log(`  key storage: ${storageText}`);
@@ -587,6 +621,9 @@ try {
     assert.ok(control.hits.length > 0, "scanner positive control");
     log("  secret hits:", r.hits);
     assert.deepEqual(r.hits, [], "no secret in plaintext");
+    const saved = JSON.parse(fs.readFileSync(path.join(userData, "settings.json"), "utf8"));
+    log("  persisted window state:", saved.window);
+    assert.ok(saved.window && saved.window.width >= 380, "window state persisted");
     const keyFile = fs.readFileSync(path.join(userData, "store-key.bin"));
     log(`  store-key.bin: ${keyFile.length} bytes, prefix ${JSON.stringify(keyFile.subarray(0, 3).toString("latin1"))} (safeStorage format)`);
   });
@@ -613,6 +650,52 @@ try {
     const who = await env.request(`${HS}/_matrix/client/v3/account/whoami`, { headers: { Authorization: `Bearer ${tokenA}` } });
     assert.equal(who.status, 401, "old access token rejected by the server");
     await shot("12-signed-out");
+  });
+  await step("(i) Change server…: confirmation, sign-out on the server, local wipe, back to the server picker", async () => {
+    // Sign in again (the system browser still has its portal session: GET-only SSO chain).
+    tokenA = null;
+    const before = opener.urls().length;
+    await win.getByRole("button", { name: /Continue with your .* account/ }).click();
+    for (let i = 0; i < 50 && opener.urls().length === before; i++) await new Promise((r) => setTimeout(r, 200));
+    const callback = await env.browserSso(sysPage, opener.urls().at(-1), A);
+    await env.deliverAsOs(appEnv, callback);
+    await win.locator(".user-chip-id").waitFor({ timeout: T });
+    await dismissFirstRunPrompts(win);
+    for (let i = 0; i < 20 && !tokenA; i++) await new Promise((r) => setTimeout(r, 250));
+    assert.ok(tokenA, "signed in again");
+    assert.ok(fs.existsSync(path.join(userData, "store-key.bin")));
+    // The user answers the native confirmation with "Sign out and change server" (button 1).
+    await app.evaluate(({ dialog }) => {
+      globalThis.__asked = [];
+      dialog.showMessageBox = async (_w, opts) => {
+        globalThis.__asked.push(opts.message);
+        return { response: 1, checkboxChecked: false };
+      };
+    });
+    await app.evaluate(({ Menu }) => {
+      const find = (items) => {
+        for (const i of items) {
+          if (i.label === "Change server…") return i;
+          const sub = i.submenu && find(i.submenu.items);
+          if (sub) return sub;
+        }
+        return null;
+      };
+      find(Menu.getApplicationMenu().items).click();
+    });
+    await win.waitForURL("app://desktop/setup.html", { timeout: T });
+    await win.locator("#server-input").waitFor({ timeout: T });
+    const asked = await app.evaluate(() => globalThis.__asked);
+    log("  confirmation asked:", asked);
+    assert.match(asked[0], new RegExp(`Sign out of ${BASE.replace(/\./g, "\\.")}`));
+    assert.equal(fs.existsSync(path.join(userData, "server.json")), false, "server configuration removed");
+    assert.equal(fs.existsSync(path.join(userData, "store-key.bin")), false, "store key deleted");
+    const who = await env.request(`${HS}/_matrix/client/v3/account/whoami`, { headers: { Authorization: `Bearer ${tokenA}` } });
+    assert.equal(who.status, 401, "signed out on the server first");
+    const idbDir = path.join(userData, "IndexedDB");
+    assert.ok(!(fs.existsSync(idbDir) ? fs.readdirSync(idbDir) : []).some((d) => d.startsWith("app_lumen")), "IndexedDB wiped");
+    log("  back at the server picker; session revoked on the server; local data wiped");
+    await shot("13-change-server");
   });
 } catch (e) {
   log(`aborted: ${e?.message ?? e}`);

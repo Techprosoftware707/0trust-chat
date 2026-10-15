@@ -22,6 +22,30 @@
  *   LUMEN_MSIX_PUBLISHER         "CN=…" of the MSIX/AppX signing certificate (appx target only)
  */
 const env = process.env;
+// CI passes secrets as env vars that are empty when the secret isn't configured; an empty
+// CSC_LINK would make electron-builder try to load a certificate from the working directory.
+for (const k of [
+  "CSC_LINK",
+  "CSC_KEY_PASSWORD",
+  "CSC_NAME",
+  "WIN_CSC_LINK",
+  "WIN_CSC_KEY_PASSWORD",
+  "APPLE_API_KEY",
+  "APPLE_API_KEY_ID",
+  "APPLE_API_ISSUER",
+  "APPLE_ID",
+  "APPLE_APP_SPECIFIC_PASSWORD",
+  "APPLE_TEAM_ID",
+  "APPLE_KEYCHAIN_PROFILE",
+  "LUMEN_UPDATE_URL",
+  "LUMEN_UPDATE_GITHUB",
+  "LUMEN_WIN_PUBLISHER_NAME",
+  "AZURE_TRUSTED_SIGNING_ENDPOINT",
+  "AZURE_TRUSTED_SIGNING_ACCOUNT",
+  "AZURE_TRUSTED_SIGNING_PROFILE",
+]) {
+  if (env[k] !== undefined && env[k].trim() === "") delete env[k];
+}
 const appId = env.LUMEN_APP_ID || "io.lumen.secure";
 const productName = env.LUMEN_PRODUCT_NAME || "Lumen Secure";
 const has = (...names) => names.every((n) => !!env[n]);
