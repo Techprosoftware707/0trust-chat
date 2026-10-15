@@ -13,6 +13,7 @@
 		0A5431FBD9BFE572994B4550 /* CallWidgetHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FCA30EC1010E97F84E49410 /* CallWidgetHost.swift */; };
 		0BD70FCAD9FF1112446E7AF4 /* AppLevelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DF864DC2BB75F07322067A2 /* AppLevelTests.swift */; };
 		162710F1537DE9B371CD936C /* NotificationMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94DAA7DBF2886298A53D3DE /* NotificationMapping.swift */; };
+		16940F6BE7055E9F44BE1D0F /* NativeRtcTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA3B7D0B349134F8220D0C0 /* NativeRtcTests.swift */; };
 		1A9C2AD87162F7FAC4C4E19A /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53F0E7784A16A629E842EAC3 /* AppEnvironment.swift */; };
 		1BBAB55F197E940795F1C34F /* ServerPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 062D53AF78AD396505A0EF30 /* ServerPickerView.swift */; };
 		1CE5D7CF01A802DDD2240457 /* TimelineModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 697DF11C6CFBCED84F213329 /* TimelineModel.swift */; };
@@ -130,6 +131,7 @@
 		8FCA30EC1010E97F84E49410 /* CallWidgetHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallWidgetHost.swift; sourceTree = "<group>"; };
 		9B798DCA6A96CB079D9704E8 /* SessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionModel.swift; sourceTree = "<group>"; };
 		9BF2D45011297ED2AEBCFD8D /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		9CA3B7D0B349134F8220D0C0 /* NativeRtcTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRtcTests.swift; sourceTree = "<group>"; };
 		9DF864DC2BB75F07322067A2 /* AppLevelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLevelTests.swift; sourceTree = "<group>"; };
 		9FFEFDC7555BBE56B13AE62B /* PlatformPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformPolicyTests.swift; sourceTree = "<group>"; };
 		A344EC8028FF1FF31AA92DBD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -203,6 +205,7 @@
 			isa = PBXGroup;
 			children = (
 				2B0258AD9FF25F941A844F96 /* ConfigDiscoveryTests.swift */,
+				9CA3B7D0B349134F8220D0C0 /* NativeRtcTests.swift */,
 				9FFEFDC7555BBE56B13AE62B /* PlatformPolicyTests.swift */,
 				01995C4C226D80121D723D07 /* RoutingAndStateTests.swift */,
 				51D3D255FC36463EE67C6D7E /* SharedVectorsTests.swift */,
@@ -713,6 +716,7 @@
 				0BD70FCAD9FF1112446E7AF4 /* AppLevelTests.swift in Sources */,
 				460F4DBC6BE6B40A2A193344 /* ClientFactory.swift in Sources */,
 				E21F69884CEC58490104D30F /* ConfigDiscoveryTests.swift in Sources */,
+				16940F6BE7055E9F44BE1D0F /* NativeRtcTests.swift in Sources */,
 				E19E886D0AF21BDF2DC8B029 /* NotificationMapping.swift in Sources */,
 				FF3D1153CBB4EA81DD4F4DF8 /* PlatformPolicyTests.swift in Sources */,
 				3812B631A854C49281DAF3EE /* RoutingAndStateTests.swift in Sources */,
