@@ -42,15 +42,16 @@ Federation ≠ peer-to-peer. Each user trusts their *own* homeserver for
 availability and metadata, not for message confidentiality (which E2EE
 provides). This is documented in `docs/security/threat-model.md`.
 
-### D2. Homeserver: Synapse v1.163.0 (`ghcr.io/element-hq/synapse`, AGPL-3.0)
+### D2. Homeserver: Synapse v1.163.0 (`ghcr.io/element-hq/synapse`, AGPL-3.0-or-later or Element commercial licence)
 
 Most complete implementation (federation, OIDC SSO, admin API, account
 suspension, media upload limit module callbacks, authenticated media).
 Alternatives: Dendrite (maintenance mode), Conduit-family (younger, fewer
 admin/SSO features). Synapse is run **unmodified** from the upstream image;
 Lumen only adds a small out-of-tree module (`services/synapse-module`) through
-the documented module API. AGPL obligations are therefore limited to offering
-upstream source, which we link in the license inventory.
+the documented module API (imports only from `synapse.module_api`). The
+module's source is published in this repository; licence considerations are in
+`docs/dependencies.md` (not legal advice).
 
 ### D3. Client SDK: matrix-js-sdk 44 + Rust crypto (`@matrix-org/matrix-sdk-crypto-wasm`)
 
@@ -63,7 +64,8 @@ client (Element Web/Desktop, etc.) can use a Lumen homeserver.
 
 ### D4. Identity: SaaS portal is an OIDC provider; homeserver uses SSO
 
-* The portal (Django 6.1 + django-allauth + django-oauth-toolkit) owns
+* The portal (Django 6.1 + django-allauth, whose built-in OIDC provider
+  `allauth.idp.oidc` issues the tokens) owns
   accounts: Argon2id password hashing, email verification (when SMTP is
   configured), TOTP + WebAuthn + recovery codes, session management.
 * Synapse is configured with `oidc_providers` (authorization-code + PKCE) and

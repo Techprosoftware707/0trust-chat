@@ -1,0 +1,125 @@
+# Lumen server configuration — copy to lumen.conf (or /etc/lumen/lumen.conf),
+# edit, then:
+#
+#   sudo bash install.sh --config lumen.conf --yes     # first install, unattended
+#   sudo ./lumenctl apply                              # after later edits
+#
+# Format: KEY=value, one per line, no quotes, no shell expansion.
+# Secrets (SMTP password, Stripe keys, database passwords, signing keys) never go
+# in this file. The installer generates internal secrets and asks for external
+# ones with hidden prompts; they live in /etc/lumen/secrets (root-only, 0440/0400).
+# See docs/operations/admin-guide.md for every setting in context.
+
+# --- Domains (required) --------------------------------------------------------
+# Website, customer portal and Matrix server name (users become @name:example.com).
+LUMEN_PRIMARY_DOMAIN=example.com
+# Optional overrides; defaults shown.
+#LUMEN_APP_DOMAIN=app.example.com          # web chat app
+#LUMEN_MATRIX_DOMAIN=matrix.example.com    # homeserver (client + federation API on 443)
+#LUMEN_OPS_DOMAIN=ops.example.com          # operator console (private, see below)
+#LUMEN_OPS_PORT=8443
+#MATRIX_SERVER_NAME=example.com            # cannot be changed after the first user exists
+
+# Contact for TLS certificate notices (Let's Encrypt) and the first operator.
+ADMIN_EMAIL=admin@example.com
+
+# --- First operator ----------------------------------------------------------------
+# Username for the first operator-console account. The installer prints a one-time
+# setup link (also saved root-only to /etc/lumen/operator-setup-link.txt); the
+# operator sets a password and must enrol MFA. No default password exists.
+OPERATOR_USERNAME=admin
+
+# --- TLS ------------------------------------------------------------------------------
+# acme: public certificates from Let's Encrypt (DNS must point here, ports 80/443 open).
+# internal: Caddy's own CA — test labs only; browsers and other servers won't trust it.
+TLS_MODE=acme
+#ACME_CA=                                   # alternative ACME directory URL
+#OPS_TLS_MODE=                              # defaults to TLS_MODE
+
+# --- Operator console access --------------------------------------------------------
+# The console listens on ops.<domain>:8443 and only accepts connections from
+# localhost (SSH tunnel) and the WireGuard subnet. Add extra source networks here
+# only if you understand the exposure (comma-separated CIDRs).
+#ADMIN_ALLOWED_CIDRS=
+
+# --- Accounts ----------------------------------------------------------------------
+# open: anyone may sign up · invite: only people with a workspace invitation · closed
+REGISTRATION_MODE=open
+
+# --- Federation ----------------------------------------------------------------------
+# open: talk to any Matrix server · allowlist: only FEDERATION_ALLOWLIST · closed: none
+FEDERATION_MODE=open
+#FEDERATION_ALLOWLIST=partner.example,matrix.org
+# Server used to check that the rest of the network can reach you (key notary).
+# Defaults to matrix.org when federation is open; "none" disables the external check.
+#FEDERATION_PROBE_NOTARY=
+#TRUSTED_KEY_SERVERS=matrix.org
+
+# --- Features --------------------------------------------------------------------------
+PRESENCE_ENABLED=true
+# 1:1 voice/video calls need a TURN relay (coturn, host network, UDP 3478 + relay range).
+VOIP_ENABLED=false
+#TURN_EXTERNAL_IP=                          # public IPv4 of this server (auto-detected)
+#TURN_MIN_PORT=49160
+#TURN_MAX_PORT=49200
+
+# --- WireGuard (optional private admin network; never replaces end-to-end encryption)
+WIREGUARD_ENABLED=false
+#WG_SUBNET=10.77.0.0/24
+#WG_PORT=51820
+
+# --- Email (optional) -----------------------------------------------------------------
+# Without SMTP: no email verification or password reset by email; operators can issue
+# one-time recovery links instead. The SMTP password is asked for during install.
+#SMTP_HOST=smtp.example.com
+#SMTP_PORT=587
+#SMTP_USER=lumen@example.com
+#SMTP_SECURITY=starttls                     # starttls | tls | none
+#SMTP_FROM=Lumen <no-reply@example.com>
+
+# --- Billing -----------------------------------------------------------------------------
+# none: everyone is on the Free plan · manual: operators assign plans · stripe: Checkout +
+# Customer Portal (secret key and webhook secret are asked for during install; price IDs
+# are set per plan in the operator console). Payments are never simulated.
+BILLING_PROVIDER=none
+#BILLING_CURRENCY=usd
+#BILLING_GRACE_DAYS=14
+#STRIPE_PUBLISHABLE_KEY=pk_live_...
+
+# --- Branding ----------------------------------------------------------------------------
+BRAND_NAME=Lumen Secure
+BRAND_SHORT_NAME=Lumen
+#BRAND_TAGLINE=Private conversations on an open, federated network.
+# Legal entity shown in the footer, terms and privacy policy. Review those pages
+# with counsel before going live.
+BRAND_LEGAL_NAME=Example Ltd
+#BRAND_JURISDICTION=
+#SUPPORT_EMAIL=support@example.com
+#SECURITY_EMAIL=security@example.com        # published in /.well-known/security.txt
+#PRIVACY_EMAIL=privacy@example.com
+#PUBLIC_STATUS_PAGE=true
+# Logo/colours: put logo.svg, favicon.svg and theme.css in /etc/lumen/branding.
+
+# --- Host management ----------------------------------------------------------------------
+# yes: add UFW rules for 22/80/443 (+ TURN, WireGuard) — existing rules are kept,
+# SSH stays allowed. no: you manage the firewall yourself.
+FIREWALL_MANAGE=yes
+UNATTENDED_UPGRADES=yes
+
+# --- Backups ---------------------------------------------------------------------------------
+# Daily encrypted (age) backups of databases, media, signing keys and configuration.
+#BACKUP_DIR=/var/backups/lumen
+#BACKUP_SCHEDULE=03:17                      # local time
+#BACKUP_KEEP_DAILY=7
+#BACKUP_KEEP_WEEKLY=4
+# Off-site copy with rsync over SSH (key: /etc/lumen/backup/ssh_key). Strongly recommended.
+#BACKUP_REMOTE=backup@backup.example.net:/srv/lumen-backups
+
+# --- Advanced ----------------------------------------------------------------------------------
+#DEFAULT_MAX_UPLOAD_MB=1024                 # homeserver ceiling; plans set the real limits
+#LOG_LEVEL=INFO
+#LUMEN_DATA_DIR=/var/lib/lumen
+#LUMEN_CONFIG_DIR=/etc/lumen
+#POSTGRES_SHARED_BUFFERS=                   # auto-sized from RAM
+# Only for networks that intercept TLS: extra CA bundle used while building images.
+#LUMEN_BUILD_EXTRA_CA=

@@ -18,8 +18,7 @@ import logging
 import time
 from typing import Any
 
-from synapse.config.repository import MediaUploadLimit
-from synapse.module_api import ModuleApi
+from synapse.module_api import MediaUploadLimit, ModuleApi  # public module API only
 
 __version__ = "1.0.0"
 

@@ -51,8 +51,24 @@ function devAssets(): Plugin {
   };
 }
 
+/**
+ * Build-only: ship the licence texts of vendored assets (fonts from design/)
+ * next to the bundle; npm dependencies' licences come from build.license.
+ */
+function assetLicenses(): Plugin {
+  return {
+    name: "lumen-asset-licenses",
+    apply: "build",
+    generateBundle() {
+      for (const name of ["LICENSE-Inter.txt", "LICENSE-JetBrainsMono.txt"]) {
+        this.emitFile({ type: "asset", fileName: `licenses/${name}`, source: readFileSync(path.join(designDir, "fonts", name)) });
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), devAssets()],
+  plugins: [react(), devAssets(), assetLicenses()],
   resolve: {
     alias: {
       "@design": designDir,
@@ -80,5 +96,7 @@ export default defineConfig({
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 4096,
     reportCompressedSize: false,
+    // Licences of every bundled npm dependency, served at /licenses/third-party.md.
+    license: { fileName: "licenses/third-party.md" },
   },
 });

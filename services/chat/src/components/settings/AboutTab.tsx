@@ -40,6 +40,9 @@ export function AboutTab() {
             Privacy policy <ExternalLink aria-hidden="true" />
           </a>
         ) : null}
+        <a className="btn btn-sm" href="/licenses/third-party.md" target="_blank" rel="noopener noreferrer">
+          Open-source licences <ExternalLink aria-hidden="true" />
+        </a>
         {config.portalUrl ? (
           <a className="btn btn-sm" href={config.portalUrl} target="_blank" rel="noopener noreferrer">
             Account portal <ExternalLink aria-hidden="true" />
