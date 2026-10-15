@@ -64,17 +64,30 @@ jobs:
         working-directory: apps/desktop
         shell: bash
         env:
-          # Windows Authenticode (optional): base64 PFX + password
-          CSC_LINK: ${{ matrix.target == 'win' && secrets.WINDOWS_CSC_LINK || matrix.target == 'mac' && secrets.MACOS_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.target == 'win' && secrets.WINDOWS_CSC_KEY_PASSWORD || matrix.target == 'mac' && secrets.MACOS_CSC_KEY_PASSWORD || '' }}
-          # macOS notarization (optional): App Store Connect API key
+          # Secrets are exported to electron-builder only when they exist: an empty CSC_LINK
+          # is read as a certificate path (seen on the first macOS run).
+          WIN_CSC_LINK_SECRET: ${{ secrets.WINDOWS_CSC_LINK }}
+          WIN_CSC_PASSWORD_SECRET: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+          MAC_CSC_LINK_SECRET: ${{ secrets.MACOS_CSC_LINK }}
+          MAC_CSC_PASSWORD_SECRET: ${{ secrets.MACOS_CSC_KEY_PASSWORD }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_ID_SECRET: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_SECRET: ${{ secrets.APPLE_API_ISSUER }}
         run: |
-          if [ -z "$CSC_LINK" ]; then export CSC_IDENTITY_AUTO_DISCOVERY=false; echo "::notice::building UNSIGNED ${{ matrix.target }} packages (no signing secret)"; fi
-          if [ -n "$APPLE_API_KEY_BASE64" ]; then
-            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/apple-api-key.p8"; export APPLE_API_KEY="$RUNNER_TEMP/apple-api-key.p8"
+          case "${{ matrix.target }}" in
+            win) link="$WIN_CSC_LINK_SECRET"; pass="$WIN_CSC_PASSWORD_SECRET" ;;
+            mac) link="$MAC_CSC_LINK_SECRET"; pass="$MAC_CSC_PASSWORD_SECRET" ;;
+            *) link=""; pass="" ;;
+          esac
+          if [ -n "$link" ]; then
+            export CSC_LINK="$link" CSC_KEY_PASSWORD="$pass"
+          else
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            echo "::notice::building UNSIGNED ${{ matrix.target }} packages (no signing secret)"
+          fi
+          if [ "${{ matrix.target }}" = mac ] && [ -n "$APPLE_API_KEY_BASE64" ] && [ -n "$APPLE_API_KEY_ID_SECRET" ] && [ -n "$APPLE_API_ISSUER_SECRET" ]; then
+            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/apple-api-key.p8"
+            export APPLE_API_KEY="$RUNNER_TEMP/apple-api-key.p8" APPLE_API_KEY_ID="$APPLE_API_KEY_ID_SECRET" APPLE_API_ISSUER="$APPLE_API_ISSUER_SECRET"
           fi
           npm run dist:${{ matrix.target }}
       - name: Smoke test of the packaged app (hardening of the real binary, no server needed)
