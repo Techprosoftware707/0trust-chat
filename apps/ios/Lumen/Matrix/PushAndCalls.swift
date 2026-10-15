@@ -35,7 +35,10 @@ struct PusherRegistrar {
 
 /// Connects one call widget page to the Rust SDK's widget driver
 /// (integration.md §6.2). The widget never holds an access token: it asks the
-/// driver, which acts with exactly the MatrixRTC capabilities.
+/// driver, which acts with exactly the MatrixRTC capabilities. The SFU token
+/// (MSC4533) and RTC transports (MSC4515) requests are answered natively by
+/// `NativeRtcInterceptor`, because the driver at SDK 26.10.02 can't serve
+/// them against a Lumen server.
 @Observable @MainActor
 final class CallWidgetSession {
     let roomId: String
@@ -55,11 +58,14 @@ final class CallWidgetSession {
     @ObservationIgnored private var driver: WidgetDriver?
     @ObservationIgnored private var handle: WidgetDriverHandle?
     @ObservationIgnored private var filter: WidgetMessageFilter
+    @ObservationIgnored private let native: NativeRtcInterceptor
     @ObservationIgnored private var driverTask: Task<Void, Never>?
     @ObservationIgnored private var recvTask: Task<Void, Never>?
     @ObservationIgnored private var closed = false
 
-    init(room: Room, source: WidgetSource, intent: CallIntent, video: Bool, notify: CallNotify) throws {
+    init(room: Room, source: WidgetSource, intent: CallIntent, video: Bool, notify: CallNotify,
+         homeserverURL: URL, userId: String, deviceId: String, http: HTTPClient,
+         accessToken: @escaping @Sendable () async throws -> String) throws {
         self.room = room
         self.roomId = room.id()
         self.source = source
@@ -67,6 +73,8 @@ final class CallWidgetSession {
         let id = UUID().uuidString
         self.widgetId = id
         self.filter = WidgetMessageFilter(widgetId: id)
+        self.native = NativeRtcInterceptor(widgetId: id, roomId: room.id(), userId: userId, deviceId: deviceId,
+                                           homeserverURL: homeserverURL, http: http, accessToken: accessToken)
         // initAfterContentLoad: the driver starts the widget-API handshake when
         // the widget sends `content_loaded`, so nothing is lost while the page loads.
         self.settings = WidgetSettings(widgetId: id, initAfterContentLoad: true, rawUrl: WidgetURLTemplate.rawURL(source: source, intent: intent, video: video, notify: notify))
@@ -89,9 +97,11 @@ final class CallWidgetSession {
         driverTask = Task.detached {
             await driver.run(room: room, capabilitiesProvider: provider)
         }
+        let native = self.native
         recvTask = Task { [weak self] in
             while let message = await handle.recv() {
-                self?.deliverToWidget?(message)
+                // Advertise MSC4533 and grant its capability if the widget asked.
+                self?.deliverToWidget?(native.onToWidget(message))
             }
         }
     }
@@ -101,7 +111,16 @@ final class CallWidgetSession {
         guard !closed else { return }
         switch filter.classify(raw) {
         case .forwardToDriver(let msg):
-            _ = handle?.send(msg: msg)
+            switch native.onFromWidget(msg) {
+            case .forward:
+                _ = handle?.send(msg: msg)
+            case .intercepted(let request):
+                let native = self.native
+                Task { [weak self] in
+                    let reply = await native.answer(request)
+                    self?.deliverToWidget?(reply)
+                }
+            }
         case .callState(let update, let reply):
             state = update
             if update.state == .ended { ended = true }
@@ -150,13 +169,11 @@ struct CallRoomActions {
     }
 
     /// The server's SFU transports (MSC4143), for the diagnostics screen.
+    /// Read from the raw endpoint: the SDK's `discoverRtcTransports()` can't
+    /// parse Lumen's `{type: "livekit", url}` form at 26.10.02, and is not
+    /// used to gate calls.
     func transports() async -> [String] {
-        guard let list = try? await client.discoverRtcTransports() else { return [] }
-        return list.map {
-            switch $0 {
-            case .liveKit(let url): return "LiveKit: \(url)"
-            case .custom(let type, _): return type
-            }
-        }
+        guard let token = try? client.session().accessToken, let base = URL(string: client.homeserver()) else { return [] }
+        return await NativeRtcInterceptor.fetchTransports(http: URLSessionHTTPClient(), homeserverURL: base, accessToken: token)
     }
 }

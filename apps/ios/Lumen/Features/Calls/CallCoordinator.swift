@@ -138,7 +138,13 @@ final class CallCoordinator {
     private func launch(call: CallKitController.Call, room: Room, source: WidgetSource, intent: CallIntent, sessionModel s: SessionModel) {
         do {
             let notify: CallNotify = intent == .startCall ? (s.roomList.summaries.first(where: { $0.id == call.roomId })?.isDirect == true ? .ring : .notification) : .none
-            let session = try CallWidgetSession(room: room, source: source, intent: intent, video: call.isVideo, notify: notify)
+            let client = s.client
+            guard let homeserver = URL(string: s.account.homeserverURL) else { throw SessionError.noAccount }
+            let session = try CallWidgetSession(
+                room: room, source: source, intent: intent, video: call.isVideo, notify: notify,
+                homeserverURL: homeserver, userId: s.userId, deviceId: s.deviceId, http: URLSessionHTTPClient(),
+                accessToken: { try client.session().accessToken }
+            )
             let host = CallWidgetHost(source: source, session: session)
             session.onCallState = { [weak self] update in self?.apply(update) }
             host.onInsecureContext = { [weak self] in self?.fallBackToServer() }

@@ -57,6 +57,11 @@ app signing key, and register the upload key above. Afterwards:
 | Per-ABI APKs | `app/build/outputs/apk/release/app-{arm64-v8a,armeabi-v7a,x86_64,x86}-release*.apk` | direct download; most phones need `arm64-v8a` |
 | Universal APK | `app/build/outputs/apk/release/app-universal-release*.apk` | all ABIs in one file (large: four copies of the Rust SDK) |
 
+Sizes of the unsigned 1.0.0 release built on 2026-10-15 (call widget bundled): AAB 102 MiB;
+APKs `arm64-v8a` 66 MiB, `armeabi-v7a` 46 MiB, `x86_64` 72 MiB, `x86` 76 MiB, universal 245 MiB.
+`libmatrix_sdk_ffi.so` alone is 61 MiB (arm64-v8a); Play's per-device download from the AAB is
+roughly the size of the matching per-ABI APK.
+
 Native libraries: `arm64-v8a` and `x86_64` of `libmatrix_sdk_ffi.so` are 16 KB page aligned
 (checked with `readelf`, LOAD alignment `0x4000`), which Google Play requires for apps targeting
 Android 15+. Libraries are stored uncompressed (`useLegacyPackaging = false`).
