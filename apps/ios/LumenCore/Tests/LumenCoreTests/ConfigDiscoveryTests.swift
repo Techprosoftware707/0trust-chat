@@ -81,8 +81,21 @@ final class ConfigTests: XCTestCase {
         XCTAssertNil(http?.pushGatewayURL, "Lumen block URLs use release rules even in debug builds")
     }
 
+    func testAccountDeleteURLIsOptionalAndValidated() {
+        let ok = LumenAppInfo.parse(["version": 1, "account_delete_url": "https://example.com/portal/privacy/delete/"])
+        XCTAssertEqual(ok?.accountDeleteURL?.absoluteString, "https://example.com/portal/privacy/delete/")
+        XCTAssertNil(LumenAppInfo.parse(["version": 1])?.accountDeleteURL, "absent: the Settings entry is hidden")
+        for bad in ["http://example.com/delete/", "javascript:alert(1)", "https://u:p@example.com/delete/", "", "not a url"] {
+            let info = LumenAppInfo.parse(["version": 1, "account_delete_url": bad, "help_url": "https://example.com/docs/"])
+            XCTAssertNil(info?.accountDeleteURL, "\(bad) must be dropped")
+            XCTAssertEqual(info?.helpURL?.absoluteString, "https://example.com/docs/", "a bad link doesn't affect the others")
+        }
+        XCTAssertNil(LumenAppInfo.parse(["version": 1, "account_delete_url": 42])?.accountDeleteURL)
+        XCTAssertNil(LumenAppInfo.parse(["version": 2, "account_delete_url": "https://example.com/d/"]), "unknown block version is ignored")
+    }
+
     func testLumenInfoRoundTripsThroughStorage() throws {
-        let info = LumenAppInfo(brandName: "Lumen Secure", brandShortName: "Lumen", portalURL: URL(string: "https://example.com"), ssoIdpId: "oidc-lumen", pushGatewayURL: URL(string: "https://matrix.example.com/_matrix/push/v1/notify"))
+        let info = LumenAppInfo(brandName: "Lumen Secure", brandShortName: "Lumen", portalURL: URL(string: "https://example.com"), accountDeleteURL: URL(string: "https://example.com/portal/privacy/delete/"), ssoIdpId: "oidc-lumen", pushGatewayURL: URL(string: "https://matrix.example.com/_matrix/push/v1/notify"))
         XCTAssertEqual(LumenAppInfo.fromJSONData(info.jsonData()), info)
     }
 
@@ -136,7 +149,7 @@ final class ConfigTests: XCTestCase {
 final class DiscoveryTests: XCTestCase {
     func testLumenServer() async throws {
         let http = FakeHTTP([
-            "https://example.com/.well-known/matrix/client": (200, #"{"m.homeserver":{"base_url":"https://matrix.example.com/"},"io.lumen.app":{"version":1,"brand":{"name":"Lumen Secure","short_name":"Lumen"},"sso_idp_id":"oidc-lumen","signup_url":"https://example.com/accounts/signup/","push_gateway_url":"https://matrix.example.com/_matrix/push/v1/notify"}}"#),
+            "https://example.com/.well-known/matrix/client": (200, #"{"m.homeserver":{"base_url":"https://matrix.example.com/"},"io.lumen.app":{"version":1,"brand":{"name":"Lumen Secure","short_name":"Lumen"},"sso_idp_id":"oidc-lumen","signup_url":"https://example.com/accounts/signup/","account_delete_url":"https://example.com/portal/privacy/delete/","push_gateway_url":"https://matrix.example.com/_matrix/push/v1/notify"}}"#),
             "https://matrix.example.com/_matrix/client/versions": (200, versionsSSS),
             "https://matrix.example.com/_matrix/client/v3/login": (200, loginLumen),
         ])
@@ -146,6 +159,7 @@ final class DiscoveryTests: XCTestCase {
         XCTAssertEqual(d.brandName, "Lumen Secure")
         XCTAssertEqual(d.preferredProvider?.id, "oidc-lumen")
         XCTAssertNotNil(d.lumen?.pushGatewayURL)
+        XCTAssertEqual(d.lumen?.accountDeleteURL?.absoluteString, "https://example.com/portal/privacy/delete/")
         XCTAssertTrue(http.requests.allSatisfy { $0.url.scheme == "https" })
     }
 

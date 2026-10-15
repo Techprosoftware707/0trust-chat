@@ -13,6 +13,8 @@ public struct LumenAppInfo: Equatable, Sendable {
     public var portalURL: URL?
     public var signupURL: URL?
     public var accountURL: URL?
+    /// The portal's account-deletion flow (App Store 5.1.1(v)); optional.
+    public var accountDeleteURL: URL?
     public var privacyURL: URL?
     public var helpURL: URL?
     public var ssoIdpId: String?
@@ -28,6 +30,7 @@ public struct LumenAppInfo: Equatable, Sendable {
     public init(
         brandName: String? = nil, brandShortName: String? = nil,
         portalURL: URL? = nil, signupURL: URL? = nil, accountURL: URL? = nil,
+        accountDeleteURL: URL? = nil,
         privacyURL: URL? = nil, helpURL: URL? = nil, ssoIdpId: String? = nil,
         webAppURL: URL? = nil, callWidgetURL: URL? = nil, pushGatewayURL: URL? = nil
     ) {
@@ -36,6 +39,7 @@ public struct LumenAppInfo: Equatable, Sendable {
         self.portalURL = portalURL
         self.signupURL = signupURL
         self.accountURL = accountURL
+        self.accountDeleteURL = accountDeleteURL
         self.privacyURL = privacyURL
         self.helpURL = helpURL
         self.ssoIdpId = ssoIdpId
@@ -58,6 +62,7 @@ public struct LumenAppInfo: Equatable, Sendable {
         info.portalURL = policy.optional(obj["portal_url"], field: "portal_url")
         info.signupURL = policy.optional(obj["signup_url"], field: "signup_url")
         info.accountURL = policy.optional(obj["account_url"], field: "account_url")
+        info.accountDeleteURL = policy.optional(obj["account_delete_url"], field: "account_delete_url")
         info.privacyURL = policy.optional(obj["privacy_url"], field: "privacy_url")
         info.helpURL = policy.optional(obj["help_url"], field: "help_url")
         info.webAppURL = policy.optional(obj["web_app_url"], field: "web_app_url")

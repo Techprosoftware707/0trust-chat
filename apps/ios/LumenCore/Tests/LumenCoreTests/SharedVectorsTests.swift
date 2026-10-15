@@ -66,6 +66,7 @@ final class SharedVectorsTests: XCTestCase {
                         "portal_url": l.portalURL?.absoluteString,
                         "signup_url": l.signupURL?.absoluteString,
                         "account_url": l.accountURL?.absoluteString,
+                        "account_delete_url": l.accountDeleteURL?.absoluteString,
                         "privacy_url": l.privacyURL?.absoluteString,
                         "help_url": l.helpURL?.absoluteString,
                         "sso_idp_id": l.ssoIdpId,

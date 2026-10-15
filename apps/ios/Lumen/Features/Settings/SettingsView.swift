@@ -111,6 +111,19 @@ struct SettingsView: View {
                     if let privacy = session.lumen?.privacyURL { Button("Privacy policy") { safariURL = IdentifiedURL(url: privacy) } }
                 }
 
+                if let deleteURL = session.lumen?.accountDeleteURL {
+                    Section {
+                        Button(role: .destructive) {
+                            safariURL = IdentifiedURL(url: deleteURL)
+                        } label: {
+                            Text("Delete account…")
+                        }
+                        .accessibilityHint("Opens the account portal")
+                    } footer: {
+                        Text("Your account is deleted in the account portal after you sign in again there. Your encrypted message history can't be recovered afterwards.")
+                    }
+                }
+
                 Section {
                     Button("Sign out", role: .destructive) { confirmSignOut = true }
                     if let e = app.signOutError {

@@ -176,9 +176,11 @@ None of them is ever committed (see release.md).
        and the operator's policy. Explain this in the review notes;
      - a published contact (`help_url`).
    - **5.1.1(v), account deletion.** Accounts are created in the portal,
-     which the app opens for sign-up. "Manage account" (`account_url`)
-     must therefore lead to account deletion in the portal. Check this on
-     your server before submitting.
+     which the app opens for sign-up. Settings → **Delete account…** opens
+     the server's `account_delete_url` (the portal's deletion flow, with
+     re-authentication). The entry is hidden on servers that don't publish
+     that URL, so check your server's `io.lumen.app` block contains it
+     before submitting.
    - **Encryption:** see §7. App Store Connect asks for every build until
      the questions are answered.
 5. Submit for review, then release manually or automatically.

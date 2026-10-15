@@ -46,6 +46,8 @@ Current state (2026-10-15):
 | Devices list, remove with UIA (SSO fallback page) | implemented-unverified | API and UIA parsing unit-tested |
 | Verified state of *other* own devices in the list | not implemented | The SDK FFI has no per-device trust API; only this device's state is shown |
 | Manage account link (`account_url`) | implemented-unverified | |
+| Parsing of `account_delete_url` (optional, validated like every `*_url`) | implemented | Unit-tested |
+| Settings → "Delete account…" (opens `account_delete_url` in a Safari view; hidden when absent) | implemented-unverified | Deletion itself happens in the portal after re-authentication |
 | Multiple accounts | not implemented | |
 
 ## Messaging

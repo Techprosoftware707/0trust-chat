@@ -90,6 +90,7 @@ extension LumenAppInfo {
         if !brand.isEmpty { o["brand"] = brand }
         let urls: [(String, URL?)] = [
             ("portal_url", portalURL), ("signup_url", signupURL), ("account_url", accountURL),
+            ("account_delete_url", accountDeleteURL),
             ("privacy_url", privacyURL), ("help_url", helpURL), ("web_app_url", webAppURL),
             ("call_widget_url", callWidgetURL), ("push_gateway_url", pushGatewayURL),
         ]
