@@ -1,0 +1,12 @@
+PASS fresh install on the replacement server
+PASS replacement server starts with its own (different) identity
+PASS backup verifies with the offline key
+PASS full restore with configuration and secrets
+PASS server identity (signing key) restored
+PASS accounts from the old server are present (lcmarker-a)
+PASS homeserver accounts restored (1 users)
+PASS healthy after restore on the new server (exit 0)
+PASS install.sh converges on the restored configuration
+PASS healthy after re-running the installer (exit 0)
+dr: 10 passed, 0 failed
+exit=0

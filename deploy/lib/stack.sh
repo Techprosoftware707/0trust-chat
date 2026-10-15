@@ -348,7 +348,20 @@ start_services() {
   ok "caddy running"
   if calls_enabled; then
     start_calls
+  else
+    stop_calls
   fi
+}
+
+# stop_calls — CALLS_ENABLED=false: remove the SFU and authorization-service containers
+# (they hold no data; their config and keys stay in /etc/lumen for re-enabling).
+stop_calls() {
+  local s id
+  for s in livekit lkjwt; do
+    for id in $(docker ps -aq --filter label=com.docker.compose.project=lumen --filter "label=com.docker.compose.service=$s"); do
+      run docker rm -f "$id" && ok "calls disabled: $s stopped"
+    done
+  done
 }
 
 # refresh_livekit_config — re-render and rewrite livekit.yaml in place (the container's

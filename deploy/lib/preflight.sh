@@ -91,6 +91,10 @@ port_owner() {
   ss "$flag" 2>/dev/null | awk -v p=":$port" '$4 ~ p"$" {print $NF}' | head -n1
 }
 
+lumen_livekit_running() { # the SFU on the calls ports is Lumen's own container (host network)
+  command -v docker >/dev/null 2>&1 && [[ -n "$(docker ps -q --filter label=com.docker.compose.project=lumen --filter label=com.docker.compose.service=livekit 2>/dev/null)" ]]
+}
+
 check_ports() {
   local spec proto port owner ours
   local specs=("tcp:80" "tcp:443" "udp:443" "tcp:$(conf_get LUMEN_OPS_PORT 8443)")
@@ -106,7 +110,9 @@ check_ports() {
       ok "port $port/$proto is free"
     else
       ours=0
+      # turnserver: coturn from Lumen releases before the LiveKit SFU (replaced on install).
       [[ "$owner" == *caddy* || "$owner" == *turnserver* || "$owner" == *wireguard* ]] && ours=1
+      [[ "$owner" == *livekit-server* ]] && lumen_livekit_running && ours=1
       if ((ours)) && [[ -f "$LUMEN_STATE_FILE" ]]; then
         ok "port $port/$proto is used by Lumen ($owner)"
       else

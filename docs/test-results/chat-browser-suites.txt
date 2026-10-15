@@ -1,0 +1,51 @@
+✔ alice -> bob message is encrypted on the wire and decrypted by bob (323.161719ms)
+✔ bob -> alice message is encrypted and decrypted by alice (231.91133ms)
+✔ encrypted attachment: ciphertext on the server, plaintext only after decryption (235.039742ms)
+✔ the server never saw plaintext: /messages and the admin API only hold ciphertext (46.772523ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3457.149138
+✔ login screen renders under the production CSP (1836.508157ms)
+✔ both users sign in; Ada sets up secure backup, Grace postpones (6771.69205ms)
+✔ Ada starts an encrypted DM; Grace accepts and both exchange messages (3438.57263ms)
+✔ reply, reaction and edit round-trip (1175.405357ms)
+✔ encrypted image attachment is decrypted and shown inline by the receiver (415.882334ms)
+✔ Grace sets up backup from Settings, then they verify each other with emoji (6370.831173ms)
+✔ deleting a message removes it for the other side (1004.902636ms)
+✔ on-device search finds decrypted messages (431.263374ms)
+✔ screenshots: desktop and 390px mobile, light and dark (2588.297469ms)
+✔ profile: display name and avatar upload (1682.109614ms)
+✔ groups: encrypted by default; an unencrypted group is labelled honestly; history pagination; upload limit (8629.56163ms)
+✔ deep links: existing DM opens directly; a new contact needs confirmation; reload restores the session (4831.407691ms)
+✔ notifications: only requested from settings, follow push rules, previews off by default (3638.571477ms)
+✔ offline: banner, failed send with retry after reconnecting (1047.602619ms)
+✔ new device: history is unreadable until verified with the recovery key, then restored from backup (4949.768494ms)
+✔ self-verification: a new device is verified by an existing one with emoji (5822.408704ms)
+✔ sessions: rename, and sign out other devices with password confirmation (5991.609396ms)
+✔ identity reset: a verified contact's new identity triggers a warning (5561.555461ms)
+✔ identity change of an unverified contact: 'I understand' pins the new identity (4060.104519ms)
+✔ appearance: theme switch is stored like the website's (1195.417671ms)
+✔ sign out wipes local data (2848.446932ms)
+✔ no CSP violations or uncaught errors in any browser (0.647523ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 74895.988526
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23056.348128
+[exited with code 0]

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Explains common Lumen problems: DNS, TLS, Matrix discovery, federation,
-# homeserver and database health, application origins, SMTP and payment webhooks.
+# homeserver and database health, voice/video calls, application origins, SMTP and
+# payment webhooks.
 # Read-only. Never prints secrets.
 #
 #   sudo ./diagnose.sh [--no-color]
@@ -22,6 +23,7 @@ problem() { fail "$1"; printf '      %s→ %s%s\n' "$C_DIM" "$2" "$C_RESET"; PRO
 p="$(conf_get LUMEN_PRIMARY_DOMAIN)"; app="$(conf_get LUMEN_APP_DOMAIN "app.$p")"
 mx="$(conf_get LUMEN_MATRIX_DOMAIN "matrix.$p")"; ops="$(conf_get LUMEN_OPS_DOMAIN "ops.$p")"
 sn="$(conf_get MATRIX_SERVER_NAME "$p")"; tls_mode="$(conf_get TLS_MODE acme)"
+rtc=""; calls_enabled && rtc="$(rtc_domain)"
 
 step "Configuration"
 if python3 "$LUMEN_REPO_DIR/deploy/lib/render.py" --conf "$LUMEN_CONF" --secrets "$LUMEN_SECRETS_DIR" --repo "$LUMEN_REPO_DIR" --out /nonexistent --print-config >/dev/null 2>/tmp/lumen-diag-conf.$$; then
@@ -47,7 +49,7 @@ grep -q "issuer: \"https://$p\"" "$LUMEN_RENDERED_DIR/synapse/homeserver.yaml" 2
 step "DNS"
 pub="$(public_ip)"
 [[ -n "$pub" ]] && info "public IPv4 of this server: $pub" || warn "could not determine the public IP (no outbound internet?)"
-for host in "$p" "$app" "$mx" "$ops"; do
+for host in "$p" "$app" "$mx" "$ops" ${rtc:+"$rtc"}; do
   addrs="$(getent ahosts "$host" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ')"
   if [[ -z "$addrs" ]]; then
     [[ "$tls_mode" == internal ]] && warn "$host does not resolve (internal test mode)" \
@@ -64,7 +66,7 @@ if [[ "$sn" != "$mx" ]]; then
 fi
 
 step "TLS certificates"
-for host in "$p" "$app" "$mx"; do
+for host in "$p" "$app" "$mx" ${rtc:+"$rtc"}; do
   info_line="$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$host" 2>/dev/null | openssl x509 -noout -issuer -enddate 2>/dev/null | tr '\n' ' ')"
   if [[ -z "$info_line" ]]; then
     problem "no certificate served for $host" "check 'sudo ./lumenctl logs caddy' for ACME errors (DNS, port 80 blocked, rate limits)"
@@ -134,6 +136,50 @@ for s in portal ops worker caddy; do
   st="$(container_health "$s")"
   [[ "$st" == healthy || ( "$s" == caddy && "$st" == running ) ]] && ok "$s $st" || problem "$s is $st" "sudo ./lumenctl logs $s"
 done
+
+step "Voice and video calls"
+if ! calls_enabled; then
+  ok "calls disabled (CALLS_ENABLED=false)"
+else
+  lk_id="$(docker ps -q --filter label=com.docker.compose.project=lumen --filter label=com.docker.compose.service=livekit)"
+  if [[ -z "$lk_id" ]]; then
+    problem "the SFU (livekit) is not running" "sudo ./lumenctl logs livekit; then sudo ./lumenctl apply"
+  else
+    _vcurl "$rtc" 443 -fsS -o /dev/null "https://$rtc/" 2>/dev/null && ok "SFU answers on https://$rtc/" \
+      || problem "https://$rtc/ does not answer" "check DNS and the certificate for $rtc above, then sudo ./lumenctl logs caddy"
+    node_ip="$(docker logs "$lk_id" 2>&1 | grep '"starting LiveKit server"' | tail -n1 | sed -nE 's/.*"nodeIP":"([^"]*)".*/\1/p')"
+    if [[ -z "$node_ip" ]]; then
+      warn "could not read the address the SFU advertises (no startup line in its log)"
+    elif [[ -n "$pub" && "$node_ip" != "$pub" ]] && ! truthy "$(conf_get CALLS_ALLOW_PRIVATE_NODE_IP false)"; then
+      problem "the SFU advertises $node_ip to clients but this server's public IPv4 is $pub" "set CALLS_PUBLIC_IP=$pub in lumen.conf and run sudo ./lumenctl apply — otherwise call signalling works but media never connects"
+    else
+      ok "SFU advertises $node_ip in ICE candidates"
+    fi
+  fi
+  st="$(container_health lkjwt)"
+  [[ "$st" == healthy ]] && ok "calls authorization service healthy" || problem "calls authorization service is $st" "sudo ./lumenctl logs lkjwt (it needs the homeserver and its appservice registration)"
+  _calls_transport_ok "$mx" "$rtc" && ok "homeserver advertises the SFU (wss://$rtc)" \
+    || problem "homeserver does not advertise the SFU" "the app shows calls as unavailable; run sudo ./lumenctl apply and check sudo ./lumenctl logs synapse"
+  _calls_membership_enforced "$mx" "$rtc" "$sn" && ok "SFU tokens are issued only to room members" \
+    || problem "the token check for calls did not answer as expected" "sudo ./lumenctl logs lkjwt; sudo ./lumenctl logs synapse | grep -i rtc"
+  turn_udp="$(conf_get CALLS_TURN_UDP_PORT 3478)"
+  _stun_ok "$turn_udp" && ok "TURN answers on udp/$turn_udp" || problem "TURN does not answer on udp/$turn_udp" "sudo ./lumenctl logs livekit"
+  if [[ -s "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/livekit/tls/tls.crt" ]]; then
+    _tls_ok "$rtc" "$(conf_get CALLS_TURN_TLS_PORT 5349)" && ok "TURN/TLS certificate valid" \
+      || problem "TURN/TLS certificate invalid or expiring" "sudo ./lumenctl rtc-cert (copies Caddy's current certificate for $rtc)"
+  else
+    problem "no TURN/TLS certificate yet: clients on TLS-only networks cannot connect" "once Caddy has a certificate for $rtc: sudo ./lumenctl rtc-cert"
+  fi
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+    missing=""
+    for rule in "$(conf_get CALLS_UDP_PORTS 7882-7889 | tr - :)/udp" "$(conf_get CALLS_TCP_PORT 7881)/tcp" "$turn_udp/udp" "$(conf_get CALLS_TURN_TLS_PORT 5349)/tcp"; do
+      ufw status 2>/dev/null | grep -q "^$rule " || missing+=" $rule"
+    done
+    [[ -z "$missing" ]] && ok "host firewall allows the calls ports" || problem "host firewall does not allow:$missing" "re-run sudo bash install.sh (it adds them), or: sudo ufw allow <port>"
+  fi
+  info "a cloud-provider firewall in front of this server cannot be checked from here; if calls connect but there is no audio/video, open $(calls_ports_human) there"
+  info "media check from this host: sudo ./lumenctl calls-selftest (it proves the SFU, not reachability from the internet)"
+fi
 
 step "Email (SMTP)"
 smtp="$(conf_get SMTP_HOST "")"

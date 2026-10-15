@@ -17,6 +17,9 @@ security reviewers and curious users. Companion documents:
 | Billing data | Workspace owners | Portal (plan, status, invoice amounts); card data only at Stripe |
 | Server identity (federation signing key), TLS keys, internal secrets | Operator | Host (`/var/lib/lumen/synapse/signing.key`, `/etc/lumen/secrets`), encrypted backups |
 | Audit trail | Operator, customers | Portal database (append-only, hash-chained) |
+| Call audio, video and screen share | Participants | Plaintext only on participants' devices; the SFU forwards AES-GCM-encrypted frames; never recorded or stored |
+| Call media keys | Participants | Devices only; sent to other participants as Olm-encrypted to-device messages; rotated on every join or leave |
+| Call metadata: who is in a call, when, track types, bitrates, audio levels, client IPs | Participants (privacy), operator (custody) | Homeserver (membership state events), SFU memory while the call lasts, console counters (aggregate only) |
 
 ## Adversaries and what Lumen does about them
 
@@ -35,6 +38,11 @@ security reviewers and curious users. Companion documents:
 | Malicious web-app delivery | The chat app is JavaScript served by the operator | **No — this is the main limit of web E2EE** | Whoever controls `app.<domain>` can ship code that exfiltrates keys. Mitigations: strict CSP (`script-src 'self'`), no third-party scripts, reproducible static build, pinned dependencies. Users who don't trust the operator should use an independently installed Matrix client (any spec-compliant client works with Lumen accounts). |
 | Supply chain (npm, PyPI, container registries) | Malicious dependency | Reduced | Lockfiles with integrity hashes (`package-lock.json`, `pip --require-hashes`), digest-pinned images, no install scripts in the chat build (`npm ci --ignore-scripts`), dependency audit (`pip-audit`, `npm audit`). Not eliminated. |
 | Quantum adversary (future) | Break X25519/Ed25519 | **No for message content recorded today** | See [post-quantum.md](post-quantum.md). Transport TLS is hybrid PQ where clients support it. |
+| Curious or compromised **operator of the call server (SFU)** | Everything LiveKit and lkjwt see; can change their configuration or code | **Content: yes, with the shipped client. Metadata: no.** | Media is encrypted per frame in the browser with keys the server never receives. The SFU sees who is connected (pseudonymous IDs that the homeserver can link to users), when, from which IP, track types, bitrates and **audio levels** (the RTP audio-level header is not encrypted, so the SFU can tell who is speaking when). It cannot listen in: it has no keys, there is no recording component, and there is no hidden participant role. To join a call it would need a Matrix membership in the room, which is visible to the participants. A server that serves a malicious web app can still break this (row "Malicious web-app delivery"). |
+| Someone outside the room trying to join a call | Network access to the SFU | **Yes** | SFU tokens are issued only by the homeserver to signed-in users who are joined to the room (401 anonymous, 403 non-member). Tokens cover one room, join only, 1 h, and are signed with this server's key; the SFU does not auto-create rooms. A token alone gives no media keys: those are sent only to devices that appear in the call's Matrix membership. |
+| Participant removed from a room during a call | Was a member; still has an SFU connection and old keys | **Future media: yes. Connection: not forcibly closed.** | They cannot get new SFU tokens. The remaining clients rotate media keys without them, so media sent after the removal is ciphertext to them. The SFU does not automatically disconnect them; their existing connection lasts until they leave or it drops. |
+| lkjwt's application-service token | Held by the authorization service | Bounded by design | An appservice with a `.*` user namespace can act as any local user on the client-server API. lkjwt uses it only to check room membership (MSC4502 scope) and to manage delayed leave events. It is a secret file (0440 root:lumen-secrets) mounted only into Synapse and lkjwt, and it is not exposed publicly. A compromised lkjwt is equivalent to a compromised homeserver for local users' accounts, **not** for E2EE content. |
+| TURN abuse (open relay) | Use the server to reach other hosts | **Yes** | TURN credentials are minted per session (5-minute TTL). Relaying to the WireGuard subnet, the calls network and 172.16.0.0/12 is denied, and relaying to other private addresses (loopback, RFC 1918, link-local) is blocked by LiveKit's default restrictions. TCP relay allocations are not offered. |
 | Legal compulsion of the operator | Order to hand over data | Content: no plaintext to hand over. Metadata: yes | The operator can disclose metadata and ciphertext. The privacy policy states what is kept and for how long. |
 
 ## What the operator can see (metadata inventory)
@@ -46,6 +54,16 @@ security reviewers and curious users. Companion documents:
   user agents (kept 28 days, `user_ips_max_age`); push notification metadata if
   push is used; media file sizes and upload times (content encrypted in encrypted
   rooms).
+* **Calls (SFU and authorization service)**: while a call lasts, the SFU holds
+  pseudonymous participant identities, client IP addresses and ports, track
+  types, bitrates, packet statistics and audio levels. Room names are hashed.
+  The SFU logs at `info` level in JSON to Docker's rotated log files (10 MB ×
+  5 per container). Those logs carry pseudonymous identities, hashed room
+  names, track and connection events, and client SDK/OS information. They
+  never carry Matrix IDs; the security scan checks this. The authorization service logs at `warn`, so per-request Matrix
+  IDs are not logged. Call membership (who joined, when) is ordinary room
+  state on the homeserver. The console's Calls page stores only aggregate
+  counters. Nothing records audio, video or transcripts.
 * **Portal**: account name, email, display name, workspace membership and roles,
   plan and billing status, sign-in times and IP addresses in the security log
   (90 days), support requests, audit log entries (365 days).
@@ -74,6 +92,31 @@ Provided by the Matrix protocol as implemented in `matrix-sdk-crypto`
 * **Deniability** is not a goal of Megolm (messages are signed by the sender's
   device).
 
+## Security properties of call media encryption
+
+Provided by matrix-js-sdk's MatrixRTC encryption manager and livekit-client's
+frame encryptor, not by Lumen cryptography code:
+
+* **Confidentiality and integrity** of each audio and video frame
+  (AES-GCM-128), between participants who hold the sender's current key.
+* **Membership-bound keys**: each participant has their own media key. It is
+  sent only to the devices listed in the call's Matrix membership, over Olm.
+  When someone joins or leaves, every participant switches to a new key.
+  Someone who joins does not get keys for earlier media, and someone who
+  leaves does not get later ones.
+* **Device trust** is that of Matrix to-device messaging. Keys go to the
+  devices that have joined the call. Unverified devices are shown as such in
+  the chat, and the call view lists every participant.
+* **No PQ protection**: Olm (X25519) and the frame key exchange are
+  classical; see [post-quantum.md](post-quantum.md).
+* **Not hidden from the SFU**: frame sizes and timing, packet counts, audio
+  levels, and the unencrypted parts of each frame (for example the VP8 frame
+  header, so the SFU can do simulcast and keyframe requests).
+* **Label honesty**: the app shows "end-to-end encrypted" only when its own
+  key is set and every remote participant's media is encrypted with a key
+  received over Matrix. Unencrypted publishers, missing keys and decryption
+  errors are shown as such.
+
 ## Known limitations
 
 See [docs/known-limitations.md](../known-limitations.md) for the complete list.
@@ -85,3 +128,7 @@ The security-relevant ones:
 4. No post-quantum protection of message content.
 5. Single-host deployment: host root is fully trusted.
 6. Account recovery (portal) restores the account, not encrypted history.
+7. Calls: the SFU sees call metadata, including audio levels. A participant
+   removed mid-call is not disconnected by the server; it is only excluded
+   from new keys.
+8. No post-quantum protection of call media.

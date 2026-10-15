@@ -1,0 +1,32 @@
+--- 1. profile as issued (split tunnel), VPN up
+    │ Total  │ 2/2    │ 1.1mbps (1.1mbps avg) │ 0 (0%)          │ 0     │
+    (2793 KiB left through wg0: ICE may also use the tunnel interface's address)
+PASS call media flows with the operator VPN up
+--- 2. SFU address routed through WireGuard (AllowedIPs += 10.200.0.1/32)
+Address = 10.77.0.2/32
+AllowedIPs = 10.77.0.1/32
+10.77.0.1 dev wgt0 scope link 
+10.200.0.1 dev wgt0 scope link 
+192.168.79.0/24 dev vlwc1 proto kernel scope link src 192.168.79.2 
+interface: wg0
+
+peer: x2SJRxF09Z9tn8cMFXv3Wp0xKLYCQ4WGlziRcJ99nS4=
+  endpoint: 192.168.79.2:54131
+  allowed ips: 10.77.0.2/32
+  latest handshake: 14 seconds ago
+  transfer: 2.85 MiB received, 1.64 MiB sent
+
+interface: wgt0
+
+peer: qR9sZfLoLkYqP/ENG5BToAQwa9vOkSEphyCD9g7vLAM=
+  endpoint: 192.168.79.1:51820
+  allowed ips: 10.77.0.1/32, 10.200.0.1/32
+  latest handshake: 14 seconds ago
+  transfer: 1.64 MiB received, 2.85 MiB sent
+  persistent keepalive: every 25 seconds
+signalling via tunnel: 200
+    │ Total  │ 2/2    │ 1.1mbps (1.1mbps avg) │ 0 (0%)          │ 0     │
+PASS call media flows through the tunnel
+PASS media really used the tunnel (2828 KiB on wg0)
+    (server WG address 10.77.0.1, client 10.77.0.2)
+wireguard x calls: 3 passed, 0 failed

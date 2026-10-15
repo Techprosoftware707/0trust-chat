@@ -17,10 +17,12 @@ if [[ -n "$CA" ]]; then
   docker cp "$CA" "$NAME:/usr/local/share/ca-certificates/test-extra-ca.crt"
   docker exec "$NAME" update-ca-certificates >/dev/null 2>&1
 fi
-docker exec "$NAME" bash -c "echo '127.0.0.1 $DOMAIN app.$DOMAIN matrix.$DOMAIN ops.$DOMAIN' >> /etc/hosts"
+docker exec "$NAME" bash -c "echo '127.0.0.1 $DOMAIN app.$DOMAIN matrix.$DOMAIN ops.$DOMAIN rtc.$DOMAIN' >> /etc/hosts"
 # What a clone would contain: tracked files plus new files that are not git-ignored
-# (so the working tree can be tested before committing), never ignored local state.
+# (so the working tree can be tested before committing), never ignored local state;
+# files deleted in the working tree are left out, as they would be after committing.
 git -C "$REPO" ls-files -z --cached --others --exclude-standard \
+  | (cd "$REPO" && while IFS= read -r -d '' f; do [[ -e "$f" ]] && printf '%s\0' "$f"; done) \
   | tar -C "$REPO" --null -T - -cf - \
   | docker exec -i "$NAME" bash -c 'rm -rf /root/lumen && mkdir -p /root/lumen && tar -C /root/lumen -xf -'
 echo "VM $NAME ready (systemd: $(docker exec "$NAME" systemctl is-system-running 2>/dev/null || true))"

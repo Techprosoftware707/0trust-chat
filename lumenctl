@@ -5,7 +5,7 @@
 #   sudo ./lumenctl logs <service> [-f]             service logs (portal|ops|worker|synapse|caddy|postgres|livekit|lkjwt)
 #   sudo ./lumenctl calls-selftest                  send real audio+video through the SFU (from this host)
 #   sudo ./lumenctl rtc-cert                        install a renewed calls TURN/TLS certificate (restarts LiveKit if changed)
-#   sudo ./lumenctl restart <service>
+#   sudo ./lumenctl restart <service>...
 #   sudo ./lumenctl compose <args...>               raw docker compose with the right env/files
 #   sudo ./lumenctl create-operator <user> <email> [role]
 #   sudo ./lumenctl operator-link <user>            new one-time setup/recovery link (1 h)
@@ -77,8 +77,8 @@ case "$cmd" in
     compose logs --tail 200 "$@" "$service"
     ;;
   restart)
-    service="${1:?service name required}"
-    compose restart "$service"
+    [[ $# -gt 0 ]] || { echo "service name required" >&2; exit 64; }
+    compose restart "$@"
     ;;
   compose)
     compose "$@"

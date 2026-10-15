@@ -1,0 +1,115 @@
+Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261015T040439Z.log
+==> Configuration
+    using configuration from /root/lumen-it.conf
+    ✔ configuration valid
+==> Preflight checks
+    ✔ operating system: Ubuntu 24.04.5 LTS
+    ✔ CPU architecture: x86_64
+    ✔ CPU cores: 4
+    ✔ systemd is running
+    ✔ memory: 16093 MB
+    ! 24 GB free on /var/lib; media uploads and backups grow over time (40 GB+ recommended)
+    ! 24 GB free on /var/backups; media uploads and backups grow over time (40 GB+ recommended)
+    ! system clock is not NTP-synchronised; two-factor codes and certificates depend on accurate time (timedatectl set-ntp true)
+    ✔ internet access to package registries
+    ✔ port 80/tcp is free
+    ✔ port 443/tcp is free
+    ✔ port 443/udp is free
+    ✔ port 8443/tcp is free
+    ✔ port 3478/udp is free
+    ✔ port 3478/tcp is free
+    Docker is not installed; it will be installed from Docker's official repository
+    no active host firewall; Lumen will enable UFW (allowing SSH first)
+    ! TLS_MODE=internal: using a private test CA; browsers and other Matrix servers will NOT trust this server. Testing only.
+    4 warning(s); continuing
+==> Host packages and Docker
+    ✔ host packages installed: ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common ufw
+    installing Docker Engine from download.docker.com
+    ✔ Docker installed (29.9.1)
+==> Secrets and directories
+    ✔ backup encryption key created (/etc/lumen/backup/identity.txt) — copy it somewhere safe, off this server
+    ✔ secrets present in /etc/lumen/secrets (generated once, never printed)
+==> Rendering and validating configuration
+    validating Caddy configuration
+    ✔ Caddy configuration valid
+    validating homeserver configuration (and generating the signing key if missing)
+    ✔ homeserver configuration valid; signing key present
+    validating Compose file
+    ✔ Compose configuration valid
+    ✔ configuration activated (previous kept in /etc/lumen/rendered.prev)
+==> Firewall and automatic updates
+    ✔ UFW enabled (default deny incoming; SSH kept open on: 22)
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 3478/udp 3478/tcp turn-relay/udp
+    ✔ automatic security updates enabled (no automatic reboots)
+==> WireGuard
+    disabled (WIREGUARD_ENABLED=false)
+==> Container images
+    ✔ base images pulled (pinned by digest)
+    ✔ portal image built (lumen/portal:1.0.0)
+    ✔ web chat app built
+==> Database
+    ✔ PostgreSQL healthy; roles and databases in place
+    ✔ portal database migrated and bootstrapped
+==> Services
+    ✔ synapse healthy
+    ✔ portal healthy
+    ✔ ops healthy
+    ✔ caddy running
+    ! TLS_MODE=internal: browsers must trust /etc/lumen/ca/caddy-local-root.crt (testing only)
+    ✔ internal CA bundle in place
+    ✔ homeserver service account created; token stored in /etc/lumen/secrets/synapse_admin_token
+==> Host agent and timers
+    ✔ systemd units installed: lumen-agent, lumen-backup.timer (03:17 daily), lumen-healthcheck.timer
+==> Operator account
+    ✔ operator 'itadmin' created; one-time setup link stored in /etc/lumen/operator-setup-link.txt (root only, valid 24 h)
+==> Initial encrypted backup
+    ✔ first backup created
+    ✔ backup restore verified in an isolated database
+==> Verifying public endpoints
+    ✔ website: https://lumen-it.test/healthz reports database OK
+    ✔ TLS certificate valid and trusted for lumen-it.test
+    ✔ TLS certificate valid for app.lumen-it.test
+    ✔ TLS certificate valid for matrix.lumen-it.test
+    ✔ Matrix discovery: /.well-known/matrix/server → matrix.lumen-it.test:443
+    ✔ Matrix discovery: /.well-known/matrix/client → https://matrix.lumen-it.test
+    ✔ chat app: https://app.lumen-it.test/ serves the web client
+    ✔ chat app: config.json points at this homeserver
+    ✔ homeserver: client API responds
+    ✔ homeserver: single sign-on through the portal is offered
+    ✔ portal: OIDC discovery document
+    ✔ federation: /_matrix/federation/v1/version
+    ✔ federation: signing keys are self-signed by lumen-it.test
+    ✔ security: homeserver admin API is not public
+    ✔ security: operator console paths are not public
+    ✔ security: internal API is not public
+    ✔ operator console reachable on the private port (ops.lumen-it.test:8443 via loopback)
+    ✔ voice/video: TURN relay answers STUN on udp/3478
+    ✔ security: PostgreSQL is not listening on a public address
+    ✔ security: Synapse is not listening on a public address
+──────────────── Lumen deployment summary ────────────────
+Result: SUCCESS — all endpoint checks passed
+Website & portal:   https://lumen-it.test
+Chat app:           https://app.lumen-it.test
+Homeserver:         https://matrix.lumen-it.test  (server name: lumen-it.test)
+Operator console:   https://ops.lumen-it.test:8443  (private: SSH tunnel or WireGuard)
+TLS:                INTERNAL TEST CA — not trusted by browsers or other servers
+Federation:         open (external reachability is reported in the console after the first probe)
+Database:           healthy
+Encryption:         end-to-end encryption on by default for all new rooms (Olm/Megolm, client-side)
+Backups:            /var/backups/lumen, daily at 03:17, age-encrypted
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          disabled
+Voice/video:        TURN relay enabled
+Email:              not configured — email verification and reset-by-email are off
+Payments:           none
+Operator setup:
+  1. On your computer:  ssh -L 8443:127.0.0.1:8443 <you>@<this server>
+     and add to your hosts file:  127.0.0.1 ops.lumen-it.test
+  2. On the server:  sudo cat /etc/lumen/operator-setup-link.txt   (one-time link, 24 h)
+  3. Open the link, choose a password, then enrol two-factor authentication.
+Remaining manual items:
+  • switch TLS_MODE to acme with real DNS before production use
+  • optional: configure SMTP_* to enable email verification and password reset
+  • store /etc/lumen/backup/identity.txt offline; without it backups cannot be decrypted
+Log: /var/log/lumen/install-20261015T040439Z.log
+exit=0

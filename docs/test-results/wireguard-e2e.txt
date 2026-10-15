@@ -1,0 +1,8 @@
+PASS generated profile contains a private key and a preshared key
+PASS server config does not contain the client private key
+PASS console reachable through the tunnel
+PASS console NOT reachable from a non-allow-listed network
+PASS agent reports a recent handshake with PSK
+PASS access revoked after removing the peer
+PASS peer removed from wg0.conf
+wireguard e2e: 7 passed, 0 failed

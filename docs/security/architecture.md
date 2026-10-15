@@ -2,7 +2,8 @@
 
 How a Lumen server is put together, where each trust boundary is, and how each
 boundary authenticates. Decisions and rejected alternatives are in
-[ADR 0001](../adr/0001-architecture.md); the threat and privacy model is in
+[ADR 0001](../adr/0001-architecture.md) and, for calls,
+[ADR 0002](../adr/0002-calling.md); the threat and privacy model is in
 [threat-model.md](threat-model.md); post-quantum status in
 [post-quantum.md](post-quantum.md).
 
@@ -20,7 +21,14 @@ boundary authenticates. Decisions and rejected alternatives are in
    postgres   (backend network, internal: true — no route out, no published port)
    worker     (probes, outbound email, billing lifecycle, retention, deletions)
    lumen-agent (root systemd service on the host; Unix socket; fixed operation allow-list)
- Optional:  coturn (TURN for 1:1 calls, host network)   ·   wg0 (WireGuard, host kernel)
+                  │   rtc.example.com      → livekit  (127.0.0.1:7880)  call signalling (wss); /twirp, /metrics,
+                  │                                                       /debug, /sfu_webhook → 404 publicly
+ Internet ──► 7882-7889/udp, 7881/tcp ── livekit SFU (host network)   encrypted call media (ciphertext frames)
+          ──► 3478/udp, 5349/tcp      ── livekit's embedded TURN      relay to the local SFU only
+ Calls (default on, CALLS_ENABLED):
+   lkjwt      (rtc + backend networks) MatrixRTC authorization service; Synapse proxies get_token to it
+   rtc network 172.30.42.0/28: the only place the SFU admin API (/twirp) and metrics answer
+ Optional:  wg0 (WireGuard, host kernel)
 ```
 
 | Service | Image | Runs as | Filesystem | Networks | Reaches |
@@ -31,7 +39,8 @@ boundary authenticates. Decisions and rejected alternatives are in
 | worker | same image, `SURFACE=worker` | uid 10001 | read-only | backend + egress | postgres, SMTP, Stripe, probes |
 | synapse | upstream Synapse 1.163, unmodified | uid 991 | read-only root; data volume | backend + egress | postgres, federation peers |
 | postgres | upstream PostgreSQL 17 | uid 70 | data volume | backend (internal) | nothing |
-| coturn | upstream coturn | non-root | read-only | host | relays only to public addresses (private ranges denied) |
+| livekit | upstream LiveKit 1.13, digest-pinned | uid 10400 | read-only root, tmpfs `/tmp` | host (signalling and API bound to 127.0.0.1) | clients' media; TURN relays only to the local SFU (container, VPN and private ranges denied) |
+| lkjwt | upstream element-hq lk-jwt-service 0.9, unmodified | uid 10401 | read-only root | backend + rtc | Synapse (membership checks as an application service), LiveKit API via Caddy on the rtc network |
 
 All containers: `cap_drop: ALL`, `no-new-privileges`, no Docker socket anywhere,
 no published database or application ports. Images are pinned by digest in
@@ -52,6 +61,8 @@ source maps.
 | Ops → host | `lumen-agent` (root, systemd) on `/run/lumen-agent/agent.sock`; the socket directory is mounted only into the ops container; the agent accepts only root or the app UID 10001 (checked with `SO_PEERCRED`) and only a fixed list of operations with validated arguments (WireGuard peers, backups, restart of named services, diagnostics). No shell, no arbitrary command. |
 | Homeserver → ops (entitlements) | Synapse module calls `http://ops:8000/internal/v1/media-limits` on the backend network with a bearer token from a secret file; the path is blocked at Caddy on every public site. |
 | Stripe → portal | Webhook signature verification (`Stripe-Signature` HMAC with timestamp tolerance) before anything is parsed, body size limit, rate limit, idempotency by event ID. The verified payload is applied; the worker's reconciliation job periodically re-reads subscriptions from Stripe's API to correct missed or out-of-order events. Payment success is only ever shown from Stripe's own state, never from a redirect. |
+| Chat app → call (SFU) | The app asks the homeserver for an SFU token (`/_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token`, Matrix access token required). The homeserver proxies the request to lkjwt (MSC4512). lkjwt checks that the user is joined to the room (MSC4502) and returns a LiveKit JWT scoped to that one room: join only, no room creation or admin, 1 h, pseudonymous identity. Anonymous requests get 401, non-members 403. LiveKit refuses tokens not signed with this server's key and does not auto-create rooms. TURN credentials are minted per session with a 5-minute lifetime; no long-term TURN secret is ever given to clients. |
+| Participant → participant (call media) | Frame-level end-to-end encryption in the browser (LiveKit's AES-GCM frame encryptor in a worker). Per-participant keys are sent over Olm-encrypted Matrix to-device messages by matrix-js-sdk's MatrixRTC encryption manager and rotated whenever someone joins or leaves. The SFU forwards ciphertext. DTLS-SRTP between each client and the SFU, and TLS on signalling, are extra hop-by-hop protection; they are not what the "end-to-end encrypted" label refers to. |
 | App → database | Separate PostgreSQL roles and databases for the portal and Synapse, passwords from secret files, `REVOKE ALL ON DATABASE … FROM PUBLIC`, `scram-sha-256` in `pg_hba.conf`, database reachable only on the internal network. |
 
 ## Secrets

@@ -41,6 +41,10 @@ weaker than classical X25519 even if ML-KEM were broken.
 | Device and user verification | Ed25519 device keys and cross-signing; SAS emoji comparison | Not PQ, but forgery needs a CRQC at attack time. |
 | Browser ↔ Lumen (website, portal, chat app, homeserver API) | TLS 1.3 by Caddy 2.11 (Go ≥ 1.24) | **Hybrid PQ key exchange** (`X25519MLKEM768`) when the browser offers it. Measured, not assumed — see below. Certificates are classical (ECDSA). |
 | Homeserver ↔ homeserver (federation) | Inbound: through Caddy (as above). Outbound: Synapse (Twisted/pyOpenSSL) with OpenSSL 3.5 in the upstream image | Inbound: hybrid when the remote server offers it. Outbound: OpenSSL 3.5 offers `X25519MLKEM768` by default, so hybrid is likely with modern peers — **not measured by Lumen**. Server signing keys (Ed25519) are classical. |
+| Call media (E2EE) | Per-frame AES-GCM with 128-bit per-participant keys (livekit-client frame encryptor). The keys are sent over Olm-encrypted to-device messages (X25519) by matrix-js-sdk's MatrixRTC encryption manager. | **Not PQ.** The frame cipher is symmetric, but the keys travel under Olm. Someone who records the to-device key messages and the media stream could decrypt the call with a future CRQC (HNDL). The app shows no PQ label for calls. |
+| Call signalling (browser ↔ `rtc.<domain>`) | TLS 1.3 by Caddy, reverse-proxied to LiveKit on loopback | Same as other Caddy sites: hybrid `X25519MLKEM768` when the browser offers it. |
+| Call media transport (browser ↔ SFU) | DTLS-SRTP, run by the browser's WebRTC stack and LiveKit's pion/dtls: DTLS 1.2 with classical ECDHE | **Not PQ** (hop-by-hop layer under the E2EE). |
+| TURN over TLS (port 5349) | LiveKit's embedded TURN server (Go crypto/tls) | Not measured. The TLS 1.0/1.1 refusal is tested; the negotiated key-exchange group is not measured, so no PQ claim is made. |
 | Inside the host | Unix domain sockets and an internal Docker network (no TLS) | Not network-exposed. |
 | WireGuard admin tunnel (optional) | Noise IK (Curve25519, ChaCha20-Poly1305) **plus a per-peer preshared key** | The PSK is mixed into the handshake, so recorded tunnel traffic stays confidential against a CRQC as long as the PSK stays secret. The PSK reaches the operator inside the peer configuration file, downloaded once over the hybrid-TLS console. Peer authentication remains classical. |
 | Backups | `age` with X25519 recipients (Ubuntu 24.04 package) | **Not PQ.** Off-site backup copies are an HNDL target. Mitigation: keep backups on storage you control and encrypt that storage too; see "Roadmap". |
@@ -64,7 +68,7 @@ outbound federation connections made by Synapse.
 
 ## What Lumen will not do
 
-* Claim post-quantum security for messages, or show a PQ badge in the chat app.
+* Claim post-quantum security for messages or calls, or show a PQ badge in the chat app.
 * Invent or patch in a PQ extension to Olm/Megolm. A key agreement that only
   Lumen clients speak would break interoperability with the Matrix network and
   would be unreviewed cryptography — both are explicitly out of scope

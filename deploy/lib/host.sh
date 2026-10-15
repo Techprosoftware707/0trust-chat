@@ -101,6 +101,12 @@ configure_firewall() {
     run ufw allow "$tcp/tcp" comment 'lumen: calls media (ice tcp)' && added+=("$tcp/tcp")
     run ufw allow "$tturn/udp" comment 'lumen: calls turn udp' && added+=("$tturn/udp")
     run ufw allow "$tls/tcp" comment 'lumen: calls turn tls' && added+=("$tls/tcp")
+  else
+    # Calls turned off: close the ports Lumen opened for them (only its own labelled rules).
+    local num
+    while read -r num; do
+      [[ -n "$num" ]] && yes | ufw delete "$num" >/dev/null 2>&1 || true
+    done < <(ufw status numbered 2>/dev/null | grep "# lumen: calls" | sed -E 's/^\[ *([0-9]+)\].*/\1/' | sort -rn)
   fi
   local ops_port wg_if; ops_port="$(conf_get LUMEN_OPS_PORT 8443)"
   if truthy "$(conf_get WIREGUARD_ENABLED false)"; then

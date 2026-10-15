@@ -30,14 +30,34 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
 7. **Chat client — not implemented:** QR-code verification, threads, spaces,
    rich-text editor, @mentions, rendering received HTML (plain-text body is
    shown), persistent search index (on-device search covers loaded history),
-   web push, group calls, room settings beyond enabling encryption, multiple
+   web push, room settings beyond enabling encryption, multiple
    accounts, native mobile/desktop apps (the web app is responsive; any Matrix
    client works).
 8. **All rooms are encrypted** (`encryption_enabled_by_default_for_room_type:
    all`); public unencrypted rooms are not offered.
-9. **Voice/video**: 1:1 calls only. Tested between two browsers on one machine with
-   fake media devices; TURN answers STUN locally, but relaying across real NATs
-   has not been tested.
+9. **Voice/video calls** (MatrixRTC + LiveKit; see ADR 0002 and the test
+   report for what was actually exercised):
+   * **One SFU node.** There is no multi-node SFU, no separate TURN host and no
+     automatic failover. A LiveKit restart drops active calls; clients
+     reconnect.
+   * **The SFU sees metadata, including audio levels** (who speaks when).
+     Media content stays end-to-end encrypted.
+   * **Removal mid-call is cryptographic only.** Removing someone from the room
+     stops new tokens and new media keys, but the server does not disconnect
+     their existing SFU session.
+   * **Not tested:**
+     * other homeservers' users joining calls (federated MatrixRTC, served
+       through the federation token path);
+     * Element Call or Element X on the same call;
+     * real internet NAT and carrier networks: the calls were tested in
+       network namespaces on one host, with simulated loss, latency, UDP
+       blocking and outages;
+     * real cameras and microphones: browsers ran with synthetic media
+       devices.
+   * **Call history** comes from the room's call-membership and notification
+     events. It is only as complete as the room timeline the client has
+     loaded.
+   * **Call media is not post-quantum.**
 10. **SSO-only chat login.** A portal outage blocks *new* chat sign-ins (existing
     sessions continue). Third-party Matrix clients must support SSO login (most
     current ones do).

@@ -57,11 +57,23 @@ FEDERATION_MODE=open
 
 # --- Features --------------------------------------------------------------------------
 PRESENCE_ENABLED=true
-# 1:1 voice/video calls need a TURN relay (coturn, host network, UDP 3478 + relay range).
-VOIP_ENABLED=false
-#TURN_EXTERNAL_IP=                          # public IPv4 of this server (auto-detected)
-#TURN_MIN_PORT=49160
-#TURN_MAX_PORT=49200
+
+# --- Voice and video calls (on by default) --------------------------------------------
+# MatrixRTC calls through a LiveKit SFU with end-to-end encrypted media (the SFU only
+# forwards ciphertext). Needs a DNS name for the SFU and these ports open in UFW AND in
+# any cloud-provider firewall: 7882-7889/udp (media), 7881/tcp (ICE/TCP fallback),
+# 3478/udp (TURN), 5349/tcp (TURN/TLS). See docs/operations/admin-guide.md#calls.
+CALLS_ENABLED=true
+#LUMEN_RTC_DOMAIN=rtc.example.com           # SFU signalling + TURN/TLS certificate name
+#CALLS_PUBLIC_IP=                           # public IPv4 the SFU advertises (empty: LiveKit asks public STUN servers at startup)
+#CALLS_UDP_PORTS=7882-7889                  # ICE/UDP mux range (at most 64 ports)
+#CALLS_TCP_PORT=7881
+#CALLS_TURN_UDP_PORT=3478
+#CALLS_TURN_TLS_PORT=5349
+#CALLS_MAX_PARTICIPANTS=0                   # per call; 0 = no limit (capacity depends on the host)
+#RTC_NETWORK_SUBNET=172.30.42.0/28          # internal Docker network for SFU administration
+# Test labs only: let the SFU advertise a private address (e.g. 10.200.0.1).
+#CALLS_ALLOW_PRIVATE_NODE_IP=false
 
 # --- WireGuard (optional private admin network; never replaces end-to-end encryption)
 WIREGUARD_ENABLED=false

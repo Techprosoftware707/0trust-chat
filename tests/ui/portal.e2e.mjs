@@ -453,7 +453,7 @@ await test("ops: setup link is single-use", async () => {
 const OPS_PAGES = [
   "/ops/users/", "/ops/workspaces/", "/ops/plans/", "/ops/subscriptions/", "/ops/webhooks/", "/ops/health/",
   "/ops/federation/", "/ops/backups/", "/ops/wireguard/", "/ops/maintenance/", "/ops/security/", "/ops/audit/",
-  "/ops/config/", "/ops/support/",
+  "/ops/config/", "/ops/support/", "/ops/calls/",
 ];
 for (const p of OPS_PAGES) {
   await test(`ops ${p} renders`, async () => {
@@ -465,6 +465,20 @@ for (const p of OPS_PAGES) {
     assert.deepEqual(takeProblems(op), []);
   });
 }
+
+await test("ops: Calls page runs the real media self-test through the host agent", async () => {
+  await opp.goto(ops + "/ops/calls/");
+  const body = await opp.locator("main").innerText();
+  assert.match(body, /HTTPS working does not prove media connectivity/);
+  assert.doesNotMatch(body, /@[a-z0-9._=-]+:/, "no Matrix IDs on the Calls page");
+  await opp.locator('button:has-text("Run media self-test")').click();
+  await opp.waitForLoadState("domcontentloaded");
+  const alert = await opp.locator(".alert").first().innerText({ timeout: 120000 });
+  assert.match(alert, /Media self-test passed/, alert);
+  assert.match(alert, /Total\s+4\/4/, "the load tester's own summary: 4 of 4 tracks received");
+  await shot(opp, "ops-calls-selftest");
+  assert.deepEqual(takeProblems(op), []);
+});
 
 await test("ops: user detail shows metadata only and finds the UI test customer", async () => {
   await opp.goto(ops + `/ops/users/?q=${username}`);

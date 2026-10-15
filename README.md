@@ -9,6 +9,12 @@ console — installed on one Ubuntu 24.04 server with one command.
 * **End-to-end encrypted by default:** Olm/Megolm in the browser through the
   audited Rust implementation (vodozemac via matrix-sdk-crypto). Lumen contains
   no home-made cryptography; the server stores only ciphertext.
+* **Voice and video calls:** 1:1 and group calls with HD voice, up to 1080p
+  video and screen sharing. They use MatrixRTC (the protocol Element Call
+  uses) through a LiveKit SFU on your server. Media is end-to-end encrypted in
+  the browser with keys exchanged over Matrix, so the SFU forwards ciphertext
+  it cannot decrypt. TURN over UDP and TLS is included for restrictive
+  networks, and nothing is recorded. See [ADR 0002](docs/adr/0002-calling.md).
 * **Zero-trust layout:** separate services with separate credentials, an
   operator console that is not on the public internet, MFA and RBAC for
   operators, an append-only audit log, no hidden accounts, no Docker socket in
@@ -22,8 +28,10 @@ Name, logo, colours and domains are configuration (`BRAND_*`,
 
 ## Install
 
-On a fresh Ubuntu Server 24.04 with DNS for `example.com`, `app.`, `matrix.`
-and `ops.` pointing at it ([DNS examples](docs/operations/dns.md)):
+On a fresh Ubuntu Server 24.04 with DNS for `example.com`, `app.`, `matrix.`,
+`rtc.` (calls) and `ops.` pointing at it ([DNS examples](docs/operations/dns.md)).
+Open TCP 80 and 443, UDP 443, and the calls ports (7882–7889/udp, 7881/tcp,
+3478/udp, 5349/tcp) in any cloud firewall in front of the server:
 
 ```bash
 git clone <your Lumen repository> lumen && cd lumen
@@ -40,7 +48,7 @@ verifies every public endpoint and prints a summary without secrets. It is safe
 to run again.
 
 Operations: `./lumenctl` (status, logs, apply config, operators, federation,
-WireGuard, secrets), `./update.sh`, `./backup.sh`, `./restore.sh`,
+WireGuard, secrets, `calls-selftest`), `./update.sh`, `./backup.sh`, `./restore.sh`,
 `./healthcheck.sh`, `./diagnose.sh`, `./uninstall.sh`.
 Start with the [administrator guide](docs/operations/admin-guide.md).
 
@@ -55,9 +63,12 @@ Start with the [administrator guide](docs/operations/admin-guide.md).
 | synapse | unmodified upstream Matrix homeserver + a small entitlement module |
 | postgres | PostgreSQL 17 on an internal-only network |
 | web chat | static React app on matrix-js-sdk + Rust crypto (WASM) |
-| optional | coturn (1:1 voice/video), WireGuard (private operator access) |
+| livekit | LiveKit SFU for calls (host network; forwards end-to-end encrypted media; embedded TURN) |
+| lkjwt | MatrixRTC authorization service: SFU tokens only for room members, via the homeserver |
+| optional | WireGuard (private operator access) |
 
-Architecture decisions: [ADR 0001](docs/adr/0001-architecture.md).
+Architecture decisions: [ADR 0001](docs/adr/0001-architecture.md) (platform),
+[ADR 0002](docs/adr/0002-calling.md) (calls).
 
 ## Documentation
 
@@ -75,7 +86,7 @@ install.sh update.sh backup.sh restore.sh healthcheck.sh diagnose.sh uninstall.s
 docker-compose.yml            the stack (images pinned in deploy/versions.env)
 deploy/lib/                   installer libraries, config renderer (render.py), verification
 deploy/host-agent/            root helper with a fixed operation allow-list (WireGuard, backups, restarts)
-deploy/systemd/               agent, backup, backup-verify and health timers
+deploy/systemd/               agent, backup, backup-verify, health and rtc-certificate timers
 deploy/templates/             PostgreSQL roles, Synapse SSO page templates
 services/portal/              Django project (website, portal, IdP, console, worker) + tests
 services/chat/                web chat client (React + matrix-js-sdk) + unit tests
@@ -98,6 +109,10 @@ node tests/chat/deployed.e2ee.mjs       # SSO + encrypted DM; DB holds only ciph
 python3 tests/integration/entitlements.py
 bash tests/security/scan.sh
 bash tests/federation/run.sh            # second, independent homeserver
+bash tests/calls/lab.sh up              # network namespaces = separate client networks
+(cd services/chat && npm run test:calls) # real browser calls between namespaces (see tests/calls/)
+bash tests/calls/wg_calls.sh            # calls with the operator WireGuard tunnel up
+bash tests/calls/bench.sh 30            # SFU capacity on this host
 # Installer, in a disposable systemd Ubuntu 24.04 container:
 bash tests/installer/vm.sh lumen-it lumen-it.test
 ```

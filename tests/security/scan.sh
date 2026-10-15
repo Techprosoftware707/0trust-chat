@@ -7,8 +7,10 @@
 # and homeserver internals unreachable; console gate for non-allowed source IPs.
 # TLS: protocol floor, certificate, HSTS. HTTP: security headers on every site,
 # CSRF, open redirects, admin paths. Containers: non-root, read-only, capabilities,
-# no Docker socket, secrets not in image config or environment. Repository: no
-# private keys or tokens committed. Prints PASS/FAIL lines; exit status = failures.
+# no Docker socket, secrets not in image config or environment. Calls (when
+# enabled): SFU listeners, private SFU paths, forged/unscoped SFU tokens, TURN
+# restrictions and TLS floor, no recording, no identities in SFU logs. Repository:
+# no private keys or tokens committed. Prints PASS/FAIL lines; exit status = failures.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 CONF="${LUMEN_CONF:-/etc/lumen/lumen.conf}"
@@ -26,7 +28,7 @@ unexpected="$(echo "$listeners" | grep -E 'docker-proxy|postgres|synapse|gunicor
 [[ -z "$unexpected" ]] && ok "no container ports published and no app/database listeners on the host" || bad "unexpected listeners" "$unexpected"
 caddy_ports="$(echo "$listeners" | grep caddy | awk '{print $1"/"$2}' | sed 's/0\.0\.0\.0://; s/\[::\]://' | sort -u | tr '\n' ' ')"
 echo "     caddy listens on: $caddy_ports"
-[[ "$(echo "$listeners" | grep -c caddy)" -gt 0 ]] && ok "public listeners are Caddy only (plus TURN/WireGuard when enabled)" || bad "caddy listeners"
+[[ "$(echo "$listeners" | grep -c caddy)" -gt 0 ]] && ok "public listeners are Caddy only (plus the calls SFU/TURN and WireGuard when enabled)" || bad "caddy listeners"
 for svc in postgres synapse portal ops worker; do
   cid="$(docker ps -q --filter "label=com.docker.compose.service=$svc" --filter label=com.docker.compose.project=lumen | head -n1)"
   [[ -z "$cid" ]] && continue
@@ -97,10 +99,71 @@ grep -q '"m.login.password"' <<<"$wk" && bad "homeserver offers password login" 
 reg="$(c "$MX" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "https://$MX/_matrix/client/v3/register")"
 [[ "$reg" == 403 || "$reg" == 404 ]] && ok "homeserver open registration disabled ($reg)" || bad "registration" "$reg"
 
+if [[ "$(get CALLS_ENABLED)" != false ]]; then
+  echo "--- calls (SFU, TURN, authorization)"
+  RTC="$(get LUMEN_RTC_DOMAIN)"; RTC="${RTC:-rtc.$P}"
+  tcp_port="$(get CALLS_TCP_PORT)"; tcp_port="${tcp_port:-7881}"
+  tls_port="$(get CALLS_TURN_TLS_PORT)"; tls_port="${tls_port:-5349}"
+  turn_port="$(get CALLS_TURN_UDP_PORT)"; turn_port="${turn_port:-3478}"
+  udp_range="$(get CALLS_UDP_PORTS)"; udp_range="${udp_range:-7882-7889}"
+  lk_listen="$(echo "$listeners" | grep livekit || true)"
+  bad_tcp="$(awk -v a="$tcp_port" -v b="$tls_port" '$1=="tcp" { n=split($2,x,":"); port=x[n]; addr=substr($2,1,length($2)-length(port)-1);
+    if (addr=="127.0.0.1" && (port==7880 || port==6789)) next; if (port==a || port==b) next; print $2 }' <<<"$lk_listen")"
+  [[ -n "$lk_listen" && -z "$bad_tcp" ]] && ok "SFU TCP: signalling and metrics on loopback only; public only ICE/TCP $tcp_port and TURN/TLS $tls_port" || bad "SFU TCP listeners" "${bad_tcp:-none found}"
+  bad_udp="$(awk -v lo="${udp_range%-*}" -v hi="${udp_range#*-}" -v t="$turn_port" '$1=="udp" { n=split($2,x,":"); port=x[n]+0;
+    if ((port>=lo && port<=hi) || port==t || (port>=40000 && port<=40999)) next; print $2 }' <<<"$lk_listen")"
+  [[ -z "$bad_udp" ]] && ok "SFU UDP: only media $udp_range, TURN $turn_port and TURN relay allocations" || bad "SFU UDP listeners" "$bad_udp"
+  for path in /twirp/livekit.RoomService/ListRooms /twirp/livekit.Egress/StartRoomCompositeEgress /metrics /sfu_webhook /debug/pprof/; do
+    code="$(c "$RTC" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "https://$RTC$path")"
+    [[ "$code" == 404 ]] && ok "SFU private path hidden on the public site ($path → 404)" || bad "SFU $path" "$code"
+  done
+  rtc_gw="$(docker run --rm --entrypoint curl "$img" -sk --max-time 8 -o /dev/null -w '%{http_code}' --resolve "$RTC:443:$gw" "https://$RTC/" 2>&1 || true)"
+  rtc_api="$(docker run --rm --entrypoint curl "$img" -sk --max-time 8 -o /dev/null -w '%{http_code}' --resolve "$RTC:443:$gw" -X POST -H 'Content-Type: application/json' -d '{}' "https://$RTC/twirp/livekit.RoomService/ListRooms" 2>&1 || true)"
+  [[ "$rtc_gw" == 200 && "$rtc_api" == 404 ]] && ok "SFU API refused to containers outside the calls network (same client reaches signalling: 200)" || bad "SFU API network gate" "signalling=$rtc_gw api=$rtc_api"
+  mkjwt() { python3 - "$1" <<'PY'
+import base64, hashlib, hmac, json, os, sys, time
+kid, sec = open("/etc/lumen/secrets/livekit_keys").read().split(":", 1)
+key = sec.strip().encode() if sys.argv[1] == "real" else os.urandom(32)
+b = lambda x: base64.urlsafe_b64encode(x).rstrip(b"=").decode()
+h = b(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+now = int(time.time())
+p = b(json.dumps({"iss": kid.strip(), "sub": "scan", "exp": now + 120, "nbf": now - 5,
+                  "video": {"roomJoin": True, "roomAdmin": True, "room": "scan-%s" % os.urandom(4).hex()}}).encode())
+print(f"{h}.{p}.{b(hmac.new(key, f'{h}.{p}'.encode(), hashlib.sha256).digest())}")
+PY
+  }
+  forged="$(c "$RTC" -o /dev/null -w '%{http_code}' "https://$RTC/rtc/validate?access_token=$(mkjwt forged)")"
+  [[ "$forged" == 401 ]] && ok "SFU rejects a token not signed by this server's key (401)" || bad "forged SFU token" "$forged"
+  noroom="$(c "$RTC" -o /dev/null -w '%{http_code}' "https://$RTC/rtc/validate?access_token=$(mkjwt real)")"
+  [[ "$noroom" == 404 ]] && ok "a valid token cannot create rooms (auto-create off: unknown room → 404)" || bad "SFU room auto-create" "$noroom"
+  code="$(c "$MX" -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "https://$MX/_matrix/client/unstable/io.element.msc4195/rtc/livekit/get_token")"
+  [[ "$code" == 401 ]] && ok "SFU token endpoint requires a signed-in Matrix user (401)" || bad "anonymous SFU token" "$code"
+  for v in tls1 tls1_1; do
+    if echo | openssl s_client -connect "127.0.0.1:$tls_port" -servername "$RTC" "-$v" >/dev/null 2>&1; then bad "TURN/TLS accepts ${v/_/.}"; else ok "TURN/TLS refuses ${v/_/.}"; fi
+  done
+  lkconf=/etc/lumen/rendered/livekit/livekit.yaml
+  python3 - "$lkconf" "$(get WG_SUBNET)" <<'PY' && ok "TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created" || bad "SFU/TURN configuration" "$lkconf"
+import sys, json
+text = open(sys.argv[1]).read()
+need = ["ttl_seconds: 300", "auto_create: false", "172.16.0.0/12"] + ([sys.argv[2]] if sys.argv[2] else [])
+sys.exit(0 if all(n in text for n in need) else 1)
+PY
+  ufw_relay="$(ufw status 2>/dev/null | grep -E '^40000' || true)"
+  [[ -z "$ufw_relay" ]] && ok "TURN relay port range is not opened in the firewall" || bad "relay ports open" "$ufw_relay"
+  egress="$(docker ps --format '{{.Image}}' | grep -iE 'egress|recorder' || true)"
+  [[ -z "$egress" ]] && ok "no recording/egress service running (calls are not recorded)" || bad "recording service present" "$egress"
+  idleak=0
+  for svc in livekit lkjwt; do
+    cid="$(docker ps -q --filter "label=com.docker.compose.service=$svc" --filter label=com.docker.compose.project=lumen | head -n1)"
+    [[ -n "$cid" ]] && docker logs --since 24h "$cid" 2>&1 | grep -qE "@[a-z0-9._=/+-]+:$P" && { idleak=1; echo "     Matrix IDs in $svc logs" >&2; }
+  done
+  ((idleak == 0)) && ok "SFU and authorization-service logs contain no Matrix user IDs" || bad "Matrix IDs in calls logs"
+fi
+
 echo "--- containers"
 for cid in $(docker ps -q --filter label=com.docker.compose.project=lumen); do
   name="$(docker inspect -f '{{.Name}}' "$cid" | tr -d /)"
-  read -r user ro priv capdrop secopt binds <<<"$(docker inspect -f '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}} {{json .HostConfig.CapDrop}} {{json .HostConfig.SecurityOpt}} {{json .HostConfig.Binds}}' "$cid")"
+  read -r user ro priv capdrop secopt _binds <<<"$(docker inspect -f '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}} {{json .HostConfig.CapDrop}} {{json .HostConfig.SecurityOpt}} {{json .HostConfig.Binds}}' "$cid")"
   [[ -n "$user" && "$user" != root && "$user" != 0 && "$user" != 0:* ]] && ok "$name runs as non-root ($user)" || bad "$name user" "'$user'"
   [[ "$ro" == true ]] && ok "$name read-only root filesystem" || bad "$name read-only rootfs"
   [[ "$priv" == false ]] && ok "$name not privileged" || bad "$name privileged"

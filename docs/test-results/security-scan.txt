@@ -1,0 +1,132 @@
+--- exposure
+PASS no container ports published and no app/database listeners on the host
+     caddy listens on: tcp/443 tcp/80 tcp/8443 udp/443 udp/8443 
+PASS public listeners are Caddy only (plus the calls SFU/TURN and WireGuard when enabled)
+PASS postgres: no published ports
+PASS synapse: no published ports
+PASS portal: no published ports
+PASS ops: no published ports
+PASS worker: no published ports
+PASS PostgreSQL only on the internal backend network (no route out)
+PASS operator console container has no egress network
+PASS console drops connections from non-allowed source IPs (same client reaches the public site: 200)
+PASS console reachable from loopback (SSH tunnel path)
+--- TLS
+PASS lumen.test refuses tls1
+PASS lumen.test refuses tls1.1
+PASS lumen.test negotiates TLS 1.3
+PASS app.lumen.test refuses tls1
+PASS app.lumen.test refuses tls1.1
+PASS app.lumen.test negotiates TLS 1.3
+PASS matrix.lumen.test refuses tls1
+PASS matrix.lumen.test refuses tls1.1
+PASS matrix.lumen.test negotiates TLS 1.3
+PASS plain HTTP redirects to HTTPS
+--- HTTP security headers
+PASS lumen.test/: strict-transport-security
+PASS lumen.test/: x-content-type-options
+PASS lumen.test/: strict CSP (no unsafe-inline, no framing)
+PASS lumen.test/: no Server header
+PASS lumen.test/accounts/login/: strict-transport-security
+PASS lumen.test/accounts/login/: x-content-type-options
+PASS lumen.test/accounts/login/: strict CSP (no unsafe-inline, no framing)
+PASS lumen.test/accounts/login/: no Server header
+PASS app.lumen.test/: strict-transport-security
+PASS app.lumen.test/: x-content-type-options
+PASS app.lumen.test/: strict CSP (no unsafe-inline, no framing)
+PASS app.lumen.test/: no Server header
+PASS matrix.lumen.test/_matrix/client/versions: strict-transport-security
+PASS matrix.lumen.test/_matrix/client/versions: x-content-type-options
+PASS matrix.lumen.test/_matrix/client/versions: no Server header
+--- application checks
+PASS homeserver admin API hidden (/_synapse/admin/v1/server_version → 404)
+PASS homeserver admin API hidden (/_synapse/admin/v1/users → 404)
+PASS /ops/ not served on the public site (404)
+PASS /ops/dashboard/ not served on the public site (404)
+PASS /internal/v1/media-limits not served on the public site (404)
+PASS /admin/ not served on the public site (404)
+PASS CSRF: POST without token rejected (403)
+PASS no open redirect via ?next= on sign-in
+PASS no open redirect via ?next= on sign-out
+PASS homeserver offers no password login (SSO only)
+PASS homeserver open registration disabled (403)
+--- calls (SFU, TURN, authorization)
+PASS SFU TCP: signalling and metrics on loopback only; public only ICE/TCP 7881 and TURN/TLS 5349
+PASS SFU UDP: only media 7882-7889, TURN 3478 and TURN relay allocations
+PASS SFU private path hidden on the public site (/twirp/livekit.RoomService/ListRooms → 404)
+PASS SFU private path hidden on the public site (/twirp/livekit.Egress/StartRoomCompositeEgress → 404)
+PASS SFU private path hidden on the public site (/metrics → 404)
+PASS SFU private path hidden on the public site (/sfu_webhook → 404)
+PASS SFU private path hidden on the public site (/debug/pprof/ → 404)
+PASS SFU API refused to containers outside the calls network (same client reaches signalling: 200)
+PASS SFU rejects a token not signed by this server's key (401)
+PASS a valid token cannot create rooms (auto-create off: unknown room → 404)
+PASS SFU token endpoint requires a signed-in Matrix user (401)
+PASS TURN/TLS refuses tls1
+PASS TURN/TLS refuses tls1.1
+PASS TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created
+PASS TURN relay port range is not opened in the firewall
+PASS no recording/egress service running (calls are not recorded)
+PASS SFU and authorization-service logs contain no Matrix user IDs
+--- containers
+PASS lumen-lkjwt-1 runs as non-root (10401:10401)
+PASS lumen-lkjwt-1 read-only root filesystem
+PASS lumen-lkjwt-1 not privileged
+PASS lumen-lkjwt-1 drops all capabilities
+PASS lumen-lkjwt-1 no-new-privileges
+PASS lumen-lkjwt-1 has no Docker socket
+PASS lumen-lkjwt-1: no secret values in environment
+PASS lumen-synapse-1 runs as non-root (991:991)
+PASS lumen-synapse-1 read-only root filesystem
+PASS lumen-synapse-1 not privileged
+PASS lumen-synapse-1 drops all capabilities
+PASS lumen-synapse-1 no-new-privileges
+PASS lumen-synapse-1 has no Docker socket
+PASS lumen-synapse-1: no secret values in environment
+PASS lumen-caddy-1 runs as non-root (10200:10200)
+PASS lumen-caddy-1 read-only root filesystem
+PASS lumen-caddy-1 not privileged
+PASS lumen-caddy-1 drops all capabilities
+PASS lumen-caddy-1 no-new-privileges
+PASS lumen-caddy-1 has no Docker socket
+PASS lumen-caddy-1: no secret values in environment
+PASS lumen-worker-1 runs as non-root (10001:10300)
+PASS lumen-worker-1 read-only root filesystem
+PASS lumen-worker-1 not privileged
+PASS lumen-worker-1 drops all capabilities
+PASS lumen-worker-1 no-new-privileges
+PASS lumen-worker-1 has no Docker socket
+PASS lumen-worker-1: no secret values in environment
+PASS lumen-portal-1 runs as non-root (10001:10300)
+PASS lumen-portal-1 read-only root filesystem
+PASS lumen-portal-1 not privileged
+PASS lumen-portal-1 drops all capabilities
+PASS lumen-portal-1 no-new-privileges
+PASS lumen-portal-1 has no Docker socket
+PASS lumen-portal-1: no secret values in environment
+PASS lumen-ops-1 runs as non-root (10001:10300)
+PASS lumen-ops-1 read-only root filesystem
+PASS lumen-ops-1 not privileged
+PASS lumen-ops-1 drops all capabilities
+PASS lumen-ops-1 no-new-privileges
+PASS lumen-ops-1 has no Docker socket
+PASS lumen-ops-1: no secret values in environment
+PASS lumen-livekit-1 runs as non-root (10400:10400)
+PASS lumen-livekit-1 read-only root filesystem
+PASS lumen-livekit-1 not privileged
+PASS lumen-livekit-1 drops all capabilities
+PASS lumen-livekit-1 no-new-privileges
+PASS lumen-livekit-1 has no Docker socket
+PASS lumen-livekit-1: no secret values in environment
+PASS lumen-postgres-1 runs as non-root (70:70)
+PASS lumen-postgres-1 read-only root filesystem
+PASS lumen-postgres-1 not privileged
+PASS lumen-postgres-1 drops all capabilities
+PASS lumen-postgres-1 no-new-privileges
+PASS lumen-postgres-1 has no Docker socket
+PASS lumen-postgres-1: no secret values in environment
+--- repository and images
+PASS no private keys or live tokens in tracked files
+PASS portal image ENV carries no secrets
+PASS build-time CA secret not baked into image layers
+security scan: 123 passed, 0 failed

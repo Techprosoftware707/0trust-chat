@@ -12,8 +12,8 @@ DNS knowledge. Disaster recovery has its own guide:
 | OS | Ubuntu Server 24.04 LTS, x86_64 or arm64, systemd | fresh install, nothing else on ports 80/443 |
 | CPU / RAM | 2 vCPU / 4 GB | 4 vCPU / 8 GB (hundreds of active users) |
 | Disk | 20 GB free | 40 GB+ for `/var/lib` and `/var/backups` (media and backups grow) |
-| Network | public IPv4, ports 80/tcp, 443/tcp+udp open | IPv6 too; UDP 3478 and 49160–49200 if voice/video is on; UDP 51820 for WireGuard |
-| DNS | A/AAAA records for `example.com`, `app.`, `matrix.` (and `ops.` for the console name) | see [dns.md](dns.md) |
+| Network | public IPv4; ports 80/tcp, 443/tcp+udp; for calls 7882–7889/udp, 7881/tcp, 3478/udp, 5349/tcp | IPv6 too; UDP 51820 for WireGuard; bandwidth for calls (see [Calls](#calls)) |
+| DNS | A/AAAA records for `example.com`, `app.`, `matrix.`, `rtc.` (calls) and `ops.` (console certificate) | see [dns.md](dns.md) |
 | Time | NTP synchronised (`timedatectl`) | — |
 
 The installer checks all of these (preflight) and refuses to continue on hard
@@ -58,13 +58,16 @@ every endpoint check passed; exit 3 means the stack is up but a check failed
 | `/var/lib/lumen/postgres` | PostgreSQL data (portal and homeserver databases) |
 | `/var/lib/lumen/synapse` | homeserver signing key (**server identity**) and media store |
 | `/var/lib/lumen/caddy` | TLS certificates and ACME account |
+| `/var/lib/lumen/livekit/tls` | copy of the `rtc.` certificate for TURN/TLS (refreshed daily by `lumen-rtc-cert.timer`) |
+| `/etc/lumen/rendered/livekit/livekit.yaml` | generated SFU configuration (no secrets; the API key is in `/etc/lumen/secrets/livekit_keys`) |
 | `/var/lib/lumen/www/chat` | built web chat app |
 | `/var/lib/lumen/sockets` | Unix sockets between Caddy and the apps |
 | `/var/backups/lumen` | encrypted backups |
 | `/var/log/lumen` | install, update, backup, restore logs |
 
 Container users: app 10001 (group 10300 for sockets, 10100 for secrets), Caddy
-10200, Synapse 991, PostgreSQL 70. Host groups `lumen-secrets` (10100) and
+10200, Synapse 991, PostgreSQL 70, LiveKit SFU 10400, calls authorization
+service 10401. Host groups `lumen-secrets` (10100) and
 `lumen-sockets` (10300) are created by the installer.
 
 ## 4. The operator console
@@ -116,7 +119,7 @@ anywhere.
 
 ```bash
 sudo ./lumenctl status                    # containers, health, versions
-sudo ./lumenctl logs synapse -f           # portal | ops | worker | synapse | caddy | postgres | coturn
+sudo ./lumenctl logs synapse -f           # portal | ops | worker | synapse | caddy | postgres | livekit | lkjwt
 sudo ./lumenctl restart portal
 sudo ./healthcheck.sh                     # pass/fail of every component (exit 0/1/2)
 sudo ./diagnose.sh                        # explains DNS/TLS/federation/SMTP/payment problems
@@ -127,7 +130,7 @@ sudo ./lumenctl manage <command>          # Django management command in a one-o
 A systemd timer runs `healthcheck.sh --quiet --record` every 5 minutes; the
 console's **Service health** page shows the probes the worker runs continuously
 (website, console, chat app, homeserver, database, federation, TLS including the
-negotiated key exchange, email, TURN, backups, disk, payments).
+negotiated key exchange, email, calls SFU, TURN, backups, disk, payments).
 
 ## 6. Changing configuration
 
@@ -159,7 +162,126 @@ exist — it is part of every user ID and of the federation identity.
   accounts and password reset by email is enabled. Without SMTP the product says
   so wherever email would be involved; nothing pretends an email was sent.
 
-## 8. Billing
+## 8. Voice and video calls<a id="calls"></a>
+
+Calls are on by default (`CALLS_ENABLED=true`). They use MatrixRTC, the same
+protocol as Element Call. Media goes through a LiveKit SFU on this server, and
+access is granted by a small authorization service (`lkjwt`) that the
+homeserver consults. The design and its limits are described in
+[ADR 0002](../adr/0002-calling.md).
+
+**What the server can and cannot see.** Media is end-to-end encrypted by the
+participants' apps. The SFU forwards encrypted frames and cannot decrypt them.
+Nothing is recorded: no recording component is installed.
+
+The SFU does see call metadata:
+
+- pseudonymous participant IDs;
+- when people join and leave;
+- track types and bitrates;
+- audio levels (used for the "speaking" indicator).
+
+**DNS and certificate.** Point `rtc.<domain>` (or `LUMEN_RTC_DOMAIN`) at the
+server; see [dns.md](dns.md). Caddy obtains its certificate. The installer
+copies it for TURN/TLS, and the timer `lumen-rtc-cert.timer` re-copies it
+daily. To do it by hand: `sudo ./lumenctl rtc-cert`.
+
+**Ports.** The installer opens these in UFW. Open them in your cloud
+provider's firewall or security group as well:
+
+| Port | Purpose |
+|---|---|
+| 443/tcp | call signalling (`wss://rtc.<domain>`), through Caddy |
+| 7882–7889/udp (`CALLS_UDP_PORTS`) | media (ICE/UDP); the best path |
+| 7881/tcp (`CALLS_TCP_PORT`) | media over TCP when UDP is blocked |
+| 3478/udp (`CALLS_TURN_UDP_PORT`) | TURN relay for clients behind strict NATs |
+| 5349/tcp (`CALLS_TURN_TLS_PORT`) | TURN over TLS, for networks that only allow TLS |
+
+Some ports are never opened:
+
+- the SFU's API (`127.0.0.1:7880`, reachable only from the internal `rtc`
+  Docker network);
+- its metrics (`127.0.0.1:6789`);
+- the TURN relay range (40000–40999/udp; the relay only talks to the local
+  SFU).
+
+**The server's public address.** The SFU must advertise the address clients
+reach it on. With `CALLS_PUBLIC_IP` empty, LiveKit discovers it at startup
+with a STUN request to public STUN servers (LiveKit's default: Google's).
+Set `CALLS_PUBLIC_IP=<public IPv4>` in three cases:
+
+- you know the address;
+- the server is behind 1:1 NAT, such as a cloud VM with an elastic IP;
+- you don't want that startup request.
+
+Without the right address, signalling works but media never connects. **HTTPS
+working does not prove calls work.** `sudo ./diagnose.sh` compares the
+address the SFU advertises with the server's public IPv4 and says what to
+fix.
+
+**Checks.**
+
+```bash
+sudo ./lumenctl calls-selftest       # real audio+video through the SFU to test subscribers
+sudo ./healthcheck.sh                # includes SFU, authorization service, TURN
+sudo ./diagnose.sh                   # explains call problems: advertised IP, DNS/TLS for rtc., firewall, TURN
+```
+
+The installer runs the same checks, plus the media self-test. The console's
+**Calls** page shows the following, read from the SFU's own counters every
+minute:
+
+- active calls, participants and tracks;
+- throughput, CPU and memory;
+- RTT, jitter and packet loss.
+
+The page shows no names and no call content. Its **Run media self-test**
+button runs the same test as `lumenctl calls-selftest`. The self-test runs on
+the server, so it does **not** prove that clients on the internet can reach
+the media ports. To prove that, make a call from outside.
+
+**WireGuard.** Calls do not depend on the operator VPN. Both setups were
+tested and work:
+
+- a VPN profile that routes only the server's WireGuard address;
+- a VPN profile that routes the server's public address through the tunnel.
+
+A VPN being up does not by itself guarantee WebRTC connectivity. ICE picks
+whichever path works.
+
+**Capacity.** No participant limit is set (`CALLS_MAX_PARTICIPANTS=0`). Set
+one if you want a hard cap per call. The limiting resources are outbound
+bandwidth first, then CPU. Each receiver gets about 1.2–2.5 Mbit/s per visible
+720p video tile, plus about 30–50 kbit/s per speaking voice. To measure your
+own host:
+
+```bash
+sudo bash tests/calls/bench.sh 30
+```
+
+The results this project measured are in
+`docs/test-results/calls-sfu-benchmark.txt`. They are what one test host did,
+not a promise. Scaling beyond one server means three things:
+
+- a TURN server on another host;
+- LiveKit's multi-node mode with Redis;
+- pointing `LUMEN_RTC_DOMAIN` at it.
+
+None of these is automated.
+
+**Turning calls off.** Set `CALLS_ENABLED=false` and run
+`sudo bash install.sh`. The call buttons disappear from the app, the
+homeserver stops advertising the SFU, and the SFU and authorization-service
+containers are removed. Keys and configuration stay in `/etc/lumen`, so
+calls can be turned back on later. `sudo ./lumenctl apply` does the same
+except for the firewall. The installer also
+removes the firewall rules it labelled `lumen: calls`. Rules that Lumen did
+not add are never touched.
+
+**Restarts.** `sudo ./lumenctl restart livekit lkjwt` drops active calls;
+clients reconnect automatically. It touches no other data.
+
+## 9. Billing
 
 `BILLING_PROVIDER=none` (everyone on Free), `manual` (operators assign plans in
 **Workspaces → plan**, e.g. for invoiced customers) or `stripe`.
@@ -187,7 +309,7 @@ new seats or uploads above the new limits. Plans and limits can be edited in
 the console without code changes; `services/portal/config/plans.yml` only seeds
 a new installation.
 
-## 9. Branding
+## 10. Branding
 
 Replace `/etc/lumen/branding/logo.svg` and `favicon.svg`, and override colour
 tokens in `/etc/lumen/branding/theme.css` (e.g. `--brand-primary`), set
@@ -196,7 +318,7 @@ tokens in `/etc/lumen/branding/theme.css` (e.g. `--brand-primary`), set
 pages with counsel before going live; they are templates filled with your
 configuration.
 
-## 10. Backups and updates
+## 11. Backups and updates
 
 * Backups: daily at `BACKUP_SCHEDULE` (default 03:17), age-encrypted, 7 daily
   + 4 weekly kept; a weekly job restores the latest backup into an isolated,
@@ -214,7 +336,7 @@ configuration.
   automatic reboot); reboot during a maintenance window when
   `/var/run/reboot-required` exists (the console shows pending updates).
 
-## 11. Secrets
+## 12. Secrets
 
 | Command | Effect |
 |---|---|
@@ -229,7 +351,7 @@ configuration.
 The homeserver signing key is the server's identity on the federation; never
 rotate or lose it casually (it is in every backup).
 
-## 12. Security checklist for production
+## 13. Security checklist for production
 
 - [ ] `TLS_MODE=acme` with real DNS; `ADMIN_EMAIL` reachable.
 - [ ] Console reachable only via SSH tunnel or WireGuard; `ADMIN_ALLOWED_CIDRS` empty unless needed.
@@ -241,7 +363,7 @@ rotate or lose it casually (it is in every backup).
 - [ ] Privacy policy, terms and `SECURITY_EMAIL` reviewed.
 - [ ] `sudo ./healthcheck.sh` clean; console shows no failed probes.
 
-## 13. Uninstall
+## 14. Uninstall
 
 ```bash
 sudo ./uninstall.sh                  # stop and remove containers and units; keep data, config, backups
