@@ -1,0 +1,54 @@
+# Prints the toolchains available on the hosted runners the app builds use, so version
+# pins in the app projects can be checked against reality. Runs when this file changes
+# or on demand.
+name: toolchains
+
+on:
+  push:
+    paths: [".github/workflows/toolchains.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - run: |
+          sw_vers; uname -m
+          xcodebuild -version || true
+          ls -d /Applications/Xcode*.app || true
+          xcrun simctl list runtimes || true
+          xcrun simctl list devicetypes | grep -E 'iPhone 1[6-9]|iPad Pro|iPad Air' | head || true
+          swift --version || true
+          brew --version | head -1; brew info --json=v2 xcodegen | python3 -c "import sys,json; print('xcodegen', json.load(sys.stdin)['formulae'][0]['versions']['stable'])" || true
+          node --version || true
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - shell: pwsh
+        run: |
+          [System.Environment]::OSVersion
+          node --version
+          Get-Command signtool.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+          Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -ErrorAction SilentlyContinue | Select-Object -Last 3 Name
+          Get-Command makensis -ErrorAction SilentlyContinue
+          Get-Command wix -ErrorAction SilentlyContinue
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
+          ls "$ANDROID_HOME/ndk" 2>/dev/null || true
+          ls -la /dev/kvm || true
+          java -version 2>&1 | head -1
+          ls /usr/lib/jvm || true

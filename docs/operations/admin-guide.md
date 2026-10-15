@@ -281,6 +281,58 @@ not add are never touched.
 **Restarts.** `sudo ./lumenctl restart livekit lkjwt` drops active calls;
 clients reconnect automatically. It touches no other data.
 
+## 8a. Mobile and desktop apps, push notifications<a id="apps"></a>
+
+The Windows, macOS, Android and iOS/iPadOS apps
+([ADR 0003](../adr/0003-client-apps.md)) need no per-server build. A user types
+your server name, and the app reads everything else from
+`https://<domain>/.well-known/matrix/client`:
+
+- the homeserver;
+- the `io.lumen.app` block: portal, sign-up and account links, the call
+  widget URL, and the push gateway URL when push is enabled.
+
+See [the integration reference](../apps/integration.md). Sign-in is the same
+single sign-on as on the web. The apps open it in the system browser and
+return to the app through the `io.lumen.secure:/sso-callback` address, which
+Lumen allows in the homeserver's SSO configuration.
+
+**Verified links** (`https://app.<domain>/…` opening the app). Set the
+identities of **your signed builds** and run `sudo ./lumenctl apply`:
+
+- `APP_LINKS_ANDROID_SHA256` for Android: the signing certificate's SHA-256
+  fingerprint from Play App Signing;
+- `APP_LINKS_APPLE_TEAM_ID` for iOS.
+
+**Push notifications** (Android and iOS) are optional. Without them the
+mobile apps show notifications only while they run, and say so in their
+settings. To enable push:
+
+1. Create a Firebase project for your Android build and an APNs auth key
+   (`.p8`) for your iOS bundle ID. The release guides
+   `docs/apps/release-android.md` and `docs/apps/release-ios.md` show where.
+2. Store the credentials:
+   - `sudo ./lumenctl set-secret push_fcm_service_account < service-account.json`
+   - `sudo ./lumenctl set-secret push_apns_key < AuthKey_XXXXXXXXXX.p8`
+3. In `lumen.conf`, set `PUSH_ENABLED=true`, `PUSH_FCM_PROJECT_ID`,
+   `PUSH_APNS_TEAM_ID` and `PUSH_APNS_KEY_ID`, then run `sudo bash install.sh`.
+
+How the gateway runs:
+
+- **Where.** The Sygnal push gateway runs on this server, listening on
+  `127.0.0.1` only. The homeserver reaches it through Caddy at
+  `https://matrix.<domain>/_matrix/push/v1/notify`. Requests from public
+  addresses get 404.
+- **What it sends.** The homeserver sends only room ID, event ID and unread
+  counts (`push.include_content: false`). Google and Apple learn that a
+  device received a notification and when, never the content. The app
+  fetches and decrypts the message itself.
+- **Checks.** `sudo ./healthcheck.sh` and the installer's verification test
+  the gateway and the homeserver's path to it.
+
+What can't be checked from the server: delivery to real devices. Check it
+with a signed build on a phone.
+
 ## 9. Billing
 
 `BILLING_PROVIDER=none` (everyone on Free), `manual` (operators assign plans in
