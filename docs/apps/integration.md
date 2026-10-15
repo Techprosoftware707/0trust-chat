@@ -174,7 +174,7 @@ user's session, so the widget never holds an access token.
 **Widget URL parameters** (filled with the Rust SDK's `generateWebviewUrl`):
 
 ```
-?widgetId=$WIDGET_ID&parentUrl=<widget page origin>&roomId=$matrix_room_id
+?widgetId=$matrix_widget_id&parentUrl=<widget page origin>&roomId=$matrix_room_id
 &userId=$matrix_user_id&deviceId=$org.matrix.msc2873.matrix_device_id
 &baseUrl=$org.matrix.msc4039.matrix_base_url&lang=<lang>&theme=<light|dark>
 &intent=<start_call|join_existing>&video=<true|false>&notify=<ring|notification|none>
