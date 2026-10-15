@@ -156,9 +156,45 @@ installer does. Use it before handing a computer on.
 
 ## 7. CI evidence
 
-| Run | Commit | Linux | Windows | macOS |
+| Run | Commit | Linux (`ubuntu-24.04`) | Windows (`windows-2025`) | macOS (`macos-15`, arm64) |
 |---|---|---|---|---|
-| [38703895098](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38703895098) | 05cc2fb | ✓ unit 34/34, dist:linux, smoke 41/41 (packaged, setuid sandbox) | see report | ✗ packaging: empty `CSC_LINK` secret taken as a certificate path (fixed: empty signing variables are now ignored) |
+| [38703895098](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38703895098) | 05cc2fb | ✓ | ✓ | ✗ packaging: an empty `CSC_LINK` was taken as a certificate path. Fixed in the config (empty signing variables ignored) and in the workflow (exported only when set) |
+| [38704824180](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38704824180) | f40a13c | ✓ unit 34/34; AppImage + deb; smoke 42/42 | ✓ unit 34/34; NSIS (unsigned); smoke 43/43 | ✓ unit 34/34; DMG + ZIP arm64 and x64 (ad-hoc signed, not notarized); smoke 42/42 |
+
+What the packaged-app smoke test (`npm run test:smoke`) proved in run 38704824180, on the
+packaged, fused binaries:
+
+- **Fuses** read back from each binary: RunAsNode off, NODE_OPTIONS off, `--inspect` off, asar
+  integrity on, only-load-from-asar on, cookie encryption on, file:// privileges off.
+- **Refused switches:** each packaged binary exits 1 with `--remote-debugging-port=0` and with
+  `--inspect=0`.
+- **In-app `--self-check`**, all three OS: window opens; server picker renders from the bundle;
+  CSP header present on both origins and enforced (inline script blocked); `app://` path
+  traversal → 404; no Node.js in the main world; context isolation (bridged API); permission
+  handler denies microphone/camera/notifications/geolocation to non-app pages; `window.open`
+  denied; navigation away blocked.
+- **OS renderer sandbox:**
+  - Windows: `app.getAppMetrics().sandboxed === true`;
+  - macOS: `app.getAppMetrics().sandboxed === true`;
+  - Linux: seccomp-bpf active (`Seccomp: 2`, `NoNewPrivs: 1`) with the setuid sandbox helper.
+- **Protected storage:** on Windows, safeStorage is available with DPAPI. On macOS it isn't
+  touched on CI (Keychain prompts); on Linux runners it is `basic_text` (no keyring).
+
+Artifacts of run 38704824180 (SHA-256 from the jobs' `SHA256SUMS`; all unsigned):
+
+| File | Bytes | SHA-256 |
+|---|---|---|
+| Lumen-Secure-1.0.0-win-x64.exe | 121 641 186 | 9c2fc84e8d7437348c7a6a7634bc58cff2f479155ba4c7456b570f513b8148de |
+| Lumen-Secure-1.0.0-win-x64.exe.blockmap | 128 633 | 8d8722c4eab84b15f162f6886d83171b7d5a45cf6287f6cd4a859d2a4d53ccce |
+| Lumen-Secure-1.0.0-mac-arm64.dmg | 133 562 386 | a078cbdfc34c3ae0af1fdd52f4b23c5c3d63d5d797e466035bd048dd2437153a |
+| Lumen-Secure-1.0.0-mac-arm64.zip | 129 292 207 | 9a817094224c527764c0adf530cd583d966242fa4644635ce4b9de2b82276034 |
+| Lumen-Secure-1.0.0-mac-x64.dmg | 138 896 560 | f325ceccb0eeca2d99dbe9ce1748982b1d80e5918e7cb22fc43c2f4cfad8ed18 |
+| Lumen-Secure-1.0.0-mac-x64.zip | 134 638 897 | d5eb87c052e2376a2d43b7e60f706d50ca0423d507666fe8cdba141bae619f49 |
+| Lumen-Secure-1.0.0-linux-x86_64.AppImage | 128 531 807 | ba67263b13cc5d2cd5953b5b69b9a5707b1aa78595956fefff7066e6bdf2829f |
+| Lumen-Secure-1.0.0-linux-amd64.deb | 101 766 520 | 7b6e9766551bdf711167eb8b959f4c953e0616b43e2fc550005321246c3e1a02 |
+
+End to end against a Lumen server: `npm run test:e2e`, on the Linux build host against the dev
+stack (CI has no server), 11/11 steps. See [apps/desktop/FEATURES.md](../../apps/desktop/FEATURES.md).
 
 ## 8. Not verified yet
 

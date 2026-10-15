@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const release = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../release");
 const files = fs
   .readdirSync(release, { withFileTypes: true })
-  .filter((e) => e.isFile() && /\.(exe|msi|msix|appx|dmg|zip|AppImage|deb|yml|blockmap)$/.test(e.name))
+  .filter((e) => e.isFile() && !e.name.startsWith("builder-") && /\.(exe|msi|msix|appx|dmg|zip|AppImage|deb|yml|blockmap)$/.test(e.name))
   .map((e) => e.name)
   .sort();
 const lines = files.map((f) => `${createHash("sha256").update(fs.readFileSync(path.join(release, f))).digest("hex")}  ${f}`);

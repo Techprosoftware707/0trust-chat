@@ -13,14 +13,16 @@ Legend:
   or a signed build.
 - **Not available**: not supported on that OS, and the app says so.
 
-Updated: 2026-10-15. The CI rows are filled in from the runs listed in
-[docs/apps/release-desktop.md](../../docs/apps/release-desktop.md#ci-evidence).
+Updated: 2026-10-15. "CI (packaged)" refers to run
+[38704824180](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38704824180), where
+all three jobs are green: Windows 43/43, macOS 42/42, Linux 42/42 smoke checks; details in
+[docs/apps/release-desktop.md](../../docs/apps/release-desktop.md#7-ci-evidence).
 
 | Feature | Shared code (Linux evidence) | Windows | macOS |
 |---|---|---|---|
 | Bundled web client served from `app://lumen` (not from a server) | Verified (Linux): e2e (a); smoke: bundle contents | CI (packaged): self-check loads it from the asar | CI (packaged) |
 | CSP header + enforcement | Verified (Linux): e2e checks the header, no CSP violations in any step; self-check: inline script blocked | CI (packaged) self-check | CI (packaged) self-check |
-| Sandbox, context isolation, no Node in the renderer | Verified (Linux): self-check (JS level); the OS sandbox is off here because tests run as root in a container | CI (packaged): `app.getAppMetrics().sandboxed` for the renderer | CI (packaged): same |
+| Sandbox, context isolation, no Node in the renderer | Verified (Linux): self-check JS-level on the build host (root, so no OS sandbox there); CI (packaged, Linux): seccomp-bpf active in the renderer (`Seccomp: 2`) | CI (packaged): `app.getAppMetrics().sandboxed === true` | CI (packaged): `sandboxed === true` |
 | Electron fuses | Verified (Linux): smoke reads them from the packaged binary | CI (packaged) | CI (packaged) |
 | Asar integrity | Linux: no integrity check in Electron. The Windows exe's integrity resource was checked on Linux: it matches the asar header hash | CI (packaged): fuse on, app starts | CI (packaged): fuse on, app starts |
 | Refuses debug / insecure switches in released builds | Verified (Linux): packaged binary exits 1 for `--remote-debugging-port`, `--inspect`, `--no-sandbox` | CI (packaged) | CI (packaged) |
@@ -33,7 +35,7 @@ Updated: 2026-10-15. The CI rows are filled in from the runs listed in
 | Encrypted DM both ways with web users | Verified (Linux): e2e (c), server sees only `m.room.encrypted` | Expected (same code) | Expected (same code) |
 | Calls desktop↔web, E2EE label, media flowing | Verified (Linux): e2e (d), connected + "End-to-end encrypted" on both sides, inbound audio+video bytes > 0 | Expected | Expected |
 | Screen share with the app's own source picker | Verified (Linux, X11/Xvfb): e2e (d), web peer receives the second video stream | Expected (desktopCapturer; system audio "loopback" only here) | Expected: needs the Screen Recording permission (the picker links to System Settings); not run |
-| Store key in `safeStorage`, session sealed with it, no plaintext secrets on disk | Verified (Linux): e2e (h), scan of `userData` incl. decompressed LevelDB blocks, positive control. **Linux here = `basic_text` (no keyring): obfuscation only, warning shown** | Expected: DPAPI. CI self-check asserts safeStorage is available (DPAPI) | Expected: Keychain (not touched by CI self-check to avoid a blocking prompt) |
+| Store key in `safeStorage`, session sealed with it, no plaintext secrets on disk | Verified (Linux): e2e (h), scan of `userData` incl. decompressed LevelDB blocks, positive control. **Linux here = `basic_text` (no keyring): obfuscation only, warning shown** | CI (packaged): safeStorage available with DPAPI; the store-key round trip is **expected** (not run with a session on Windows) | Expected: Keychain (not touched by CI self-check to avoid a blocking prompt) |
 | Keyring warning (Linux `basic_text`) | Verified (Linux): e2e (a) | Not available (DPAPI always present) | Not available |
 | Sign-out wipes the store key + browser storage; token revoked | Verified (Linux): e2e (g) | Expected | Expected |
 | OS notifications, previews hidden by default, click opens room | Verified (Linux): e2e (e), through D-Bus to a notification daemon, click via `ActionInvoked` | Expected (AppUserModelID `io.lumen.secure`, Start-menu shortcut from NSIS) | Expected (notification permission prompt on first use) |
@@ -48,8 +50,8 @@ Updated: 2026-10-15. The CI rows are filled in from the runs listed in
 | App lock: PIN, auto-lock, OS lock/suspend, content hidden | Verified (Linux): e2e (f), PIN set, lock, wrong PIN refused, unlock, `lock-screen` event, content `visibility:hidden` + `inert`, verifier not plaintext; unit tests (PBKDF2 600k, back-off) | Expected | Expected |
 | Touch ID unlock | Not available | Not available | Expected: needs a Mac with Touch ID |
 | Auto-update (signed builds only) | Not available on Linux (documented) | Expected: needs a signed build + feed. Unsigned CI builds show "Updates are disabled in unsigned builds." | Expected: needs a Developer ID build + feed |
-| NSIS per-user installer, shortcuts, "Also delete my local data" on uninstall | The NSIS scripts incl. the custom page compile on Linux (Wine needed for the last step) | CI builds the installer; **install/uninstall not run on a real machine** | Not available |
-| DMG/ZIP arm64 + x64, hardened runtime, entitlements, notarization | — | Not available | CI builds unsigned (ad-hoc) packages; signing/notarization **not verified** (no Apple credentials) |
+| NSIS per-user installer, shortcuts, "Also delete my local data" on uninstall | The NSIS scripts incl. the custom page compile on Linux (Wine needed for the last step) | CI builds the installer (unsigned, 121.6 MB); **install/uninstall not run on a real machine** | Not available |
+| DMG/ZIP arm64 + x64, hardened runtime, entitlements, notarization | — | Not available | CI builds DMG + ZIP for arm64 and x64, ad-hoc signed (no hardened runtime without a Developer ID); signing/notarization **not verified** (no Apple credentials) |
 | MSIX/AppX | Config only (`npm run dist:win:appx`) | Not built yet (needs the Windows SDK) | Not available |
 
 Known limitations (also in the release doc):
