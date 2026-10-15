@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+# lumenctl — day-to-day operations for a Lumen server.
+#
+#   sudo ./lumenctl status                          containers, health, versions
+#   sudo ./lumenctl logs <service> [-f]             service logs (portal|ops|worker|synapse|caddy|postgres|coturn)
+#   sudo ./lumenctl restart <service>
+#   sudo ./lumenctl compose <args...>               raw docker compose with the right env/files
+#   sudo ./lumenctl create-operator <user> <email> [role]
+#   sudo ./lumenctl operator-link <user>            new one-time setup/recovery link (1 h)
+#   sudo ./lumenctl federation open|closed|allowlist [server,server]
+#   sudo ./lumenctl wireguard status|enable|disable|add-peer <name> [pubkey]|remove-peer <pubkey>
+#   sudo ./lumenctl rotate <secret>                 rotate: ops-gateway|internal-api|synapse-admin|oidc-client|db-passwords|django
+#   sudo ./lumenctl reconcile-db                    re-apply database roles/passwords from secrets
+#   sudo ./lumenctl config                          print resolved configuration (no secrets)
+#   sudo ./lumenctl admin-tunnel                    how to reach the operator console
+#   sudo ./lumenctl manage <django manage.py args>  run a portal management command
+
+set -o errexit -o nounset -o pipefail
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+export LUMEN_REPO_DIR="${LUMEN_REPO_DIR:-$SCRIPT_DIR}"
+source "$LUMEN_REPO_DIR/deploy/lib/common.sh"
+source "$LUMEN_REPO_DIR/deploy/lib/stack.sh"
+
+usage() { sed -n '2,17p' "$0"; }
+cmd="${1:-}"; shift || true
+[[ -n "$cmd" && "$cmd" != -h && "$cmd" != --help ]] || { usage; exit 0; }
+require_root
+[[ -f "$LUMEN_CONF" ]] || die "Lumen is not installed (no $LUMEN_CONF)"
+
+apply_config() {
+  log_init lumenctl
+  with_lock
+  ensure_ca_bundle_file
+  render_staging
+  validate_staging
+  promote_staging
+  start_database
+  start_services
+  refresh_internal_ca_bundle
+}
+
+agent() { # agent <op> <json-args>
+  python3 - "$1" "${2:-{\}}" <<'PY'
+import json, socket, sys, uuid
+op, args = sys.argv[1], json.loads(sys.argv[2])
+s = socket.socket(socket.AF_UNIX); s.settimeout(120)
+s.connect("/run/lumen-agent/agent.sock")
+s.sendall(json.dumps({"id": uuid.uuid4().hex, "op": op, "args": args, "actor": "lumenctl"}).encode() + b"\n")
+buf = b""
+while not buf.endswith(b"\n"):
+    c = s.recv(65536)
+    if not c: break
+    buf += c
+r = json.loads(buf)
+if not r.get("ok"):
+    print("error:", r.get("error"), file=sys.stderr); sys.exit(1)
+print(json.dumps(r["result"], indent=2))
+PY
+}
+
+case "$cmd" in
+  status)
+    printf '%sLumen %s%s  (%s)\n\n' "$C_BOLD" "$(state_get version)" "$C_RESET" "$(conf_get LUMEN_PRIMARY_DOMAIN)"
+    compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
+    echo
+    [[ -f "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/status/health.json" ]] && { echo "Last health check:"; cat "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/status/health.json"; echo; }
+    [[ -f "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/status/backup.json" ]] && { echo "Backups:"; cat "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/status/backup.json"; echo; }
+    ;;
+  logs)
+    svc="${1:?service name required}"; shift
+    compose logs --tail 200 "$@" "$svc"
+    ;;
+  restart)
+    svc="${1:?service name required}"
+    compose restart "$svc"
+    ;;
+  compose)
+    compose "$@"
+    ;;
+  manage)
+    compose run --rm -T migrate manage "$@"
+    ;;
+  create-operator)
+    user="${1:?username}"; email="${2:?email}"; role="${3:-owner}"
+    ops_url="https://$(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)"):$(conf_get LUMEN_OPS_PORT 8443)"
+    compose run --rm -T migrate manage lumen_create_operator --username "$user" --email "$email" --role "$role" --base-url "$ops_url"
+    echo "Open the link above within 1 hour (through the SSH tunnel or WireGuard), set a password, then enrol MFA."
+    ;;
+  operator-link)
+    user="${1:?username}"
+    [[ "$user" =~ ^[a-z0-9][a-z0-9._-]{1,30}[a-z0-9]$ ]] || die "invalid username"
+    email="$(compose run --rm -T migrate manage shell -c "from apps.accounts.models import User; print(User.objects.get(username='${user//\'/}').email)" | tail -n1)"
+    ops_url="https://$(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)"):$(conf_get LUMEN_OPS_PORT 8443)"
+    current_role="$(compose run --rm -T migrate manage shell -c "from apps.accounts.models import User; print(User.objects.get(username='${user//\'/}').staff_role or 'owner')" | tail -n1)"
+    compose run --rm -T migrate manage lumen_create_operator --username "$user" --email "$email" --role "$current_role" --base-url "$ops_url"
+    ;;
+  federation)
+    mode="${1:?open|closed|allowlist}"
+    case "$mode" in open | closed | allowlist) ;; *) die "mode must be open, closed or allowlist" ;; esac
+    conf_set FEDERATION_MODE "$mode"
+    if [[ "$mode" == allowlist ]]; then conf_set FEDERATION_ALLOWLIST "${2:?comma-separated server names}"; fi
+    apply_config
+    ok "federation is now '$mode'"
+    ;;
+  wireguard)
+    sub="${1:-status}"; shift || true
+    case "$sub" in
+      status) agent wg.status ;;
+      enable)
+        source "$LUMEN_REPO_DIR/deploy/lib/host.sh"; source "$LUMEN_REPO_DIR/deploy/lib/wireguard.sh"
+        conf_set WIREGUARD_ENABLED true
+        log_init lumenctl
+        wireguard_enable
+        configure_firewall
+        apply_config
+        has_systemd && systemctl restart lumen-agent
+        ;;
+      disable)
+        source "$LUMEN_REPO_DIR/deploy/lib/host.sh"; source "$LUMEN_REPO_DIR/deploy/lib/wireguard.sh"
+        log_init lumenctl
+        conf_set WIREGUARD_ENABLED false
+        wireguard_disable
+        apply_config
+        ;;
+      add-peer) agent wg.add_peer "$(python3 -c 'import json,sys; d={"name":sys.argv[1]}; d.update({"public_key":sys.argv[2]} if len(sys.argv)>2 and sys.argv[2] else {}); print(json.dumps(d))' "${1:?name}" "${2:-}")" ;;
+      remove-peer) agent wg.remove_peer "$(python3 -c 'import json,sys; print(json.dumps({"public_key":sys.argv[1]}))' "${1:?public key}")" ;;
+      *) die "unknown wireguard command $sub" ;;
+    esac
+    ;;
+  rotate)
+    what="${1:?which secret}"
+    log_init lumenctl
+    case "$what" in
+      ops-gateway) rm -f "$LUMEN_SECRETS_DIR/ops_gateway_secret" ;;
+      internal-api) rm -f "$LUMEN_SECRETS_DIR/internal_api_token" ;;
+      oidc-client) rm -f "$LUMEN_SECRETS_DIR/synapse_oidc_client_secret" ;;
+      django) rm -f "$LUMEN_SECRETS_DIR/django_secret_key"; warn "all portal sessions and outstanding links will be invalidated" ;;
+      db-passwords) rm -f "$LUMEN_SECRETS_DIR/postgres_app_password" "$LUMEN_SECRETS_DIR/synapse_db_password" ;;
+      synapse-admin) : >"$LUMEN_SECRETS_DIR/synapse_admin_token" ;;
+      *) die "unknown secret '$what'" ;;
+    esac
+    ensure_secrets
+    [[ "$what" == db-passwords ]] && { start_database; reconcile_db_roles; }
+    apply_config
+    [[ "$what" == oidc-client ]] && compose run --rm migrate >/dev/null
+    bootstrap_synapse_admin
+    write_status_json secrets "last_rotated_$what=$(date -u +%FT%TZ)"
+    ok "rotated $what"
+    ;;
+  reconcile-db)
+    log_init lumenctl
+    reconcile_db_roles && ok "database roles reconciled"
+    ;;
+  config)
+    python3 "$LUMEN_REPO_DIR/deploy/lib/render.py" --conf "$LUMEN_CONF" --secrets "$LUMEN_SECRETS_DIR" --repo "$LUMEN_REPO_DIR" --out /nonexistent --print-config
+    ;;
+  admin-tunnel)
+    ops="$(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)")"; port="$(conf_get LUMEN_OPS_PORT 8443)"
+    cat <<EOF
+The operator console is not on the public internet. Reach it with either:
+
+  SSH tunnel (always available):
+    ssh -N -L $port:127.0.0.1:$port <you>@<this server>
+    # hosts file on your computer:  127.0.0.1 $ops
+    open https://$ops:$port/
+
+  WireGuard (if enabled):
+    import the peer profile from the console (WireGuard page) or 'lumenctl wireguard add-peer <name>'
+    # hosts file on your computer:  $(python3 -c "import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))" "$(conf_get WG_SUBNET 10.77.0.0/24)") $ops
+    open https://$ops:$port/
+EOF
+    ;;
+  *) usage; exit 64 ;;
+esac

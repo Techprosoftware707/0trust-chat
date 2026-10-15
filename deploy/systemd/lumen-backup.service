@@ -1,0 +1,12 @@
+[Unit]
+Description=Lumen encrypted backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=@LUMEN_REPO_DIR@/backup.sh --quiet
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=3h

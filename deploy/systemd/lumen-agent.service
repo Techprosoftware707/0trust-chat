@@ -1,0 +1,27 @@
+[Unit]
+Description=Lumen host agent (allow-listed operations for the operator console)
+Documentation=file://@LUMEN_REPO_DIR@/docs/operations/admin-guide.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/lib/lumen/lumen_agent.py
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=lumen-agent
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+# Hardening: the agent needs root for wg/docker/backup scripts, but nothing else.
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+NoNewPrivileges=no
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

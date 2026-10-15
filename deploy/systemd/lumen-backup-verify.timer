@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly restore verification of the latest Lumen backup
+
+[Timer]
+OnCalendar=Sun *-*-* 05:41:00
+RandomizedDelaySec=30m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

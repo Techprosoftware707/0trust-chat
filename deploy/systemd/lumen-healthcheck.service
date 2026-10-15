@@ -1,0 +1,8 @@
+[Unit]
+Description=Lumen health check (records status for the operator console)
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=@LUMEN_REPO_DIR@/healthcheck.sh --quiet --record
+TimeoutStartSec=5min

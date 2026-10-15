@@ -1,0 +1,10 @@
+{
+  "brand": { "name": "Lumen Secure", "short_name": "Lumen" },
+  "homeserver": { "base_url": "http://127.0.0.1:28008", "server_name": "chatdev.test" },
+  "sso": { "idp_id": "oidc-lumen", "label": "Continue with your Lumen account" },
+  "portal_url": "https://lumen.test",
+  "allow_custom_homeserver": true,
+  "voip_enabled": false,
+  "privacy_url": "https://lumen.test/privacy/",
+  "help_url": "https://lumen.test/docs/"
+}

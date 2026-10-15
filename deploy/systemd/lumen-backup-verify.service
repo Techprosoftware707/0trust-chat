@@ -1,0 +1,10 @@
+[Unit]
+Description=Verify that the latest Lumen backup restores (isolated, temporary database)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=@LUMEN_REPO_DIR@/restore.sh --verify-only latest --quiet
+Nice=10
+TimeoutStartSec=1h
