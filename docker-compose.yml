@@ -279,6 +279,11 @@ services:
     image: ${COTURN_IMAGE}
     profiles: ["voip"]
     user: "65534:65534"
+    # The upstream binary carries a file capability (cap_net_bind_service); the kernel
+    # refuses to exec it unless that capability is in the bounding set. Nothing else
+    # is granted, and it runs as nobody.
+    cap_add:
+      - NET_BIND_SERVICE
     group_add:
       - "${GID_SECRETS}"
     network_mode: host

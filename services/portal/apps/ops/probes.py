@@ -14,11 +14,13 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import shutil
 import smtplib
 import socket
 import ssl
 import struct
+import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -125,6 +127,28 @@ def _human(seconds: int) -> str:
     return f"{seconds // 86400}d" if seconds >= 86400 else f"{max(seconds, 0) // 3600}h"
 
 
+_GROUP_RE = re.compile(r"Negotiated TLS1\.3 group: (\S+)")
+HYBRID_PQ_GROUPS = {"X25519MLKEM768", "SecP256r1MLKEM768", "SecP384r1MLKEM1024"}
+
+
+def negotiated_group(host: str, port: int = 443) -> str | None:
+    """Key-exchange group the server actually picks when offered hybrid ML-KEM
+    first and classical X25519 second (measured with the OpenSSL 3.5 CLI; Python's
+    ssl module cannot report it). None if it could not be measured."""
+    openssl = "/usr/bin/openssl"
+    if not os.path.exists(openssl):
+        return None
+    connect = os.environ.get("LUMEN_PROBE_CONNECT_HOST", host)
+    cmd = [openssl, "s_client", "-connect", f"{connect}:{port}", "-servername", host,
+           "-groups", "X25519MLKEM768:X25519", "-brief", "-verify_quiet"]
+    try:
+        out = subprocess.run(cmd, input=b"", capture_output=True, timeout=10, check=False)  # nosec B603 - fixed argv, no shell
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    m = _GROUP_RE.search(out.stdout.decode(errors="replace") + out.stderr.decode(errors="replace"))
+    return m.group(1) if m else None
+
+
 def probe_tls() -> ProbeResult:
     hosts = sorted({settings.PRIMARY_DOMAIN, settings.APP_DOMAIN, settings.MATRIX_DOMAIN})
     # Public (ACME) certificates last ~90 days and renew 30 days early, so less than
@@ -144,7 +168,8 @@ def probe_tls() -> ProbeResult:
             worst = "failed"
             problems.append(f"{host}: {type(exc).__name__}")
             continue
-        detail[host] = {"days_left": secs // 86400, "seconds_left": secs, "tls_version": version}
+        group = negotiated_group(host)
+        detail[host] = {"days_left": secs // 86400, "seconds_left": secs, "tls_version": version, "key_exchange": group}
         left.append(secs)
         if secs < fail_below:
             worst = "failed"
@@ -152,9 +177,12 @@ def probe_tls() -> ProbeResult:
         elif secs < warn_below and worst == "ok":
             worst = "degraded"
             problems.append(f"{host} expires in {_human(secs)}")
+    groups = {v.get("key_exchange") for k, v in detail.items() if isinstance(v, dict) and "seconds_left" in v}
+    detail["hybrid_pq_key_exchange"] = bool(groups) and groups <= HYBRID_PQ_GROUPS
     if worst == "ok":
         note = " (internal test CA)" if settings.TLS_MODE == "internal" else ""
-        return ProbeResult("ok", f"valid on {len(hosts)} hostnames; earliest expiry in {_human(min(left))}{note}", detail)
+        kex = "; hybrid post-quantum key exchange (" + ", ".join(sorted(groups)) + ")" if detail["hybrid_pq_key_exchange"] else ""
+        return ProbeResult("ok", f"valid on {len(hosts)} hostnames; earliest expiry in {_human(min(left))}{note}{kex}", detail)
     return ProbeResult(worst, "; ".join(problems), detail)
 
 

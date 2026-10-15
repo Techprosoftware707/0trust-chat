@@ -12,6 +12,7 @@
 #   sudo ./lumenctl rotate <secret>                 rotate: ops-gateway|internal-api|synapse-admin|oidc-client|db-passwords|django
 #   sudo ./lumenctl reconcile-db                    re-apply database roles/passwords from secrets
 #   sudo ./lumenctl config                          print resolved configuration (no secrets)
+#   sudo ./lumenctl set-secret <name>               set smtp_password|stripe_secret_key|stripe_webhook_secret (hidden input)
 #   sudo ./lumenctl apply                           apply edits to lumen.conf (invalid config is never activated)
 #   sudo ./lumenctl admin-tunnel                    how to reach the operator console
 #   sudo ./lumenctl manage <django manage.py args>  run a portal management command
@@ -151,6 +152,18 @@ case "$cmd" in
   reconcile-db)
     log_init lumenctl
     reconcile_db_roles && ok "database roles reconciled"
+    ;;
+  set-secret)
+    name="${1:?smtp_password|stripe_secret_key|stripe_webhook_secret}"
+    case "$name" in smtp_password | stripe_secret_key | stripe_webhook_secret) ;; *) die "only external secrets can be set: smtp_password, stripe_secret_key, stripe_webhook_secret (internal ones: lumenctl rotate)" ;; esac
+    if [[ -t 0 ]]; then read -r -s -p "Value for $name (input hidden): " value; printf '\n'; else IFS= read -r value; fi
+    [[ -n "$value" ]] || die "empty value; nothing changed"
+    install -d -m 0750 -o root -g "$GID_SECRETS" "$LUMEN_SECRETS_DIR"
+    (umask 077 && printf '%s' "$value" >"$LUMEN_SECRETS_DIR/$name.new")
+    chown "root:$GID_SECRETS" "$LUMEN_SECRETS_DIR/$name.new"; chmod 0440 "$LUMEN_SECRETS_DIR/$name.new"
+    mv -f "$LUMEN_SECRETS_DIR/$name.new" "$LUMEN_SECRETS_DIR/$name"
+    unset value
+    ok "$name stored in $LUMEN_SECRETS_DIR (not printed). Run 'sudo ./lumenctl apply' to use it."
     ;;
   apply)
     apply_config

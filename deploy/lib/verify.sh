@@ -16,6 +16,19 @@ _vcurl() {
   curl -sS --noproxy '*' --max-time 15 --resolve "$host:$port:127.0.0.1" "${ca_args[@]}" "$@"
 }
 
+# _stun_ok PORT — a STUN Binding Request to the local TURN relay gets a matching response.
+_stun_ok() {
+  python3 - "$1" <<'PY'
+import os, socket, struct, sys
+txid = os.urandom(12)
+with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+    s.settimeout(3)
+    s.sendto(struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, txid), ("127.0.0.1", int(sys.argv[1])))
+    data, _ = s.recvfrom(2048)
+sys.exit(0 if len(data) >= 20 and data[:2] == b"\x01\x01" and data[8:20] == txid else 1)
+PY
+}
+
 vcheck() {
   # vcheck "description" command... — records pass/fail
   local desc="$1"; shift
@@ -91,6 +104,9 @@ verify_endpoints() {
   vcheck "security: operator console paths are not public" _expect_status "$p" 443 /ops/ 404
   vcheck "security: internal API is not public" _expect_status "$p" 443 /internal/v1/healthz 404
   vcheck "operator console reachable on the private port ($ops:$ops_port via loopback)" _expect_status "$ops" "$ops_port" /accounts/login/ 200
+  if truthy "$(conf_get VOIP_ENABLED false)"; then
+    vcheck "voice/video: TURN relay answers STUN on udp/3478" _stun_ok 3478
+  fi
   vcheck "security: PostgreSQL is not listening on a public address" _no_public_listener 5432
   vcheck "security: Synapse is not listening on a public address" _no_public_listener 8008
 }

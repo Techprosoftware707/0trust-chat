@@ -58,6 +58,7 @@
       <thead><tr><th>Layer</th><th>Status</th></tr></thead>
       <tbody>
         <tr><td>Message encryption (Olm/Megolm)</td><td><strong>Not post-quantum.</strong> Matrix has no standardised, interoperable post-quantum Olm/Megolm yet. We will adopt one once it is specified, implemented upstream and reviewed — not before.</td></tr>
+        <tr><td>Encrypted key backup (stored on the server)</td><td><strong>Not post-quantum.</strong> Your message keys are backed up encrypted to a Curve25519 key that only your recovery key unlocks. That protects them today, but a future quantum computer could attack the stored copy.</td></tr>
         <tr><td>Browser ↔ server connections</td><td><strong>Hybrid post-quantum key exchange</strong> (X25519MLKEM768, combining X25519 with NIST FIPS 203 ML-KEM) is offered and used automatically when your browser supports it. This protects the connection to our server, not the end-to-end layer.</td></tr>
         <tr><td>Server ↔ server federation</td><td>Hybrid key exchange is used when both servers support it; many Matrix servers do not yet.</td></tr>
         <tr><td>Operator VPN (WireGuard)</td><td>Each peer uses a preshared key, which WireGuard mixes into its handshake for post-quantum resistance of the tunnel.</td></tr>

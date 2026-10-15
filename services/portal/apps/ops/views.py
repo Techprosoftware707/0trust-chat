@@ -35,6 +35,7 @@ from apps.billing.providers import StripeProvider, get_provider
 from apps.core import runtime
 from apps.core.audit import audit, security_event
 from apps.core.models import AuditEvent, HealthSnapshot, SecurityEvent, SupportTicket
+from apps.ops.probes import HYBRID_PQ_GROUPS
 from apps.core.views import component_status
 from apps.workspaces.models import Membership, Workspace, hash_token
 
@@ -740,10 +741,17 @@ def security(request):
         .annotate(n=Count("id"))
         .order_by("-n")[:10]
     )
+    tls = HealthSnapshot.objects.filter(component="tls").order_by("-at").first()
+    transport = []
+    if tls:
+        for host, info in sorted(tls.detail.items()):
+            if isinstance(info, dict) and "seconds_left" in info:
+                group = info.get("key_exchange") or ""
+                transport.append({"host": host, "group": group or "not measured", "hybrid_pq": group in HYBRID_PQ_GROUPS, "tls": info.get("tls_version", "")})
     return render(
         request,
         "ops/security.html",
-        _ctx(request, page=page, kind=kind, kinds=SecurityEvent.Kind.choices, counts=counts, top_ips=top_ips),
+        _ctx(request, page=page, kind=kind, kinds=SecurityEvent.Kind.choices, counts=counts, top_ips=top_ips, tls=tls, transport=transport),
     )
 
 

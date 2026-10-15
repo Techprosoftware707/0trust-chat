@@ -229,6 +229,8 @@ def _scalar(v) -> str:
         return "true" if v else "false"
     if isinstance(v, int):
         return str(v)
+    if isinstance(v, float):
+        return repr(v)
     return json.dumps(str(v), ensure_ascii=False)
 
 
@@ -380,6 +382,15 @@ def render_synapse(cfg, out: Path) -> None:
         "allow_public_rooms_without_auth": False,
         "user_ips_max_age": "28d",
         "redaction_retention_period": "7d",
+        # Logins here are SSO only (password login is disabled): the client exchanges a
+        # single-use, short-lived random login token. Brute-force protection lives at
+        # the portal (allauth rate limits). Synapse's default per-IP login limit (burst
+        # 5, then ~1 per 5.5 min) would lock out a team signing in from one office NAT.
+        "rc_login": {
+            "address": {"per_second": 0.5, "burst_count": 30},
+            "account": {"per_second": 0.1, "burst_count": 10},
+            "failed_attempts": {"per_second": 0.05, "burst_count": 5},
+        },
         "forget_rooms_on_leave": True,
         "federation_client_minimum_tls_version": "1.2",
         "trusted_key_servers": [{"server_name": s} for s in split_list(cfg["TRUSTED_KEY_SERVERS"])],

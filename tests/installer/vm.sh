@@ -18,6 +18,9 @@ if [[ -n "$CA" ]]; then
   docker exec "$NAME" update-ca-certificates >/dev/null 2>&1
 fi
 docker exec "$NAME" bash -c "echo '127.0.0.1 $DOMAIN app.$DOMAIN matrix.$DOMAIN ops.$DOMAIN' >> /etc/hosts"
-tar -C "$REPO" --exclude=node_modules --exclude='services/chat/dist' --exclude='__pycache__' --exclude='tests/chat/screenshots' -cf - . \
+# What a clone would contain: tracked files plus new files that are not git-ignored
+# (so the working tree can be tested before committing), never ignored local state.
+git -C "$REPO" ls-files -z --cached --others --exclude-standard \
+  | tar -C "$REPO" --null -T - -cf - \
   | docker exec -i "$NAME" bash -c 'rm -rf /root/lumen && mkdir -p /root/lumen && tar -C /root/lumen -xf -'
 echo "VM $NAME ready (systemd: $(docker exec "$NAME" systemctl is-system-running 2>/dev/null || true))"

@@ -222,3 +222,40 @@ class TestHeadersAndLimits:
     def test_security_txt(self):
         body = Client().get("/.well-known/security.txt").content.decode()
         assert "Contact: mailto:" in body and "Expires:" in body
+
+
+class TestCryptoPosture:
+    def test_negotiated_group_parsing(self, monkeypatch):
+        import subprocess
+
+        from apps.ops import probes
+
+        class Done:
+            def __init__(self, out):
+                self.stdout, self.stderr = out, b""
+
+        monkeypatch.setattr(probes.os.path, "exists", lambda p: True)
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: Done(b"Protocol version: TLSv1.3\nNegotiated TLS1.3 group: X25519MLKEM768\n"))
+        assert probes.negotiated_group("lumen.test") == "X25519MLKEM768"
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: Done(b"Negotiated TLS1.3 group: X25519\n"))
+        assert probes.negotiated_group("lumen.test") == "X25519"
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: Done(b"connect:errno=111\n"))
+        assert probes.negotiated_group("lumen.test") is None
+
+    def test_console_reports_measured_transport_and_classical_e2ee(self):
+        from apps.core.models import HealthSnapshot
+
+        op = make_user("crypto-op", staff_role="auditor", mfa=True)
+        HealthSnapshot.objects.create(
+            component="tls",
+            status="ok",
+            summary="valid",
+            detail={
+                "lumen.test": {"seconds_left": 99999, "tls_version": "TLSv1.3", "key_exchange": "X25519MLKEM768"},
+                "matrix.lumen.test": {"seconds_left": 99999, "tls_version": "TLSv1.3", "key_exchange": "X25519"},
+            },
+        )
+        body = ops_client(op).get("/ops/security/").content.decode()
+        assert "Cryptography in use" in body
+        assert body.count("Hybrid</span>") == 1  # only the host that negotiated ML-KEM
+        assert "classical; no interoperable PQ Matrix protocol exists yet" in body
