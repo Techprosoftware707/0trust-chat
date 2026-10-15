@@ -44,6 +44,7 @@ DEFAULTS: dict[str, str] = {
     "FEDERATION_PROBE_NOTARY": "",
     "TRUSTED_KEY_SERVERS": "matrix.org",
     "FEDERATION_CUSTOM_CA": "",  # path inside synapse container, test environments only
+    "SYNAPSE_IP_RANGE_WHITELIST": "",  # test environments only: allow federation to private ranges
     "PRESENCE_ENABLED": "true",
     "VOIP_ENABLED": "false",
     "TURN_EXTERNAL_IP": "",
@@ -402,7 +403,12 @@ def render_synapse(cfg, out: Path) -> None:
         hs["federation_domain_whitelist"] = []
         hs["trusted_key_servers"] = []
     if cfg["FEDERATION_CUSTOM_CA"]:
-        hs["federation_custom_ca_list"] = [cfg["FEDERATION_CUSTOM_CA"]]
+        # Synapse reads ONE certificate per file, so list each CA file separately.
+        hs["federation_custom_ca_list"] = [p.strip() for p in cfg["FEDERATION_CUSTOM_CA"].split(",") if p.strip()]
+    if cfg["SYNAPSE_IP_RANGE_WHITELIST"]:
+        # Synapse blocks outbound federation to private ranges (SSRF protection);
+        # only test networks should ever whitelist any.
+        hs["ip_range_whitelist"] = split_list(cfg["SYNAPSE_IP_RANGE_WHITELIST"])
     if truthy(cfg["VOIP_ENABLED"]):
         turn_host = cfg["LUMEN_MATRIX_DOMAIN"]
         hs["turn_uris"] = [

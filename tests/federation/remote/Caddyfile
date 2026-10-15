@@ -1,0 +1,20 @@
+{
+	admin off
+	skip_install_trust
+}
+remote.test {
+	tls internal
+	handle /.well-known/matrix/server {
+		header Content-Type application/json
+		respond `{"m.server": "matrix.remote.test:443"}`
+	}
+	handle /.well-known/matrix/client {
+		header Content-Type application/json
+		respond `{"m.homeserver": {"base_url": "https://matrix.remote.test"}}`
+	}
+	respond 404
+}
+matrix.remote.test {
+	tls internal
+	reverse_proxy remote-synapse:8008
+}

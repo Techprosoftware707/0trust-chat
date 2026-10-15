@@ -116,6 +116,7 @@ services:
       - ${LUMEN_REPO_DIR}/services/synapse-module:/modules:ro
       - ${LUMEN_SOCKET_DIR}:/sockets
       - ${CA_BUNDLE_HOST_PATH}:/etc/lumen-ca/ca.crt:ro
+      - ${LUMEN_CONFIG_DIR}/ca:/etc/lumen-ca-dir:ro
     tmpfs:
       - /tmp:size=256m
     extra_hosts:

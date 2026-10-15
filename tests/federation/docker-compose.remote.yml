@@ -1,0 +1,35 @@
+# External homeserver for federation tests, attached to the Lumen stack's
+# egress network so both servers can reach each other by DNS name.
+name: lumen-fedtest
+services:
+  remote-synapse:
+    image: ghcr.io/element-hq/synapse:v1.163.0
+    environment:
+      SYNAPSE_CONFIG_PATH: /config/homeserver.yaml
+      SSL_CERT_FILE: /ca/bundle.crt
+      UID: "0"  # test fixture only: avoids volume ownership setup
+      GID: "0"
+    volumes:
+      - ./remote:/config:ro
+      - remote-data:/data
+      - ${FED_CA_DIR}:/ca:ro
+    extra_hosts:
+      - "lumen.test:host-gateway"
+      - "matrix.lumen.test:host-gateway"
+    networks:
+      lumen_egress:
+        aliases: [remote-synapse]
+  remote-caddy:
+    image: caddy:2.11.7-alpine
+    volumes:
+      - ./remote/Caddyfile:/etc/caddy/Caddyfile:ro
+      - remote-caddy:/data
+    networks:
+      lumen_egress:
+        aliases: [remote.test, matrix.remote.test]
+volumes:
+  remote-data:
+  remote-caddy:
+networks:
+  lumen_egress:
+    external: true

@@ -1,0 +1,30 @@
+# Vanilla upstream Synapse acting as an independent, external Matrix server.
+server_name: "remote.test"
+public_baseurl: "https://matrix.remote.test/"
+pid_file: /data/homeserver.pid
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    bind_addresses: ["0.0.0.0"]
+    resources:
+      - names: [client, federation]
+database:
+  name: sqlite3
+  args:
+    database: /data/homeserver.db
+log_config: /config/log.config
+media_store_path: /data/media_store
+signing_key_path: /data/signing.key
+report_stats: false
+registration_shared_secret: "remote-test-shared-secret-not-for-production"
+macaroon_secret_key: "remote-test-macaroon-not-for-production"
+form_secret: "remote-test-form-not-for-production"
+enable_registration: false
+trusted_key_servers: []
+federation_custom_ca_list: ["/ca/lumen-root.crt", "/ca/remote-root.crt"]
+encryption_enabled_by_default_for_room_type: all
+rc_message: {per_second: 100, burst_count: 200}
+rc_joins: {local: {per_second: 100, burst_count: 200}, remote: {per_second: 100, burst_count: 200}}
+ip_range_whitelist: ["172.16.0.0/12"]

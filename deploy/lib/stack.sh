@@ -71,7 +71,7 @@ ensure_dirs() {
   install -d -m 2770 -o root -g "$GID_SOCKETS" "$sockets"
   install -d -m 0755 "$data/status" "$data/www" "$data/www/chat"
   install -d -m 0750 -o root -g "$GID_SECRETS" "$LUMEN_CONFIG_DIR"
-  install -d -m 0755 "$LUMEN_BRANDING_DIR"
+  install -d -m 0755 "$LUMEN_BRANDING_DIR" "$LUMEN_CONFIG_DIR/ca"
   for f in logo.svg favicon.svg theme.css; do
     [[ -e "$LUMEN_BRANDING_DIR/$f" ]] || install -m 0644 "$LUMEN_REPO_DIR/branding/$f" "$LUMEN_BRANDING_DIR/$f"
   done

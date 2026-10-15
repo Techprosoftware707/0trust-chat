@@ -224,7 +224,10 @@ def probe_federation() -> ProbeResult:
     try:
         r = s.post(
             f"https://{notary}/_matrix/key/v2/query",
-            json={"server_keys": {server_name: {}}},
+            # Name our key IDs explicitly (a query for "all keys" makes a notary return
+            # only what it has cached). Requiring validity 12h ahead makes the notary
+            # re-fetch from us unless it did so within roughly the last 12 hours.
+            json={"server_keys": {server_name: {key_id: {"minimum_valid_until_ts": int(time.time() * 1000) + 12 * 3600 * 1000} for key_id in (key_doc.get("verify_keys") or {})}}},
             timeout=20,
         )
         data = r.json()
