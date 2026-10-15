@@ -149,6 +149,7 @@ if (!rep) {
   }
   ok("self-check exit code 0", r.code === 0, `exit ${r.code}; packaged=${rep.packaged}, electron ${rep.electron}, chrome ${rep.chrome}, ${rep.platform}/${rep.arch}`);
 }
+if (rep?.profile && path.basename(rep.profile).startsWith("lumen-self-check-")) fs.rmSync(rep.profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
 fs.writeFileSync(path.join(release, `smoke-${process.platform}-${process.arch}.json`), JSON.stringify({ results, selfCheck: rep }, null, 2));
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${results.filter((x) => x.pass).length} passed, ${failures} failed`);
