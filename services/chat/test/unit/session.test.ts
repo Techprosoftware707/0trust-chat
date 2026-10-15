@@ -7,7 +7,12 @@ describe("session encryption at rest", () => {
   it("round-trips a secret", async () => {
     const key = await generatePickleKey();
     const sealed = await seal(key, "syt_secret_token", "ctx");
-    expect(new Uint8Array(sealed.ct)).not.toContain(0x73); // ciphertext isn't the plaintext bytes verbatim…
+    // The ciphertext must not contain the plaintext. (Checking for a single byte value, as this
+    // test once did, fails about 1 run in 8: random ciphertext contains any given byte that often.)
+    const ct = Buffer.from(new Uint8Array(sealed.ct));
+    expect(ct.includes(Buffer.from("syt_secret_token"))).toBe(false);
+    expect(ct.includes(Buffer.from("secret"))).toBe(false);
+    expect(ct.length).toBe("syt_secret_token".length + 16); // AES-GCM: same length plus the 16-byte tag
     expect(await unseal(key, sealed, "ctx")).toBe("syt_secret_token");
   });
 
