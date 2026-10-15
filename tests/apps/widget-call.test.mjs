@@ -441,7 +441,11 @@ try {
     bridge = await connectBridge(phone, harness, WIDGET_ORIGIN);
     await phone.page.goto(harness.info.webview_url);
     const caps = await harness.waitFor((m) => m.api === "toWidget" && m.action === "notify_capabilities", 45_000, "notify_capabilities");
-    const requested = caps.data.requested;
+    // what the widget asked for, verbatim (the driver's notify_capabilities.requested only
+    // lists what the Rust SDK can parse)
+    const answer = bridge.fromWidget.find((m) => m.api === "toWidget" && m.action === "capabilities" && m.response);
+    assert.ok(answer, "widget answered the capabilities request");
+    const requested = answer.response.capabilities;
     const approved = caps.data.approved;
     const required = requiredCapabilities(harness.info.user_id, harness.info.device_id);
     log(`widget requested ${requested.length}, approved ${approved.length}`);
