@@ -172,15 +172,15 @@ export async function chooseVideoCodec(): Promise<CodecReport> {
   }
   const has = (c: string) => unique.includes(`video/${c}`);
   const m = (c: string) => measured.find((x) => x.codec === c);
-  if (!has("vp8") && has("h264")) return { chosen: "h264", reason: "This browser can't send VP8; using H.264.", sendable: unique, measured };
+  if (!has("vp8") && has("h264")) return { chosen: "h264", reason: "this browser can't send VP8.", sendable: unique, measured };
   const vp8 = m("vp8");
   const h264 = m("h264");
   if (vp8 && h264 && has("h264") && !vp8.smooth && h264.smooth && h264.powerEfficient) {
-    return { chosen: "h264", reason: "VP8 encoding was measured as not smooth here, H.264 has a hardware encoder.", sendable: unique, measured };
+    return { chosen: "h264", reason: "VP8 encoding was measured as not smooth here and H.264 has a hardware encoder.", sendable: unique, measured };
   }
   return {
     chosen: "vp8",
-    reason: "VP8: supported by every participant's browser, simulcast-capable and compatible with frame encryption.",
+    reason: "every WebRTC browser must support it, it has simulcast and it works with frame encryption.",
     sendable: unique,
     measured,
   };

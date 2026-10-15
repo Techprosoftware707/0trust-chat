@@ -827,7 +827,11 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
   .layout-grid.n2 .call-tile { aspect-ratio: 16 / 10; }
   .layout-screen { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .filmstrip { flex-direction: row; overflow-x: auto; }
-  .filmstrip .call-tile { width: 120px; }
+  .filmstrip .call-tile { flex: 0 0 max(104px, calc((100% - 2 * var(--space-2)) / 3)); aspect-ratio: 4 / 3; }
+  .filmstrip .tile-avatar { place-items: start center; padding-top: 8px; }
+  .filmstrip .tile-avatar .avatar { transform: scale(0.58); transform-origin: top center; }
+  .filmstrip .tile-caption { left: 6px; bottom: 6px; max-width: calc(100% - 12px); font-size: var(--text-xs); padding: 2px 8px; gap: 4px; }
+  .filmstrip .tile-icon { width: 0.85rem !important; height: 0.85rem !important; }
   .pip { width: 34%; aspect-ratio: 3 / 4; right: var(--space-2); bottom: var(--space-2); }
   .call-panel { position: fixed; inset: 0; width: auto; z-index: 3; border-radius: 0; }
   .call-controls { gap: var(--space-2); }

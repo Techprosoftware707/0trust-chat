@@ -192,6 +192,7 @@ try {
   await step("15c: all UDP and ICE/TCP blocked for B → TURN over TLS (5349), media flows", async () => {
     await hangUpAll(A, B);
     resetNet();
+    log(lab("block-udp", "lab-b"));
     log(lab("block-port", "lab-b", "tcp", "7881"));
     await startFromHeader(A, "audio");
     await acceptIncoming(B, "audio");

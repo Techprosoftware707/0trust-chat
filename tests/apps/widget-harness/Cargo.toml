@@ -1,0 +1,47 @@
+# Lumen widget-driver test harness.
+#
+# Runs the Matrix Rust SDK's widget driver — the code the Android and iOS apps
+# use through matrix-sdk-ffi — on a Linux host, so the mobile call path can be
+# tested end to end against a real Lumen server. Test tooling only; not shipped.
+#
+# The SDK revision is the one the apps' `org.matrix.rustcomponents:sdk-android`
+# 26.09.28 was built from. Change both together.
+[package]
+name = "lumen-widget-harness"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+rust-version = "1.96"
+
+[[bin]]
+name = "lumen-widget-harness"
+path = "src/main.rs"
+
+[dependencies]
+# Same features matrix-sdk-ffi enables for the widget path at this revision
+# (bindings/matrix-sdk-ffi/Cargo.toml: e2e-encryption, experimental-widgets;
+# default features bundled-sqlite and rustls-aws-lc-rs).
+matrix-sdk = { git = "https://github.com/matrix-org/matrix-rust-sdk", rev = "2a3db80e99fe322b9849325a182dc8a634fb20d4", default-features = false, features = [
+    "e2e-encryption",
+    "automatic-room-key-forwarding",
+    "bundled-sqlite",
+    "rustls-aws-lc-rs",
+    "experimental-widgets",
+] }
+anyhow = "1.0.104"
+language-tags = "0.3.2"
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "signal", "sync", "time"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+url = "2.5.8"
+
+# Mirrors the SDK workspace's [patch.crates-io] for crates in this dependency
+# graph (patches of a git dependency's workspace do not apply downstream).
+[patch.crates-io]
+const_panic = { git = "https://github.com/jplatte/const_panic", rev = "e0b317a9a7bde2d48a7d15b6a60d70e4a41d3b5f" }
+
+[profile.release]
+debug = false
+incremental = false

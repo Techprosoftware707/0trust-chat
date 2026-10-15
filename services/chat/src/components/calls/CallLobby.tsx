@@ -163,9 +163,9 @@ export function CallLobby({ request }: { request: LobbyRequest }) {
               </button>
               <button
                 type="button"
-                className={`call-btn${!wantVideo ? " off" : ""}`}
+                className={`call-btn${!wantVideo || (camError && !video) ? " off" : ""}`}
                 aria-pressed={!wantVideo}
-                aria-label={wantVideo ? "Turn camera off" : "Turn camera on"}
+                aria-label={wantVideo ? (camError && !video ? "Camera unavailable — turn video off" : "Turn camera off") : "Turn camera on"}
                 onClick={() => {
                   if (wantVideo) {
                     video?.stop();
@@ -177,7 +177,7 @@ export function CallLobby({ request }: { request: LobbyRequest }) {
                   }
                 }}
               >
-                {wantVideo ? <Video aria-hidden="true" /> : <VideoOff aria-hidden="true" />}
+                {wantVideo && !(camError && !video) ? <Video aria-hidden="true" /> : <VideoOff aria-hidden="true" />}
               </button>
             </div>
           </div>
