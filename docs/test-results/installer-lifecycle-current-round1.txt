@@ -1,0 +1,57 @@
+PASS marker account A created
+--- idempotent re-install
+PASS install.sh re-run succeeds
+PASS secrets unchanged by re-install
+PASS homeserver signing key unchanged by re-install
+PASS data kept across re-install (marker A)
+PASS calls: media flows through the SFU after re-install
+--- calls: media-service restart
+PASS lumenctl restart livekit lkjwt
+PASS calls: media flows after the SFU restart
+PASS SFU configuration unchanged by restart
+PASS data untouched by the SFU restart (marker A)
+PASS healthy after the SFU restart
+--- health and diagnostics
+PASS healthcheck.sh reports healthy (warnings allowed)
+PASS diagnose.sh completes (1 problem(s) explained)
+--- backup and full restore
+PASS backup.sh creates an encrypted archive
+PASS archive is age-encrypted
+PASS archive contents are not readable without the key
+PASS restore.sh --verify-only on the archive
+PASS marker account B created after the backup
+PASS full restore of the archive
+PASS restored data contains marker A
+PASS restore rolled back to the backup (marker B gone)
+PASS signing key intact after restore
+PASS healthy after restore
+PASS calls: media flows after restore
+--- update
+PASS update.sh --no-pull succeeds
+PASS healthy after update
+PASS data kept across update (marker A)
+PASS calls: media flows after update
+--- calls: turn off, then on again
+PASS install.sh with CALLS_ENABLED=false
+PASS calls off: SFU and authorization service removed
+PASS calls off: Lumen's calls firewall rules closed
+PASS calls off: homeserver no longer advertises the SFU
+PASS calls off: chat app configured without calls
+PASS data kept with calls off (marker A)
+PASS install.sh with calls on again
+PASS calls on: firewall rules back
+PASS calls on: media flows again
+--- uninstall (keep data) and re-install
+PASS uninstall.sh keeps data
+FAIL no Lumen containers left running — 1 running
+PASS data directories kept
+PASS backups kept
+PASS host agent removed
+PASS re-install on kept data succeeds
+PASS kept data is live again (marker A)
+PASS same server identity after re-install
+PASS calls: media flows after uninstall + re-install
+--- secret leak scan
+PASS no secret values in installer/ops logs or diagnose output
+lifecycle: 46 passed, 1 failed
+exit 1
