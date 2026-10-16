@@ -49,6 +49,11 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
    * **Mobile gaps:** no screen sharing; no verified state for your other
      devices (the Rust SDK FFI doesn't expose it); Android shows formatted
      messages as plain text; iOS has no message search.
+   * **Test setups without a domain** (`install.sh --test`): each device must
+     trust the server's private test CA. This was checked from another machine
+     (curl and the apps' SSO flow), not on a real Windows PC or Android phone.
+     The Android test build trusts user-installed CAs only because it is a
+     debug build (`debug-overrides`); release builds never do.
    * **Desktop:** calls hosted on another homeserver's SFU are outside the
      app's content security policy and don't connect. On Linux without a
      keyring the store key is only obfuscated (the app shows a warning).
