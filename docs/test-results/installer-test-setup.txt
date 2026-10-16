@@ -1,0 +1,161 @@
+=== install.sh --test --yes on a fresh Ubuntu 24.04.5 test server (172.17.0.2), 2026-10-16
+Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261016T024811Z.log
+
+==> Configuration
+    test setup: https://172-17-0-2.sslip.io (private test CA; server IP 172.17.0.2, private network)
+    ✔ configuration valid
+
+==> Preflight checks
+    ✔ operating system: Ubuntu 24.04.5 LTS
+    ✔ CPU architecture: x86_64
+    ✔ CPU cores: 4
+    ✔ systemd is running
+    ✔ memory: 16093 MB
+    ! 15 GB free on /var/lib; media uploads and backups grow over time (40 GB+ recommended)
+    ! 15 GB free on /var/backups; media uploads and backups grow over time (40 GB+ recommended)
+    ! system clock is not NTP-synchronised; two-factor codes and certificates depend on accurate time (timedatectl set-ntp true)
+    ✔ internet access to package registries
+    ✔ port 80/tcp is free
+    ✔ port 443/tcp is free
+    ✔ port 443/udp is free
+    ✔ port 8443/tcp is free
+    ✔ port 7882/udp is free
+    ✔ port 7889/udp is free
+    ✔ port 7881/tcp is free
+    ✔ port 3478/udp is free
+    Docker is not installed; it will be installed from Docker's official repository
+    no active host firewall; Lumen will enable UFW (allowing SSH first)
+    ! TLS_MODE=internal: using a private test CA; browsers and other Matrix servers will NOT trust this server. Testing only.
+    4 warning(s); continuing
+
+==> Host packages and Docker
+    ✔ host packages installed: ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common ufw
+    installing Docker Engine from download.docker.com
+    ✔ Docker installed (29.9.1)
+
+==> Secrets and directories
+    ✔ backup encryption key created (/etc/lumen/backup/identity.txt) — copy it somewhere safe, off this server
+    ✔ secrets present in /etc/lumen/secrets (generated once, never printed)
+
+==> Rendering and validating configuration
+    validating Caddy configuration
+    ✔ Caddy configuration valid
+    validating homeserver configuration (and generating the signing key if missing)
+    ✔ homeserver configuration valid; signing key present
+    validating Compose file
+    ✔ Compose configuration valid
+    ✔ configuration activated (previous kept in /etc/lumen/rendered.prev)
+
+==> Firewall and automatic updates
+    ✔ UFW enabled (default deny incoming; SSH kept open on: 22)
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 7882-7889/udp 7881/tcp 3478/udp
+    ✔ automatic security updates enabled (no automatic reboots)
+
+==> WireGuard
+    disabled (WIREGUARD_ENABLED=false)
+
+==> Container images
+    ✔ images ready, pinned by digest (6 pulled, 2 already present)
+    ✔ portal image built (lumen/portal:1.0.0)
+    ✔ web chat app built
+
+==> Database
+    ✔ PostgreSQL healthy; roles and databases in place
+    ✔ portal database migrated and bootstrapped
+
+==> Services
+    ✔ synapse healthy
+    ✔ portal healthy
+    ✔ ops healthy
+    ✔ caddy running
+    ✔ calls authorization service healthy
+    ✔ LiveKit SFU running
+    ! TLS_MODE=internal: browsers must trust /etc/lumen/ca/caddy-local-root.crt (testing only)
+    ✔ internal CA bundle in place
+    ✔ homeserver service account created; token stored in /etc/lumen/secrets/synapse_admin_token
+
+==> Host agent and timers
+    ✔ systemd units installed: lumen-agent, lumen-backup.timer (03:17 daily), lumen-healthcheck.timer
+
+==> Operator account
+    ✔ operator 'operator' created; one-time setup link stored in /etc/lumen/operator-setup-link.txt (root only, valid 24 h)
+
+==> Initial encrypted backup
+    ✔ first backup created
+    ✔ backup restore verified in an isolated database
+
+==> Verifying public endpoints
+    ✔ website: https://172-17-0-2.sslip.io/healthz reports database OK
+    ✔ TLS certificate valid and trusted for 172-17-0-2.sslip.io
+    ✔ TLS certificate valid for app.172-17-0-2.sslip.io
+    ✔ TLS certificate valid for matrix.172-17-0-2.sslip.io
+    ✔ Matrix discovery: /.well-known/matrix/server → matrix.172-17-0-2.sslip.io:443
+    ✔ Matrix discovery: /.well-known/matrix/client → https://matrix.172-17-0-2.sslip.io
+    ✔ chat app: https://app.172-17-0-2.sslip.io/ serves the web client
+    ✔ chat app: config.json points at this homeserver
+    ✔ homeserver: client API responds
+    ✔ homeserver: single sign-on through the portal is offered
+    ✔ portal: OIDC discovery document
+    ✔ security: homeserver admin API is not public
+    ✔ security: operator console paths are not public
+    ✔ security: internal API is not public
+    ✔ operator console reachable on the private port (ops.172-17-0-2.sslip.io:8443 via loopback)
+    ✔ apps: discovery block (io.lumen.app) in /.well-known/matrix/client
+    ✔ test setup: http://172-17-0-2.sslip.io/lumen-test-ca.crt serves this server's test CA
+    ✔ calls: TLS certificate valid for rtc.172-17-0-2.sslip.io
+    ✔ calls: SFU signalling answers on https://rtc.172-17-0-2.sslip.io/
+    ✔ calls: homeserver advertises the SFU (MatrixRTC transports)
+    ✔ calls: SFU tokens require sign-in (anonymous request refused)
+    ✔ calls: SFU tokens only for room members (authorization service via homeserver)
+    ✔ security: SFU admin API is not public
+    ✔ calls: WebRTC media listening on udp/7882
+    ✔ calls: ICE/TCP listening on tcp/7881
+    ✔ calls: TURN answers STUN on udp/3478
+    ✔ calls: SFU forwarded real audio+video to test subscribers (self-test from this host)
+    ✔ security: PostgreSQL is not listening on a public address
+    ✔ security: Synapse is not listening on a public address
+
+──────────────── Lumen deployment summary ────────────────
+Result: SUCCESS — all endpoint checks passed
+Website & portal:   https://172-17-0-2.sslip.io
+Chat app:           https://app.172-17-0-2.sslip.io
+Homeserver:         https://matrix.172-17-0-2.sslip.io  (server name: 172-17-0-2.sslip.io)
+Operator console:   https://ops.172-17-0-2.sslip.io:8443  (private: SSH tunnel or WireGuard)
+TLS:                INTERNAL TEST CA — not trusted by browsers or other servers
+Federation:         closed
+Database:           healthy
+Encryption:         end-to-end encryption on by default for all new rooms (Olm/Megolm, client-side)
+Backups:            /var/backups/lumen, daily at 03:17, age-encrypted
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          disabled
+Voice/video:        enabled — SFU wss://rtc.172-17-0-2.sslip.io, ports 7882-7889/udp (media), 7881/tcp (ICE/TCP), 3478/udp (TURN)
+Email:              not configured — email verification and reset-by-email are off
+Payments:           none
+
+TEST SETUP (no domain). In the apps, enter the server:  172-17-0-2.sslip.io
+  172-17-0-2.sslip.io and every name under it resolve to 172.17.0.2 through sslip.io (public DNS).
+  172.17.0.2 is a private address: test devices must be on the same network (or VPN).
+  Each test device must trust this server's private test CA once. TLS stays fully verified;
+  this CA has only ever signed this server's names. Compare the fingerprint before trusting it.
+    Download:  http://172-17-0-2.sslip.io/lumen-test-ca.crt     (on the server: sudo ./lumenctl test-ca)
+    SHA-256:   22:CB:35:C3:43:1F:32:36:C8:94:4E:A2:0B:4A:C7:90:84:67:66:1F:8B:63:3E:E3:80:1B:42:3C:A5:99:35:93
+    Windows:   PowerShell, in the download folder:
+                 Import-Certificate -FilePath .\lumen-test-ca.crt -CertStoreLocation Cert:\CurrentUser\Root
+               (or double-click it → Install Certificate → Current User → Trusted Root Certification Authorities)
+    Android:   Settings → Security → Encryption & credentials → Install a certificate → CA certificate,
+               then use the Lumen test build (debug APK); release builds trust system CAs only.
+    Browsers:  Chrome/Edge on Windows use the Windows store above; Firefox: Settings → Certificates → Import.
+
+Operator setup:
+  1. On your computer:  ssh -L 8443:127.0.0.1:8443 <you>@<this server>
+     and add to your hosts file:  127.0.0.1 ops.172-17-0-2.sslip.io
+  2. On the server:  sudo cat /etc/lumen/operator-setup-link.txt   (one-time link, 24 h)
+  3. Open the link, choose a password, then enrol two-factor authentication.
+
+Remaining manual items:
+  • this is a TEST setup: for production, install fresh on your real domain (accounts and rooms don't move over)
+  • optional: configure SMTP_* to enable email verification and password reset
+  • store /etc/lumen/backup/identity.txt offline; without it backups cannot be decrypted
+
+Log: /var/log/lumen/install-20261016T024811Z.log
+exit 0

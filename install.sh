@@ -241,7 +241,9 @@ write_status_json update "last_update_at=$(date -u +%FT%TZ)" "last_result=$( ((V
 # 5. Summary (no secrets).
 p="$(conf_get LUMEN_PRIMARY_DOMAIN)"
 printf '\n%s──────────────── Lumen deployment summary ────────────────%s\n' "$C_BOLD" "$C_RESET"
-if ((VERIFY_OK)); then
+if ((VERIFY_OK && DO_VERIFY == 0)); then
+  printf '%sResult:%s installed — endpoint checks SKIPPED (--no-verify); run: sudo ./healthcheck.sh\n' "$C_BOLD" "$C_RESET"
+elif ((VERIFY_OK)); then
   printf '%sResult:%s %sSUCCESS%s — all endpoint checks passed\n' "$C_BOLD" "$C_RESET" "$C_GREEN" "$C_RESET"
 else
   printf '%sResult:%s %sINCOMPLETE%s — %d check(s) failed (see above). Run: sudo ./diagnose.sh\n' "$C_BOLD" "$C_RESET" "$C_RED" "$C_RESET" "${#VERIFY_FAILURES[@]}"

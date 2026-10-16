@@ -1,0 +1,36 @@
+Test setup (install.sh --test) checked from another machine on the same network, 2026-10-16T02:55:46Z.
+The 'device' knows only the printed server name and fingerprint.
+
+$ getent hosts app.172-17-0-2.sslip.io
+172.17.0.2      app.172-17-0-2.sslip.io
+
+$ curl http://172-17-0-2.sslip.io/lumen-test-ca.crt
+HTTP 200, application/x-x509-ca-cert
+SHA-256 of the download: 22:CB:35:C3:43:1F:32:36:C8:94:4E:A2:0B:4A:C7:90:84:67:66:1F:8B:63:3E:E3:80:1B:42:3C:A5:99:35:93
+SHA-256 the installer printed: 22:CB:35:C3:43:1F:32:36:C8:94:4E:A2:0B:4A:C7:90:84:67:66:1F:8B:63:3E:E3:80:1B:42:3C:A5:99:35:93
+
+$ curl https://app.172-17-0-2.sslip.io/   (without the CA: must fail)
+curl: (60) SSL certificate problem: unable to get local issuer certificate
+
+With the downloaded CA:
+  200 https://172-17-0-2.sslip.io/healthz
+  200 https://app.172-17-0-2.sslip.io/
+  200 https://matrix.172-17-0-2.sslip.io/_matrix/client/versions
+  200 https://172-17-0-2.sslip.io/.well-known/matrix/client
+  200 https://app.172-17-0-2.sslip.io/widget/call/
+
+Plain http serves nothing else:
+  308 -> https://172-17-0-2.sslip.io/root.key  (http://172-17-0-2.sslip.io/root.key)
+
+$ python3 tests/integration/app_sso.py --base 172-17-0-2.sslip.io --ca lumen-test-ca.crt
+PASS well-known: homeserver
+PASS well-known: io.lumen.app block (version 1, SSO provider, https URLs only)
+PASS SSO ends in a direct redirect to the app scheme (no confirmation page)
+PASS SSO callback keeps the app's per-attempt nonce
+PASS SSO callback carries a login token
+PASS login token accepted (m.login.token)
+PASS signed in as the portal user
+PASS login token is single-use
+PASS non-allow-listed redirect gets the confirmation page, not an automatic redirect
+PASS logout invalidates the access token
+app sso: 10 passed, 0 failed
