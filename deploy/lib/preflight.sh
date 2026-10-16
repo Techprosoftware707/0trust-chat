@@ -47,7 +47,7 @@ check_systemd() {
 check_memory() {
   local mem_mb; mem_mb=$(($(awk '/MemTotal/ {print $2}' /proc/meminfo) / 1024))
   if ((mem_mb < 1800)); then
-    pf_error "only ${mem_mb} MB RAM. Lumen needs at least 2 GB (4 GB recommended). Resize the server or add swap and retry."
+    pf_error "only ${mem_mb} MB RAM. Lumen needs at least 2 GB of RAM (4 GB recommended); swap does not count toward this. Resize the server and retry."
   elif ((mem_mb < 3800)); then
     pf_warn "${mem_mb} MB RAM: fine for a small community; 4 GB+ recommended for federation-heavy use"
   else
