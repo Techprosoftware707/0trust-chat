@@ -35,6 +35,8 @@ OPERATOR_USERNAME=admin
 TLS_MODE=acme
 #ACME_CA=                                   # alternative ACME directory URL
 #OPS_TLS_MODE=                              # defaults to TLS_MODE
+#LUMEN_TEST_SETUP=false                     # true: written by 'install.sh --test' (no domain: <ip>.sslip.io
+#                                           # names, test CA offered at http://<name>/lumen-test-ca.crt)
 
 # --- Operator console access --------------------------------------------------------
 # The console listens on ops.<domain>:8443 and only accepts connections from

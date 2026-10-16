@@ -43,6 +43,71 @@ and configuration are kept. The summary never prints secrets. Exit code 0 means
 every endpoint check passed; exit 3 means the stack is up but a check failed
 (the summary says which).
 
+### 2a. Testing without a domain<a id="test-setup"></a>
+
+```bash
+sudo bash install.sh --test                       # asks a few questions (Enter accepts the defaults)
+sudo bash install.sh --test --yes                 # no questions: detected address, defaults
+sudo bash install.sh --test --test-ip 203.0.113.5 # the address your devices use
+```
+
+What it sets up:
+
+- **Names.** Every host name sits under `<ip>.sslip.io`, for example
+  `203-0-113-5.sslip.io`, `app.203-0-113-5.sslip.io` and
+  `matrix.203-0-113-5.sslip.io`. sslip.io is a public DNS service that answers
+  every such name with the address written in it. Nothing has to be
+  registered. A private address (a VM or a server on your LAN) works too;
+  devices then have to be on the same network. Some home routers block DNS
+  answers that point at private addresses ("DNS rebinding protection"). If
+  `app.<ip>.sslip.io` doesn't resolve on a device, allow sslip.io in the
+  router, or use the device's mobile data with a public server.
+- **Certificates.** These come from Lumen's private test CA. Let's Encrypt is
+  not used for sslip.io names: sslip.io is not on the Public Suffix List, so
+  all of its users share one Let's Encrypt rate limit. Each test device must
+  trust the test CA once (below). TLS is never switched off; the CA has only
+  signed this server's names.
+- **Settings.** Federation is off: it needs a permanent name and a publicly
+  trusted certificate. Registration is open unless you choose otherwise.
+  Calls are advertised on the given address. No email, no payments.
+- **Summary.** The installer prints the server name to enter in the apps, the
+  CA download link and its SHA-256 fingerprint. `sudo ./lumenctl test-ca`
+  prints them again.
+
+**Trust the test CA on each device.** Download
+`http://<ip-name>.sslip.io/lumen-test-ca.crt`, or copy the output of
+`sudo ./lumenctl test-ca`. Before trusting it, check that its SHA-256
+fingerprint matches the one the server printed.
+
+| Device | Steps |
+|---|---|
+| Windows (Lumen desktop app, Chrome, Edge) | PowerShell in the download folder: `Import-Certificate -FilePath .\lumen-test-ca.crt -CertStoreLocation Cert:\CurrentUser\Root` (confirm the dialog). Or double-click the file → Install Certificate → Current User → "Trusted Root Certification Authorities". |
+| Android (Lumen test build, Chrome) | Settings → Security (or Security & privacy) → More security settings → Encryption & credentials → Install a certificate → **CA certificate** → pick the file. Then install the Lumen **test build** (the debug APK). Release builds trust only the system's CAs, by design. |
+| macOS | Double-click the file → Keychain Access → open the certificate → Trust → "Always Trust". |
+| iPhone/iPad | Open the file → Settings → Profile Downloaded → Install; then Settings → General → About → Certificate Trust Settings → turn on full trust for it. |
+| Firefox | Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import. |
+
+To remove the trust after testing, delete the "Caddy Local Authority" certificate
+from the same place.
+
+**Prefer real certificates?** Create a free name at [DuckDNS](https://www.duckdns.org)
+or [deSEC](https://desec.io) pointing at the server's public IP. Both resolve every
+name under yours, and both are on the Public Suffix List, so Let's Encrypt
+treats your name on its own. Then:
+
+```bash
+sudo bash install.sh --test --test-host mylumen.duckdns.org --test-email you@example.org
+```
+
+The server must be reachable from the internet on 80/tcp and 443/tcp. Devices
+need nothing installed.
+
+**Later, your real domain** needs a new installation. The Matrix server name
+(the test name) is part of every user ID, room and signature, and the
+installer refuses to change it on existing data. Either use a fresh server, or
+run `sudo ./uninstall.sh --purge-data` (this deletes all test accounts and
+messages) and then `sudo bash install.sh`.
+
 ## 3. Where things are
 
 | Path | Contents |

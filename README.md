@@ -39,6 +39,10 @@ sudo bash install.sh                                   # interactive
 sudo bash install.sh --config lumen.conf --yes         # unattended; see lumen.conf.example
 ```
 
+**No domain yet?** `sudo bash install.sh --test` sets up a test server reachable by
+its IP address (host names under `<ip>.sslip.io`, a private test CA that each test
+device trusts once). See [Testing without a domain](docs/operations/admin-guide.md#test-setup).
+
 The installer checks the machine, installs Docker from Docker's repository,
 generates secrets, renders and validates all configuration before using it,
 adds firewall rules without resetting existing ones (SSH stays open), enables

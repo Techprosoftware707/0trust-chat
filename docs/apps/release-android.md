@@ -151,6 +151,20 @@ Privacy policy URL: the operator's `privacy_url`.
 6. Publish the per-ABI and universal APKs with `SHA256SUMS-android.txt` for direct download,
    signed with a key listed in `APP_LINKS_ANDROID_SHA256`.
 
+## 7a. Test builds for a test server
+
+On a server installed with `install.sh --test`, use the **debug APK**
+(`app-arm64-v8a-debug.apk` for nearly every phone, or `app-universal-debug.apk`).
+It is signed with the debug key, so it installs directly (allow installs from
+your browser or file manager when Android asks).
+
+On the phone, first install the server's test CA as a **CA certificate**
+(admin guide, "Testing without a domain"). Debug builds trust user-installed CAs
+through `debug-overrides` in `app/src/debug/res/xml/network_security_config.xml`.
+Certificates are still verified. Release builds trust only the system's CAs.
+Chrome, which shows the sign-in page, uses the same device-installed CA. Then
+enter the server name the installer printed, e.g. `203-0-113-5.sslip.io`.
+
 ## 8. Not verified (needs devices, accounts or a live server)
 
 Everything in [FEATURES.md](../../apps/android/FEATURES.md) marked "Builds, unverified", in

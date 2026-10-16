@@ -171,6 +171,8 @@ CALLS_ALLOW_PRIVATE_NODE_IP=$private
 WIREGUARD_ENABLED=false
 BILLING_PROVIDER=none
 CONF
+  # Networks with TLS inspection: the inspecting proxy's CA for image builds (as in lumen.conf).
+  [[ -n "${LUMEN_BUILD_EXTRA_CA:-}" ]] && printf 'LUMEN_BUILD_EXTRA_CA=%s\n' "$LUMEN_BUILD_EXTRA_CA" >>"$out"
   chmod 0640 "$out"
   info "test setup: https://$host ($( [[ $tls == internal ]] && echo "private test CA" || echo "Let's Encrypt"); server IP $ip$( [[ $private == true ]] && echo ", private network"))"
 }

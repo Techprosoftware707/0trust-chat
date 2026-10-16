@@ -196,6 +196,17 @@ Artifacts of run 38704824180 (SHA-256 from the jobs' `SHA256SUMS`; all unsigned)
 End to end against a Lumen server: `npm run test:e2e`, on the Linux build host against the dev
 stack (CI has no server), 11/11 steps. See [apps/desktop/FEATURES.md](../../apps/desktop/FEATURES.md).
 
+## 7a. Testing against a server without a domain
+
+On a server installed with `install.sh --test`, install the unsigned Windows build
+(`Lumen-Secure-1.0.0-win-x64.exe`). SmartScreen warns about an unknown publisher:
+click More info → Run anyway. Before starting the app, make Windows trust the
+server's test CA: `Import-Certificate -FilePath .\lumen-test-ca.crt
+-CertStoreLocation Cert:\CurrentUser\Root` (admin guide, "Testing without a domain").
+The app uses Chromium's certificate verification with the Windows store; nothing
+in the app is relaxed. Then enter the server name the installer printed. With
+`--test-host` (a DuckDNS or deSEC name and Let's Encrypt), no CA is needed.
+
 ## 8. Not verified yet
 
 These need credentials, devices or real machines that this project has not had:
