@@ -23,6 +23,10 @@ _rtc_api() {
   _vcurl "$1" 443 -X "$2" -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' \
     ${4:+-d "$4"} -w ' %{http_code}' "https://$1$3"
 }
+_test_ca_served() { # primary: the plain-http download is exactly the CA that signs this server
+  curl -fsS --noproxy '*' --max-time 15 --resolve "$1:80:127.0.0.1" "http://$1/lumen-test-ca.crt" \
+    | cmp -s - "$LUMEN_CONFIG_DIR/ca/caddy-local-root.crt"
+}
 _calls_transport_ok() { # mx rtc
   local out; out="$(_rtc_api "$1" GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports)" || return 1
   [[ "$out" == *"\"url\":\"wss://$2\""* && "$out" == *" 200" ]]
@@ -140,6 +144,9 @@ verify_endpoints() {
   vcheck "operator console reachable on the private port ($ops:$ops_port via loopback)" _expect_status "$ops" "$ops_port" /accounts/login/ 200
   vcheck "apps: discovery block (io.lumen.app) in /.well-known/matrix/client" _expect_json "$sn" 443 /.well-known/matrix/client \
     "d['m.homeserver']['base_url'] == 'https://$mx' and d['io.lumen.app']['version'] == 1"
+  if test_setup && [[ "$(conf_get TLS_MODE acme)" == internal ]]; then
+    vcheck "test setup: http://$p/lumen-test-ca.crt serves this server's test CA" _test_ca_served "$p"
+  fi
   if push_enabled && ! push_active; then
     warn "push: enabled, but no platform credential yet, so the gateway is not running and the apps are not told about it"
   fi

@@ -213,6 +213,20 @@ container_health() {
   docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id" 2>/dev/null || echo missing
 }
 
+# lan_ipv4 — this host's source address on the default route (what other LAN devices reach).
+lan_ipv4() { ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}'; }
+
+# is_private_ipv4 ADDR — RFC 1918, carrier-grade NAT (100.64.0.0/10), loopback or link-local.
+is_private_ipv4() {
+  python3 -c 'import ipaddress, sys; a = ipaddress.ip_address(sys.argv[1]); sys.exit(0 if a.is_private or a in ipaddress.ip_network("100.64.0.0/10") else 1)' "$1" 2>/dev/null
+}
+
+# sslip_name ADDR — 203.0.113.5 → 203-0-113-5.sslip.io (public DNS answering with that address).
+sslip_name() { printf '%s.sslip.io' "${1//./-}"; }
+
+# test_setup — installed with install.sh --test (no domain; see test_configure).
+test_setup() { truthy "$(conf_get LUMEN_TEST_SETUP false)"; }
+
 public_ip() {
   local ip=""
   for url in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com; do

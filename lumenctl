@@ -16,6 +16,7 @@
 #   sudo ./lumenctl set-secret <name>               set smtp_password|stripe_secret_key|stripe_webhook_secret (hidden input)
 #   sudo ./lumenctl apply                           apply edits to lumen.conf (invalid config is never activated)
 #   sudo ./lumenctl admin-tunnel                    how to reach the operator console
+#   sudo ./lumenctl test-ca                         the private test CA (TLS_MODE=internal) and its fingerprint
 #   sudo ./lumenctl manage <django manage.py args>  run a portal management command
 
 set -o errexit -o nounset -o pipefail
@@ -24,7 +25,7 @@ export LUMEN_REPO_DIR="${LUMEN_REPO_DIR:-$SCRIPT_DIR}"
 source "$LUMEN_REPO_DIR/deploy/lib/common.sh"
 source "$LUMEN_REPO_DIR/deploy/lib/stack.sh"
 
-usage() { sed -n '2,17p' "$0"; }
+usage() { sed -n '2,18p' "$0"; }
 cmd="${1:-}"; shift || true
 [[ -n "$cmd" && "$cmd" != -h && "$cmd" != --help ]] || { usage; exit 0; }
 require_root
@@ -197,6 +198,14 @@ case "$cmd" in
     ;;
   config)
     python3 "$LUMEN_REPO_DIR/deploy/lib/render.py" --conf "$LUMEN_CONF" --secrets "$LUMEN_SECRETS_DIR" --repo "$LUMEN_REPO_DIR" --out /nonexistent --print-config
+    ;;
+  test-ca)
+    ca="$LUMEN_CONFIG_DIR/ca/caddy-local-root.crt"
+    [[ "$(conf_get TLS_MODE acme)" == internal ]] || die "this server uses publicly trusted certificates (TLS_MODE=acme): there is no test CA to install"
+    [[ -s "$ca" ]] || die "the test CA does not exist yet (run the installer first)"
+    printf 'SHA-256 fingerprint: %s\nTest devices: http://%s/lumen-test-ca.crt (install steps: docs/operations/admin-guide.md, "Testing without a domain")\n\n' \
+      "$(test_ca_fingerprint)" "$(conf_get LUMEN_PRIMARY_DOMAIN)" >&2
+    cat "$ca"
     ;;
   admin-tunnel)
     ops="$(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)")"; port="$(conf_get LUMEN_OPS_PORT 8443)"

@@ -106,6 +106,75 @@ CONF
   chmod 0640 "$out"
 }
 
+IPV4_RE='^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$'
+
+# test_configure OUT — "no domain yet" (install.sh --test): a test installation reached by IP.
+#  * Default: hostnames under <ip>.sslip.io (public DNS that resolves 203-0-113-5.sslip.io and
+#    every name below it to 203.0.113.5) with Lumen's private test CA, which each test device
+#    must trust. Let's Encrypt is not used: sslip.io is not on the Public Suffix List, so all of
+#    its users share one rate limit.
+#  * With a free DNS name the operator created (DuckDNS, deSEC: on the Public Suffix List, and
+#    they resolve every name below yours too), certificates come from Let's Encrypt and devices
+#    need nothing installed. The server must then be reachable on 80/443 from the internet.
+# Unattended (--yes or no terminal): the values below are used without questions.
+test_configure() {
+  local out="$1" ip="${LUMEN_TEST_IP:-}" host="${LUMEN_TEST_HOST:-}" pub email opuser regmode calls tls private=false
+  if [[ -z "$ip" ]]; then
+    pub="$(public_ip)"
+    # Use the public address only if it is on this host (not NATed); otherwise the LAN address.
+    if [[ -n "$pub" ]] && ip -4 -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -qxF "$pub"; then
+      ip="$pub"
+    else
+      ip="$(lan_ipv4)"
+    fi
+  fi
+  regmode=open; calls=true; opuser=operator
+  if ((ASSUME_YES == 0)) && [[ -t 0 ]]; then
+    printf '\n%sTest setup — no domain needed.%s Press Enter to accept the [default].\n' "$C_BOLD" "$C_RESET"
+    printf '%sFor testing only: moving to your real domain later means a new installation, because\nMatrix user IDs contain the server name.%s\n\n' "$C_DIM" "$C_RESET"
+    ask ip "IP address your test devices use to reach this server" "$ip" "$IPV4_RE" "an IPv4 address, e.g. 203.0.113.5"
+    ask host "Free DNS name you created for this IP, e.g. mylumen.duckdns.org (empty: $(sslip_name "$ip"))" "$host" "^$|$DOMAIN_RE"
+    ask opuser "Initial operator username" "$opuser" "$USER_RE" "3-32 chars: a-z 0-9 . _ -"
+    ask regmode "Registration: open, invite or closed" "$regmode" '^(open|invite|closed)$'
+    ask_yn calls "Enable voice/video calls (opens UDP 7882-7889, TCP 7881, UDP 3478)?" y
+  fi
+  [[ "$ip" =~ $IPV4_RE ]] || die "Test setup: could not determine this server's IP address. Run: sudo bash install.sh --test --test-ip <address>"
+  is_private_ipv4 "$ip" && private=true
+  if [[ -n "$host" ]]; then
+    [[ "$host" =~ $DOMAIN_RE ]] || die "Test setup: '$host' is not a valid host name"
+    tls=acme
+    email="${LUMEN_TEST_EMAIL:-}"
+    if ((ASSUME_YES == 0)) && [[ -t 0 ]]; then
+      ask email "Your email (Let's Encrypt account and security contact)" "$email" "$EMAIL_RE" "enter a valid email"
+    fi
+    [[ "$email" =~ $EMAIL_RE ]] || die "Test setup with a DNS name: an email is needed for Let's Encrypt (--test-email you@example.org)"
+  else
+    host="$(sslip_name "$ip")"
+    tls=internal
+    email="${LUMEN_TEST_EMAIL:-admin@$host}"
+  fi
+  cat >"$out" <<CONF
+# Lumen TEST configuration (install.sh --test) — generated on $(date -u +%F).
+# For testing only. Moving to a real domain later needs a new installation: the Matrix
+# server name ($host) is part of every user ID and cannot be changed afterwards.
+LUMEN_TEST_SETUP=true
+LUMEN_PRIMARY_DOMAIN=$host
+ADMIN_EMAIL=$email
+OPERATOR_USERNAME=$opuser
+TLS_MODE=$tls
+REGISTRATION_MODE=$regmode
+# Federation needs a permanent name and a publicly trusted certificate.
+FEDERATION_MODE=closed
+CALLS_ENABLED=$calls
+CALLS_PUBLIC_IP=$ip
+CALLS_ALLOW_PRIVATE_NODE_IP=$private
+WIREGUARD_ENABLED=false
+BILLING_PROVIDER=none
+CONF
+  chmod 0640 "$out"
+  info "test setup: https://$host ($( [[ $tls == internal ]] && echo "private test CA" || echo "Let's Encrypt"); server IP $ip$( [[ $private == true ]] && echo ", private network"))"
+}
+
 validate_conf_file() {
   local file="$1"
   python3 "$LUMEN_REPO_DIR/deploy/lib/render.py" --conf "$file" --secrets "$LUMEN_SECRETS_DIR" \

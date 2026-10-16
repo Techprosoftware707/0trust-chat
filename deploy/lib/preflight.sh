@@ -232,6 +232,18 @@ check_existing_install() {
   fi
 }
 
+# The Matrix server name is part of every user ID, room and signature; Synapse refuses to start
+# on existing data under another name. Moving to a new name (e.g. from a test setup to a real
+# domain) is a new installation.
+check_server_name() {
+  local was now
+  was="$(state_get server_name)"
+  [[ -n "$was" ]] || return 0
+  now="$(conf_get MATRIX_SERVER_NAME "$(conf_get LUMEN_PRIMARY_DOMAIN)")"
+  [[ "$was" == "$now" ]] && return 0
+  pf_error "the Matrix server name would change from $was to $now. That is not possible on an existing installation (it is part of every user ID). Keep $was, or install $now on a fresh server (or here after 'sudo ./uninstall.sh --purge-data', which deletes all accounts and messages)."
+}
+
 run_preflight() {
   PF_ERRORS=(); PF_WARNINGS=()
   check_os
@@ -242,6 +254,7 @@ run_preflight() {
   check_time_sync
   check_internet
   check_existing_install
+  check_server_name
   check_conflicting_services
   check_ports
   check_docker

@@ -174,5 +174,33 @@ class TestPush(unittest.TestCase):
         self.assertIn("needed together", config_error("PUSH_ENABLED=true\nPUSH_APNS_TEAM_ID=ABCDE12345\n"))
 
 
+
+class TestNoDomainTestSetup(unittest.TestCase):
+    TEST = ("LUMEN_TEST_SETUP=true\nLUMEN_PRIMARY_DOMAIN=172-17-0-4.sslip.io\nADMIN_EMAIL=admin@172-17-0-4.sslip.io\n"
+            "TLS_MODE=internal\nFEDERATION_MODE=closed\nCALLS_PUBLIC_IP=172.17.0.4\nCALLS_ALLOW_PRIVATE_NODE_IP=true\n")
+
+    def render_test(self, extra: str = "") -> str:
+        tmp = Path(tempfile.mkdtemp(prefix="lumen-render-"))
+        (tmp / "lumen.conf").write_text(self.TEST + extra)  # replaces BASE: its own domain
+        (tmp / "secrets").mkdir()
+        rc = render.main(["--conf", str(tmp / "lumen.conf"), "--secrets", str(tmp / "secrets"), "--repo", str(REPO), "--out", str(tmp / "out")])
+        self.assertEqual(rc, 0)
+        return (tmp / "out" / "caddy" / "Caddyfile").read_text()
+
+    def test_test_ca_offered_over_http_only_the_root_certificate(self):
+        caddy = self.render_test()
+        block = re.search(r"http://172-17-0-4\.sslip\.io \{(.*?)\n\}", caddy, re.S).group(1)
+        self.assertIn("handle /lumen-test-ca.crt {", block)
+        self.assertIn("root * /data/caddy/pki/authorities/local", block)
+        self.assertIn("rewrite * /root.crt", block, "the rewrite pins the one public file; keys are never served")
+        self.assertNotIn(".key", block)
+        self.assertIn("redir https://{host}{uri} 308", block, "everything else still goes to https")
+        self.assertIn("http://app.172-17-0-4.sslip.io, http://matrix.172-17-0-4.sslip.io", caddy)
+        self.assertIn("tls internal", caddy)
+
+    def test_no_ca_download_with_public_certificates_or_outside_test_setups(self):
+        self.assertNotIn("lumen-test-ca.crt", self.render_test("TLS_MODE=acme\n"))
+        self.assertNotIn("lumen-test-ca.crt", (rendered("TLS_MODE=internal\n") / "caddy" / "Caddyfile").read_text())
+
 if __name__ == "__main__":
     unittest.main()

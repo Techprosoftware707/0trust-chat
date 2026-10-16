@@ -3,6 +3,7 @@
 #
 #   sudo bash install.sh                      # interactive
 #   sudo bash install.sh --config lumen.conf  # unattended (see lumen.conf.example)
+#   sudo bash install.sh --test               # test setup, no domain needed (see --help)
 #
 # Safe to re-run: every step is idempotent, existing data and secrets are kept,
 # configuration is rendered to a staging directory and validated before use,
@@ -23,6 +24,13 @@ Options:
   --skip-dns-check     Skip DNS verification (certificates will fail if DNS is wrong)
   --no-verify          Don't run the final public endpoint verification (not recommended)
   --install-dir DIR    Where the Lumen code lives (default /opt/lumen)
+  --test               Test setup without a domain: host names under <server-ip>.sslip.io and a
+                       private test CA that each test device must trust (the summary shows how),
+                       or, with --test-host, a free DNS name (e.g. DuckDNS) with Let's Encrypt.
+                       For testing only: a real domain later means a new installation.
+  --test-ip ADDR       With --test: the address devices use (default: detected)
+  --test-host NAME     With --test: your free DNS name for that address (e.g. mylumen.duckdns.org)
+  --test-email ADDR    With --test-host: email for Let's Encrypt
   -h, --help           Show this help
 
 Environment overrides for testing only: LUMEN_NO_SYSTEMD=1, LUMEN_ALLOW_UNSUPPORTED_OS=1
@@ -30,6 +38,7 @@ EOF
 }
 
 CONFIG_SRC=""
+TEST_MODE=0
 ASSUME_YES=0
 DO_VERIFY=1
 while (($#)); do
@@ -40,6 +49,10 @@ while (($#)); do
     --skip-dns-check) export LUMEN_SKIP_DNS_CHECK=1; shift ;;
     --no-verify) DO_VERIFY=0; shift ;;
     --install-dir) INSTALL_DIR="$2"; shift 2 ;;
+    --test) TEST_MODE=1; shift ;;
+    --test-ip) TEST_MODE=1; export LUMEN_TEST_IP="$2"; shift 2 ;;
+    --test-host) TEST_MODE=1; export LUMEN_TEST_HOST="$2"; shift 2 ;;
+    --test-email) TEST_MODE=1; export LUMEN_TEST_EMAIL="$2"; shift 2 ;;
     -h | --help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 64 ;;
   esac
@@ -61,6 +74,7 @@ if [[ "$SCRIPT_DIR" != "$INSTALL_DIR" ]]; then
   args=(--install-dir "$INSTALL_DIR")
   [[ -n "$CONFIG_SRC" ]] && args+=(--config "$(realpath "$CONFIG_SRC")")
   ((ASSUME_YES)) && args+=(--yes)
+  ((TEST_MODE)) && args+=(--test)
   ((DO_VERIFY)) || args+=(--no-verify)
   exec bash "$INSTALL_DIR/install.sh" "${args[@]}"
 fi
@@ -98,6 +112,10 @@ if [[ -n "$CONFIG_SRC" ]]; then
 elif [[ -f "$LUMEN_CONF" ]]; then
   TMP_CONF="$LUMEN_CONF"
   info "using existing configuration $LUMEN_CONF"
+  ((TEST_MODE)) && info "--test ignored: this server already has a configuration"
+elif ((TEST_MODE)); then
+  TMP_CONF="$(mktemp /tmp/lumen.conf.XXXXXX)"
+  test_configure "$TMP_CONF"
 else
   TMP_CONF="$(mktemp /tmp/lumen.conf.XXXXXX)"
   # Secrets entered interactively are written under the real secrets dir.
@@ -212,6 +230,7 @@ if ((DO_VERIFY)); then
   ((${#VERIFY_FAILURES[@]} == 0)) || VERIFY_OK=0
 fi
 
+state_set server_name "$(conf_get MATRIX_SERVER_NAME "$(conf_get LUMEN_PRIMARY_DOMAIN)")"
 if ((VERIFY_OK)); then
   state_set install_status complete
   state_set installed_at "$(date -u +%FT%TZ)"
@@ -242,6 +261,9 @@ WireGuard:          $(truthy "$(conf_get WIREGUARD_ENABLED false)" && echo "enab
 Voice/video:        $(calls_enabled && echo "enabled — SFU wss://$(rtc_domain), ports $(calls_ports_human)" || echo disabled)
 Email:              $( [[ -n "$(conf_get SMTP_HOST)" ]] && echo "SMTP $(conf_get SMTP_HOST)" || echo "not configured — email verification and reset-by-email are off")
 Payments:           $(conf_get BILLING_PROVIDER none)
+EOF
+if test_setup; then test_setup_summary; fi
+cat <<EOF
 
 Operator setup:
   1. On your computer:  ssh -L $(conf_get LUMEN_OPS_PORT 8443):127.0.0.1:$(conf_get LUMEN_OPS_PORT 8443) <you>@<this server>
@@ -252,7 +274,11 @@ Operator setup:
 Remaining manual items:
 EOF
 remaining=0
-if [[ "$(conf_get TLS_MODE acme)" == internal ]]; then echo "  • switch TLS_MODE to acme with real DNS before production use"; remaining=1; fi
+if test_setup; then
+  echo "  • this is a TEST setup: for production, install fresh on your real domain (accounts and rooms don't move over)"; remaining=1
+elif [[ "$(conf_get TLS_MODE acme)" == internal ]]; then
+  echo "  • switch TLS_MODE to acme with real DNS before production use"; remaining=1
+fi
 if [[ -z "$(conf_get SMTP_HOST)" ]]; then echo "  • optional: configure SMTP_* to enable email verification and password reset"; remaining=1; fi
 if [[ "$(conf_get BILLING_PROVIDER none)" == stripe ]]; then echo "  • in Stripe, add webhook https://$p/billing/webhooks/stripe/ and set stripe price IDs in the console (Plans)"; remaining=1; fi
 echo "  • store $LUMEN_CONFIG_DIR/backup/identity.txt offline; without it backups cannot be decrypted"

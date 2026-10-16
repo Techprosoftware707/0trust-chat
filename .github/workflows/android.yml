@@ -77,8 +77,9 @@ jobs:
       - name: Checksums
         run: |
           mkdir -p "$RUNNER_TEMP/out"
-          # Debug: only the universal APK (each per-ABI debug split carries the Rust SDK too).
-          find app/build/outputs/apk/debug -type f -name '*universal*.apk' -exec cp {} "$RUNNER_TEMP/out/" \;
+          # Debug (installable test build, debug key): the universal APK and the arm64-v8a one,
+          # which is what nearly every phone needs and a quarter of the size.
+          find app/build/outputs/apk/debug -type f \( -name '*universal*.apk' -o -name '*arm64-v8a*.apk' \) -exec cp {} "$RUNNER_TEMP/out/" \;
           find app/build/outputs/apk/release app/build/outputs/bundle/release -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} "$RUNNER_TEMP/out/" \;
           ls -la "$RUNNER_TEMP/out"
           cd "$RUNNER_TEMP/out" && sha256sum * | tee SHA256SUMS-android.txt

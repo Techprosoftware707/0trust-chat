@@ -215,6 +215,42 @@ rollback_config() {
   warn "restored previous configuration (failed one kept in $active.failed)"
 }
 
+# test_ca_fingerprint — SHA-256 of the private test CA (TLS_MODE=internal), colon-separated.
+test_ca_fingerprint() {
+  openssl x509 -in "$LUMEN_CONFIG_DIR/ca/caddy-local-root.crt" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2
+}
+
+# test_setup_summary — install.sh --test: how test devices reach (and, with the private test
+# CA, trust) this server. Certificates are always verified; the devices add one trust anchor.
+test_setup_summary() {
+  local p ip fp
+  p="$(conf_get LUMEN_PRIMARY_DOMAIN)"; ip="$(conf_get CALLS_PUBLIC_IP)"
+  printf '\n%sTEST SETUP%s (no domain). In the apps, enter the server:  %s%s%s\n' "$C_BOLD$C_YELLOW" "$C_RESET" "$C_BOLD" "$p" "$C_RESET"
+  if [[ "$p" == *.sslip.io ]]; then
+    printf '  %s and every name under it resolve to %s through sslip.io (public DNS).\n' "$p" "$ip"
+  fi
+  if [[ -n "$ip" ]] && is_private_ipv4 "$ip"; then
+    printf '  %s is a private address: test devices must be on the same network (or VPN).\n' "$ip"
+  fi
+  if [[ "$(conf_get TLS_MODE acme)" == acme ]]; then
+    printf '  Certificates: Let'"'"'s Encrypt; devices need nothing installed.\n'
+    return
+  fi
+  fp="$(test_ca_fingerprint)"
+  cat <<EOF
+  Each test device must trust this server's private test CA once. TLS stays fully verified;
+  this CA has only ever signed this server's names. Compare the fingerprint before trusting it.
+    Download:  http://$p/lumen-test-ca.crt     (on the server: sudo ./lumenctl test-ca)
+    SHA-256:   ${fp:-unavailable}
+    Windows:   PowerShell, in the download folder:
+                 Import-Certificate -FilePath .\lumen-test-ca.crt -CertStoreLocation Cert:\CurrentUser\Root
+               (or double-click it → Install Certificate → Current User → Trusted Root Certification Authorities)
+    Android:   Settings → Security → Encryption & credentials → Install a certificate → CA certificate,
+               then use the Lumen test build (debug APK); release builds trust system CAs only.
+    Browsers:  Chrome/Edge on Windows use the Windows store above; Firefox: Settings → Certificates → Import.
+EOF
+}
+
 # --- Images ----------------------------------------------------------------------------
 
 # pull_image REF — pull a digest-pinned image unless it is already present. Registries and

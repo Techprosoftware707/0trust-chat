@@ -27,6 +27,7 @@ from pathlib import Path
 # ----------------------------------------------------------------------------
 
 DEFAULTS: dict[str, str] = {
+    "LUMEN_TEST_SETUP": "false",  # install.sh --test: no domain (see configure.sh test_configure)
     "LUMEN_PRIMARY_DOMAIN": "",
     "LUMEN_APP_DOMAIN": "",
     "LUMEN_MATRIX_DOMAIN": "",
@@ -621,6 +622,42 @@ SECURITY_HEADERS = """(lumen_headers) {
 """
 
 
+def serves_test_ca(cfg) -> bool:
+    """Test setups with the private CA offer that CA (a public certificate, nothing secret) as a
+    plain-http download, so test devices can be set up to trust it. The installer and
+    `lumenctl test-ca` print its SHA-256 fingerprint to compare before trusting it."""
+    return truthy(cfg["LUMEN_TEST_SETUP"]) and cfg["TLS_MODE"] == "internal"
+
+
+def http_sites(cfg, calls: bool) -> list[str]:
+    """Port 80: redirect to https (plus, in test setups, the test CA download)."""
+    p, app, mx, rtc = cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"], cfg["LUMEN_RTC_DOMAIN"]
+    hosts = [app, mx] + ([rtc] if calls else [])
+    lines = []
+    if serves_test_ca(cfg):
+        lines += [
+            f"http://{p} {{",
+            "\thandle /lumen-test-ca.crt {",
+            # Only the root certificate: the rewrite pins the one file, whatever the request.
+            "\t\troot * /data/caddy/pki/authorities/local",
+            "\t\trewrite * /root.crt",
+            '\t\theader Content-Type "application/x-x509-ca-cert"',
+            '\t\theader Content-Disposition "attachment; filename=lumen-test-ca.crt"',
+            '\t\theader Cache-Control "no-store"',
+            "\t\tfile_server",
+            "\t}",
+            "\thandle {",
+            "\t\tredir https://{host}{uri} 308",
+            "\t}",
+            "}",
+            "",
+        ]
+    else:
+        hosts.insert(0, p)
+    lines += [", ".join(f"http://{h}" for h in hosts) + " {", "\tredir https://{host}{uri} 308", "}", ""]
+    return lines
+
+
 def push_enabled(cfg) -> bool:
     return truthy(cfg["PUSH_ENABLED"])
 
@@ -779,10 +816,7 @@ def render_caddy(cfg, out: Path) -> None:
         "\tlog_skip /_synapse/client/oidc/callback*",
         "}",
         "",
-        f"http://{p}, http://{app}, http://{mx}" + (f", http://{rtc}" if calls else "") + " {",
-        "\tredir https://{host}{uri} 308",
-        "}",
-        "",
+        *http_sites(cfg, calls),
         f"{p} {{",
         caddy_tls(cfg["TLS_MODE"], cfg).rstrip("\n"),
         "\timport lumen_headers",
