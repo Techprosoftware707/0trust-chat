@@ -97,7 +97,7 @@ THEME_KEYS = [
     "bg", "bg-elevated", "surface", "surface-2", "surface-3", "surface-inverse", "border", "border-strong",
     "text", "text-muted", "text-subtle", "text-inverse", "accent", "accent-hover", "accent-soft",
     "accent-contrast", "accent-2", "accent-3", "success", "success-soft", "warning", "warning-soft",
-    "danger", "danger-soft", "info", "info-soft", "bubble-own", "bubble-other",
+    "danger", "danger-soft", "danger-contrast", "info", "info-soft", "bubble-own", "bubble-other",
 ]
 
 

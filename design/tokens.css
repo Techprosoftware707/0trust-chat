@@ -53,6 +53,7 @@
   --lm-cyan-500: #22b4d6;
   --lm-cyan-600: #0e8fb0;
   --lm-cyan-700: #0b6f8a;
+  --lm-cyan-800: #095a70;
 
   --lm-teal-300: #7fe3d1;
   --lm-teal-400: #3ccfb6;
@@ -66,10 +67,13 @@
   --lm-violet-600: #6b58e8;
   --lm-violet-700: #5443c9;
 
+  --lm-green-700: #136d52;
   --lm-green-600: #13895f;
   --lm-green-400: #4fd39b;
+  --lm-amber-700: #8a5409;
   --lm-amber-600: #a86200;
   --lm-amber-400: #f2b553;
+  --lm-red-700: #b82a3f;
   --lm-red-600: #c62f45;
   --lm-red-400: #ff7d8f;
 
@@ -79,8 +83,9 @@
   --lm-peach-500: #ff9a76;
 
   /* ---- Brand hooks (override in branding/theme.css) --------------------- */
-  --brand-accent: var(--lm-cyan-600);
-  --brand-accent-strong: var(--lm-cyan-700);
+  /* Light-mode accent is used as text and under white labels: keep it at least 4.5:1. */
+  --brand-accent: var(--lm-cyan-700);
+  --brand-accent-strong: var(--lm-cyan-800);
   --brand-accent-2: var(--lm-teal-600);
   --brand-accent-3: var(--lm-violet-600);
   --brand-gradient: linear-gradient(135deg, var(--lm-cyan-400) 0%, var(--lm-teal-400) 45%, var(--lm-violet-400) 100%);
@@ -142,22 +147,24 @@
   --border-strong: #c5cdda;
   --text: #121a2b;
   --text-muted: #4f5a6e;
-  --text-subtle: #6b7486;
+  --text-subtle: #606a7c;
   --text-inverse: #f3f6fb;
   --accent: var(--brand-accent);
   --accent-hover: var(--brand-accent-strong);
-  --accent-soft: rgba(14, 143, 176, 0.10);
+  --accent-soft: rgba(11, 111, 138, 0.10);
   --accent-contrast: #ffffff;
   --accent-2: var(--brand-accent-2);
   --accent-3: var(--brand-accent-3);
   --focus-ring: 0 0 0 3px rgba(107, 88, 232, 0.45);
-  --success: var(--lm-green-600);
+  --success: var(--lm-green-700);
   --success-soft: rgba(19, 137, 95, 0.10);
-  --warning: var(--lm-amber-600);
+  --warning: var(--lm-amber-700);
   --warning-soft: rgba(168, 98, 0, 0.10);
-  --danger: var(--lm-red-600);
+  --danger: var(--lm-red-700);
   --danger-soft: rgba(198, 47, 69, 0.09);
-  --info: var(--lm-violet-600);
+  /* Text and icons on a solid --danger background (danger buttons). */
+  --danger-contrast: #ffffff;
+  --info: var(--lm-violet-700);
   --info-soft: rgba(107, 88, 232, 0.10);
   --shadow-sm: 0 1px 2px rgba(10, 22, 48, 0.05), 0 1px 1px rgba(10, 22, 48, 0.03);
   --shadow-md: 0 10px 28px -10px rgba(10, 22, 48, 0.14), 0 2px 6px rgba(10, 22, 48, 0.05);
@@ -194,6 +201,7 @@
   --warning-soft: rgba(242, 181, 83, 0.13);
   --danger: var(--lm-red-400);
   --danger-soft: rgba(255, 125, 143, 0.13);
+  --danger-contrast: #2a0710;
   --info: var(--lm-violet-400);
   --info-soft: rgba(164, 151, 250, 0.14);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -231,6 +239,7 @@
     --warning-soft: rgba(242, 181, 83, 0.13);
     --danger: var(--lm-red-400);
     --danger-soft: rgba(255, 125, 143, 0.13);
+    --danger-contrast: #2a0710;
     --info: var(--lm-violet-400);
     --info-soft: rgba(164, 151, 250, 0.14);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);

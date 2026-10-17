@@ -1,4 +1,4 @@
-:root { color-scheme: light dark; --bg:#f6f8fb; --card:#fff; --text:#121a2b; --muted:#4f5a6e; --border:#dde3ec; --accent:#0e8fb0; }
+:root { color-scheme: light dark; --bg:#f6f8fb; --card:#fff; --text:#121a2b; --muted:#4f5a6e; --border:#dde3ec; --accent:#0b6f8a; }
 @media (prefers-color-scheme: dark) { :root { --bg:#050b1a; --card:#0f1a33; --text:#e9eef7; --muted:#a9b4c9; --border:#22325a; --accent:#5cd0e6; } }
 body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height:1.55; }
 .lumen-shell { max-width: 520px; margin: 0 auto; padding: 48px 20px; }

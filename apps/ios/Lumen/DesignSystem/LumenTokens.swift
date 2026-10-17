@@ -4,6 +4,7 @@ import SwiftUI
 enum LumenPalette {
     static let amber400 = Color(.sRGB, red: 0.9490, green: 0.7098, blue: 0.3255, opacity: 1)
     static let amber600 = Color(.sRGB, red: 0.6588, green: 0.3843, blue: 0.0000, opacity: 1)
+    static let amber700 = Color(.sRGB, red: 0.5412, green: 0.3294, blue: 0.0353, opacity: 1)
     static let charcoal100 = Color(.sRGB, red: 0.9020, green: 0.9137, blue: 0.9373, opacity: 1)
     static let charcoal200 = Color(.sRGB, red: 0.8039, green: 0.8235, blue: 0.8588, opacity: 1)
     static let charcoal300 = Color(.sRGB, red: 0.6392, green: 0.6667, blue: 0.7216, opacity: 1)
@@ -20,8 +21,10 @@ enum LumenPalette {
     static let cyan500 = Color(.sRGB, red: 0.1333, green: 0.7059, blue: 0.8392, opacity: 1)
     static let cyan600 = Color(.sRGB, red: 0.0549, green: 0.5608, blue: 0.6902, opacity: 1)
     static let cyan700 = Color(.sRGB, red: 0.0431, green: 0.4353, blue: 0.5412, opacity: 1)
+    static let cyan800 = Color(.sRGB, red: 0.0353, green: 0.3529, blue: 0.4392, opacity: 1)
     static let green400 = Color(.sRGB, red: 0.3098, green: 0.8275, blue: 0.6078, opacity: 1)
     static let green600 = Color(.sRGB, red: 0.0745, green: 0.5373, blue: 0.3725, opacity: 1)
+    static let green700 = Color(.sRGB, red: 0.0745, green: 0.4275, blue: 0.3216, opacity: 1)
     static let midnight600 = Color(.sRGB, red: 0.1373, green: 0.2392, blue: 0.4471, opacity: 1)
     static let midnight700 = Color(.sRGB, red: 0.0941, green: 0.1765, blue: 0.3490, opacity: 1)
     static let midnight800 = Color(.sRGB, red: 0.0667, green: 0.1333, blue: 0.2706, opacity: 1)
@@ -33,6 +36,7 @@ enum LumenPalette {
     static let peach500 = Color(.sRGB, red: 1.0000, green: 0.6039, blue: 0.4627, opacity: 1)
     static let red400 = Color(.sRGB, red: 1.0000, green: 0.4902, blue: 0.5608, opacity: 1)
     static let red600 = Color(.sRGB, red: 0.7765, green: 0.1843, blue: 0.2706, opacity: 1)
+    static let red700 = Color(.sRGB, red: 0.7216, green: 0.1647, blue: 0.2471, opacity: 1)
     static let teal300 = Color(.sRGB, red: 0.4980, green: 0.8902, blue: 0.8196, opacity: 1)
     static let teal400 = Color(.sRGB, red: 0.2353, green: 0.8118, blue: 0.7137, opacity: 1)
     static let teal500 = Color(.sRGB, red: 0.1216, green: 0.7020, blue: 0.6118, opacity: 1)
@@ -70,6 +74,7 @@ struct LumenColors {
     let warningSoft: Color
     let danger: Color
     let dangerSoft: Color
+    let dangerContrast: Color
     let info: Color
     let infoSoft: Color
     let bubbleOwn: Color
@@ -86,21 +91,22 @@ struct LumenColors {
         borderStrong: Color(.sRGB, red: 0.7725, green: 0.8039, blue: 0.8549, opacity: 1),
         text: Color(.sRGB, red: 0.0706, green: 0.1020, blue: 0.1686, opacity: 1),
         textMuted: Color(.sRGB, red: 0.3098, green: 0.3529, blue: 0.4314, opacity: 1),
-        textSubtle: Color(.sRGB, red: 0.4196, green: 0.4549, blue: 0.5255, opacity: 1),
+        textSubtle: Color(.sRGB, red: 0.3765, green: 0.4157, blue: 0.4863, opacity: 1),
         textInverse: Color(.sRGB, red: 0.9529, green: 0.9647, blue: 0.9843, opacity: 1),
-        accent: Color(.sRGB, red: 0.0549, green: 0.5608, blue: 0.6902, opacity: 1),
-        accentHover: Color(.sRGB, red: 0.0431, green: 0.4353, blue: 0.5412, opacity: 1),
-        accentSoft: Color(.sRGB, red: 0.0549, green: 0.5608, blue: 0.6902, opacity: 0.1),
+        accent: Color(.sRGB, red: 0.0431, green: 0.4353, blue: 0.5412, opacity: 1),
+        accentHover: Color(.sRGB, red: 0.0353, green: 0.3529, blue: 0.4392, opacity: 1),
+        accentSoft: Color(.sRGB, red: 0.0431, green: 0.4353, blue: 0.5412, opacity: 0.1),
         accentContrast: Color(.sRGB, red: 1.0000, green: 1.0000, blue: 1.0000, opacity: 1),
         accent2: Color(.sRGB, red: 0.0706, green: 0.5686, blue: 0.4980, opacity: 1),
         accent3: Color(.sRGB, red: 0.4196, green: 0.3451, blue: 0.9098, opacity: 1),
-        success: Color(.sRGB, red: 0.0745, green: 0.5373, blue: 0.3725, opacity: 1),
+        success: Color(.sRGB, red: 0.0745, green: 0.4275, blue: 0.3216, opacity: 1),
         successSoft: Color(.sRGB, red: 0.0745, green: 0.5373, blue: 0.3725, opacity: 0.1),
-        warning: Color(.sRGB, red: 0.6588, green: 0.3843, blue: 0.0000, opacity: 1),
+        warning: Color(.sRGB, red: 0.5412, green: 0.3294, blue: 0.0353, opacity: 1),
         warningSoft: Color(.sRGB, red: 0.6588, green: 0.3843, blue: 0.0000, opacity: 0.1),
-        danger: Color(.sRGB, red: 0.7765, green: 0.1843, blue: 0.2706, opacity: 1),
+        danger: Color(.sRGB, red: 0.7216, green: 0.1647, blue: 0.2471, opacity: 1),
         dangerSoft: Color(.sRGB, red: 0.7765, green: 0.1843, blue: 0.2706, opacity: 0.09),
-        info: Color(.sRGB, red: 0.4196, green: 0.3451, blue: 0.9098, opacity: 1),
+        dangerContrast: Color(.sRGB, red: 1.0000, green: 1.0000, blue: 1.0000, opacity: 1),
+        info: Color(.sRGB, red: 0.3294, green: 0.2627, blue: 0.7882, opacity: 1),
         infoSoft: Color(.sRGB, red: 0.4196, green: 0.3451, blue: 0.9098, opacity: 0.1),
         bubbleOwn: Color(.sRGB, red: 0.8902, green: 0.9608, blue: 0.9804, opacity: 1),
         bubbleOther: Color(.sRGB, red: 1.0000, green: 1.0000, blue: 1.0000, opacity: 1)
@@ -130,6 +136,7 @@ struct LumenColors {
         warningSoft: Color(.sRGB, red: 0.9490, green: 0.7098, blue: 0.3255, opacity: 0.13),
         danger: Color(.sRGB, red: 1.0000, green: 0.4902, blue: 0.5608, opacity: 1),
         dangerSoft: Color(.sRGB, red: 1.0000, green: 0.4902, blue: 0.5608, opacity: 0.13),
+        dangerContrast: Color(.sRGB, red: 0.1647, green: 0.0275, blue: 0.0627, opacity: 1),
         info: Color(.sRGB, red: 0.6431, green: 0.5922, blue: 0.9804, opacity: 1),
         infoSoft: Color(.sRGB, red: 0.6431, green: 0.5922, blue: 0.9804, opacity: 0.14),
         bubbleOwn: Color(.sRGB, red: 0.0745, green: 0.1922, blue: 0.3216, opacity: 1),

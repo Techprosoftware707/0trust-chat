@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.sp
 object LumenPalette {
     val amber400 = Color(0xFFF2B553)
     val amber600 = Color(0xFFA86200)
+    val amber700 = Color(0xFF8A5409)
     val charcoal100 = Color(0xFFE6E9EF)
     val charcoal200 = Color(0xFFCDD2DB)
     val charcoal300 = Color(0xFFA3AAB8)
@@ -24,8 +25,10 @@ object LumenPalette {
     val cyan500 = Color(0xFF22B4D6)
     val cyan600 = Color(0xFF0E8FB0)
     val cyan700 = Color(0xFF0B6F8A)
+    val cyan800 = Color(0xFF095A70)
     val green400 = Color(0xFF4FD39B)
     val green600 = Color(0xFF13895F)
+    val green700 = Color(0xFF136D52)
     val midnight600 = Color(0xFF233D72)
     val midnight700 = Color(0xFF182D59)
     val midnight800 = Color(0xFF112245)
@@ -37,6 +40,7 @@ object LumenPalette {
     val peach500 = Color(0xFFFF9A76)
     val red400 = Color(0xFFFF7D8F)
     val red600 = Color(0xFFC62F45)
+    val red700 = Color(0xFFB82A3F)
     val teal300 = Color(0xFF7FE3D1)
     val teal400 = Color(0xFF3CCFB6)
     val teal500 = Color(0xFF1FB39C)
@@ -74,6 +78,7 @@ data class LumenColors(
     val warningSoft: Color,
     val danger: Color,
     val dangerSoft: Color,
+    val dangerContrast: Color,
     val info: Color,
     val infoSoft: Color,
     val bubbleOwn: Color,
@@ -91,21 +96,22 @@ val LumenLightColors = LumenColors(
     borderStrong = Color(0xFFC5CDDA),
     text = Color(0xFF121A2B),
     textMuted = Color(0xFF4F5A6E),
-    textSubtle = Color(0xFF6B7486),
+    textSubtle = Color(0xFF606A7C),
     textInverse = Color(0xFFF3F6FB),
-    accent = Color(0xFF0E8FB0),
-    accentHover = Color(0xFF0B6F8A),
-    accentSoft = Color(0x1A0E8FB0),
+    accent = Color(0xFF0B6F8A),
+    accentHover = Color(0xFF095A70),
+    accentSoft = Color(0x1A0B6F8A),
     accentContrast = Color(0xFFFFFFFF),
     accent2 = Color(0xFF12917F),
     accent3 = Color(0xFF6B58E8),
-    success = Color(0xFF13895F),
+    success = Color(0xFF136D52),
     successSoft = Color(0x1A13895F),
-    warning = Color(0xFFA86200),
+    warning = Color(0xFF8A5409),
     warningSoft = Color(0x1AA86200),
-    danger = Color(0xFFC62F45),
+    danger = Color(0xFFB82A3F),
     dangerSoft = Color(0x17C62F45),
-    info = Color(0xFF6B58E8),
+    dangerContrast = Color(0xFFFFFFFF),
+    info = Color(0xFF5443C9),
     infoSoft = Color(0x1A6B58E8),
     bubbleOwn = Color(0xFFE3F5FA),
     bubbleOther = Color(0xFFFFFFFF),
@@ -136,6 +142,7 @@ val LumenDarkColors = LumenColors(
     warningSoft = Color(0x21F2B553),
     danger = Color(0xFFFF7D8F),
     dangerSoft = Color(0x21FF7D8F),
+    dangerContrast = Color(0xFF2A0710),
     info = Color(0xFFA497FA),
     infoSoft = Color(0x24A497FA),
     bubbleOwn = Color(0xFF133152),
