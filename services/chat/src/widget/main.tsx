@@ -41,6 +41,8 @@ function widgetConfig(p: WidgetParams): AppConfig {
     calls: { enabled: true, rtcDomain: null },
     privacyUrl: null,
     helpUrl: null,
+    workspace: null,
+    environment: "production",
   };
 }
 

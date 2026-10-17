@@ -17,6 +17,31 @@ import { deviceDisplayName, extractLoginToken, loginWithToken, takePendingSsoHom
 import { BootScreen } from "./components/BootScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { ChatApp } from "./components/ChatApp";
+import { workspaceAuth } from "./workspace/auth";
+import { EnvBanner, withEnvPrefix } from "./workspace/Shell";
+
+/**
+ * Business workspace: once per tab, before the chat client starts, ask the portal for an
+ * API token silently (prompt=none). With a portal session (the usual case: chat sign-in is
+ * SSO through the portal) it comes straight back; without one the portal says
+ * login_required and the person can connect later from any workspace page.
+ * Returns true when the page is navigating away.
+ */
+async function maybeAuthorizeWorkspace(cfg: AppConfig): Promise<boolean> {
+  const auth = workspaceAuth(cfg.workspace);
+  if (!auth || !auth.shouldAutoAuthorize()) return false;
+  try {
+    await auth.beginAuthorization(window.location.hash, { silent: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Ends the workspace API session too when chat signs out (best effort, keepalive). */
+function signOutWorkspace() {
+  void workspaceAuth()?.signOut();
+}
 
 type Phase =
   | { kind: "config" }
@@ -38,12 +63,14 @@ const STAGE_TEXT: Record<StartupStage | "session", string> = {
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "config" });
+  const configRef = useRef<AppConfig | null>(null);
   const booted = useRef(false);
   const clientRef = useRef<MatrixClient | null>(null);
 
   const handleLoggedOut = useCallback(async (notice: string) => {
     const client = clientRef.current;
     clientRef.current = null;
+    signOutWorkspace();
     await wipeLocalData(client);
     reloadSignedOut(notice);
   }, []);
@@ -85,6 +112,10 @@ export function App() {
       // A fresh login is a new device: remove anything left from an earlier session first.
       await wipeLocalData(null);
       const session = await saveSession({ userId: res.user_id, deviceId: res.device_id, homeserverUrl: hs }, res.access_token);
+      if (configRef.current && (await maybeAuthorizeWorkspace(configRef.current))) {
+        setPhase({ kind: "signing-in" });
+        return; // back in a moment from /oauth/callback; the stored session resumes then
+      }
       await start(session);
     },
     [start],
@@ -120,7 +151,16 @@ export function App() {
         return;
       }
       setConfig(cfg);
-      document.title = cfg.brand.name;
+      configRef.current = cfg;
+      document.title = withEnvPrefix(cfg.brand.name, cfg.environment);
+      if (cfg.environment !== "production") document.body.dataset.envBanner = cfg.environment;
+      const wsAuth = workspaceAuth(cfg.workspace);
+      if (wsAuth?.isCallback()) {
+        // Returning from the portal: exchange the code (failures are shown in the workspace
+        // pages; chat starts regardless). The URL is cleaned before anything else runs.
+        setPhase({ kind: "signing-in" });
+        await wsAuth.completeAuthorization();
+      }
 
       // Only one tab may run the client (shared encrypted crypto store).
       if (!(await acquireTabLock())) {
@@ -147,6 +187,7 @@ export function App() {
         return;
       }
       if (hasStoredSession()) {
+        if (await maybeAuthorizeWorkspace(cfg)) return;
         await resume();
         return;
       }
@@ -157,6 +198,18 @@ export function App() {
     })();
   }, [completeLogin, resume]);
 
+  const banner = config ? <EnvBanner env={config.environment} /> : null;
+  const body = renderPhase();
+  return banner ? (
+    <>
+      {banner}
+      {body}
+    </>
+  ) : (
+    body
+  );
+
+  function renderPhase() {
   switch (phase.kind) {
     case "config":
       return <BootScreen config={null} status="Loading…" />;
@@ -215,9 +268,11 @@ export function App() {
           session={phase.session}
           onSignedOut={(notice) => {
             clientRef.current = null;
+            signOutWorkspace();
             reloadSignedOut(notice);
           }}
         />
       );
+  }
   }
 }

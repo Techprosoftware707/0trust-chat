@@ -6,7 +6,34 @@ import { usePresence, useUserTrust } from "../../hooks/matrix";
 import { formatRelative } from "../../lib/format";
 import { Avatar } from "../primitives/Avatar";
 import { presenceDot } from "../Sidebar";
-import { useUi } from "../UiContext";
+import { useUi, type PanelId } from "../UiContext";
+import { useWorkspaceOptional } from "../../workspace/context";
+import { allRoomPanels, isRoomPanelVisible } from "../../workspace/registry";
+
+/** Buttons for side panels registered by workspace areas (e.g. the CRM panel). */
+function RoomPanelButtons({ panel }: { panel: PanelId | null }) {
+  const ui = useUi();
+  const ws = useWorkspaceOptional();
+  if (!ws) return null; // plain chat deployment
+  const panels = allRoomPanels().filter((p) => ws.status !== "ready" || isRoomPanelVisible(p, ws.workspace));
+  return (
+    <>
+      {panels.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          className="icon-btn"
+          aria-label={p.label}
+          title={p.label}
+          aria-pressed={panel === p.id}
+          onClick={() => ui.openPanel(panel === p.id ? null : p.id)}
+        >
+          <p.icon aria-hidden="true" />
+        </button>
+      ))}
+    </>
+  );
+}
 
 export function EncryptionBadge({ encrypted }: { encrypted: boolean | null }) {
   if (encrypted === null) return null;
@@ -102,7 +129,7 @@ export function RoomHeader({
   dmUserId: string | null;
   encrypted: boolean | null;
   isMobile: boolean;
-  panel: "info" | "search" | "calls" | null;
+  panel: PanelId | null;
   callsEnabled: boolean;
 }) {
   const { client } = useMatrix();
@@ -129,6 +156,7 @@ export function RoomHeader({
       </div>
       <div className="room-header-actions">
         {callsEnabled ? <CallButtons room={room} /> : null}
+        <RoomPanelButtons panel={panel} />
         {callsEnabled ? (
           <button
             type="button"

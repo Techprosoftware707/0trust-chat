@@ -9,7 +9,7 @@ import { navigate } from "../hooks/useRoute";
 import { errorMessage } from "../lib/errors";
 import { Avatar } from "./primitives/Avatar";
 import { Spinner } from "./primitives/Spinner";
-import { useUi } from "./UiContext";
+import { useUi, type PanelId } from "./UiContext";
 import { RoomHeader } from "./room/RoomHeader";
 import { IdentityWarnings } from "./room/IdentityWarnings";
 import { Timeline } from "./room/Timeline";
@@ -90,7 +90,7 @@ function InvitePreview({ room }: { room: Room }) {
   );
 }
 
-function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; panel: "info" | "search" | "calls" | null }) {
+function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; panel: PanelId | null }) {
   const { client, userId, config } = useMatrix();
   useDirectVersion(client);
   const encrypted = useRoomEncrypted(client, room);
@@ -174,7 +174,7 @@ function JoinedRoom({ room, isMobile, panel }: { room: Room; isMobile: boolean; 
   );
 }
 
-export function RoomView({ roomId, isMobile, panel }: { roomId: string; isMobile: boolean; panel: "info" | "search" | "calls" | null }) {
+export function RoomView({ roomId, isMobile, panel }: { roomId: string; isMobile: boolean; panel: PanelId | null }) {
   const { client } = useMatrix();
   const room = useRoom(client, roomId);
   const { state } = useSyncState(client);

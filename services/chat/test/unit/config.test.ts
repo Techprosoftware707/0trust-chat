@@ -23,6 +23,9 @@ describe("parseConfig", () => {
       calls: { enabled: true, rtcDomain: "rtc.example.com" },
       privacyUrl: "https://example.com/privacy/",
       helpUrl: "https://example.com/docs/",
+      // Nexus: no "workspace" block -> plain chat; no "environment" -> production.
+      workspace: null,
+      environment: "production",
     });
   });
 

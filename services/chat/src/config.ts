@@ -18,6 +18,25 @@ export interface AppConfig {
   calls: { enabled: boolean; rtcDomain: string | null };
   privacyUrl: string | null;
   helpUrl: string | null;
+  /**
+   * Nexus business workspace (CRM, pipelines, tasks...) on top of chat. `null` means a
+   * plain chat deployment: no workspace navigation, nothing changes for chat.
+   * The SPA gets an API token from the portal's OAuth server (authorization code + PKCE,
+   * public client `clientId`), see src/workspace/auth.ts.
+   */
+  workspace: WorkspaceConfig | null;
+  /** "production" | "test" | "development": anything but production shows a banner. */
+  environment: AppEnvironment;
+}
+
+export type AppEnvironment = "production" | "test" | "development";
+
+export interface WorkspaceConfig {
+  apiUrl: string;
+  clientId: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  revokeUrl: string;
 }
 
 export class ConfigError extends Error {
@@ -118,16 +137,47 @@ export function parseConfig(raw: unknown): AppConfig {
     calls = { enabled: true, rtcDomain };
   }
 
+  const portalUrl = optionalUrl("portal_url");
   return {
     brand: { name, shortName },
     homeserver: { baseUrl, serverName },
     sso,
-    portalUrl: optionalUrl("portal_url"),
+    portalUrl,
     allowCustomHomeserver: raw.allow_custom_homeserver === true,
     calls,
     privacyUrl: optionalUrl("privacy_url"),
     helpUrl: optionalUrl("help_url"),
+    workspace: parseWorkspace(raw.workspace, portalUrl),
+    environment: raw.environment === "test" || raw.environment === "development" ? raw.environment : "production",
   };
+}
+
+/**
+ * `workspace: {api_url, client_id, authorize_url?, token_url?, revoke_url?}`. The OAuth
+ * endpoints default to the portal's (`portal_url` + /identity/o/...). A malformed block
+ * disables the workspace rather than breaking chat.
+ */
+export function parseWorkspace(raw: unknown, portalUrl: string | null): WorkspaceConfig | null {
+  if (!isObject(raw)) return null;
+  try {
+    const apiUrl = normaliseBaseUrl(validateHttpUrl(str(raw, "api_url", "workspace.", true), "workspace.api_url"));
+    const clientId = str(raw, "client_id", "workspace.", false) ?? "nexus-web";
+    if (!/^[A-Za-z0-9._~-]{1,100}$/.test(clientId)) throw new ConfigError('config.json: "workspace.client_id" is invalid');
+    const issuer = portalUrl ? normaliseBaseUrl(portalUrl) : new URL(apiUrl).origin;
+    const endpoint = (key: string, fallback: string) => {
+      const v = str(raw, key, "workspace.", false);
+      return v ? validateHttpUrl(v, `workspace.${key}`) : `${issuer}${fallback}`;
+    };
+    return {
+      apiUrl,
+      clientId,
+      authorizeUrl: endpoint("authorize_url", "/identity/o/authorize"),
+      tokenUrl: endpoint("token_url", "/identity/o/api/token"),
+      revokeUrl: endpoint("revoke_url", "/identity/o/api/revoke"),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function loadConfig(fetchFn: typeof fetch = fetch): Promise<AppConfig> {

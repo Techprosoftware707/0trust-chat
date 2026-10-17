@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import "./styles/app.css";
+import "./styles/workspace.css";
 import { configureSdkLogging } from "./lib/logger";
 import { applyThemeChoice, getThemeChoice } from "./lib/theme";
 import { App } from "./App";

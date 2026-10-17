@@ -3,6 +3,7 @@
  * Disposable development homeserver for the Lumen chat client.
  *
  *   node tests/chat/devserver.mjs up      # create/start lumen-chatdev-synapse on 127.0.0.1:28008
+ *   (CHATDEV_CONTAINER=lumen-chatdev-<name> CHATDEV_PORT=<port> for a second, independent one)
  *   node tests/chat/devserver.mjs down    # remove the container (data is kept)
  *   node tests/chat/devserver.mjs reset   # remove the container and its data
  *   node tests/chat/devserver.mjs info    # print connection details as JSON
@@ -20,7 +21,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "output");
 const DATA = join(OUT, "synapse");
 const INFO = join(OUT, "devserver.json");
-const CONTAINER = "lumen-chatdev-synapse";
+// CHATDEV_CONTAINER lets a second checkout run its own homeserver next to another one
+// (e.g. the Nexus test environment: lumen-chatdev-nexus on CHATDEV_PORT=28108).
+const CONTAINER = process.env.CHATDEV_CONTAINER || "lumen-chatdev-synapse";
+if (!/^lumen-chatdev-[a-z0-9-]+$/.test(CONTAINER)) {
+  console.error("CHATDEV_CONTAINER must start with lumen-chatdev- (lowercase letters, digits, -)");
+  process.exit(2);
+}
 const IMAGE = process.env.CHATDEV_SYNAPSE_IMAGE || "ghcr.io/element-hq/synapse:v1.163.0";
 const PORT = Number(process.env.CHATDEV_PORT || 28008);
 const SERVER_NAME = "chatdev.test";

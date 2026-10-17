@@ -18,7 +18,7 @@ import { createDm, findDm, waitForRoom } from "../matrix/rooms";
 import { setSecretStorageKeyPrompt } from "../matrix/secret-storage";
 import { setUiaPrompt, type UiaPromptRequest } from "../matrix/uia";
 import { useSecurityState } from "../hooks/security";
-import { navigate, useRoute } from "../hooks/useRoute";
+import { navigate, useHash, useRoute } from "../hooks/useRoute";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useRoomSummaries, useSyncState } from "../hooks/matrix";
 import { UiContext, type DialogSpec, type Toast, type UiContextValue } from "./UiContext";
@@ -40,6 +40,10 @@ import { DesktopStorageNotice } from "../platform/DesktopNotice";
 import { signOut } from "../matrix/client";
 import { resetPrefs } from "../lib/prefs";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { WorkspaceProvider } from "../workspace/context";
+import { BUILTIN_PANELS, allRoomPanels, parseWorkspaceRoute } from "../workspace/registry";
+import { AreaHost, BottomNav, WorkspaceRail, withEnvPrefix } from "../workspace/Shell";
+import type { PanelId } from "./UiContext";
 
 interface Props {
   config: AppConfig;
@@ -62,7 +66,11 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
   const [dialogs, setDialogs] = useState<{ id: number; spec: DialogSpec }[]>([]);
   const dialogSeq = useRef(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [panel, setPanel] = useState<"info" | "search" | "calls" | null>(null);
+  const [panel, setPanel] = useState<PanelId | null>(null);
+  // Workspace shell (only when config.json has a "workspace" block): #/<area>/... routes.
+  const hash = useHash();
+  const wsRoute = config.workspace ? parseWorkspaceRoute(hash) : ({ kind: "chat" } as const);
+  const activeArea = wsRoute.kind === "area" ? wsRoute.area : "chat";
   const [uiaReq, setUiaReq] = useState<{ req: UiaPromptRequest; resolve: (v: string | true | null) => void } | null>(null);
   const [keyReq, setKeyReq] = useState<{
     keyId: string;
@@ -250,8 +258,8 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
   const unreadConversations = summaries.reduce((acc, s) => acc + (s.membership === "invite" ? 1 : s.unread > 0 ? 1 : 0), 0);
   useEffect(() => {
     const n = unreadConversations;
-    document.title = n > 0 ? `(${n}) ${config.brand.name}` : config.brand.name;
-  }, [unreadConversations, config.brand.name]);
+    document.title = withEnvPrefix(n > 0 ? `(${n}) ${config.brand.name}` : config.brand.name, config.environment);
+  }, [unreadConversations, config.brand.name, config.environment]);
 
   // --- Desktop app: badge, "Change server…" sign-out, call transports (no-op in a browser) ---
   const signOutForDesktop = useCallback(async () => {
@@ -262,10 +270,40 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
 
   const roomId = route.kind === "room" ? route.roomId : null;
   useEffect(() => {
-    setPanel((p) => ((p === "info" || p === "calls") && !roomId ? null : p));
+    setPanel((p) => (p && p !== "search" && !roomId ? null : p));
   }, [roomId]);
 
   const view = roomId ? "room" : "list";
+  const extPanel = panel && !BUILTIN_PANELS.has(panel) ? allRoomPanels().find((p) => p.id === panel) : undefined;
+
+  const chatShell = (
+    <div className="shell">
+      <Sidebar summaries={summaries} activeRoomId={roomId} onSignOut={() => openDialog({ type: "sign-out" })} />
+      <main className="room-pane" id="main">
+        <ErrorBoundary compact key={roomId ?? "home"}>
+          {roomId ? <RoomView key={roomId} roomId={roomId} isMobile={isMobile} panel={panel} /> : <EmptyRoomPane />}
+        </ErrorBoundary>
+      </main>
+      {panel ? (
+        <aside
+          className="right-panel"
+          aria-label={panel === "info" ? "Conversation details" : panel === "calls" ? "Call history" : extPanel ? extPanel.label : "Search messages"}
+        >
+          {panel === "info" && roomId ? (
+            <RoomInfoPanel roomId={roomId} onClose={() => setPanel(null)} />
+          ) : panel === "calls" && roomId ? (
+            <CallHistoryPanel roomId={roomId} onClose={() => setPanel(null)} />
+          ) : panel === "search" ? (
+            <SearchPanel onClose={() => setPanel(null)} currentRoomId={roomId} />
+          ) : extPanel && roomId ? (
+            <ErrorBoundary compact key={extPanel.id}>
+              <extPanel.component roomId={roomId} onClose={() => setPanel(null)} />
+            </ErrorBoundary>
+          ) : null}
+        </aside>
+      ) : null}
+    </div>
+  );
 
   return (
     <MatrixContext.Provider value={matrix}>
@@ -277,28 +315,28 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
           className="app"
           data-view={view}
           data-panel={panel ?? "none"}
+          data-ext-panel={extPanel ? "true" : undefined}
+          data-area={config.workspace ? activeArea : undefined}
         >
           <ConnectionBanner />
           <DesktopStorageNotice />
-          <div className="shell">
-            <Sidebar summaries={summaries} activeRoomId={roomId} onSignOut={() => openDialog({ type: "sign-out" })} />
-            <main className="room-pane" id="main">
-              <ErrorBoundary compact key={roomId ?? "home"}>
-                {roomId ? <RoomView key={roomId} roomId={roomId} isMobile={isMobile} panel={panel} /> : <EmptyRoomPane />}
-              </ErrorBoundary>
-            </main>
-            {panel ? (
-              <aside className="right-panel" aria-label={panel === "info" ? "Conversation details" : panel === "calls" ? "Call history" : "Search messages"}>
-                {panel === "info" && roomId ? (
-                  <RoomInfoPanel roomId={roomId} onClose={() => setPanel(null)} />
-                ) : panel === "calls" && roomId ? (
-                  <CallHistoryPanel roomId={roomId} onClose={() => setPanel(null)} />
-                ) : panel === "search" ? (
-                  <SearchPanel onClose={() => setPanel(null)} currentRoomId={roomId} />
-                ) : null}
-              </aside>
-            ) : null}
-          </div>
+          {config.workspace ? (
+            <WorkspaceProvider config={config.workspace} chatUserId={session.userId}>
+              <div className="nexus-frame">
+                {!isMobile ? <WorkspaceRail active={activeArea} unread={unreadConversations} brandName={config.brand.name} /> : null}
+                {activeArea === "chat" ? (
+                  chatShell
+                ) : (
+                  <main className="ws-main" id="main">
+                    <AreaHost id={activeArea} path={wsRoute.kind === "area" ? wsRoute.path : []} />
+                  </main>
+                )}
+              </div>
+              {isMobile && !(activeArea === "chat" && view === "room") ? <BottomNav active={activeArea} unread={unreadConversations} /> : null}
+            </WorkspaceProvider>
+          ) : (
+            chatShell
+          )}
           {config.calls.enabled ? <CallManager /> : null}
           <ToastRegion toasts={toasts} onDismiss={dismissToast} />
         </div>

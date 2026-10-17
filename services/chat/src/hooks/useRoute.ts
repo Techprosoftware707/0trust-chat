@@ -14,3 +14,14 @@ export function useRoute(): Route {
 export function navigate(hash: string): void {
   if (window.location.hash !== hash) window.location.hash = hash;
 }
+
+/** The raw location hash, updated on navigation (the workspace shell parses it). */
+export function useHash(): string {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return hash;
+}

@@ -44,8 +44,11 @@ export interface UiContextValue {
   verifyUser: (userId: string) => Promise<void>;
   /** Starts verifying this device against your other devices, or a specific device of yours. */
   verifyOwnDevice: (deviceId?: string) => Promise<void>;
-  openPanel: (panel: "info" | "search" | "calls" | null) => void;
+  openPanel: (panel: PanelId | null) => void;
 }
+
+/** "info" | "search" | "calls", or the id of a registered room panel (src/workspace/registry.ts). */
+export type PanelId = string;
 
 export const UiContext = createContext<UiContextValue | null>(null);
 

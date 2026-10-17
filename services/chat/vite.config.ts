@@ -32,7 +32,8 @@ function devAssets(): Plugin {
       server.middlewares.use((req, res, next) => {
         const url = (req.url || "").split("?")[0];
         let file: string | null = null;
-        if (url === "/config.json") file = path.join(here, "dev", "config.json");
+        // LUMEN_CHAT_DEV_CONFIG picks another config (e.g. dev/nexus/chat-config.json).
+        if (url === "/config.json") file = process.env.LUMEN_CHAT_DEV_CONFIG ? path.resolve(process.env.LUMEN_CHAT_DEV_CONFIG) : path.join(here, "dev", "config.json");
         else if (url.startsWith("/brand/")) {
           const candidate = path.normalize(path.join(brandingDir, url.slice("/brand/".length)));
           if (candidate.startsWith(brandingDir + path.sep)) file = candidate;
@@ -80,7 +81,7 @@ export default defineConfig({
   },
   server: {
     host: "127.0.0.1",
-    port: 5173,
+    port: Number(process.env.LUMEN_CHAT_DEV_PORT || 5173),
     strictPort: true,
     fs: { allow: [here, designDir, brandingDir] },
   },
