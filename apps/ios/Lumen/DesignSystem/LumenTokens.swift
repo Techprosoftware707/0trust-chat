@@ -28,6 +28,9 @@ enum LumenPalette {
     static let midnight850 = Color(.sRGB, red: 0.0510, green: 0.1059, blue: 0.2275, opacity: 1)
     static let midnight900 = Color(.sRGB, red: 0.0392, green: 0.0863, blue: 0.1882, opacity: 1)
     static let midnight950 = Color(.sRGB, red: 0.0196, green: 0.0431, blue: 0.1020, opacity: 1)
+    static let peach300 = Color(.sRGB, red: 1.0000, green: 0.8275, blue: 0.7412, opacity: 1)
+    static let peach400 = Color(.sRGB, red: 1.0000, green: 0.7020, blue: 0.5686, opacity: 1)
+    static let peach500 = Color(.sRGB, red: 1.0000, green: 0.6039, blue: 0.4627, opacity: 1)
     static let red400 = Color(.sRGB, red: 1.0000, green: 0.4902, blue: 0.5608, opacity: 1)
     static let red600 = Color(.sRGB, red: 0.7765, green: 0.1843, blue: 0.2706, opacity: 1)
     static let teal300 = Color(.sRGB, red: 0.4980, green: 0.8902, blue: 0.8196, opacity: 1)
@@ -103,9 +106,9 @@ struct LumenColors {
         bubbleOther: Color(.sRGB, red: 1.0000, green: 1.0000, blue: 1.0000, opacity: 1)
     )
     static let dark = LumenColors(
-        bg: Color(.sRGB, red: 0.0196, green: 0.0431, blue: 0.1020, opacity: 1),
-        bgElevated: Color(.sRGB, red: 0.0392, green: 0.0863, blue: 0.1882, opacity: 1),
-        surface: Color(.sRGB, red: 0.0588, green: 0.1020, blue: 0.2000, opacity: 1),
+        bg: Color(.sRGB, red: 0.0314, green: 0.0627, blue: 0.1412, opacity: 1),
+        bgElevated: Color(.sRGB, red: 0.0471, green: 0.0902, blue: 0.1922, opacity: 1),
+        surface: Color(.sRGB, red: 0.0627, green: 0.1098, blue: 0.2157, opacity: 1),
         surface2: Color(.sRGB, red: 0.0784, green: 0.1294, blue: 0.2471, opacity: 1),
         surface3: Color(.sRGB, red: 0.1059, green: 0.1647, blue: 0.3020, opacity: 1),
         surfaceInverse: Color(.sRGB, red: 0.9647, green: 0.9725, blue: 0.9843, opacity: 1),
@@ -135,10 +138,10 @@ struct LumenColors {
 }
 
 enum LumenDimens {
-    static let radiusLg: CGFloat = 18
-    static let radiusMd: CGFloat = 12
+    static let radiusLg: CGFloat = 20
+    static let radiusMd: CGFloat = 14
     static let radiusPill: CGFloat = 999
-    static let radiusSm: CGFloat = 8
+    static let radiusSm: CGFloat = 10
     static let radiusXl: CGFloat = 28
     static let space1: CGFloat = 4
     static let space2: CGFloat = 8
@@ -161,4 +164,5 @@ enum LumenDimens {
 enum LumenMotion {
     static let durFast: Double = 0.12
     static let durMed: Double = 0.22
+    static let durSlow: Double = 0.36
 }

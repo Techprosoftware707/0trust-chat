@@ -32,6 +32,9 @@ object LumenPalette {
     val midnight850 = Color(0xFF0D1B3A)
     val midnight900 = Color(0xFF0A1630)
     val midnight950 = Color(0xFF050B1A)
+    val peach300 = Color(0xFFFFD3BD)
+    val peach400 = Color(0xFFFFB391)
+    val peach500 = Color(0xFFFF9A76)
     val red400 = Color(0xFFFF7D8F)
     val red600 = Color(0xFFC62F45)
     val teal300 = Color(0xFF7FE3D1)
@@ -109,9 +112,9 @@ val LumenLightColors = LumenColors(
 )
 
 val LumenDarkColors = LumenColors(
-    bg = Color(0xFF050B1A),
-    bgElevated = Color(0xFF0A1630),
-    surface = Color(0xFF0F1A33),
+    bg = Color(0xFF081024),
+    bgElevated = Color(0xFF0C1731),
+    surface = Color(0xFF101C37),
     surface2 = Color(0xFF14213F),
     surface3 = Color(0xFF1B2A4D),
     surfaceInverse = Color(0xFFF6F8FB),
@@ -140,10 +143,10 @@ val LumenDarkColors = LumenColors(
 )
 
 object LumenDimens {
-    val radiusLg = 18.dp
-    val radiusMd = 12.dp
+    val radiusLg = 20.dp
+    val radiusMd = 14.dp
     val radiusPill = 999.dp
-    val radiusSm = 8.dp
+    val radiusSm = 10.dp
     val radiusXl = 28.dp
     val space1 = 4.dp
     val space2 = 8.dp
@@ -166,4 +169,5 @@ object LumenDimens {
 object LumenMotion {
     const val durFastMillis = 120
     const val durMedMillis = 220
+    const val durSlowMillis = 360
 }

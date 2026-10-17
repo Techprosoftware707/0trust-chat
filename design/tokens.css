@@ -73,6 +73,11 @@
   --lm-red-600: #c62f45;
   --lm-red-400: #ff7d8f;
 
+  /* Warm "sunrise" tones: decorative glows and illustrations only (never text). */
+  --lm-peach-300: #ffd3bd;
+  --lm-peach-400: #ffb391;
+  --lm-peach-500: #ff9a76;
+
   /* ---- Brand hooks (override in branding/theme.css) --------------------- */
   --brand-accent: var(--lm-cyan-600);
   --brand-accent-strong: var(--lm-cyan-700);
@@ -81,7 +86,11 @@
   --brand-gradient: linear-gradient(135deg, var(--lm-cyan-400) 0%, var(--lm-teal-400) 45%, var(--lm-violet-400) 100%);
   --brand-hero: radial-gradient(1200px 600px at 10% -10%, rgba(92, 208, 230, 0.22), transparent 60%),
     radial-gradient(900px 500px at 95% 10%, rgba(134, 118, 244, 0.20), transparent 60%),
+    radial-gradient(900px 420px at 70% 115%, rgba(255, 179, 145, 0.16), transparent 65%),
     linear-gradient(180deg, var(--lm-midnight-950) 0%, var(--lm-midnight-900) 100%);
+  /* A light, optimistic wash for section and empty-state backgrounds. */
+  --brand-wash: radial-gradient(800px 360px at 0% 0%, rgba(92, 208, 230, 0.10), transparent 60%),
+    radial-gradient(700px 320px at 100% 100%, rgba(255, 179, 145, 0.10), transparent 60%);
 
   /* ---- Typography -------------------------------------------------------- */
   --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -95,7 +104,7 @@
   --text-3xl: 2.25rem;
   --text-4xl: clamp(2.25rem, 1.5rem + 3vw, 3.75rem);
   --leading-tight: 1.15;
-  --leading-normal: 1.55;
+  --leading-normal: 1.6;
   --tracking-tight: -0.022em;
 
   /* ---- Space, radius, motion -------------------------------------------- */
@@ -108,14 +117,17 @@
   --space-7: 3rem;
   --space-8: 4.5rem;
   --space-9: 6.5rem;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --radius-xl: 28px;
   --radius-pill: 999px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* A gentle overshoot for small moments of delight (sent, verified, joined). */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --dur-fast: 120ms;
   --dur-med: 220ms;
+  --dur-slow: 360ms;
   --container: 1180px;
 
   /* ---- Semantic (light) -------------------------------------------------- */
@@ -147,9 +159,9 @@
   --danger-soft: rgba(198, 47, 69, 0.09);
   --info: var(--lm-violet-600);
   --info-soft: rgba(107, 88, 232, 0.10);
-  --shadow-sm: 0 1px 2px rgba(10, 22, 48, 0.06), 0 1px 1px rgba(10, 22, 48, 0.04);
-  --shadow-md: 0 6px 20px -6px rgba(10, 22, 48, 0.16), 0 2px 6px rgba(10, 22, 48, 0.06);
-  --shadow-lg: 0 24px 60px -18px rgba(10, 22, 48, 0.28);
+  --shadow-sm: 0 1px 2px rgba(10, 22, 48, 0.05), 0 1px 1px rgba(10, 22, 48, 0.03);
+  --shadow-md: 0 10px 28px -10px rgba(10, 22, 48, 0.14), 0 2px 6px rgba(10, 22, 48, 0.05);
+  --shadow-lg: 0 28px 64px -20px rgba(10, 22, 48, 0.24);
   --bubble-own: #e3f5fa;
   --bubble-other: #ffffff;
 }
@@ -157,9 +169,9 @@
 /* Dark theme: explicit choice wins; otherwise follow the OS. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: var(--lm-midnight-950);
-  --bg-elevated: var(--lm-midnight-900);
-  --surface: #0f1a33;
+  --bg: #081024;
+  --bg-elevated: #0c1731;
+  --surface: #101c37;
   --surface-2: #14213f;
   --surface-3: #1b2a4d;
   --surface-inverse: #f6f8fb;
@@ -194,9 +206,9 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: var(--lm-midnight-950);
-    --bg-elevated: var(--lm-midnight-900);
-    --surface: #0f1a33;
+    --bg: #081024;
+    --bg-elevated: #0c1731;
+    --surface: #101c37;
     --surface-2: #14213f;
     --surface-3: #1b2a4d;
     --surface-inverse: #f6f8fb;
@@ -233,5 +245,6 @@
   :root {
     --dur-fast: 0ms;
     --dur-med: 0ms;
+    --dur-slow: 0ms;
   }
 }
