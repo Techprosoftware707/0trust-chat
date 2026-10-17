@@ -23,11 +23,13 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 openssl rand -base64 24 | tr -d '\n' >"$out/ANDROID_TEST_KEYSTORE_PASSWORD.txt"
-openssl req -x509 -newkey rsa:3072 -nodes -days 9125 -subj "/CN=Lumen test builds" \
-  -keyout "$work/key.pem" -out "$work/cert.pem" 2>/dev/null
+# An EC P-256 key keeps the secret short (about 20 lines to copy).
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 9125 \
+  -subj "/CN=Lumen test builds" -keyout "$work/key.pem" -out "$work/cert.pem" 2>/dev/null
 openssl pkcs12 -export -name lumen-test -inkey "$work/key.pem" -in "$work/cert.pem" \
   -out "$out/lumen-test.p12" -passout "file:$out/ANDROID_TEST_KEYSTORE_PASSWORD.txt"
-base64 -w0 "$out/lumen-test.p12" >"$out/ANDROID_TEST_KEYSTORE_BASE64.txt"
+# Short lines copy reliably from a terminal; CI ignores the line breaks.
+base64 -w 76 "$out/lumen-test.p12" >"$out/ANDROID_TEST_KEYSTORE_BASE64.txt"
 fingerprint="$(openssl x509 -in "$work/cert.pem" -noout -fingerprint -sha256 | cut -d= -f2)"
 
 cat <<EOF
@@ -39,7 +41,7 @@ Certificate SHA-256 (public; CI prints the same one for every signed test build)
   $fingerprint
 
 Next: GitHub -> repository -> Settings -> Secrets and variables -> Actions -> New repository
-secret, once for each of the two names above, pasting the file's content:
+secret, once for each of the two names above, pasting the file's whole content (all lines):
   cat $out/ANDROID_TEST_KEYSTORE_BASE64.txt
   cat $out/ANDROID_TEST_KEYSTORE_PASSWORD.txt
 EOF

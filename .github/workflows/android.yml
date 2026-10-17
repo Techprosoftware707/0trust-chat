@@ -67,13 +67,25 @@ jobs:
       - name: Test-build signing key (optional)
         env:
           TEST_KEYSTORE_B64: ${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}
+          LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "$TEST_KEYSTORE_B64" ]; then
-            echo "$TEST_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/lumen-test.p12"
-            echo "LUMEN_ANDROID_TEST_KEYSTORE_PATH=$RUNNER_TEMP/lumen-test.p12" >> "$GITHUB_ENV"
-          else
+          if [ -z "$TEST_KEYSTORE_B64" ]; then
             echo "::notice::no ANDROID_TEST_KEYSTORE_BASE64 secret: debug APKs are signed with this run's own debug key, so an installed test build must be uninstalled before installing one from another run"
+            exit 0
           fi
+          ks="$RUNNER_TEMP/lumen-test.p12"
+          # Copying from a terminal can add line breaks or spaces: whitespace is ignored.
+          if ! printf '%s' "$TEST_KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$ks" 2>/dev/null; then
+            echo "::error::ANDROID_TEST_KEYSTORE_BASE64 is not a complete base64 copy of the key. Paste the whole output of: cat ~/lumen-test-key/ANDROID_TEST_KEYSTORE_BASE64.txt (or: base64 -w 76 ~/lumen-test-key/lumen-test.p12)"
+            exit 1
+          fi
+          if ! keytool -list -keystore "$ks" -storetype pkcs12 -storepass:env LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD -alias lumen-test > /dev/null 2>&1; then
+            echo "::error::the test key does not open with ANDROID_TEST_KEYSTORE_PASSWORD, or has no entry 'lumen-test' (incomplete copy, or the two secrets swapped?)"
+            exit 1
+          fi
+          # Public: compare with the fingerprint make-test-signing-key.sh printed.
+          keytool -list -v -keystore "$ks" -storetype pkcs12 -storepass:env LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD -alias lumen-test | grep -m1 'SHA256:'
+          echo "LUMEN_ANDROID_TEST_KEYSTORE_PATH=$ks" >> "$GITHUB_ENV"
       - name: Debug and release builds
         env:
           LUMEN_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
