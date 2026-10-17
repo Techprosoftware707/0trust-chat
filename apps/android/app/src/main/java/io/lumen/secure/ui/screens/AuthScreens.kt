@@ -59,7 +59,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.text.font.FontFamily
 import io.lumen.secure.AppGraph
+import io.lumen.secure.BuildConfig
 import io.lumen.secure.R
 import io.lumen.secure.auth.AuthFlowState
 import io.lumen.secure.auth.SignInError
@@ -114,8 +117,9 @@ fun AuthFlow(graph: AppGraph, reason: SignOutReason?) {
     )
 }
 
+/** [showErrorDetails]: the "Details" disclosure on sign-in errors, debug (test) builds only. */
 @Composable
-fun AuthContent(state: AuthFlowState, reason: SignOutReason?, browserMissing: Boolean, actions: AuthActions) {
+fun AuthContent(state: AuthFlowState, reason: SignOutReason?, browserMissing: Boolean, actions: AuthActions, showErrorDetails: Boolean = BuildConfig.DEBUG) {
     val dark = MaterialTheme.isDark
     // Light mode: the airy brand wash. Dark mode: the midnight hero with its sunrise glow.
     Box(Modifier.fillMaxSize().then(if (dark) Modifier.brandHero() else Modifier.brandWash(1.6f))) {
@@ -132,7 +136,7 @@ fun AuthContent(state: AuthFlowState, reason: SignOutReason?, browserMissing: Bo
                         Banner(stringResource(R.string.signed_out_remote), BannerKind.WARNING, R.drawable.ic_lucide_triangle_alert, modifier = Modifier.padding(horizontal = 0.dp))
                     }
                     val server = state.server
-                    if (server == null) ServerPicker(state, actions) else SignIn(state, server, browserMissing, actions)
+                    if (server == null) ServerPicker(state, actions) else SignIn(state, server, browserMissing, actions, showErrorDetails)
                 }
             }
         }
@@ -200,7 +204,7 @@ private fun discoveryMessage(e: DiscoveryFailure): Int = when (e) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SignIn(state: AuthFlowState, server: DiscoveredServer, browserMissing: Boolean, actions: AuthActions) {
+private fun SignIn(state: AuthFlowState, server: DiscoveredServer, browserMissing: Boolean, actions: AuthActions, showErrorDetails: Boolean) {
     val c = MaterialTheme.lumenColors
     Spacer(Modifier.height(12.dp))
     Text(stringResource(R.string.auth_sign_in_to, server.displayName), style = MaterialTheme.typography.headlineSmall, color = c.text, textAlign = TextAlign.Center)
@@ -209,6 +213,8 @@ private fun SignIn(state: AuthFlowState, server: DiscoveredServer, browserMissin
     Spacer(Modifier.height(24.dp))
 
     state.error?.let { e ->
+        val detail = state.errorDetail?.takeIf { showErrorDetails }
+        var expanded by rememberSaveable(detail) { mutableStateOf(false) }
         Banner(
             stringResource(
                 when (e) {
@@ -219,8 +225,11 @@ private fun SignIn(state: AuthFlowState, server: DiscoveredServer, browserMissin
                 },
             ),
             BannerKind.DANGER, R.drawable.ic_lucide_circle_alert,
-            modifier = Modifier.padding(bottom = 8.dp),
+            actionLabel = detail?.let { stringResource(if (expanded) R.string.auth_error_details_hide else R.string.auth_error_details_show) },
+            onAction = detail?.let { { expanded = !expanded } },
+            modifier = Modifier.padding(bottom = 8.dp).testTag("sign_in_error"),
         )
+        if (detail != null && expanded) ErrorDetails(detail)
     }
     if (browserMissing) {
         Banner(stringResource(R.string.auth_no_browser), BannerKind.DANGER, R.drawable.ic_lucide_circle_alert, modifier = Modifier.padding(bottom = 8.dp))
@@ -264,6 +273,31 @@ private fun SignIn(state: AuthFlowState, server: DiscoveredServer, browserMissin
         server.lumen?.privacyUrl?.let { u -> TextButton(onClick = { actions.onOpenUrl(u) }) { Text(stringResource(R.string.link_privacy)) } }
         server.lumen?.helpUrl?.let { u -> TextButton(onClick = { actions.onOpenUrl(u) }) { Text(stringResource(R.string.link_help)) } }
         TextButton(onClick = actions.onChangeServer) { Text(stringResource(R.string.auth_change_server)) }
+    }
+}
+
+/** The error's class, message and TLS verdict ([io.lumen.secure.auth.SignInDiagnostics]), selectable for copying. */
+@Composable
+private fun ErrorDetails(detail: String) {
+    val c = MaterialTheme.lumenColors
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = c.surface,
+        border = BorderStroke(1.dp, c.border),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 8.dp),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(stringResource(R.string.auth_error_details_hint), style = MaterialTheme.typography.bodySmall, color = c.textMuted)
+            Spacer(Modifier.height(6.dp))
+            SelectionContainer {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = c.text,
+                    modifier = Modifier.testTag("sign_in_error_details"),
+                )
+            }
+        }
     }
 }
 

@@ -13,12 +13,17 @@
 // user-installed CAs in every build. Lumen release builds trust system CAs only; debuggable builds
 // also accept user-installed CAs (res/xml/network_security_config.xml, debug-overrides), exactly
 // like the app's own HTTPS client. Upstream's test-only mock-root hooks are omitted.
+//
+// Lumen addition (no change to the decision): every verdict is also handed to
+// io.lumen.secure.net.TlsDiagnostics, so a refused connection can say why (the SDK itself only
+// reports "error sending request").
 package org.rustls.platformverifier
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.http.X509TrustManagerExtensions
 import android.util.Log
+import io.lumen.secure.net.TlsDiagnostics
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.security.KeyStore
@@ -54,7 +59,7 @@ private enum class StatusCode(val value: Int) {
 
 // Read by the native side through JNI: fields `code` (int) and `message` (String).
 private class VerificationResult(
-    status: StatusCode,
+    val status: StatusCode,
     @Suppress("unused") val message: String? = null,
 ) {
     @Suppress("unused")
@@ -111,6 +116,19 @@ internal object CertificateVerifier {
     @JvmStatic
     private fun verifyCertificateChain(
         @Suppress("UNUSED_PARAMETER") context: Context,
+        serverName: String,
+        authMethod: String,
+        allowedEkus: Array<String>,
+        ocspResponse: ByteArray?,
+        time: Long,
+        certChain: Array<ByteArray>,
+    ): VerificationResult {
+        val result = verify(serverName, authMethod, allowedEkus, ocspResponse, time, certChain)
+        TlsDiagnostics.record(serverName, result.status.name, result.message)
+        return result
+    }
+
+    private fun verify(
         serverName: String,
         authMethod: String,
         allowedEkus: Array<String>,

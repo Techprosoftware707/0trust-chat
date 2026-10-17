@@ -114,6 +114,9 @@
     <string name="auth_error_sso">Sign-in didn\'t finish. You can try again whenever you\'re ready.</string>
     <string name="auth_error_sso_start">We couldn\'t start sign-in with this server. Check your connection and try again.</string>
     <string name="auth_error_password">That username and password didn\'t work. Check them and try again.</string>
+    <string name="auth_error_details_show">Details</string>
+    <string name="auth_error_details_hide">Hide details</string>
+    <string name="auth_error_details_hint">Test build: what went wrong, for whoever helps you. It contains no passwords or keys.</string>
     <string name="auth_error_callback">That sign-in link was from an earlier attempt, so we ignored it. Start again from this screen.</string>
     <string name="discovery_invalid_input">Try a server name like example.com, a Matrix ID like @you:example.com, or an https:// address.</string>
     <string name="discovery_unreachable">We couldn\'t reach that server. Check the name and your connection, then try again.</string>

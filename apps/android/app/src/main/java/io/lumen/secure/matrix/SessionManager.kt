@@ -23,15 +23,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uniffi.matrix_sdk_common.BackgroundTaskFailureReason
-import uniffi.matrix_sdk.BackupDownloadStrategy
 import org.matrix.rustcomponents.sdk.Client
-import org.matrix.rustcomponents.sdk.ClientBuilder
 import org.matrix.rustcomponents.sdk.ClientDelegate
 import org.matrix.rustcomponents.sdk.ClientSessionDelegate
 import org.matrix.rustcomponents.sdk.Session
 import org.matrix.rustcomponents.sdk.SlidingSyncVersion
-import org.matrix.rustcomponents.sdk.SlidingSyncVersionBuilder
-import org.matrix.rustcomponents.sdk.SqliteStoreBuilder
 import org.matrix.rustcomponents.sdk.SsoHandler
 import java.io.File
 import java.security.SecureRandom
@@ -282,21 +278,11 @@ class SessionManager(
 
     // ---- helpers ----------------------------------------------------------------------------------
 
-    private suspend fun buildClient(homeserverUrl: String, storeDir: String, key: ByteArray, discoverSlidingSync: Boolean = true): Client {
-        RustPlatform.ensureInitialised(context)
-        val data = File(sessionsDataDir, storeDir).apply { mkdirs() }
-        val cache = File(sessionsCacheDir, storeDir).apply { mkdirs() }
-        return ClientBuilder()
-            .homeserverUrl(homeserverUrl)
-            .sqliteStore(SqliteStoreBuilder(data.absolutePath, cache.absolutePath).key(key))
-            .slidingSyncVersionBuilder(if (discoverSlidingSync) SlidingSyncVersionBuilder.DISCOVER_NATIVE else SlidingSyncVersionBuilder.NATIVE)
-            .autoEnableCrossSigning(true)
-            .autoEnableBackups(true)
-            .backupDownloadStrategy(BackupDownloadStrategy.AFTER_DECRYPTION_FAILURE)
-            .userAgent("Lumen-Android/${BuildConfig.VERSION_NAME}")
-            .setSessionDelegate(sessionDelegate(storeDir))
-            .build()
-    }
+    private suspend fun buildClient(homeserverUrl: String, storeDir: String, key: ByteArray, discoverSlidingSync: Boolean = true): Client =
+        MatrixClients.build(
+            context, homeserverUrl, File(sessionsDataDir, storeDir), File(sessionsCacheDir, storeDir), key,
+            discoverSlidingSync, sessionDelegate(storeDir),
+        )
 
     /** Token refreshes are persisted (sealed) as they happen. */
     private fun sessionDelegate(storeDir: String) = object : ClientSessionDelegate {

@@ -99,6 +99,18 @@ class ScreensScreenshotTest(private val v: Variant) {
         AuthContent(AuthFlowState(server = f.server, error = SignInError.CALLBACK_IGNORED), SignOutReason.REMOTE, true, AuthActions())
     }
 
+    /** Debug builds: the sign-in error offers "Details" (collapsed here). */
+    @Test fun auth_sso_start_error_details() = shoot("auth_sso_start_error_details", v) {
+        AuthContent(
+            AuthFlowState(
+                server = f.server, error = SignInError.SSO_START_FAILED,
+                errorDetail = "ClientBuildException.SlidingSyncVersion: error sending request for url (https://lumen.example/…\n" +
+                    "TLS: certificate of lumen.example refused: Revoked\nLumen 1.0.0 (debug) · Android 9 (API 28)",
+            ),
+            null, false, AuthActions(), showErrorDetails = true,
+        )
+    }
+
     @Test fun auth_password_server() = shoot("auth_password_server", v) { AuthContent(AuthFlowState(server = f.passwordOnlyServer), null, false, AuthActions()) }
 
     // ---- room list --------------------------------------------------------------------------------

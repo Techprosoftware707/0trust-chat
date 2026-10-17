@@ -34,24 +34,11 @@ class RustTlsTest {
         assertEquals(INVALID_ENCODING, verify(arrayOf(byteArrayOf(1, 2, 3))))
     }
 
-    /** Calls the verifier exactly as the native side does (same signature, same result fields). */
-    private fun verify(chain: Array<ByteArray>): Int {
-        val cls = Class.forName("org.rustls.platformverifier.CertificateVerifier")
-        val m = cls.getDeclaredMethod(
-            "verifyCertificateChain",
-            android.content.Context::class.java, String::class.java, String::class.java, Array<String>::class.java,
-            ByteArray::class.java, Long::class.javaPrimitiveType, Array<ByteArray>::class.java,
-        )
-        m.isAccessible = true
-        val result = m.invoke(null, context, "untrusted.lumen.invalid", "RSA", arrayOf(SERVER_AUTH), null, System.currentTimeMillis(), chain)
-        val code = result.javaClass.getDeclaredField("code").apply { isAccessible = true }
-        return code.getInt(result)
-    }
+    private fun verify(chain: Array<ByteArray>): Int = VerifierProbe.verify(context, "untrusted.lumen.invalid", chain).code
 
     private companion object {
-        const val UNKNOWN_CERT = 3
-        const val INVALID_ENCODING = 5
-        const val SERVER_AUTH = "1.3.6.1.5.5.7.3.1"
+        const val UNKNOWN_CERT = VerifierProbe.UNKNOWN_CERT
+        const val INVALID_ENCODING = VerifierProbe.INVALID_ENCODING
 
         /** Self-signed, CN=untrusted.lumen.invalid, serverAuth, valid until 2046; its key was discarded. */
         const val UNTRUSTED_SELF_SIGNED = "MIIB1DCCAXqgAwIBAgIUXZDAhXpgTqHILM+7cDEnGvLV4yowCgYIKoZIzj0EAwIwIjEgMB4GA1UEAwwXdW50cnVzdGVkLmx1bWVuLmludmFsaWQwHhcNMjYxMDE3MDEyNTE2WhcNNDYxMDEyMDEyNTE2WjAiMSAwHgYDVQQDDBd1bnRydXN0ZWQubHVtZW4uaW52YWxpZDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABP56Tnlu9JWc3IZsOLxklVamMac6FwZ2LSvs2d3wweVj6f1+LVHLPzpy3tsLxk5Q1n0qL3V7BU/JppqmMZT0JbajgY0wgYowHQYDVR0OBBYEFHAH3AAU3IQC8Q9xrztusQL3yO4CMB8GA1UdIwQYMBaAFHAH3AAU3IQC8Q9xrztusQL3yO4CMA8GA1UdEwEB/wQFMAMBAf8wIgYDVR0RBBswGYIXdW50cnVzdGVkLmx1bWVuLmludmFsaWQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwCgYIKoZIzj0EAwIDSAAwRQIhAJ/WhqUg4/NpoO7GP8ExXDeiARIXf48+/tItuAEwYcO8AiB/MtUPITIm/dmxtTOnj1Jw78twsRDBb5Ji6fW10wS+8w=="

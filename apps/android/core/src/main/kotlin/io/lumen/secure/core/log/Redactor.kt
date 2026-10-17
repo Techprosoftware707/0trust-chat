@@ -38,9 +38,18 @@ object Redactor {
         return out.filter { !it.isISOControl() || it == '\n' }
     }
 
-    /** For exceptions: the class name and a redacted message, never the raw message. */
+    /**
+     * For exceptions: the class name and a redacted message, never the raw message, then up to two
+     * causes. Nested classes keep their outer name ("ClientBuildException.Sdk", not "Sdk"): the
+     * Rust SDK's errors are nested classes whose simple names say little.
+     */
     fun describe(t: Throwable?): String {
         if (t == null) return ""
-        return t::class.java.simpleName + (t.message?.let { ": " + redact(it) } ?: "")
+        val parts = generateSequence(t) { it.cause?.takeIf { c -> c !== it } }.take(3).map { e ->
+            className(e) + (e.message?.let { ": " + redact(it) } ?: "")
+        }
+        return parts.joinToString(" ← caused by ")
     }
+
+    fun className(t: Throwable): String = t.javaClass.name.substringAfterLast('.').replace('$', '.')
 }

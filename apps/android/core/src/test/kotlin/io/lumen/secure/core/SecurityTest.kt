@@ -221,4 +221,18 @@ class SecurityTest {
         assertEquals("", Redactor.redact(null))
         assertEquals("IllegalStateException: for @<user>", Redactor.describe(IllegalStateException("for @bob:example.com")))
     }
+
+    /** The Rust SDK's errors are nested classes (ClientBuildException.Sdk); causes are kept, redacted. */
+    @Test
+    fun `describe names nested classes and causes`() {
+        val e = SdkLike.Sdk("error sending request for url (https://lumen.example/_matrix/client/versions?access_token=syt_abc)")
+        // The URL rule keeps scheme and host and drops the rest of the token (here also the ")").
+        assertEquals("SecurityTest.SdkLike.Sdk: error sending request for url (https://lumen.example/…", Redactor.describe(e))
+        val chained = IllegalStateException("outer", java.io.IOException("inner @bob:example.com"))
+        assertEquals("IllegalStateException: outer ← caused by IOException: inner @<user>", Redactor.describe(chained))
+    }
+
+    private sealed class SdkLike(message: String) : Exception(message) {
+        class Sdk(message: String) : SdkLike(message)
+    }
 }

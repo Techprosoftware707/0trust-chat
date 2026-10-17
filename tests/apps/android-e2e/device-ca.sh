@@ -42,7 +42,8 @@ adb shell "set -e
 echo "user CA store on the device:"
 adb shell "ls -lZ '$dir'"
 want="$(sha256sum "$der" | cut -d' ' -f1)"
-got="$(adb shell "sha256sum '$target'" | tr -d '\r' | cut -d' ' -f1)"
+# Hashed on this side: older Android toyboxes may have no sha256sum.
+got="$(adb exec-out cat "$target" | sha256sum | cut -d' ' -f1)"
 [[ "$want" == "$got" ]] || { echo "the certificate on the device differs from $ca" >&2; exit 1; }
 meta="$(adb shell "stat -c '%U:%G %a' '$target'" | tr -d '\r')"
 [[ "$meta" == "system:system 644" ]] || { echo "unexpected owner/mode on $target: $meta" >&2; exit 1; }

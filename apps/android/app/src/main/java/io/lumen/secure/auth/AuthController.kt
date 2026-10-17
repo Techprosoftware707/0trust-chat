@@ -9,6 +9,7 @@ import io.lumen.secure.log.LumenLog
 import io.lumen.secure.matrix.SessionManager
 import io.lumen.secure.matrix.SsoFinishResult
 import io.lumen.secure.net.PlatformHttp
+import io.lumen.secure.net.TlsDiagnostics
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,8 @@ data class AuthFlowState(
     val busy: Boolean = false,
     val waitingForBrowser: Boolean = false,
     val error: SignInError? = null,
+    /** What went wrong, for the Details disclosure of debug builds ([SignInDiagnostics]); no secrets. */
+    val errorDetail: String? = null,
 )
 
 /** Server picker → discovery → SSO in Custom Tabs (or password, only if offered). */
@@ -53,21 +56,23 @@ class AuthController(private val sessions: SessionManager, private val scope: Co
 
     fun changeServer() {
         scope.launch { sessions.abandonPendingSso() }
-        _state.update { it.copy(server = null, error = null, waitingForBrowser = false, busy = false) }
+        _state.update { it.copy(server = null, error = null, errorDetail = null, waitingForBrowser = false, busy = false) }
     }
 
     /** Prepares SSO; [open] receives the URL to show in Custom Tabs. */
     fun startSso(open: (String) -> Unit) {
         val server = _state.value.server ?: return
-        _state.update { it.copy(busy = true, error = null) }
+        _state.update { it.copy(busy = true, error = null, errorDetail = null) }
         scope.launch {
+            val started = System.currentTimeMillis()
             try {
                 val url = sessions.startSso(server)
                 _state.update { it.copy(busy = false, waitingForBrowser = true) }
                 withContext(Dispatchers.Main) { open(url) }
             } catch (e: Exception) {
-                LumenLog.w("auth", "SSO start failed", e)
-                _state.update { it.copy(busy = false, error = SignInError.SSO_START_FAILED) }
+                val tls = TlsDiagnostics.failureSince(started)
+                LumenLog.w("auth", "SSO start failed" + (tls?.let { "; TLS certificate refused: ${it.status}" } ?: ""), e)
+                _state.update { it.copy(busy = false, error = SignInError.SSO_START_FAILED, errorDetail = SignInDiagnostics.describe(e, started)) }
             }
         }
     }
@@ -75,6 +80,7 @@ class AuthController(private val sessions: SessionManager, private val scope: Co
     fun onSsoCallback(uri: String) {
         _state.update { it.copy(busy = true) }
         scope.launch {
+            val started = System.currentTimeMillis()
             val r = sessions.finishSso(uri)
             _state.update {
                 when (r) {
@@ -83,7 +89,10 @@ class AuthController(private val sessions: SessionManager, private val scope: Co
                     // browser (a stale or forged link arriving later would otherwise do nothing
                     // visible). After a successful sign-in `server` is null: a duplicate is silent.
                     SsoFinishResult.Ignored -> it.copy(busy = false, error = if (it.server != null) SignInError.CALLBACK_IGNORED else it.error)
-                    is SsoFinishResult.Failed -> it.copy(busy = false, waitingForBrowser = false, error = SignInError.SSO_FAILED)
+                    is SsoFinishResult.Failed -> it.copy(
+                        busy = false, waitingForBrowser = false, error = SignInError.SSO_FAILED,
+                        errorDetail = SignInDiagnostics.describe(r.error, started),
+                    )
                 }
             }
         }
@@ -96,14 +105,15 @@ class AuthController(private val sessions: SessionManager, private val scope: Co
 
     fun passwordLogin(user: String, password: String) {
         val server = _state.value.server ?: return
-        _state.update { it.copy(busy = true, error = null) }
+        _state.update { it.copy(busy = true, error = null, errorDetail = null) }
         scope.launch {
+            val started = System.currentTimeMillis()
             try {
                 sessions.passwordLogin(server, user, password)
                 _state.value = AuthFlowState()
             } catch (e: Exception) {
                 LumenLog.w("auth", "password login failed", e)
-                _state.update { it.copy(busy = false, error = SignInError.PASSWORD_FAILED) }
+                _state.update { it.copy(busy = false, error = SignInError.PASSWORD_FAILED, errorDetail = SignInDiagnostics.describe(e, started)) }
             }
         }
     }
