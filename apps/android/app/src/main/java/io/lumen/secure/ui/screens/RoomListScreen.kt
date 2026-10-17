@@ -195,6 +195,7 @@ private fun RoomRow(session: MatrixSession, room: RoomSummary, selected: Boolean
     var busy by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxWidth()
+            .testTag("room_row")
             .then(if (selected) Modifier.background(c.accentSoft) else Modifier)
             .clickable(enabled = !room.isInvite, onClick = onOpen)
             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -241,7 +242,7 @@ private fun RoomRow(session: MatrixSession, room: RoomSummary, selected: Boolean
         }
         if (room.isInvite) {
             Row(Modifier.padding(start = 56.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(enabled = !busy, onClick = {
+                OutlinedButton(enabled = !busy, modifier = Modifier.testTag("invite_accept"), onClick = {
                     busy = true
                     scope.launch {
                         try { session.client.getRoom(room.id)?.join() } catch (e: Exception) { LumenLog.w("invite", "accept failed", e) }

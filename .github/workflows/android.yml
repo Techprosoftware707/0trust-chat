@@ -1,5 +1,6 @@
 # Android app: unit tests, lint, debug + release APK, release AAB, instrumented tests on
-# an emulator (GitHub's Linux runners have KVM). Release signing only with secrets.
+# an emulator (GitHub's Linux runners have KVM), and the app end to end against a real Lumen
+# server installed on the runner (install.sh --test). Release signing only with secrets.
 name: android
 
 on:
@@ -73,7 +74,7 @@ jobs:
           ORG_GRADLE_PROJECT_lumen.fcm.appId: ${{ vars.LUMEN_FCM_APP_ID }}
           ORG_GRADLE_PROJECT_lumen.fcm.apiKey: ${{ vars.LUMEN_FCM_API_KEY }}
           ORG_GRADLE_PROJECT_lumen.fcm.senderId: ${{ vars.LUMEN_FCM_SENDER_ID }}
-        run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease
+        run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease :app:assembleDebugAndroidTest
       - name: Checksums
         run: |
           mkdir -p "$RUNNER_TEMP/out"
@@ -89,6 +90,16 @@ jobs:
           path: ${{ runner.temp }}/out/*
           if-no-files-found: error
           retention-days: 14
+      - name: Test APKs for the end-to-end job
+        run: |
+          mkdir -p "$RUNNER_TEMP/e2e-apks"
+          cp app/build/outputs/apk/debug/app-x86_64-debug.apk app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$RUNNER_TEMP/e2e-apks/"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-e2e-apks
+          path: ${{ runner.temp }}/e2e-apks/*
+          if-no-files-found: error
+          retention-days: 3
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -129,4 +140,102 @@ jobs:
         with:
           name: android-instrumented-reports
           path: apps/android/app/build/reports/androidTests
+          retention-days: 7
+
+  server-e2e:
+    # The debug app on an emulator against a Lumen server installed on this runner with the
+    # installer's test setup (sslip.io names, private test CA, open registration). The emulator
+    # trusts the test CA as a user CA, as a tester's phone would; a web user in Playwright
+    # Chromium chats with the app. Steps and checks: tests/apps/android-e2e/run.sh.
+    name: App against a real Lumen server (emulator)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Runner resources
+        run: |
+          nproc; free -m; df -h / /mnt || true
+          ip -4 -o addr show scope global
+          echo "upstream DNS: $(awk '/^nameserver/ {print $2}' /run/systemd/resolve/resolv.conf 2>/dev/null | paste -sd' ')"
+          sudo ss -ltnup | awk 'NR == 1 || $5 ~ /:(80|443|8443|3478|7881|788[2-9])$/'
+      - name: Free disk space for the server (the installer needs 10 GB on /var/lib)
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules \
+            /opt/hostedtoolcache/CodeQL /usr/share/swift /usr/local/share/powershell
+          df -h /
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.22.0"
+          cache: npm
+          cache-dependency-path: services/chat/package-lock.json
+      - name: Playwright Chromium (web user) and NSS tools, before the installer touches apt
+        working-directory: services/chat
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y -q --no-install-recommends libnss3-tools
+      - name: Install Lumen (installer test setup, no domain)
+        run: |
+          out="$RUNNER_TEMP/android-e2e"; mkdir -p "$out"
+          ip="$(ip -4 route get 1.1.1.1 | awk '{for (i = 1; i < NF; i++) if ($i == "src") {print $(i + 1); exit}}')"
+          server="${ip//./-}.sslip.io"
+          echo "LUMEN_E2E_SERVER=$server" >> "$GITHUB_ENV"
+          echo "LUMEN_E2E_OUT=$out" >> "$GITHUB_ENV"
+          echo "runner address $ip -> server name $server"
+          set +e
+          sudo bash install.sh --test --yes --test-ip "$ip" 2>&1 | tee "$out/install-output.txt"
+          rc=${PIPESTATUS[0]}
+          set -e
+          if ! grep -q '^Result: SUCCESS' "$out/install-output.txt"; then
+            echo "::error::installer did not report SUCCESS (exit $rc)"; exit 1
+          fi
+      - name: Installer log
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/android-e2e"
+          sudo sh -c 'cp /var/log/lumen/install-*.log "$1"/ 2>/dev/null; /opt/lumen/lumenctl status > "$1/lumenctl-status.txt" 2>&1' sh "$RUNNER_TEMP/android-e2e" || true
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/android-e2e"
+      - name: Test CA as a tester gets it (download, compare fingerprint), trusted by the web user's browser
+        run: |
+          ca="$RUNNER_TEMP/lumen-test-ca.crt"
+          curl -fsS "http://$LUMEN_E2E_SERVER/lumen-test-ca.crt" -o "$ca"
+          got="$(openssl x509 -in "$ca" -noout -fingerprint -sha256 | cut -d= -f2)"
+          want="$(sudo openssl x509 -in /etc/lumen/ca/caddy-local-root.crt -noout -fingerprint -sha256 | cut -d= -f2)"
+          [ "$got" = "$want" ] || { echo "::error::downloaded CA $got differs from the server's $want"; exit 1; }
+          echo "test CA SHA-256 $got"
+          echo "LUMEN_E2E_CA=$ca" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.pki/nssdb"
+          [ -f "$HOME/.pki/nssdb/cert9.db" ] || certutil -d "sql:$HOME/.pki/nssdb" -N --empty-password
+          certutil -d "sql:$HOME/.pki/nssdb" -A -t "C,," -n "Lumen test CA" -i "$ca"
+          curl -fsS --cacert "$ca" -o /dev/null -w 'https://%{url.host}/healthz: %{http_code}\n' "https://$LUMEN_E2E_SERVER/healthz"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: android-e2e-apks
+          path: ${{ runner.temp }}/e2e-apks
+      - name: Enable KVM for the emulator; emulator DNS = the runner's upstream resolvers
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          dns="$(awk '/^nameserver/ && $2 !~ /:/ && $2 !~ /^127\./ {print $2}' /run/systemd/resolve/resolv.conf 2>/dev/null | paste -sd, -)"
+          echo "EMULATOR_DNS=${dns:+-dns-server $dns}" >> "$GITHUB_ENV"
+          echo "LUMEN_E2E_APK=$RUNNER_TEMP/e2e-apks/app-x86_64-debug.apk" >> "$GITHUB_ENV"
+          echo "LUMEN_E2E_TEST_APK=$RUNNER_TEMP/e2e-apks/app-debug-androidTest.apk" >> "$GITHUB_ENV"
+      - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim ${{ env.EMULATOR_DNS }}
+          script: bash tests/apps/android-e2e/run.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: android-server-e2e
+          path: ${{ runner.temp }}/android-e2e
           retention-days: 7

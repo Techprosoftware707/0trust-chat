@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -248,7 +249,7 @@ fun RoomScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, roomI
                         if (rows.isEmpty()) {
                             CenteredState(stringResource(R.string.room_empty), icon = R.drawable.ic_lucide_message_circle)
                         }
-                        LazyColumn(Modifier.fillMaxSize(), state = listState, reverseLayout = true, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
+                        LazyColumn(Modifier.fillMaxSize().testTag("timeline"), state = listState, reverseLayout = true, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
                             items(newestFirst, key = { it.key }) { row ->
                                 when (row) {
                                     is TimelineRow.Event -> MessageRow(
@@ -664,10 +665,11 @@ private fun Composer(
                     },
                     placeholder = { Text(stringResource(R.string.composer_placeholder)) },
                     maxLines = 6,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("composer_input"),
                 )
                 IconButton(
                     enabled = text.isNotBlank(),
+                    modifier = Modifier.testTag("composer_send"),
                     onClick = {
                         controller.sendText(text.trim(), replyTo, editing)
                         text = ""

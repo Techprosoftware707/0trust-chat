@@ -140,11 +140,12 @@ fun SettingRow(
     subtitle: String? = null,
     @DrawableRes icon: Int? = null,
     onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val c = MaterialTheme.lumenColors
     Row(
-        Modifier.fillMaxWidth()
+        modifier.fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

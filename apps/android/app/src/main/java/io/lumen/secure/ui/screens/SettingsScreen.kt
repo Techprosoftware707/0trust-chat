@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -123,7 +124,10 @@ fun SettingsScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel) {
         server?.lumen?.privacyUrl?.let { u -> SettingRow(stringResource(R.string.link_privacy), null, R.drawable.ic_lucide_external_link, onClick = { openInBrowser(context, u) }) }
         server?.lumen?.helpUrl?.let { u -> SettingRow(stringResource(R.string.link_help), null, R.drawable.ic_lucide_external_link, onClick = { openInBrowser(context, u) }) }
 
-        SettingRow(stringResource(R.string.settings_sign_out), null, R.drawable.ic_lucide_log_out, onClick = { confirmSignOut = true })
+        SettingRow(
+            stringResource(R.string.settings_sign_out), null, R.drawable.ic_lucide_log_out, onClick = { confirmSignOut = true },
+            modifier = Modifier.testTag("sign_out_row"),
+        )
         // Account deletion is a portal function (Play's account-deletion requirement): opened in the browser.
         server?.lumen?.accountDeleteUrl?.let { url ->
             SettingRow(
@@ -139,7 +143,7 @@ fun SettingsScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel) {
             title = { Text(stringResource(R.string.settings_sign_out)) },
             text = { Text(stringResource(R.string.sign_out_body)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(modifier = Modifier.testTag("sign_out_confirm"), onClick = {
                     confirmSignOut = false
                     scope.launch { graph.sessions.signOut() }
                 }) { Text(stringResource(R.string.settings_sign_out), color = c.danger) }
