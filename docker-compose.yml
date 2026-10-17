@@ -99,6 +99,10 @@ services:
     <<: *hardening
     image: ${SYNAPSE_IMAGE}
     user: "991:991"
+    # A crash, OOM kill or hard reboot leaves the unix socket and Twisted's lock behind; the
+    # lock names PID 1, which in the restarted container is synapse itself, so it would refuse
+    # to listen and crash-loop. Only synapse uses these two paths: clear them, then start.
+    entrypoint: ["/bin/sh", "-c", "rm -f /sockets/synapse.sock /sockets/synapse.sock.lock && exec /start.py"]
     group_add:
       - "${GID_SECRETS}"
       - "${GID_SOCKETS}"

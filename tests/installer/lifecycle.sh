@@ -51,6 +51,25 @@ if calls_on; then
   check "healthy after the SFU restart" healthy
 fi
 
+echo "--- crash recovery (no operator action)"
+# A crash, OOM kill or hard reboot: the processes die without cleaning up. Docker's restart policy
+# must bring every service back healthy by itself (a stale unix-socket lock once kept the
+# homeserver down forever).
+crash_recovers() { # service
+  local pid; pid="$(docker inspect -f '{{.State.Pid}}' "lumen-$1-1")" || return 1
+  kill -9 "$pid" || return 1
+  for _ in $(seq 1 90); do
+    sleep 2
+    [[ "$(docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}}' "lumen-$1-1" 2>/dev/null)" == "true healthy" ]] && return 0
+  done
+  return 1
+}
+for svc in synapse portal ops postgres; do
+  check "$svc killed with SIGKILL comes back healthy on its own" crash_recovers "$svc"
+done
+check "healthy after the crashes" healthy
+check "data intact after the crashes (marker A)" user_exists lcmarker-a
+
 echo "--- health and diagnostics"
 check "healthcheck.sh reports healthy (warnings allowed)" healthy
 ./diagnose.sh --no-color >/root/diagnose.out 2>&1; rc=$?
