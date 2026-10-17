@@ -15,7 +15,7 @@
 #   sudo ./lumenctl rotate <secret>                 rotate: ops-gateway|internal-api|synapse-admin|oidc-client|db-passwords|django
 #   sudo ./lumenctl reconcile-db                    re-apply database roles/passwords from secrets
 #   sudo ./lumenctl config                          print resolved configuration (no secrets)
-#   sudo ./lumenctl set-secret <name>               set smtp_password|stripe_secret_key|stripe_webhook_secret (hidden input)
+#   sudo ./lumenctl set-secret <name>               set smtp_password|stripe_secret_key|stripe_webhook_secret|nexus_*_secret (hidden input)
 #   sudo ./lumenctl apply                           apply edits to lumen.conf (invalid config is never activated)
 #   sudo ./lumenctl admin-tunnel                    how to reach the operator console
 #   sudo ./lumenctl test-ca                         the private test CA (TLS_MODE=internal) and its fingerprint
@@ -196,9 +196,10 @@ case "$cmd" in
     reconcile_db_roles && ok "database roles reconciled"
     ;;
   set-secret)
-    name="${1:?smtp_password|stripe_secret_key|stripe_webhook_secret|push_fcm_service_account|push_apns_key}"
+    name="${1:?smtp_password|stripe_secret_key|stripe_webhook_secret|push_fcm_service_account|push_apns_key|nexus_google_client_secret|nexus_slack_client_secret|nexus_slack_signing_secret|nexus_ghl_client_secret}"
     case "$name" in
       smtp_password | stripe_secret_key | stripe_webhook_secret) ;;
+      nexus_google_client_secret | nexus_slack_client_secret | nexus_slack_signing_secret | nexus_ghl_client_secret) ;;
       push_fcm_service_account | push_apns_key)
         # Multi-line credential files: sudo ./lumenctl set-secret push_apns_key < AuthKey_XXXXXXXXXX.p8
         [[ -t 0 ]] && die "pipe the file in: sudo ./lumenctl set-secret $name < <file>"
@@ -210,7 +211,7 @@ case "$cmd" in
           grep -q 'BEGIN PRIVATE KEY' <<<"$value" || die "not an APNs .p8 authentication key"
         fi
         ;;
-      *) die "only external secrets can be set: smtp_password, stripe_secret_key, stripe_webhook_secret, push_fcm_service_account, push_apns_key (internal ones: lumenctl rotate)" ;;
+      *) die "only external secrets can be set: smtp_password, stripe_secret_key, stripe_webhook_secret, push_fcm_service_account, push_apns_key, nexus_google_client_secret, nexus_slack_client_secret, nexus_slack_signing_secret, nexus_ghl_client_secret (internal ones: lumenctl rotate)" ;;
     esac
     if [[ -n "${value:-}" ]]; then :; elif [[ -t 0 ]]; then read -r -s -p "Value for $name (input hidden): " value; printf '\n'; else IFS= read -r value; fi
     [[ -n "$value" ]] || die "empty value; nothing changed"

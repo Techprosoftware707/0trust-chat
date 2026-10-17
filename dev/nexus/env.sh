@@ -39,6 +39,10 @@ export NEXUS_SECURE_DOCUMENTS_DIR="$NEXUS_STATE/secure-documents-$NEXUS_SLOT"
 [ -f "$NEXUS_STATE/document-key-$NEXUS_SLOT" ] || (umask 077 && openssl rand -base64 32 >"$NEXUS_STATE/document-key-$NEXUS_SLOT")
 export NEXUS_DOCUMENT_KEY_FILE="$NEXUS_STATE/document-key-$NEXUS_SLOT"
 export NEXUS_DEMO_PASSWORD="${NEXUS_DEMO_PASSWORD:-nexus-demo-pass-2026}"
+# Integrations (docs/nexus/INTEGRATIONS.md): a throwaway token-encryption key for this machine and,
+# unless you set NEXUS_INTEGRATIONS_MOCK=0, local fake providers labelled "Mock provider (development)".
+export NEXUS_INTEGRATIONS_KEY="${NEXUS_INTEGRATIONS_KEY:-6e657875732d6465762d6f6e6c792d6b65792d6e6f742d612d73656372657421}"
+export NEXUS_INTEGRATIONS_MOCK="${NEXUS_INTEGRATIONS_MOCK:-1}"
 # Chat SPA dev server (Vite) on 127.0.0.1:5710+N with the Nexus config (portal URLs follow the slot).
 export LUMEN_CHAT_DEV_PORT="$NEXUS_CHAT_PORT"
 sed "s#127.0.0.1:8710#127.0.0.1:$NEXUS_PORTAL_PORT#g" "$NEXUS_DEV_DIR/chat-config.json" >"$NEXUS_STATE/chat-config.json"

@@ -13,7 +13,9 @@ For each request it, in order:
 4. with ``workspace=True`` (the default) resolves the ``workspace_id`` URL argument to an
    ``apps.crm.access.Actor`` (404 if the user is not a member: workspace IDs are never
    confirmed to outsiders) and, with ``feature=``, requires that workspace feature;
-5. runs the view (writes inside one database transaction) and turns ``ApiError``,
+5. runs the view (writes inside one database transaction, unless ``atomic=False``: views
+   that call external providers manage their own transactions, so that e.g. a rotated
+   refresh token is never rolled back with a failed request) and turns ``ApiError``,
    ``Http404``, ``PermissionDenied`` and validation errors into the one error format.
 
 Views are CSRF-exempt because they only ever accept bearer tokens: a request that carries

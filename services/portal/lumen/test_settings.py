@@ -30,6 +30,8 @@ os.environ.update(
         "LUMEN_TEST_EMAIL_LOCMEM": "1",
         "SYNAPSE_ADMIN_TOKEN": "",
         "NEXUS_ENVIRONMENT": "test",
+        # Throwaway AES-256 key for encrypted integration tokens in tests (apps.integrations.crypto).
+        "NEXUS_INTEGRATIONS_KEY": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
     }
 )
 os.environ.setdefault("POSTGRES_HOST", "127.0.0.1")

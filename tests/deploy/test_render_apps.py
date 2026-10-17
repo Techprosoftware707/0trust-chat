@@ -224,5 +224,21 @@ class TestNexusWorkspace(unittest.TestCase):
         self.assertIn("NEXUS_ENVIRONMENT must be", config_error("NEXUS_ENVIRONMENT=staging\n"))
 
 
+class TestNexusIntegrations(unittest.TestCase):
+    """Nexus integrations: client IDs reach app.env, secrets never do, mock mode is refused in production."""
+
+    def test_client_ids_in_app_env_and_mock_off_by_default(self):
+        env = (rendered("NEXUS_GOOGLE_CLIENT_ID=123-abc.apps.googleusercontent.com\nNEXUS_SLACK_CLIENT_ID=111.222\n") / "app.env").read_text()
+        self.assertIn("NEXUS_GOOGLE_CLIENT_ID=123-abc.apps.googleusercontent.com\n", env)
+        self.assertIn("NEXUS_SLACK_CLIENT_ID=111.222\n", env)
+        self.assertIn("NEXUS_INTEGRATIONS_MOCK=false\n", env)
+        self.assertNotIn("SECRET", "".join(line for line in env.splitlines() if line.startswith("NEXUS_")))
+
+    def test_mock_refused_in_production_and_ids_validated(self):
+        self.assertIn("NEXUS_INTEGRATIONS_MOCK", config_error("NEXUS_ENVIRONMENT=production\nNEXUS_INTEGRATIONS_MOCK=true\n"))
+        self.assertIn("NEXUS_GHL_CLIENT_ID", config_error("NEXUS_GHL_CLIENT_ID=bad id;rm\n"))
+        rendered("NEXUS_ENVIRONMENT=test\nNEXUS_INTEGRATIONS_MOCK=true\n")
+
+
 if __name__ == "__main__":
     unittest.main()

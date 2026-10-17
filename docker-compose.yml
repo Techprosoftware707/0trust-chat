@@ -157,6 +157,11 @@ services:
       SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
       STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
+      NEXUS_INTEGRATIONS_KEY_FILE: /run/secrets/nexus_integrations_key
+      NEXUS_GOOGLE_CLIENT_SECRET_FILE: /run/secrets/nexus_google_client_secret
+      NEXUS_SLACK_CLIENT_SECRET_FILE: /run/secrets/nexus_slack_client_secret
+      NEXUS_SLACK_SIGNING_SECRET_FILE: /run/secrets/nexus_slack_signing_secret
+      NEXUS_GHL_CLIENT_SECRET_FILE: /run/secrets/nexus_ghl_client_secret
     secrets:
       - django_secret_key
       - postgres_app_password
@@ -165,6 +170,11 @@ services:
       - smtp_password
       - stripe_secret_key
       - stripe_webhook_secret
+      - nexus_integrations_key
+      - nexus_google_client_secret
+      - nexus_slack_client_secret
+      - nexus_slack_signing_secret
+      - nexus_ghl_client_secret
     volumes:
       - ${LUMEN_SOCKET_DIR}:/sockets
     networks:
@@ -206,6 +216,10 @@ services:
       SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
       STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
+      NEXUS_INTEGRATIONS_KEY_FILE: /run/secrets/nexus_integrations_key
+      NEXUS_GOOGLE_CLIENT_SECRET_FILE: /run/secrets/nexus_google_client_secret
+      NEXUS_SLACK_CLIENT_SECRET_FILE: /run/secrets/nexus_slack_client_secret
+      NEXUS_GHL_CLIENT_SECRET_FILE: /run/secrets/nexus_ghl_client_secret
       LUMEN_PORTAL_INTERNAL_URL: http://portal:8000
       LUMEN_OPS_INTERNAL_URL: http://ops:8000
     secrets:
@@ -215,6 +229,10 @@ services:
       - smtp_password
       - stripe_secret_key
       - stripe_webhook_secret
+      - nexus_integrations_key
+      - nexus_google_client_secret
+      - nexus_slack_client_secret
+      - nexus_ghl_client_secret
     volumes:
       - ${LUMEN_STATUS_DIR}:/var/lib/lumen/status:ro
       - ${CA_BUNDLE_HOST_PATH}:/etc/lumen-ca/ca.crt:ro
@@ -437,3 +455,13 @@ secrets:
     file: ${LUMEN_SECRETS_DIR}/stripe_secret_key
   stripe_webhook_secret:
     file: ${LUMEN_SECRETS_DIR}/stripe_webhook_secret
+  nexus_integrations_key:
+    file: ${LUMEN_SECRETS_DIR}/nexus_integrations_key
+  nexus_google_client_secret:
+    file: ${LUMEN_SECRETS_DIR}/nexus_google_client_secret
+  nexus_slack_client_secret:
+    file: ${LUMEN_SECRETS_DIR}/nexus_slack_client_secret
+  nexus_slack_signing_secret:
+    file: ${LUMEN_SECRETS_DIR}/nexus_slack_signing_secret
+  nexus_ghl_client_secret:
+    file: ${LUMEN_SECRETS_DIR}/nexus_ghl_client_secret

@@ -1,0 +1,20 @@
+{% extends "allauth/layouts/entrance.html" %}{% load lumen %}
+{% block head_title %}{{ mock_label }}: {{ provider_label }}{% endblock %}
+{% block content %}
+<span class="badge badge-warning">{% icon "flag" %} {{ mock_label }}</span>
+<h1>Allow access to a mock {{ provider_label }}?</h1>
+<p class="muted">This is a local fake provider for development and testing. Nothing here talks to the real {{ provider_label }}, and all data it returns is synthetic.</p>
+<dl class="stack">
+  <div><dt class="subtle small">Mock account</dt><dd><strong>{{ account }}</strong></dd></div>
+  <div><dt class="subtle small">Requested permissions</dt><dd><ul class="list-plain">{% for s in scopes %}<li><code>{{ s }}</code></li>{% endfor %}</ul></dd></div>
+</dl>
+<form method="post" class="stack">
+  {% csrf_token %}
+  {% for k, v in params %}{% if k != "csrfmiddlewaretoken" and k != "decision" %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
+  {% if is_gmail %}<label class="small"><input type="checkbox" name="readonly_only" value="1"> Only allow reading (deny drafting replies)</label>{% endif %}
+  <div class="cluster">
+    <button type="submit" name="decision" value="allow" class="btn btn-primary">Allow (mock)</button>
+    <button type="submit" name="decision" value="deny" class="btn">Deny</button>
+  </div>
+</form>
+{% endblock %}

@@ -389,6 +389,35 @@ NEXUS_AUTOMATION_MAX_RUNS_PER_HOUR = env_int("NEXUS_AUTOMATION_MAX_RUNS_PER_HOUR
 NEXUS_AUTOMATION_REMINDER_MINUTES = env_int("NEXUS_AUTOMATION_REMINDER_MINUTES", 60)
 NEXUS_AUTOMATION_RETENTION_DAYS = env_int("NEXUS_AUTOMATION_RETENTION_DAYS", 90)
 
+# --- Nexus integrations (Gmail, GoHighLevel, Slack; apps/integrations, docs/nexus/INTEGRATIONS.md) ----
+# Provider tokens are encrypted with AES-256-GCM. NEXUS_INTEGRATIONS_KEY (secret file
+# NEXUS_INTEGRATIONS_KEY_FILE; env only with LUMEN_ALLOW_ENV_SECRETS in development) holds one or
+# more 32-byte keys as 64 hex characters, separated by commas or newlines: the first encrypts,
+# all decrypt (key rotation). Without a key no integration can be connected.
+NEXUS_INTEGRATIONS_KEYS = [k for k in re.split(r"[\s,]+", secret("NEXUS_INTEGRATIONS_KEY")) if k]
+# Local fake providers for demos and tests; refused unless NEXUS_ENVIRONMENT is development/test.
+NEXUS_INTEGRATIONS_MOCK = env_bool("NEXUS_INTEGRATIONS_MOCK", False)
+NEXUS_GOOGLE_CLIENT_ID = env("NEXUS_GOOGLE_CLIENT_ID", "")
+NEXUS_GOOGLE_CLIENT_SECRET = secret("NEXUS_GOOGLE_CLIENT_SECRET") if SURFACE in {"public", "worker", "test"} else ""
+NEXUS_SLACK_CLIENT_ID = env("NEXUS_SLACK_CLIENT_ID", "")
+NEXUS_SLACK_CLIENT_SECRET = secret("NEXUS_SLACK_CLIENT_SECRET") if SURFACE in {"public", "worker", "test"} else ""
+NEXUS_SLACK_SIGNING_SECRET = secret("NEXUS_SLACK_SIGNING_SECRET") if SURFACE in {"public", "test"} else ""
+NEXUS_GHL_CLIENT_ID = env("NEXUS_GHL_CLIENT_ID", "")
+NEXUS_GHL_CLIENT_SECRET = secret("NEXUS_GHL_CLIENT_SECRET") if SURFACE in {"public", "worker", "test"} else ""
+NEXUS_GHL_APP_ID = env("NEXUS_GHL_APP_ID", "")  # for the documented uninstall call on disconnect (optional)
+# HighLevel API "Version" header; the docs' latest published version (verified 2026-10-17).
+NEXUS_GHL_API_VERSION = env("NEXUS_GHL_API_VERSION", "v3")
+# Ed25519 public key for X-GHL-Signature, as published in HighLevel's Webhook Integration Guide.
+NEXUS_GHL_WEBHOOK_PUBLIC_KEY = env(
+    "NEXUS_GHL_WEBHOOK_PUBLIC_KEY",
+    "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAi2HR1srL4o18O8BRa7gVJY7G7bupbN3H9AwJrHCDiOg=\n-----END PUBLIC KEY-----",
+)
+NEXUS_INTEGRATIONS_SYNC_SECONDS = env_int("NEXUS_INTEGRATIONS_SYNC_SECONDS", 300)
+# Retention of synced external content (docs/nexus/INTEGRATIONS.md, "What is stored").
+NEXUS_GMAIL_RETENTION_DAYS = env_int("NEXUS_GMAIL_RETENTION_DAYS", 90)
+NEXUS_SLACK_RETENTION_DAYS = env_int("NEXUS_SLACK_RETENTION_DAYS", 30)
+NEXUS_GHL_RETENTION_DAYS = env_int("NEXUS_GHL_RETENTION_DAYS", 90)
+
 # --- Sessions, cookies, CSRF ------------------------------------------------------------
 _cookie_prefix = "" if INSECURE_DEV else "__Host-"
 SESSION_ENGINE = "django.contrib.sessions.backends.db"

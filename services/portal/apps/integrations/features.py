@@ -1,4 +1,13 @@
-"""Workspace feature flags of this app: {key: fn(workspace, plan, org_settings) -> bool}.
-Until a flag is defined the SPA shows this area as "coming in this test build"."""
+"""Workspace feature flags of this app: {key: fn(workspace, plan, org_settings) -> bool}."""
 
-FEATURES: dict = {}
+from __future__ import annotations
+
+
+def integrations(workspace, plan, org) -> bool:
+    # The inbox and integrations are part of the business workspace (CRM enabled).
+    from apps.crm.features import crm
+
+    return crm(workspace, plan, org)
+
+
+FEATURES = {"integrations": integrations}

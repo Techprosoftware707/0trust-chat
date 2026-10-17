@@ -39,11 +39,17 @@ ensure_secrets() {
   gen_secret ops_gateway_secret 32
   gen_secret lkjwt_as_token 32
   gen_secret lkjwt_hs_token 32
+  # Nexus integrations: AES-256-GCM key for provider tokens (64 hex characters).
+  gen_secret nexus_integrations_key 32
   ensure_optional_secret smtp_password
   ensure_optional_secret stripe_secret_key
   ensure_optional_secret stripe_webhook_secret
   ensure_optional_secret push_fcm_service_account
   ensure_optional_secret push_apns_key
+  ensure_optional_secret nexus_google_client_secret
+  ensure_optional_secret nexus_slack_client_secret
+  ensure_optional_secret nexus_slack_signing_secret
+  ensure_optional_secret nexus_ghl_client_secret
   ensure_optional_secret synapse_admin_token
   # OIDC signing key for the portal identity provider.
   if [[ ! -s "$LUMEN_SECRETS_DIR/oidc_private_key.pem" ]]; then
