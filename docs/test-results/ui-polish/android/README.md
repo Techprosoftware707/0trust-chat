@@ -91,4 +91,18 @@ Local (this host, no emulator), on the commit that adds this README:
   checks. The new `ModifierParameter` and `UnusedResources` warnings were fixed.
 - `./gradlew :app:screenshots`: 372 images, no failures.
 
-CI (`android.yml`, dispatched on this branch): see the section below.
+CI: `android.yml` run [39014421352](https://github.com/Techprosoftware707/0trust-chat/actions/runs/39014421352)
+on `aab721c` (the polish commit) passed. Every job was green:
+
+| Job | Result |
+|---|---|
+| Build, test, package (unit tests, lint, debug/release APK, AAB) | success |
+| Screenshots (every screen, sizes, themes, large text) | success (372 images; renders identical to the local ones) |
+| Instrumented tests (emulator) | success |
+| App against a real Lumen server (emulator) | success: `android e2e: all steps passed` (42 PASS, 0 FAIL). This covers SSO sign-in through the portal, accepting the web user's invitation in the room list, the decrypted message, the reply confirmed by the server, and sign-out. |
+| Installs and starts on Android 8.0 / Android 9 (emulator) | success |
+
+[`emulator/`](emulator/) holds the first screen from the Android 8.0 (API 26) and Android 9
+(API 28) jobs of that run. The real emulator renders Inter's weights, the brand wash and the
+"New · Built on Matrix" pill. On API 26 the keyboard is open, because adb starts the app outside
+touch mode and the field takes focus; the card scrolls above the keyboard.
