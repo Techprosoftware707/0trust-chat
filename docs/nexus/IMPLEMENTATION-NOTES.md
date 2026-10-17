@@ -203,10 +203,13 @@ What was built is described in [CLAUDE-CONNECTOR.md](CLAUDE-CONNECTOR.md) and th
 * **"Save to record"** is a panel in the room's CRM sidebar with a picker of this device's
   decrypted text messages, not a selection mode in Lumen's timeline. That would have meant
   editing shared Lumen chat components.
-* **SPA routes assumed for other teams' records**: `#/properties/<id>` and `#/lending/<id>`
-  (verticals) and `#/inbox/<id>` (integrations). They are registered with `register_link` in
-  `apps/crm/ai_tools_verticals.py` and `apps/integrations/ai_tools.py`, so they are easy to
-  change.
+* **SPA routes of other teams' records** in tool results: `#/properties/<id>` and
+  `#/lending/<id>` match the verticals areas (`995fd70`). `#/inbox/<id>` is still an assumption
+  until the inbox area exists. They are registered with `register_link` in
+  `apps/crm/ai_tools_verticals.py` and `apps/integrations/ai_tools.py`.
+* **Stale vitest cache**: after pulling new area files, `vitest` in an existing checkout still
+  listed the old areas. `node_modules/.vitest-cache` had kept the transformed `registry.ts` with
+  its old `import.meta.glob` expansion. Deleting that folder fixed it (158 passed).
 * **AI-suggested next steps** (`suggest_next_step`) use `meetings.propose_action_item(source="ai_suggestion")`,
   as main asked. The proposed action item is itself the proposal a person confirms in Nexus;
   there is no extra PendingAction.
