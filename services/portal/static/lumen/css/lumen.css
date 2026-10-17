@@ -812,6 +812,7 @@ html.nav-locked { overflow: hidden; }
   .table td > a:first-child { display: inline-flex; align-items: center; min-height: var(--ui-touch); }
   .pill-new { min-height: var(--ui-touch); }
   .docs-nav a { min-height: var(--ui-touch); }
+  .sidebar nav a, .ops-shell .sidebar nav a { min-height: var(--ui-touch); }
   .faq summary { min-height: 3.5rem; }
   .link-arrow, .stat-note a, .card-header > a:not(.btn), p > a:only-child { display: inline-flex; align-items: center; min-height: var(--ui-touch); }
   .checkbox { min-height: var(--ui-touch); align-items: center; }

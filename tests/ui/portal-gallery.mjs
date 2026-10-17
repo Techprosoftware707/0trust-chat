@@ -554,7 +554,9 @@ async function special(name, fn) {
     const page = await fn();
     await captureAll(page, name, name, { shots: POST_SHOTS, focus: false });
   } catch (err) {
-    log(`  ${name}: FAILED ${String(err.message).split("\n")[0]}`);
+    const where = contexts.op ? contexts.op.page.url() : "";
+    log(`  ${name}: FAILED ${String(err.message).split("\n")[0]} (console page at ${where})`);
+    if (contexts.op) await contexts.op.page.screenshot({ path: path.join(OUT, `${name}--FAILED.png`) }).catch(() => {});
     results.push({ page: name, error: String(err.message).split("\n")[0], shots: [] });
   }
 }
@@ -596,30 +598,40 @@ await special("auth-reauthenticate", async () => {
 });
 await special("ops-recovery-link", async () => {
   const page = await pageFor("op");
-  await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
-  if (/\/accounts\/login\//.test(page.url())) {
-    await signIn(page, ops, state.op);
+  const openUser = async () => {
     await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
-  }
-  await page.locator(`a:has-text("${state.member.username}")`).first().click();
-  await page.waitForLoadState("domcontentloaded");
-  page.once("dialog", (d) => d.accept());
-  await submit(page, "form[action$='/recovery-link/'] button[type=submit]");
-  if (await passReauth(page, state.op.password)) {
+    if (/\/accounts\/login\//.test(page.url())) {
+      await signIn(page, ops, state.op);
+      await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
+    }
+    await page.locator(`main a:has-text("${state.member.username}")`).first().click();
+    await page.waitForLoadState("domcontentloaded");
+  };
+  const issue = async () => {
     page.once("dialog", (d) => d.accept());
     await submit(page, "form[action$='/recovery-link/'] button[type=submit]");
+  };
+  await openUser();
+  await issue();
+  // Sensitive actions need a recent sign-in (5 min): confirm the password, then issue again.
+  if (await passReauth(page, state.op.password)) {
+    await openUser();
+    await issue();
   }
   return page;
 });
 await special("ops-calls-selftest", async () => {
   const page = await pageFor("op");
-  await page.goto(ops + "/ops/calls/");
-  if (/\/accounts\/login\//.test(page.url())) {
-    await signIn(page, ops, state.op);
+  const run = async () => {
     await page.goto(ops + "/ops/calls/");
-  }
-  await submit(page, 'main form button:has-text("Run media self-test")');
-  await passReauth(page, state.op.password);
+    if (/\/accounts\/login\//.test(page.url())) {
+      await signIn(page, ops, state.op);
+      await page.goto(ops + "/ops/calls/");
+    }
+    await submit(page, 'main form button:has-text("Run media self-test")');
+  };
+  await run();
+  if (await passReauth(page, state.op.password)) await run();
   await page.locator(".alert").first().waitFor({ timeout: 120000 });
   return page;
 });
