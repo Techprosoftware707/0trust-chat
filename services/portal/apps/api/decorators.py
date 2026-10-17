@@ -69,7 +69,11 @@ def api_endpoint(
     read_scopes: Iterable[str] = ("workspace:read",),
     write_scopes: Iterable[str] = ("workspace:write",),
     policy: Callable[[], TokenPolicy] = api_policy,
+    atomic: bool = True,
 ):
+    """``atomic=False``: writes are NOT wrapped in one transaction. Only for views that call
+    slow external services (e.g. an AI provider) and manage short transactions themselves,
+    so that row and advisory locks (the audit chain's) are never held across a network call."""
     allowed = frozenset(m.upper() for m in methods)
     if "GET" in allowed:
         allowed = allowed | {"HEAD"}
@@ -97,7 +101,7 @@ def api_endpoint(
                     subject = actor
                 else:
                     subject = ctx
-                if method in SAFE_METHODS:
+                if method in SAFE_METHODS or not atomic:
                     return view(request, subject, *args, **kwargs)
                 with transaction.atomic():
                     return view(request, subject, *args, **kwargs)

@@ -1,0 +1,68 @@
+{% extends "idp/oidc/base.html" %}
+{% load i18n lumen %}
+{% block head_title %}Connect {{ client.name }}{% endblock head_title %}
+{% block content %}
+<div class="stack">
+  <div class="stack-sm">
+    <p class="badge badge-plain">Connection request</p>
+    <h1>Connect {% if mcp_kind == "cimd" %}{{ mcp_client_host }}{% else %}{{ client.name }}{% endif %} to {{ brand.name }}</h1>
+    {% if mcp_kind == "cimd" %}
+    <p class="muted">The app at <strong>{{ mcp_client_host }}</strong> calls itself “{{ client.name }}”. It wants to work with your business records, as you.</p>
+    {% else %}
+    <p class="muted">An app that calls itself “{{ client.name }}” wants to work with your business records, as you. It registered itself automatically, so its name is what it says about itself.</p>
+    {% endif %}
+  </div>
+
+  <dl class="kv">
+    <dt>You'll return to</dt>
+    <dd><strong>{{ mcp_redirect_host }}</strong>{% if mcp_redirect_is_loopback %} (a program on this computer){% endif %}</dd>
+    <dt>It reaches</dt>
+    <dd><code>{{ mcp_url }}</code></dd>
+  </dl>
+
+  {% if mcp_loopback_only %}
+  <div class="alert alert-warning" role="alert">{% icon "alert-triangle" %}<div><p><strong>This app runs on your own computer.</strong> It returns to {{ mcp_redirect_host }}, which any program on this device can listen on. Only continue if you started this connection yourself just now, for example in Claude Code.</p></div></div>
+  {% endif %}
+
+  <ul class="check-list small">
+    <li>{% icon "check" %} It acts with your permissions only and sees only what you can see.</li>
+    <li>{% icon "check" %} Changes are prepared as proposals; nothing is changed until you confirm.</li>
+    <li>{% icon "check" %} It can't read your end-to-end encrypted chats, can't open documents and can't send emails or messages.</li>
+  </ul>
+
+  {% url 'idp:oidc:authorization' as authorize_url %}
+  <form class="form stack" method="post" action="{{ authorize_url }}">
+    {% csrf_token %}
+    {{ form.request }}
+    <fieldset class="field">
+      <legend class="label">What it may do</legend>
+      {% for choice in form.scopes %}
+      <label class="checkbox" for="{{ choice.id_for_label }}">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>
+      {% endfor %}
+      {% if form.scopes.errors %}<ul class="errorlist">{% for e in form.scopes.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </fieldset>
+    {% if mcp_workspaces %}
+    <div class="field">
+      <label for="mcp-workspace">Workspace</label>
+      {% if mcp_workspaces|length == 1 %}
+      <input type="hidden" name="workspace" value="{{ mcp_workspaces.0.pk }}">
+      <p id="mcp-workspace" class="small"><strong>{{ mcp_workspaces.0.name }}</strong></p>
+      {% else %}
+      <select id="mcp-workspace" name="workspace" required>
+        <option value="">Choose a workspace…</option>
+        {% for w in mcp_workspaces %}<option value="{{ w.pk }}">{{ w.name }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <div class="help">The connection can only use this workspace. You can disconnect it any time in Settings → Connected apps.</div>
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="status">{% icon "info" %}<div><p>None of your workspaces allows the Claude connector yet. An owner or admin can turn it on in the AI assistant settings. You can still cancel.</p></div></div>
+    {% endif %}
+    {% if mcp_workspace_error %}<div class="alert alert-danger" role="alert">{% icon "info" %}<div><p>{{ mcp_workspace_error }}</p></div></div>{% endif %}
+    <div class="form-actions">
+      {% if mcp_workspaces %}<button class="btn btn-primary" type="submit" name="action" value="grant">Allow access</button>{% endif %}
+      <button class="btn" type="submit" name="action" value="cancel">Cancel</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

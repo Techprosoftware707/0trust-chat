@@ -324,6 +324,55 @@ NEXUS_API_RATE_LIMITS = {
 # Record a hash-chained audit event for reads of sensitive data (contact details, exports).
 NEXUS_AUDIT_SENSITIVE_READS = env_bool("NEXUS_AUDIT_SENSITIVE_READS", True)
 
+# --- Nexus AI assistant (apps.assistant) and Claude MCP connector (apps.mcp) ---------------
+# docs/nexus/CONFIG.md and docs/nexus/CLAUDE-CONNECTOR.md. The MCP connector does not give
+# the in-app assistant a model: AI_PROVIDER needs its own credentials and billing.
+# none | dev (deterministic, model-free, labelled "Development mode") | anthropic
+AI_PROVIDER = env("AI_PROVIDER", "none" if NEXUS_ENVIRONMENT == "production" else "dev").strip().lower()
+AI_MODEL = env("AI_MODEL", "")  # required for AI_PROVIDER=anthropic: a current Claude model ID; no default on purpose
+AI_API_KEY = secret("AI_API_KEY") if SURFACE in {"public", "test"} else ""
+AI_API_BASE_URL = env("AI_API_BASE_URL", "https://api.anthropic.com")
+AI_MAX_TOKENS = env_int("AI_MAX_TOKENS", 4096)
+AI_TIMEOUT_SECONDS = env_int("AI_TIMEOUT_SECONDS", 60)
+AI_MAX_TOOL_ROUNDS = env_int("AI_MAX_TOOL_ROUNDS", 6)
+NEXUS_AI_RATE_LIMITS = {
+    # (requests, window seconds) per user
+    "chat": (env_int("NEXUS_AI_CHATS_PER_MINUTE", 20), 60),
+    "mcp": (env_int("NEXUS_MCP_REQUESTS_PER_MINUTE", 120), 60),
+    "prepare": (env_int("NEXUS_AI_PREPARES_PER_MINUTE", 30), 60),
+    "confirm": (env_int("NEXUS_AI_CONFIRMS_PER_MINUTE", 30), 60),
+}
+NEXUS_AI_PENDING_ACTION_SECONDS = env_int("NEXUS_AI_PENDING_ACTION_SECONDS", 600)
+
+# Remote MCP server at <LUMEN_PUBLIC_BASE_URL>/mcp (Streamable HTTP, OAuth on this portal).
+NEXUS_MCP_ENABLED = env_bool("NEXUS_MCP_ENABLED", False)
+NEXUS_MCP_RESOURCE = env("NEXUS_MCP_RESOURCE", f"{PUBLIC_BASE_URL.rstrip('/')}/mcp")
+NEXUS_MCP_SCOPES = {
+    "mcp:read": "Read business records you can see (contacts, deals, tasks, calendar, timeline)",
+    "mcp:write": "Prepare changes (tasks, notes, contact fields, deal stages) that you confirm before they happen",
+}
+# Browser Origins accepted at /mcp (requests without Origin, e.g. from Claude's servers, are fine).
+NEXUS_MCP_ALLOWED_ORIGINS = env_list(
+    "NEXUS_MCP_ALLOWED_ORIGINS", [_origin(PUBLIC_BASE_URL), _origin(APP_BASE_URL), "https://claude.ai", "https://claude.com"]
+)
+# Redirect URIs a dynamically registered (DCR) or CIMD client may use: Claude's callbacks,
+# loopback on any port (Claude Code, RFC 8252) and an operator allow-list.
+NEXUS_MCP_REDIRECT_URIS = ["https://claude.ai/api/mcp/auth_callback", "https://claude.com/api/mcp/auth_callback"] + env_list(
+    "NEXUS_MCP_EXTRA_REDIRECT_URIS"
+)
+NEXUS_MCP_ALLOW_LOOPBACK_REDIRECTS = env_bool("NEXUS_MCP_ALLOW_LOOPBACK_REDIRECTS", True)
+NEXUS_MCP_DCR_ENABLED = env_bool("NEXUS_MCP_DCR_ENABLED", True)
+NEXUS_MCP_DCR_RATE = (env_int("NEXUS_MCP_REGISTRATIONS_PER_MINUTE", 10), 60)  # per client IP
+NEXUS_MCP_DCR_MAX_UNUSED = env_int("NEXUS_MCP_DCR_MAX_UNUSED", 500)
+NEXUS_MCP_DCR_UNUSED_DAYS = env_int("NEXUS_MCP_DCR_UNUSED_DAYS", 7)
+NEXUS_MCP_CIMD_ENABLED = env_bool("NEXUS_MCP_CIMD_ENABLED", True)
+NEXUS_MCP_CIMD_ALLOWED_HOSTS = env_list("NEXUS_MCP_CIMD_ALLOWED_HOSTS")  # empty: any public HTTPS host
+NEXUS_MCP_CIMD_TIMEOUT_SECONDS = env_int("NEXUS_MCP_CIMD_TIMEOUT_SECONDS", 4)
+NEXUS_MCP_CIMD_MAX_BYTES = env_int("NEXUS_MCP_CIMD_MAX_BYTES", 16384)
+NEXUS_MCP_CIMD_CACHE_SECONDS = env_int("NEXUS_MCP_CIMD_CACHE_SECONDS", 3600)
+# Connector refresh tokens rotate on every use; this is how long an unused one stays valid.
+NEXUS_MCP_REFRESH_TOKEN_SECONDS = env_int("NEXUS_MCP_REFRESH_TOKEN_SECONDS", 14 * 24 * 3600)
+
 # --- Sessions, cookies, CSRF ------------------------------------------------------------
 _cookie_prefix = "" if INSECURE_DEV else "__Host-"
 SESSION_ENGINE = "django.contrib.sessions.backends.db"

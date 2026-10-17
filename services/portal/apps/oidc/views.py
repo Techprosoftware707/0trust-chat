@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from allauth.idp.oidc.views import authorization as allauth_authorization
 from django.conf import settings
 from django.shortcuts import render
 from django.urls import reverse
@@ -45,11 +44,24 @@ def authorize(request, *args, **kwargs):
 
     Unauthenticated users fall through to allauth, which redirects to login
     (including MFA), except for ``prompt=none`` (answered with ``login_required``).
-    Authenticated users are checked before a code is issued.
+    Authenticated users are checked before a code is issued. MCP connector rules (client
+    metadata documents, PKCE S256, resource binding, the consent screen) run in
+    ``apps.mcp.oauth``; every authorization response carries ``iss`` (RFC 9207).
     """
+    from apps.mcp import oauth as mcp_oauth
+
+    return mcp_oauth.add_iss(_authorize(request, *args, **kwargs))
+
+
+def _authorize(request, *args, **kwargs):
+    from apps.mcp import oauth as mcp_oauth
+
     user = request.user
     if not user.is_authenticated and "none" in request.GET.get("prompt", "").split():
         return _login_required_redirect(request)
+    stop = mcp_oauth.authorize_precheck(request)
+    if stop is not None:
+        return stop
     if user.is_authenticated:
         decision = chat_signin_decision(user)
         if not decision.allowed:
@@ -61,7 +73,7 @@ def authorize(request, *args, **kwargs):
                 {"decision": decision, "action_url": action_url, "retry_url": request.get_full_path()},
                 status=403,
             )
-    response = allauth_authorization(request, *args, **kwargs)
+    response = mcp_oauth.mcp_authorization(request, *args, **kwargs)  # allauth's view + MCP consent screen
     if user.is_authenticated and response.status_code in (301, 302) and "code=" in response.get("Location", ""):
         client_id = request.GET.get("client_id", "")[:60]
         security_event(request, "oidc_granted", user=user, detail={"client": client_id})

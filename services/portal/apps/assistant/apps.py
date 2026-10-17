@@ -2,8 +2,8 @@ from django.apps import AppConfig
 
 
 class AssistantConfig(AppConfig):
-    """The AI assistant (AI team). Already registered; fill in models, ``api_urls.py``
-    (/api/v1/workspaces/<id>/assistant/), ``jobs.py`` and ``features.py``.
+    """The AI assistant: tool registry (shared with the MCP connector), providers, two-phase
+    writes, the AI audit log and "Save to record".
 
     Boundary: the assistant works on CRM records the acting user may see (``apps.crm.access``)
     and NEVER on native chat content, which is end-to-end encrypted and unreadable to the
@@ -14,3 +14,12 @@ class AssistantConfig(AppConfig):
     name = "apps.assistant"
     label = "assistant"
     verbose_name = "AI assistant"
+
+    def ready(self):
+        from apps.crm import access
+
+        from .models import AIInteraction, PendingAction
+        from .policies import AIInteractionPolicy, PendingActionPolicy
+
+        access.register(PendingAction, PendingActionPolicy(), referencable=False)
+        access.register(AIInteraction, AIInteractionPolicy(), referencable=False)

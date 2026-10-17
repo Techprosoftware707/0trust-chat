@@ -1,0 +1,10 @@
+{% extends "idp/oidc/base.html" %}
+{% load lumen %}
+{% block head_title %}Can't connect{% endblock head_title %}
+{% block content %}
+<div class="stack">
+  <h1>This connection can't continue</h1>
+  <div class="alert alert-warning" role="alert">{% icon "alert-triangle" %}<div><p>{{ message }}</p></div></div>
+  <p class="muted small">Nothing was shared. If you expected this to work, ask your workspace administrator to check the connector settings.</p>
+</div>
+{% endblock %}

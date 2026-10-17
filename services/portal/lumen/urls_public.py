@@ -23,6 +23,9 @@ urlpatterns = [
     *nexus_patterns,
     path(".well-known/security.txt", core_views.security_txt, name="security_txt"),
     path("robots.txt", core_views.robots_txt, name="robots_txt"),
+    # Claude MCP connector: /mcp, OAuth discovery (RFC 9728/8414), DCR and the token
+    # endpoint wrapper (apps/mcp/root_urls.py; before allauth so the wrapper wins).
+    path("", include("apps.mcp.root_urls")),
     # OIDC: our policy gate shadows allauth's authorization endpoint.
     path("identity/o/authorize", oidc_views.authorize, name="lumen_oidc_authorize"),
     path("", include("allauth.idp.urls")),

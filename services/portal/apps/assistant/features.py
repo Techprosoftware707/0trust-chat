@@ -1,4 +1,17 @@
-"""Workspace feature flags of this app: {key: fn(workspace, plan, org_settings) -> bool}.
-Until a flag is defined the SPA shows this area as "coming in this test build"."""
+"""Workspace feature flags of the AI assistant (see apps.api.features)."""
 
-FEATURES: dict = {}
+from __future__ import annotations
+
+
+def assistant(workspace, plan, org) -> bool:
+    from apps.crm.features import crm
+
+    from .models import AISettings
+
+    if not crm(workspace, plan, org):
+        return False
+    row = AISettings.objects.filter(workspace=workspace).only("assistant_enabled").first()
+    return row.assistant_enabled if row is not None else AISettings._meta.get_field("assistant_enabled").default
+
+
+FEATURES = {"assistant": assistant}

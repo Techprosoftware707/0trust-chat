@@ -300,7 +300,8 @@ def test_prompt_none_without_portal_session_answers_login_required():
     assert r.status_code == 302
     loc = urlparse(r["Location"])
     assert f"{loc.scheme}://{loc.netloc}{loc.path}" == REDIRECT
-    assert parse_qs(loc.query) == {"error": ["login_required"], "state": ["st-1"]}
+    # iss: RFC 9207 issuer identification on every authorization response (added with the MCP connector).
+    assert parse_qs(loc.query) == {"error": ["login_required"], "state": ["st-1"], "iss": ["https://lumen.test"]}
     # Unregistered redirect URIs and unknown clients get an error page, not a redirect.
     r = authorize(Client(), challenge, prompt="none", redirect_uri="https://evil.example/cb")
     assert r.status_code == 400 and "Location" not in r

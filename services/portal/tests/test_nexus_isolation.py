@@ -3,6 +3,7 @@ whatever ID, filter, search term or nested ID they send. Covers every CRM model 
 endpoint. Cross-tenant IDs answer exactly like IDs that don't exist (404 for URLs, the same
 validation error for bodies)."""
 
+import json
 import uuid
 from datetime import timedelta
 
@@ -46,7 +47,22 @@ def world():
     mp = m.ExternalRecordMapping.objects.create(workspace=ws_b, provider="gmail", external_id="ext-b-1", object_type="crm.contact", object_id=c.pk)
     rl = m.RecordLink.objects.create(workspace=ws_b, from_type="crm.contact", from_id=c.pk, to_type="crm.opportunity", to_id=o.pk)
     hist = m.StageHistory.objects.create(workspace=ws_b, opportunity=o, to_stage=st, to_name=st.name)
+    # AI assistant and MCP connector rows of workspace B (apps.assistant, apps.mcp).
+    from allauth.idp.oidc.models import Client as OidcClient
+
+    from apps.assistant.models import AIInteraction, AISettings, PendingAction
+    from apps.mcp.models import McpGrant
+
+    AISettings.objects.create(workspace=ws_b, mcp_enabled=True)
+    pa = PendingAction.objects.create(workspace=ws_b, created_by=b_owner, channel="assistant", action="create_note",
+                                      payload={"kind": "note", "summary": "Uniquename AI note", "contact_id": str(c.pk)},
+                                      payload_hash="0" * 64, expires_at=timezone.now() + timedelta(minutes=5))
+    ai = AIInteraction.objects.create(workspace=ws_b, created_by=b_owner, channel="assistant", provider="dev", tool_names=["search_contacts"],
+                                      record_refs=[{"type": "crm.contact", "id": str(c.pk)}])
+    mcp_client = OidcClient.objects.create(id="isolation-mcp-client", name="Claude", type=OidcClient.Type.PUBLIC, data={"mcp": True, "dcr": True})
+    grant = McpGrant.objects.create(workspace=ws_b, created_by=b_owner, user=b_owner, client=mcp_client, scopes=["mcp:read"])
     return {
+        "pending_action": pa, "ai_interaction": ai, "grant": grant,
         "ws_a": ws_a, "ws_b": ws_b, "a_owner": a_owner, "a_agent": a_agent, "b_owner": b_owner, "b_agent": b_agent,
         "pipeline": p, "stage": st, "stage2": st2, "tag": tag, "field": fd, "contact": c, "opp": o, "task": t, "activity": a,
         "event": e, "link": link, "mapping": mp, "record_link": rl, "history": hist,
@@ -307,3 +323,79 @@ def test_malformed_ids_are_404_not_500(world):
     assert api.get("/api/v1/workspaces/not-a-uuid/crm/contacts").status_code == 404
     r = api.get(f"{base(world['ws_a'])}/contacts", {"tag": "nope"})
     assert r.status_code == 400 and body(r)["error"]["fields"]["tag"]
+
+
+# --- AI assistant and MCP connector ------------------------------------------------------------------
+
+AI_LISTS = ["assistant/status", "assistant/settings", "assistant/interactions", "mcp/status", "mcp/connections"]
+
+
+@pytest.mark.parametrize("path", AI_LISTS)
+def test_ai_endpoints_of_other_workspace_are_404(world, path):
+    api = api_for(world["a_owner"])
+    assert api.get(f"/api/v1/workspaces/{world['ws_b'].pk}/{path}").status_code == 404
+    r = api.get(f"/api/v1/workspaces/{world['ws_a'].pk}/{path}")
+    assert r.status_code == 200 and b"Uniquename" not in r.content and str(world["grant"].pk).encode() not in r.content
+
+
+@pytest.mark.parametrize("method,path", [
+    ("get", "assistant/actions/{pending_action}"), ("post", "assistant/actions/{pending_action}/confirm"),
+    ("post", "assistant/actions/{pending_action}/cancel"), ("delete", "mcp/connections/{grant}"),
+])
+def test_ai_objects_of_other_workspace_are_404(world, method, path):
+    api = api_for(world["a_owner"])
+    url = f"/api/v1/workspaces/{world['ws_a'].pk}/{_fmt(world, path)}"
+    r = getattr(api, method)(url, {}) if method == "post" else getattr(api, method)(url)
+    missing = f"/api/v1/workspaces/{world['ws_a'].pk}/{path.format(**{k: uuid.uuid4() for k in world})}"
+    r2 = getattr(api, method)(missing, {}) if method == "post" else getattr(api, method)(missing)
+    assert r.status_code == 404 and _err(r) == _err(r2)
+    world["pending_action"].refresh_from_db()
+    assert world["pending_action"].status == "pending"
+    from apps.mcp.models import McpGrant
+
+    assert McpGrant.objects.filter(pk=world["grant"].pk).exists()
+
+
+def test_ai_chat_context_and_save_to_record_reject_other_workspace_ids(world):
+    api = api_for(world["a_owner"])
+    a = f"/api/v1/workspaces/{world['ws_a'].pk}/assistant"
+    r = api.post(f"{a}/chat", {"messages": [{"role": "user", "content": "Summarise this contact"}],
+                               "context": {"contact_id": str(world["contact"].pk)}})
+    fake = api.post(f"{a}/chat", {"messages": [{"role": "user", "content": "Summarise this contact"}],
+                                  "context": {"contact_id": str(uuid.uuid4())}})
+    assert r.status_code == 400 and _err(r) == _err(fake)
+    r = api.post(f"{a}/chat", {"messages": [{"role": "user", "content": "Summarise this contact"}], "context": {"room_id": ROOM_B}})
+    assert r.status_code == 200 and b"Uniquename" not in r.content and b"Bartholomew" not in r.content
+    m.OrgSettings.objects.filter(workspace=world["ws_a"]).update(save_to_record_enabled=True)
+    msg = [{"event_id": "$e:lumen.test", "sender": "x", "sent_at": "2026-10-01T10:00:00Z", "text": "hi"}]
+    r = api.post(f"{a}/save-to-record", {"room_id": ROOM_B, "contact_id": str(world["contact"].pk), "messages": msg})
+    fake = api.post(f"{a}/save-to-record", {"room_id": ROOM_B, "contact_id": str(uuid.uuid4()), "messages": msg})
+    assert r.status_code == 400 and _err(r) == _err(fake)
+    assert not m.Activity.objects.filter(summary__startswith="Saved from chat").exists()
+
+
+def test_ai_tools_never_see_other_workspace_rows(world):
+    from django.test import RequestFactory
+
+    from apps.assistant.registry import ToolContext, ToolError, all_tools, run_tool
+
+    req = RequestFactory().post("/x")
+    actor = access.actor_for(world["a_owner"], world["ws_a"].pk)
+    ctx = ToolContext(actor=actor, request=req, channel="mcp")
+    b_ids = {str(world[k].pk) for k in ("contact", "opp", "task", "activity", "event", "pipeline")}
+    for tool in all_tools():
+        if tool.kind != "read":
+            continue
+        args = {}
+        for name, p in tool.args.params.items():
+            if p.schema.get("format") == "uuid":
+                args[name] = str(world["contact"].pk if "contact" in name else world["opp"].pk if "opportunity" in name else world["pipeline"].pk)
+            elif p.required:
+                args[name] = "Uniquename" if p.schema.get("type") == "string" else 30
+        try:
+            out = run_tool(tool, ctx, args)
+        except ToolError as exc:
+            assert exc.code in ("not_found", "validation_error"), (tool.name, exc.code)
+            continue
+        text = json.dumps(out.data)
+        assert not any(i in text for i in b_ids) and "Uniquename" not in text.replace('"Uniquename"', ""), tool.name
