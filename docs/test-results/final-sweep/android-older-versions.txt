@@ -1,0 +1,11 @@
+Android 8.0 (API 26) and 9 (API 28): install and start, GitHub Actions run 39007257465 (commit e91dc70),
+google_apis x86_64 emulators, job "Installs and starts on Android <version> (emulator)",
+script tests/apps/android-e2e/old-android.sh, debug APK (app-x86_64-debug.apk) signed with the test key.
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/39007257465
+
+API 26: adb install -> Success; started; still running and in front after 15 s; no crash in the crash buffer.
+API 28: adb install -> Success; started; still running and in front after 15 s; no crash in the crash buffer.
+First screen on both: "Welcome to Lumen" server picker (android-api-26-first-screen.png, android-api-28-first-screen.png).
+
+Same run: build/unit/lint green, regular emulator tests green, real-server end-to-end green.
+Not covered: 32-bit ARM devices (emulators are x86_64); the universal APK carries armeabi-v7a.

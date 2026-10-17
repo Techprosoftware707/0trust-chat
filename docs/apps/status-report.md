@@ -68,7 +68,7 @@ The short version:
 | Notifications | FCM push via Sygnal (`event_id_only`) is implemented and optional at build time. Delivery is **not verified**: it needs a Firebase project, `PUSH_ENABLED` on the server and a device. |
 | Signing | Release APKs and the AAB are **unsigned** without the `ANDROID_KEYSTORE_*` secrets. Debug (test) APKs are signed with the fixed test key when the `ANDROID_TEST_KEYSTORE_*` secrets are set (they are), so a new test build installs over the previous one; for testing only. |
 | Store | Not published. Play needs a developer account, Play App Signing, a Data safety form and review. |
-| Remaining | A physical phone (install reported failing on an Android 9 phone with the 64-bit build; the universal build is the next step); verification and a call against a server from the app; FCM delivery; a TalkBack pass; release signing. |
+| Remaining | A physical phone (a tester's Android 9 phone refused the 64-bit build; the app installs and starts on Android 8.0 and 9 emulators, run 39007257465, so the next step there is the universal build for 32-bit phones); verification and a call against a server from the app; FCM delivery; a TalkBack pass; release signing. |
 
 ## iOS and iPadOS
 
