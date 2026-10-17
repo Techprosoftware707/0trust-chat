@@ -84,7 +84,7 @@ jobs:
           echo "::add-mask::$TEST_KS_PW"
           export TEST_KS_PW
           if ! keytool -list -keystore "$ks" -storetype pkcs12 -storepass:env TEST_KS_PW -alias lumen-test > /dev/null 2>&1; then
-            echo "::error::the test key does not open with ANDROID_TEST_KEYSTORE_PASSWORD (${#TEST_KS_PW} characters; the generated one has 32), or has no entry 'lumen-test'. Decoded key: $(stat -c %s "$ks") bytes, SHA-256 $(sha256sum "$ks" | cut -d' ' -f1). If that matches 'stat -c %s' and 'sha256sum' of ~/lumen-test-key/lumen-test.p12, re-enter the password secret; otherwise re-paste the key secret."
+            echo "::error::the test key does not open with ANDROID_TEST_KEYSTORE_PASSWORD (${#TEST_KS_PW} characters; the generated one has 32; a copy made by double-clicking stops at a '/'), or has no entry 'lumen-test'. Decoded key: $(stat -c %s "$ks") bytes, SHA-256 $(sha256sum "$ks" | cut -d' ' -f1). If that matches 'stat -c %s' and 'sha256sum' of ~/lumen-test-key/lumen-test.p12, re-enter the password secret; otherwise re-paste the key secret."
             exit 1
           fi
           # Public: compare with the fingerprint make-test-signing-key.sh printed.
