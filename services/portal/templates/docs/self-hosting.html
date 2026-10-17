@@ -1,13 +1,25 @@
 {% extends "docs/base_docs.html" %}
 {% block article %}
-<p class="lead">Install the whole {{ brand.short_name }} stack on your own Ubuntu 24.04 server.</p>
+<p class="lead">Install the whole {{ brand.short_name }} stack — a Matrix homeserver, web chat, calls, website, customer portal and private operator console — on your own Ubuntu 24.04 server.</p>
 <h2>Requirements</h2>
-<ul><li>A fresh Ubuntu Server 24.04 LTS (x86_64 or arm64) with a public IP.</li><li>At least 2 vCPU, 4 GB RAM and 40 GB disk for a small community; see the admin guide for sizing.</li><li>A domain with DNS records for <code>example.com</code>, <code>app.example.com</code>, <code>matrix.example.com</code> and <code>ops.example.com</code> pointing at the server.</li><li>Ports 80 and 443 reachable from the internet.</li></ul>
+<ul>
+  <li>A fresh Ubuntu Server 24.04 LTS (x86_64 or arm64) with a public IP.</li>
+  <li>At least 2 vCPU, 4 GB RAM and 40 GB disk for a small community; see the admin guide for sizing.</li>
+  <li>A domain with DNS records for <code>example.com</code>, <code>app.example.com</code>, <code>matrix.example.com</code>, <code>rtc.example.com</code> (calls) and <code>ops.example.com</code> pointing at the server.</li>
+  <li>Ports 80/tcp and 443/tcp+udp reachable from the internet; for calls also 7881/tcp, 7882–7889/udp and 3478/udp; 51820/udp for WireGuard.</li>
+</ul>
 <h2>Install</h2>
 <pre><code>git clone &lt;your Lumen repository&gt; lumen
 cd lumen
 sudo bash install.sh</code></pre>
 <p>The installer asks for your domains and operator email (or reads <code>lumen.conf</code> for unattended installs), checks the host and DNS, installs Docker from Docker's official repository, generates unique secrets, obtains certificates, configures the firewall, starts every service and verifies the public endpoints. At the end it shows a summary and how to obtain your one-time operator setup link.</p>
+<h2>Reach the operator console</h2>
+<p>The console is not on the public internet. It accepts connections only through a WireGuard tunnel, an SSH tunnel or addresses you allow-list.</p>
+<ul>
+  <li><strong>WireGuard (on by default).</strong> The installer brings up the tunnel and creates a first operator device profile; show it as a QR code with <code>sudo ./lumenctl wireguard show-profile</code>. Add more devices on the console's WireGuard page or with <code>sudo ./lumenctl wireguard add-peer laptop</code>. Every device gets its own preshared key. If the host can't run WireGuard, the install continues with the SSH tunnel.</li>
+  <li><strong>SSH tunnel.</strong> <code>ssh -N -L 8443:127.0.0.1:8443 you@server</code>, then open <code>https://ops.example.com:8443/</code> with <code>ops.example.com</code> pointing at 127.0.0.1 in your hosts file. <code>sudo ./lumenctl admin-tunnel</code> prints the exact steps for your server.</li>
+</ul>
+<p>WireGuard is only for administration. Chats don't use it: messages are protected by Matrix end-to-end encryption on their own. Operators can turn it off with <code>sudo ./lumenctl wireguard disable</code>.</p>
 <h2>Operate</h2>
 <table><thead><tr><th>Command</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>sudo ./update.sh</code></td><td>Back up, update images and code, migrate, health-check, roll back on failure</td></tr>
@@ -15,7 +27,8 @@ sudo bash install.sh</code></pre>
 <tr><td><code>sudo ./restore.sh</code></td><td>Verify and restore a backup</td></tr>
 <tr><td><code>sudo ./healthcheck.sh</code></td><td>Quick pass/fail of every component</td></tr>
 <tr><td><code>sudo ./diagnose.sh</code></td><td>Explain DNS, TLS, federation, database, SMTP and webhook problems</td></tr>
+<tr><td><code>sudo ./lumenctl wireguard status</code></td><td>Show the tunnel and its operator devices</td></tr>
 <tr><td><code>sudo ./uninstall.sh</code></td><td>Remove the stack (asks before deleting any data)</td></tr>
 </tbody></table>
-<p>The full administration and disaster-recovery guides ship with the source code in <code>docs/</code>.</p>
+<p>The full administration and disaster-recovery guides ship with the source code in <code>docs/</code>. Read next: <a href="{% url 'site:federation' %}">Matrix and federation</a> · <a href="{% url 'site:zero_trust' %}">Zero-trust architecture</a>.</p>
 {% endblock %}

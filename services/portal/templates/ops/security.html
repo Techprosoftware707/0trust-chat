@@ -8,7 +8,7 @@
     <ul class="list-plain list-rows">{% for c in counts %}<li><a href="?kind={{ c.kind }}">{% include "portal/_event_label.html" with kind=c.kind %}</a><span class="small">{{ c.day }} today · {{ c.week }} this week</span></li>{% empty %}<li class="muted small">No events.</li>{% endfor %}</ul></section>
   <section class="card"><div class="card-header"><h2>Noisiest IPs (24h)</h2><span class="xsmall muted">failures and rate limits</span></div>
     <ul class="list-plain list-rows">{% for t in top_ips %}<li><span class="mono small">{{ t.ip|default:"unknown" }}</span><span class="small">{{ t.n }}</span></li>{% empty %}<li class="muted small">Nothing suspicious.</li>{% endfor %}</ul></section>
-</div><br>
+</div>
 <section class="card"><div class="card-header"><h2>Cryptography in use</h2><span class="xsmall muted">{% if tls %}transport measured {{ tls.at|naturaltime }}{% else %}transport not measured yet{% endif %}</span></div>
   <div class="table-wrap"><table class="table"><thead><tr><th>Layer</th><th>Mechanism</th><th>Post-quantum</th></tr></thead><tbody>
     <tr><td>Messages and files (end-to-end)</td><td>Olm/Megolm (vodozemac): X25519, Ed25519, AES-256, HMAC-SHA-256</td><td><span class="badge badge-warning">No</span> <span class="xsmall muted">classical; no interoperable PQ Matrix protocol exists yet</span></td></tr>
@@ -16,7 +16,7 @@
     <tr><td>WireGuard admin tunnel</td><td>Noise IK: Curve25519, ChaCha20-Poly1305, per-peer preshared key</td><td><span class="badge badge-plain">PSK only</span> <span class="xsmall muted">the preshared key hardens recorded traffic against future quantum attacks</span></td></tr>
   </tbody></table></div>
   <p class="xsmall subtle mb-0">Hybrid TLS protects data in transit between browsers or servers and this host. It does not change the end-to-end encryption of messages. See docs/security/post-quantum.md.</p>
-</section><br>
+</section>
 <div class="table-wrap"><table class="table"><thead><tr><th>When</th><th>Event</th><th>Account</th><th>IP</th><th>Detail</th></tr></thead><tbody>
 {% for e in page %}<tr><td class="small nowrap">{{ e.at|date:"Y-m-d H:i:s" }}</td><td>{% include "portal/_event_label.html" with kind=e.kind %}</td><td class="small">{% if e.user %}<a href="{% url 'ops:user' e.user.pk %}">{{ e.user.username }}</a>{% else %}—{% endif %}</td><td class="mono small">{{ e.ip|default:"—" }}</td><td class="mono xsmall muted break">{{ e.detail|default:"" }}</td></tr>
 {% empty %}<tr><td colspan="5"><div class="empty">No events.</div></td></tr>{% endfor %}

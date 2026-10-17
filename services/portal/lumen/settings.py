@@ -366,7 +366,7 @@ FREE_WORKSPACES_PER_USER = env_int("FREE_WORKSPACES_PER_USER", 1)
 # --- Operations ---------------------------------------------------------------------------
 HOST_AGENT_SOCKET = env("HOST_AGENT_SOCKET", "/run/lumen-agent/agent.sock")
 STATUS_DIR = Path(env("LUMEN_STATUS_DIR", "/var/lib/lumen/status"))
-WIREGUARD_ENABLED = env_bool("WIREGUARD_ENABLED", False)
+WIREGUARD_ENABLED = env_bool("WIREGUARD_ENABLED", True)
 OPS_REQUIRE_MFA = env_bool("OPS_REQUIRE_MFA", True)
 OPS_STEP_UP_SECONDS = env_int("OPS_STEP_UP_SECONDS", 300)
 RETENTION = {

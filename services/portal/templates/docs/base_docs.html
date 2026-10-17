@@ -5,7 +5,7 @@
   <nav class="docs-nav" aria-label="Documentation">
     <p class="eyebrow">Documentation</p>
     <ul>{% for s, t, d in docs %}<li><a href="{% url 'site:doc' s %}" {% if s == slug %}aria-current="page"{% endif %}>{{ t }}</a></li>{% endfor %}</ul>
-    <p class="small muted">Can't find it? <a href="{% url 'site:contact' %}?topic=support">Ask us</a>.</p>
+    <p class="small muted docs-nav-help">Can't find it? <a href="{% url 'site:contact' %}?topic=support">Ask us</a>.</p>
   </nav>
   <article class="prose">
     <p class="eyebrow"><a href="{% url 'site:docs' %}">Docs</a></p>

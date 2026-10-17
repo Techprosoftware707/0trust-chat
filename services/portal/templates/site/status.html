@@ -7,9 +7,9 @@
   <p class="lead">Measured every minute by automated checks on this server. "No data" means a check hasn't reported in the last ten minutes — not that everything is fine.</p>
 </div></header>
 <section class="section"><div class="container-narrow">
-  <ul class="list-plain list-rows card">
+  <ul class="list-plain list-rows card status-list">
   {% for row in rows %}
-    <li><span class="cluster"><span class="status-dot status-{{ row.status }}"></span><strong>{{ row.label }}</strong></span><span class="small muted">{% if row.status == "unknown" %}No data{% else %}{{ row.status|title }} · checked {{ row.snapshot.at|timesince }} ago{% endif %}</span></li>
+    <li><span class="cluster"><span class="status-dot status-{{ row.status }}"></span><strong>{{ row.label }}</strong></span><span class="small muted">{% if row.status == "unknown" %}No data{% elif row.status == "ok" %}Operational{% elif row.status == "degraded" %}Degraded{% else %}Not working{% endif %}{% if row.status != "unknown" %} · checked {{ row.snapshot.at|timesince }} ago{% endif %}</span></li>
   {% endfor %}
   </ul>
   <p class="small muted">Problems? <a href="{% url 'site:contact' %}?topic=support">Contact support</a>.</p>

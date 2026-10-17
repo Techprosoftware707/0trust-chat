@@ -17,8 +17,8 @@
     </form>
   </div>
   <div class="stack">
-    <div class="card stack-sm"><h3>{% icon "mail" %} Email</h3><p class="muted mb-0">Support: <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a><br>Privacy: <a href="mailto:{{ brand.privacy_email }}">{{ brand.privacy_email }}</a><br>Security: <a href="mailto:{{ brand.security_email }}">{{ brand.security_email }}</a></p></div>
-    <div class="card stack-sm"><h3>{% icon "book-open" %} Self-service</h3><p class="muted mb-0">Most questions are answered in the <a href="{% url 'site:docs' %}">documentation</a>. Account owners can export their data and delete their account from the portal.</p></div>
+    <div class="card stack-sm"><h2 class="card-title">{% icon "mail" %} Email</h2><p class="muted mb-0">Support: <a href="mailto:{{ brand.support_email }}">{{ brand.support_email }}</a><br>Privacy: <a href="mailto:{{ brand.privacy_email }}">{{ brand.privacy_email }}</a><br>Security: <a href="mailto:{{ brand.security_email }}">{{ brand.security_email }}</a></p></div>
+    <div class="card stack-sm"><h2 class="card-title">{% icon "book-open" %} Self-service</h2><p class="muted mb-0">Most questions are answered in the <a href="{% url 'site:docs' %}">documentation</a>. Account owners can export their data and delete their account from the portal.</p></div>
   </div>
 </div></section>
 {% endblock %}

@@ -1,48 +1,119 @@
 {% extends "site/base_site.html" %}{% load lumen %}
-{% block title %}{{ brand.name }} — end-to-end encrypted, federated messaging{% endblock %}
+{% block title %}{{ brand.name }} — end-to-end encrypted messaging built on Matrix{% endblock %}
+{% block meta_description %}{{ brand.short_name }} is new, end-to-end encrypted messaging built on Matrix, the open standard for secure, decentralised chat. Federated, self-hostable, with private WireGuard administration.{% endblock %}
 {% block main %}
 <section class="hero">
   <div class="container hero-grid">
-    <div class="stack">
-      <p class="eyebrow">Open protocol · End-to-end encrypted · Self-hostable</p>
+    <div>
+      <a class="pill-new" href="#matrix"><span class="pill-tag">New</span> Secure messaging built on Matrix {% icon "arrow-right" %}</a>
       <h1>Private conversations on a network <span class="gradient-text">no one owns</span>.</h1>
-      <p class="lead">{{ brand.short_name }} is secure messaging built on the open Matrix protocol. Messages are encrypted on your devices before they leave them. Servers relay ciphertext, talk to each other through federation, and can be run by anyone — including you.</p>
-      <div class="cluster">
+      <p class="lead">{{ brand.short_name }} is end-to-end encrypted messaging built on <strong>Matrix</strong>, the open standard for secure, decentralised chat. Messages are encrypted on your devices before they leave them, and you can talk to anyone on any Matrix server — or run your own.</p>
+      <div class="hero-actions">
         {% if lumen.registration_mode == "open" %}<a class="btn btn-gradient btn-lg" href="{% url 'account_signup' %}">Create a free account {% icon "arrow-right" %}</a>{% else %}<a class="btn btn-gradient btn-lg" href="{% url 'account_login' %}">Sign in {% icon "arrow-right" %}</a>{% endif %}
         <a class="btn btn-lg" href="{% url 'site:security' %}">How the security works</a>
       </div>
-      <div class="hero-proof">
-        <span>{% icon "lock" %} Olm/Megolm encryption by default</span>
-        <span>{% icon "globe" %} Federates with any Matrix server</span>
-        <span>{% icon "server" %} One-command self-hosting</span>
-      </div>
     </div>
     <figure class="hero-figure">
-    <div class="device" aria-hidden="true">
-      <div class="device-screen">
-        <div class="mock-head"><span># design-review</span><span class="mock-shield">{% icon "shield-check" %} Encrypted · 3 verified</span></div>
-        <div class="mock-body">
-          <div><div class="mock-msg">Draft of the launch post is in the files tab — encrypted attachment, so only this room can open it.</div><div class="mock-meta">Amara · 09:41</div></div>
-          <div><div class="mock-msg own">Read it. Loving the security page copy. Verified Jun's new laptop too ✔︎</div><div class="mock-meta">You · 09:43 · {% icon "check" %} Seen by 2</div></div>
-          <div><div class="mock-msg">Jun is on <strong>@jun:partner.example</strong> — federation just works.</div><div class="mock-meta">Leo · 09:44</div></div>
+      <div class="device" aria-hidden="true">
+        <div class="device-screen">
+          <div class="mock-head"><span># design-review</span><span class="mock-shield">{% icon "shield-check" %} Encrypted · 3 verified</span></div>
+          <div class="mock-body">
+            <div class="mock-row"><div class="mock-msg">Draft of the launch post is in the files tab — encrypted attachment, so only this room can open it.</div><div class="mock-meta">Amara · 09:41</div></div>
+            <div class="mock-row own"><div class="mock-msg own">Read it. Loving the security page copy. Verified Jun's new laptop too.</div><div class="mock-meta">You · 09:43 · {% icon "check" %} Seen by 2</div></div>
+            <div class="mock-row optional"><div class="mock-msg">Jun is on <strong>@jun:partner.example</strong> — federation just works.</div><div class="mock-meta">Leo · 09:44</div></div>
+          </div>
         </div>
       </div>
-    </div>
       <figcaption>Illustration of the web chat app</figcaption>
     </figure>
   </div>
 </section>
 
-<section class="section">
+<nav class="trust-strip" aria-label="Highlights">
   <div class="container">
-    <div class="section-head center center-text">
+    <ul>
+      <li><a href="#matrix">{% icon "waypoints" %} Built on Matrix</a></li>
+      <li><a href="{% url 'site:security' %}#e2ee">{% icon "lock" %} End-to-end encrypted</a></li>
+      <li><a href="#wireguard">{% icon "network" %} WireGuard admin access</a></li>
+      <li><a href="{% url 'site:security' %}#post-quantum">{% icon "shield-check" %} Hybrid post-quantum TLS</a></li>
+      <li><a href="{% url 'site:doc' 'self-hosting' %}">{% icon "server" %} Self-hostable</a></li>
+    </ul>
+  </div>
+</nav>
+
+<section class="section" id="matrix" aria-labelledby="matrix-title">
+  <div class="container split">
+    <div>
+      <p class="eyebrow">Built on Matrix</p>
+      <h2 id="matrix-title">An open standard, not a walled garden</h2>
+      <p class="lead">Matrix is the open standard for secure, decentralised messaging. {{ brand.short_name }} runs on it, so your account belongs to a whole network — and you are never locked in.</p>
+      <ul class="point-list">
+        <li><span class="feature-icon">{% icon "globe" %}</span><h3>Talk to anyone on Matrix</h3><p>{% if lumen.federation_mode == "closed" %}{{ brand.short_name }} can federate with any Matrix server; on this server the operator has kept conversations among its own users for now.{% elif lumen.federation_mode == "allowlist" %}{{ brand.short_name }} can federate with any Matrix server; this server talks to the partner servers its operator allows, like <code>@sam:example.org</code>.{% else %}{{ brand.short_name }} federates with any Matrix server. Someone on another server is one address away, like <code>@sam:example.org</code>.{% endif %}</p></li>
+        <li><span class="feature-icon teal">{% icon "laptop" %}</span><h3>Use the app you like</h3><p>Other Matrix apps, such as Element, can sign in to your account with the same encryption and verification.</p></li>
+        <li><span class="feature-icon violet">{% icon "server" %}</span><h3>Run your own server</h3><p>The same software runs on your own hardware, so you can move whenever you want.</p></li>
+      </ul>
+      <p class="section-foot mb-0"><a class="link-arrow" href="{% url 'site:federation' %}">How Matrix and federation work {% icon "arrow-right" %}</a></p>
+    </div>
+    <figure class="net-figure">
+      <svg viewBox="0 0 480 330" role="img" aria-labelledby="net-title net-desc">
+        <title id="net-title">Matrix federation</title>
+        <desc id="net-desc">Your {{ brand.short_name }} server exchanges end-to-end encrypted messages with other Matrix servers: another {{ brand.short_name }} server, any other Matrix server, and a server you run yourself.</desc>
+        <path class="net-line" d="M190 165 C 240 165, 240 62, 290 62"/>
+        <path class="net-line" d="M190 165 L 290 165"/>
+        <path class="net-line" d="M190 165 C 240 165, 240 268, 290 268"/>
+        <rect class="net-node is-home" x="20" y="120" width="170" height="90" rx="18"/>
+        <circle class="net-dot" cx="48" cy="150" r="7"/>
+        <text class="net-label" x="64" y="155">Your {{ brand.short_name }} server</text>
+        <text class="net-sub" x="40" y="182">Matrix homeserver</text>
+        <text class="net-sub" x="40" y="198">stores only ciphertext</text>
+        <rect class="net-node" x="290" y="30" width="170" height="64" rx="16"/>
+        <circle class="net-dot teal" cx="314" cy="56" r="6"/>
+        <text class="net-label" x="328" y="61">partner.example</text>
+        <text class="net-sub" x="306" y="80">another {{ brand.short_name }} server</text>
+        <rect class="net-node" x="290" y="133" width="170" height="64" rx="16"/>
+        <circle class="net-dot alt" cx="314" cy="159" r="6"/>
+        <text class="net-label" x="328" y="164">example.org</text>
+        <text class="net-sub" x="306" y="183">any Matrix server</text>
+        <rect class="net-node" x="290" y="236" width="170" height="64" rx="16"/>
+        <circle class="net-dot" cx="314" cy="262" r="6"/>
+        <text class="net-label" x="328" y="267">home.example</text>
+        <text class="net-sub" x="306" y="286">a server you run</text>
+        <g transform="translate(240 165)"><circle class="net-lock" r="15"/><rect class="net-dot" x="-5.5" y="-2" width="11" height="8.5" rx="2"/><path class="net-shackle" d="M-3.2 -2 v-2.6 a3.2 3.2 0 0 1 6.4 0 V-2"/></g>
+      </svg>
+      <figcaption>Servers exchange end-to-end encrypted messages. No single server is the network.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section band" aria-labelledby="features-title">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Everything you need</p>
+      <h2 id="features-title">Serious security, without the homework</h2>
+      <p class="lead">The cryptography is the proven Matrix stack. The experience is designed so that people who never think about keys still end up safe.</p>
+    </div>
+    <div class="grid grid-3 feature-grid">
+      <div class="feature"><div class="feature-icon">{% icon "messages-square" %}</div><h3>Encrypted chats and groups</h3><p>Direct messages and group rooms are end-to-end encrypted by default with Olm/Megolm (vodozemac), with replies, reactions, read receipts and typing indicators.</p></div>
+      <div class="feature"><div class="feature-icon teal">{% icon "badge-check" %}</div><h3>Verified people and devices</h3><p>Compare emoji on two screens to verify a contact. Cross-signing means you verify a person once, not every device they own.</p></div>
+      <div class="feature"><div class="feature-icon violet">{% icon "key-round" %}</div><h3>Recovery you control</h3><p>An encrypted backup of your message keys, unlocked by a recovery key that only you hold. Lose a phone, not your history.</p></div>
+      {% if lumen.calls_enabled %}<div class="feature"><div class="feature-icon">{% icon "video" %}</div><h3>Encrypted calls</h3><p>Voice and video calls use MatrixRTC with per-frame end-to-end encryption. The call server only forwards ciphertext.</p></div>{% else %}<div class="feature"><div class="feature-icon">{% icon "globe" %}</div><h3>Federated by design</h3><p>Talk to people on other Matrix servers. No single company — including us — is the network.</p></div>{% endif %}
+      <div class="feature"><div class="feature-icon teal">{% icon "building-2" %}</div><h3>Workspaces for teams</h3><p>Invite colleagues, manage roles, and require two-factor authentication before anyone can sign in to chat.</p></div>
+      <div class="feature"><div class="feature-icon violet">{% icon "paperclip" %}</div><h3>Encrypted files</h3><p>Attachments are encrypted in your browser before upload. The server stores bytes it cannot open.</p></div>
+    </div>
+    <p class="section-foot mb-0"><a class="link-arrow" href="{% url 'site:features' %}">See all features {% icon "arrow-right" %}</a></p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="privacy-title">
+  <div class="container">
+    <div class="section-head center">
       <p class="eyebrow">Honest privacy</p>
-      <h2>What our servers can and cannot see</h2>
-      <p class="lead">Encryption protects what you say. It cannot hide that you are talking. We publish both sides so you can decide what fits your threat model.</p>
+      <h2 id="privacy-title">What our servers can and cannot see</h2>
+      <p class="lead">Encryption protects what you say. It cannot hide that you are talking. We publish both sides so you can decide what fits your needs.</p>
     </div>
     <div class="grid grid-2">
-      <div class="card stack-sm">
-        <div class="cluster"><span class="feature-icon teal">{% icon "eye-off" %}</span><h3 class="mb-0">Cannot read</h3></div>
+      <div class="card stack">
+        <div class="card-title"><span class="feature-icon teal mb-0">{% icon "eye-off" %}</span><h3 class="mb-0">Cannot read</h3></div>
         <ul class="check-list">
           <li>{% icon "check" %} Message text, replies and reactions in encrypted rooms</li>
           <li>{% icon "check" %} Files and images you share in encrypted rooms</li>
@@ -50,8 +121,8 @@
           <li>{% icon "check" %} Your encrypted key backup (encrypted with a key only you hold)</li>
         </ul>
       </div>
-      <div class="card stack-sm">
-        <div class="cluster"><span class="feature-icon violet">{% icon "scan-eye" %}</span><h3 class="mb-0">Can see (metadata)</h3></div>
+      <div class="card stack">
+        <div class="card-title"><span class="feature-icon violet mb-0">{% icon "scan-eye" %}</span><h3 class="mb-0">Can see (metadata)</h3></div>
         <ul class="check-list x-list">
           <li>{% icon "info" %} Your account name, email address and sign-in times</li>
           <li>{% icon "info" %} Which rooms you are in, who else is in them, and when messages are sent</li>
@@ -60,58 +131,40 @@
         </ul>
       </div>
     </div>
-    <p class="center small muted section-foot"><a href="{% url 'site:privacy' %}">Read the full privacy model</a></p>
+    <p class="center section-foot mb-0"><a class="link-arrow" href="{% url 'site:privacy' %}">Read the full privacy model {% icon "arrow-right" %}</a></p>
   </div>
 </section>
 
-<section class="section band">
-  <div class="container">
-    <div class="section-head">
-      <p class="eyebrow">Everything you need</p>
-      <h2>Serious security, without the homework</h2>
-      <p class="lead">The cryptography is the battle-tested Matrix stack. The experience is designed so that people who never think about keys still end up safe.</p>
-    </div>
-    <div class="grid grid-3">
-      <div class="feature"><div class="feature-icon">{% icon "messages-square" %}</div><h3>Encrypted chats and groups</h3><p>Direct messages and group rooms are end-to-end encrypted by default, with replies, reactions, read receipts and typing indicators.</p></div>
-      <div class="feature"><div class="feature-icon teal">{% icon "badge-check" %}</div><h3>Verified people and devices</h3><p>Compare emoji on two screens to verify a contact. Cross-signing means you verify a person once, not every device they own.</p></div>
-      <div class="feature"><div class="feature-icon violet">{% icon "key-round" %}</div><h3>Recovery you control</h3><p>An encrypted backup of your message keys, unlocked by a recovery key that only you hold. Lose a phone, not your history.</p></div>
-      <div class="feature"><div class="feature-icon">{% icon "globe" %}</div><h3>Federated by design</h3><p>Talk to anyone on any compatible Matrix server. No single company — including us — is the network.</p></div>
-      <div class="feature"><div class="feature-icon teal">{% icon "building-2" %}</div><h3>Workspaces for teams</h3><p>Invite colleagues, manage roles, and require two-factor authentication before anyone can sign in to chat.</p></div>
-      <div class="feature"><div class="feature-icon violet">{% icon "paperclip" %}</div><h3>Encrypted files</h3><p>Attachments are encrypted in your browser before upload. The server stores bytes it cannot open.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="container grid grid-2">
+<section class="section band-wash" aria-labelledby="steps-title">
+  <div class="container grid grid-2 align-start">
     <div class="stack">
       <p class="eyebrow">Get going in minutes</p>
-      <h2>Three steps to a private conversation</h2>
+      <h2 id="steps-title">Three steps to a private conversation</h2>
       <div class="steps">
-        <div class="step"><h4>Create your account</h4><p class="muted">Pick a username — it becomes your address, <code>@you:{{ lumen.server_name }}</code>. Turn on two-factor authentication while you're there.</p></div>
-        <div class="step"><h4>Open the chat app and save your recovery key</h4><p class="muted">Your device creates its keys locally. Save the recovery key somewhere safe: it is the only way to restore encrypted history on a new device.</p></div>
-        <div class="step"><h4>Start a chat and verify</h4><p class="muted">Message anyone by their Matrix address, then verify each other with a quick emoji comparison.</p></div>
+        <div class="step"><h3>Create your account</h3><p class="muted">Pick a username — it becomes your address, <code>@you:{{ lumen.server_name }}</code>. Turn on two-factor authentication while you're there.</p></div>
+        <div class="step"><h3>Open the chat app and save your recovery key</h3><p class="muted">Your device creates its keys locally. Save the recovery key somewhere safe: it is the only way to restore encrypted history on a new device.</p></div>
+        <div class="step"><h3>Start a chat and verify</h3><p class="muted">Message anyone by their Matrix address, then verify each other with a quick emoji comparison.</p></div>
       </div>
       <div class="cluster"><a class="btn btn-primary" href="{% url 'site:doc' 'getting-started' %}">Read the getting-started guide</a></div>
     </div>
-    <div class="card stack align-self-start">
-      <p class="eyebrow">Zero-trust architecture</p>
+    <div class="card stack">
+      <p class="eyebrow mb-0">Zero-trust architecture</p>
       <h3>Every boundary authenticates</h3>
       <p class="muted">The website, customer portal, homeserver, database and operator console run as separate services with separate credentials. The operator console is not on the public internet at all. Billing never touches conversations.</p>
       <ul class="check-list">
         <li>{% icon "check" %} Encryption happens on your devices — never on our servers</li>
-        <li>{% icon "check" %} Operator access requires MFA, a private network path and is audit-logged</li>
+        <li>{% icon "check" %} Operator access needs MFA and a private network path, and every action is audit-logged</li>
         <li>{% icon "check" %} No hidden admin accounts, no default passwords, no backdoors</li>
       </ul>
-      <a href="{% url 'site:zero_trust' %}">Explore the architecture {% icon "arrow-right" %}</a>
+      <p class="mb-0"><a class="link-arrow" href="{% url 'site:zero_trust' %}">Explore the architecture {% icon "arrow-right" %}</a></p>
     </div>
   </div>
 </section>
 
 {% if plans %}
-<section class="section band">
+<section class="section band" aria-labelledby="pricing-title">
   <div class="container">
-    <div class="section-head"><p class="eyebrow">Pricing</p><h2>Start free. Upgrade when your team grows.</h2></div>
+    <div class="section-head"><p class="eyebrow">Pricing</p><h2 id="pricing-title">Start free. Upgrade when your team grows.</h2><p class="lead">Every plan has the same end-to-end encryption. Paid plans raise a workspace's limits.</p></div>
     <div class="pricing">
       {% for row in plans %}{% with plan=row.plan %}
       <div class="card plan{% if forloop.counter == 2 %} featured{% endif %}">
@@ -121,27 +174,37 @@
       </div>
       {% endwith %}{% endfor %}
     </div>
-    <p class="small muted section-foot"><a href="{% url 'site:pricing' %}">Compare all plans and limits</a></p>
+    <p class="section-foot mb-0"><a class="link-arrow" href="{% url 'site:pricing' %}">Compare all plans and limits {% icon "arrow-right" %}</a></p>
   </div>
 </section>
 {% endif %}
 
-<section class="section band-dark">
-  <div class="container grid grid-2">
-    <div class="stack">
-      <p class="eyebrow">Own your infrastructure</p>
-      <h2>Run your own {{ brand.short_name }} server</h2>
-      <p class="lead">Everything that powers this service — website, portal, homeserver, web chat, backups and monitoring — installs on a fresh Ubuntu 24.04 server with one command. It's open-source software built on open standards.</p>
-      <div class="cluster"><a class="btn btn-gradient" href="{% url 'site:doc' 'self-hosting' %}">Self-hosting guide</a><a class="btn" href="{% url 'site:federation' %}">How federation works</a></div>
+<section class="section band-dark" id="wireguard" aria-labelledby="wireguard-title">
+  <div class="container split start">
+    <div>
+      <p class="eyebrow">For teams and self-hosters</p>
+      <h2 id="wireguard-title">Private administration with WireGuard</h2>
+      <p class="lead">The operator console isn't on the public internet. It only accepts connections through a WireGuard tunnel, an SSH tunnel or allow-listed addresses.</p>
+      <ul class="point-list">
+        <li><span class="feature-icon">{% icon "sparkles" %}</span><h3>Set up when you install</h3><p>WireGuard is on by default: the installer brings up the tunnel and creates a first operator device. Operators can turn it off, and if a host can't run WireGuard the console stays reachable through an SSH tunnel.</p></li>
+        <li><span class="feature-icon teal">{% icon "key-round" %}</span><h3>A preshared key for every device</h3><p>Each peer gets its own preshared key, which keeps recorded tunnel traffic confidential even against a future quantum computer, as long as the key stays secret.</p></li>
+        <li><span class="feature-icon violet">{% icon "sliders-horizontal" %}</span><h3>Managed from the console</h3><p>Add or revoke operator devices on the console's WireGuard page, or with <code>lumenctl wireguard add-peer</code>.</p></li>
+      </ul>
+      <p class="note section-foot">{% icon "info" %}<span>WireGuard protects how administrators reach the server. It doesn't carry your chats: messages are end-to-end encrypted by Matrix on their own.</span></p>
     </div>
-    <pre class="terminal mb-0" aria-label="Installation commands"><code>$ git clone &lt;your Lumen repository&gt; lumen
-$ cd lumen
-$ sudo bash install.sh
-
+    <div class="stack">
+      <h3>Run your own {{ brand.short_name }} server</h3>
+      <p>Website, portal, homeserver, web chat, calls, backups and monitoring install on a fresh Ubuntu 24.04 server with one command. It's built on open standards, so you are never locked in.</p>
+      <pre class="terminal mb-0" aria-label="Installation commands"><code><span class="t-prompt">$ </span>git clone &lt;your Lumen repository&gt; lumen
+<span class="t-prompt">$ </span>cd lumen &amp;&amp; sudo bash install.sh
 <span class="t-comment"># Checks the server, asks for your domain and email,
-# installs Docker, issues TLS certificates, starts every
-# service, verifies them, schedules encrypted backups and
-# prints your URLs and next steps (never your secrets).</span></code></pre>
+# issues TLS certificates, starts every service, sets up
+# WireGuard for operator access and schedules backups.</span>
+
+<span class="t-prompt">$ </span>sudo ./lumenctl wireguard add-peer laptop
+<span class="t-comment"># Another operator device, with its own preshared key.</span></code></pre>
+      <div class="cluster"><a class="btn btn-gradient" href="{% url 'site:doc' 'self-hosting' %}">Self-hosting guide</a><a class="btn" href="{% url 'site:zero_trust' %}">How the console is protected</a></div>
+    </div>
   </div>
 </section>
 
@@ -149,9 +212,10 @@ $ sudo bash install.sh
   <div class="container-narrow faq">
     <h2>Questions people ask</h2>
     <details><summary>Can {{ brand.short_name }} staff read my messages?</summary><p>Not in encrypted rooms, which is every room by default. Messages and files are encrypted on your devices with keys that never reach our servers. We can see metadata such as who is in a room and when messages are sent.</p></details>
+    <details><summary>What is Matrix, and why does it matter?</summary><p>Matrix is the open standard for secure, decentralised messaging. Because {{ brand.short_name }} speaks standard Matrix, you can talk to people on other Matrix servers, sign in with other Matrix apps such as Element, or move to your own server without starting over.</p></details>
     <details><summary>Is it post-quantum secure?</summary><p>Not yet for message content, and we won't claim otherwise. Matrix's Olm/Megolm encryption uses classical cryptography (X25519, Ed25519, AES-256). Connections to our servers use a hybrid post-quantum key exchange (X25519MLKEM768) when your browser supports it. Our <a href="{% url 'site:security' %}#post-quantum">security page</a> explains exactly what that does and doesn't protect.</p></details>
+    <details><summary>Do my messages go through WireGuard?</summary><p>No. WireGuard is how operators reach the private admin console. Your messages are protected by Matrix end-to-end encryption on their own, from your device to the people you talk to.</p></details>
     <details><summary>What happens if I lose my phone?</summary><p>Sign in on another device and unlock your history with your recovery key, or verify the new device from another one you still have. Without either, old encrypted messages can't be recovered — by design, not even by us.</p></details>
-    <details><summary>Can I use other Matrix apps?</summary><p>Yes. {{ brand.short_name }} speaks standard Matrix, so apps such as Element can sign in to your account, and you can talk to people on other Matrix servers.</p></details>
     <details><summary>What happens to my data if I stop paying?</summary><p>Nothing is deleted. Your workspace moves to the Free plan's limits after a grace period; your chats and files stay exactly where they are.</p></details>
   </div>
 </section>

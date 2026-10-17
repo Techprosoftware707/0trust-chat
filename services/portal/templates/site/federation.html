@@ -1,17 +1,17 @@
 {% extends "site/base_site.html" %}{% load lumen %}
-{% block title %}Federation & self-hosting{% endblock %}
+{% block title %}Matrix, federation & self-hosting{% endblock %}
 {% block main %}
 <header class="page-head"><div class="container stack-sm">
-  <p class="eyebrow">Federation &amp; self-hosting</p>
+  <p class="eyebrow">Built on Matrix</p>
   <h1>One network, many independent servers</h1>
-  <p class="lead">{{ brand.short_name }} runs a Matrix homeserver. Anyone can run another one. Users on different servers talk to each other as if they were on the same service — and no single server is the network.</p>
+  <p class="lead">{{ brand.short_name }} is new, and it is built on Matrix, the open standard for secure, decentralised messaging. Every {{ brand.short_name }} server is a Matrix homeserver. Anyone can run another one, people on different servers talk as if they were on the same service, and no single server is the network.</p>
 </div></header>
 
 <section class="section"><div class="container stack-lg">
   <div class="grid grid-3">
-    <div class="card stack-sm"><div class="feature-icon">{% icon "server" %}</div><h3>Your address includes your server</h3><p class="muted mb-0">Accounts here are <code>@name:{{ lumen.server_name }}</code>. Someone on another server might be <code>@sam:example.org</code>. You can message both the same way.</p></div>
-    <div class="card stack-sm"><div class="feature-icon teal">{% icon "share-2" %}</div><h3>Rooms are replicated</h3><p class="muted mb-0">Each server with members in a room keeps its own copy of that room's (encrypted) history. If one server goes offline, the others carry on.</p></div>
-    <div class="card stack-sm"><div class="feature-icon violet">{% icon "shield-check" %}</div><h3>Encryption is end-to-end across servers</h3><p class="muted mb-0">Federation carries ciphertext. Servers sign their traffic, but neither ours nor theirs can read encrypted messages.</p></div>
+    <div class="card stack-sm"><div class="feature-icon">{% icon "server" %}</div><h2 class="card-title">Your address includes your server</h2><p class="muted mb-0">Accounts here are <code>@name:{{ lumen.server_name }}</code>. Someone on another server might be <code>@sam:example.org</code>. You can message both the same way.</p></div>
+    <div class="card stack-sm"><div class="feature-icon teal">{% icon "share-2" %}</div><h2 class="card-title">Rooms are replicated</h2><p class="muted mb-0">Each server with members in a room keeps its own copy of that room's (encrypted) history. If one server goes offline, the others carry on.</p></div>
+    <div class="card stack-sm"><div class="feature-icon violet">{% icon "shield-check" %}</div><h2 class="card-title">Encryption is end-to-end across servers</h2><p class="muted mb-0">Federation carries ciphertext. Servers sign their traffic, but neither ours nor theirs can read encrypted messages.</p></div>
   </div>
 
   <div class="prose">
@@ -19,12 +19,20 @@
     <p>In a federated network your device talks to <em>your</em> homeserver, and homeservers talk to each other. Your server stores and forwards your encrypted messages and sees metadata about your conversations. That's different from peer-to-peer systems such as Tox, where devices connect directly and nothing is stored centrally — at the cost of both people needing to be online and of weaker multi-device support. We chose federation for reliable delivery, history on every device and interoperability with the wider Matrix ecosystem.</p>
     <h2>This server's federation policy</h2>
     <p>{% if lumen.federation_mode == "open" %}This server federates <strong>openly</strong>: users can talk to people on any reachable Matrix server.{% elif lumen.federation_mode == "allowlist" %}This server federates with an <strong>allow-list</strong> of partner servers chosen by its operator.{% else %}Federation is <strong>disabled</strong> on this server: it only hosts conversations between its own users.{% endif %} Operators choose open, allow-list or closed federation; the setting is enforced by the homeserver itself.</p>
+    <h2>Why Matrix</h2>
+    <ul>
+      <li><strong>Open standard.</strong> The protocol is published and implemented by many independent projects, so your conversations don't depend on one company.</li>
+      <li><strong>End-to-end encrypted by default.</strong> Olm/Megolm through the audited vodozemac library, cross-signing and emoji verification, and an encrypted key backup unlocked by a recovery key only you hold.</li>
+      {% if lumen.calls_enabled %}<li><strong>Encrypted calls.</strong> Calls use MatrixRTC with per-frame end-to-end encryption, so the call server only forwards ciphertext.</li>{% endif %}
+      <li><strong>No lock-in.</strong> Use other apps, talk to other servers, or run your own.</li>
+    </ul>
     <h2>Use any Matrix app</h2>
-    <p>{{ brand.short_name }}'s web app is one client among many. Standard Matrix apps can sign in to your account with single sign-on through your {{ brand.short_name }} account, with the same encryption and verification.</p>
+    <p>{{ brand.short_name }}'s web app is one client among many. Standard Matrix apps, such as Element, can sign in to your account with single sign-on through your {{ brand.short_name }} account, with the same encryption and verification. Choose “sign in with another server” and enter <code>{{ lumen.server_name }}</code>. <a href="{% url 'site:download' %}">Apps &amp; clients</a>.</p>
     <h2>Run your own server</h2>
     <p>The complete {{ brand.short_name }} stack — homeserver, web chat, website, customer portal, operator console, backups and monitoring — installs on a fresh Ubuntu 24.04 server:</p>
     <pre><code>sudo bash install.sh</code></pre>
-    <p>The installer checks your server and DNS, obtains TLS certificates, configures Matrix discovery and federation, sets up a firewall, encrypted backups and health checks, and refuses to report success until every public endpoint actually responds. See the <a href="{% url 'site:doc' 'self-hosting' %}">self-hosting guide</a>.</p>
+    <p>The installer checks your server and DNS, obtains TLS certificates, configures Matrix discovery and federation, sets up a firewall, encrypted backups, health checks and WireGuard for private operator access, and refuses to report success until every public endpoint actually responds. See the <a href="{% url 'site:doc' 'self-hosting' %}">self-hosting guide</a>.</p>
+    <p class="note">{% icon "network" %}<span>Your operator console stays off the public internet: reach it through WireGuard (on by default, with a preshared key per device), an SSH tunnel or allow-listed addresses. <a href="{% url 'site:home' %}#wireguard">Private administration with WireGuard</a>.</span></p>
     <h2>DNS records for a server</h2>
     <table>
       <thead><tr><th>Name</th><th>Type</th><th>Purpose</th></tr></thead>

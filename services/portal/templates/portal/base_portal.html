@@ -1,30 +1,35 @@
 {% extends "base.html" %}{% load lumen %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block body_class %}portal{% endblock %}
 {% block body %}
-<div class="mobile-bar">{% include "includes/brand.html" %}<button type="button" class="theme-toggle" data-nav-toggle aria-expanded="false" aria-label="Open navigation">{% icon "menu" %}</button></div>
+<div class="mobile-bar">{% include "includes/brand.html" %}<div class="cluster">{% include "includes/theme_toggle.html" %}<button type="button" class="theme-toggle" data-nav-toggle aria-expanded="false" aria-controls="app-nav" aria-label="Open navigation">{% icon "menu" %}</button></div></div>
 <div class="app-shell" data-nav-open="false">
-  <aside class="sidebar" aria-label="Account navigation">
-    {% include "includes/brand.html" %}
-    <nav>
-      <a href="{% url 'portal:dashboard' %}" {% nav_current '/portal/dashboard' %}>{% icon "layout-dashboard" %} Overview</a>
-      <a href="{{ lumen.app_url }}" >{% icon "messages-square" %} Open chat {% icon "external-link" "xsmall" %}</a>
-      <div class="nav-label">Workspaces</div>
-      <a href="{% url 'portal:workspaces' %}" {% nav_current '/portal/workspaces' %}>{% icon "building-2" %} Workspaces</a>
-      <div class="nav-label">Account</div>
-      <a href="{% url 'portal:security' %}" {% nav_current '/portal/security' '/accounts/2fa' '/accounts/sessions' %}>{% icon "shield-check" %} Security center</a>
-      <a href="{% url 'portal:profile' %}" {% nav_current '/portal/profile' '/accounts/email' '/accounts/password' %}>{% icon "user" %} Profile</a>
-      <a href="{% url 'portal:privacy' %}" {% nav_current '/portal/privacy' %}>{% icon "eye-off" %} Privacy &amp; data</a>
-      <div class="nav-label">Help</div>
-      <a href="{% url 'site:docs' %}">{% icon "book-open" %} Documentation</a>
-      <a href="{% url 'portal:support' %}" {% nav_current '/portal/support' %}>{% icon "life-buoy" %} Support</a>
-    </nav>
-    <div class="sidebar-foot">
-      <div class="user-chip"><span class="avatar">{{ user|initials }}</span><div class="break"><div class="small"><strong>{{ user.name }}</strong></div><div class="xsmall muted mono">{{ user.matrix_id }}</div></div></div>
-      <div class="cluster">
-        {% include "includes/theme_toggle.html" %}
-        <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm" type="submit">{% icon "log-out" %} Sign out</button></form>
+  <aside class="sidebar" id="app-nav" aria-label="Account navigation">
+    <div class="sidebar-inner">
+      <div class="sidebar-head">{% include "includes/brand.html" %}<button type="button" class="theme-toggle sidebar-close" data-nav-close aria-label="Close navigation">{% icon "x" %}</button></div>
+      <nav aria-label="Account">
+        <a href="{% url 'portal:dashboard' %}" {% nav_current '/portal/dashboard' %}>{% icon "layout-dashboard" %} Overview</a>
+        <a href="{{ lumen.app_url }}">{% icon "messages-square" %} Open chat {% icon "external-link" "xsmall" %}</a>
+        <div class="nav-label">Workspaces</div>
+        <a href="{% url 'portal:workspaces' %}" {% nav_current '/portal/workspaces' %}>{% icon "building-2" %} Workspaces</a>
+        <div class="nav-label">Account</div>
+        <a href="{% url 'portal:security' %}" {% nav_current '/portal/security' '/accounts/2fa' '/accounts/sessions' %}>{% icon "shield-check" %} Security center</a>
+        <a href="{% url 'portal:profile' %}" {% nav_current '/portal/profile' '/accounts/email' '/accounts/password' %}>{% icon "user" %} Profile</a>
+        <a href="{% url 'portal:privacy' %}" {% nav_current '/portal/privacy' %}>{% icon "eye-off" %} Privacy &amp; data</a>
+        <div class="nav-label">Help</div>
+        <a href="{% url 'site:docs' %}">{% icon "book-open" %} Documentation</a>
+        <a href="{% url 'portal:support' %}" {% nav_current '/portal/support' %}>{% icon "life-buoy" %} Support</a>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="user-chip"><span class="avatar">{{ user|initials }}</span><div class="break"><div class="small"><strong>{{ user.name }}</strong></div><div class="xsmall muted mono" title="{{ user.matrix_id }}">{{ user.matrix_id }}</div></div></div>
+        <div class="cluster">
+          {% include "includes/theme_toggle.html" %}
+          <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm" type="submit">{% icon "log-out" %} Sign out</button></form>
+        </div>
       </div>
     </div>
   </aside>
+  <div class="nav-backdrop" data-nav-close aria-hidden="true"></div>
   <main id="main" class="app-main">
     {% include "includes/messages.html" %}
     {% block main %}{% endblock %}
