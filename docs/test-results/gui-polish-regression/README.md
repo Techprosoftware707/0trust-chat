@@ -15,8 +15,9 @@ The full suite was run against the dev stack, which was redeployed from commit `
 | Desktop unit / Electron e2e | 34/34 · 11/11 |
 | Federation (connect + denied) | 10/10 + 2/2 |
 | WireGuard tunnel e2e | 8/8 |
+| Mobile-app call widget harness | 12 passed, 0 failed (re-run after rebuilding the harness) |
 | Security scan | 122 passed, 1 failed |
 
 The single security-scan failure is "unexpected listeners: 127.0.0.1:8710". That port is a development server of the separate Nexus test branch, running on the same machine; it is not part of the Lumen stack. A re-run without that process is recorded below once it has been done.
 
-The mobile-app call widget harness (`tests/apps/widget-call.test.mjs`) could not run, because its Rust binary had been removed from the build directory during disk clean-up. It is being rebuilt, and the result will be added here. The previous result is in `docs/test-results/apps-widget-call.txt`.
+The mobile-app call widget harness (`tests/apps/widget-call.test.mjs`) could not run in the first pass, because its Rust binary had been removed from the build directory during disk clean-up. The binary was rebuilt (`cargo build --release --locked`, 16 min) and the test re-run on the same deployment: **12 passed, 0 failed** (`widget-call.txt`). That run covers native SSO, the capability allow-list, MatrixRTC through the Rust SDK, E2EE media keys, media in both directions, and hang-up.
