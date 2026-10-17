@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { findArea, isAreaVisible } from "../../src/workspace/registry";
 import type { WorkspaceDetail } from "../../src/workspace/types";
 import {
-  addDays, budgetRange, callDuration, checkUpload, dayBlock, describeRule, eventsOnDay, executionBadgeClass, groupByDay, isoDay, mergeRecentCalls, parseIsoDay,
+  addDays, budgetRange, callDuration, checkUpload, dayBlock, describeCondition, describeRule, eventsOnDay, executionBadgeClass, groupByDay, isoDay, mergeRecentCalls, parseIsoDay,
   parseList, propertyFacts, shiftAnchor, startOfWeek, urgencyBadgeClass, viewRange,
 } from "../../src/workspace/verticals/logic";
 import { HomeVerticalCards, serviceStatusLabel } from "../../src/workspace/verticals/HomeCards";
@@ -103,7 +103,15 @@ describe("labels and checks", () => {
       trigger: "lead.created", trigger_label: "A lead is created", conditions: [{ field: "contact.source", op: "equals", value: "Website" }],
       actions: [{ type: "assign_owner", params: { only_if_unassigned: true } }, { type: "create_task", params: { title: "Call {contact.name}", due_in_hours: 24 } }],
     });
-    expect(text).toBe("When a lead is created and contact.source equals Website: assign an owner if it has none, then create the task “Call {contact.name}” due in 24 h.");
+    expect(text).toBe("When a lead is created and the source is Website: assign an owner if it has none, then create the task “Call {contact.name}” due in 24 h.");
+  });
+
+  it("reads yes/no conditions as plain statements", () => {
+    expect(describeCondition({ field: "stage.is_lost", op: "equals", value: false })).toBe("the new stage isn't a lost stage");
+    expect(describeCondition({ field: "stage.is_lost", op: "not_equals", value: "false" })).toBe("the new stage is a lost stage");
+    expect(describeCondition({ field: "event.has_room", op: "equals", value: true })).toBe("it has a meeting room");
+    expect(describeCondition({ field: "contact.roles", op: "in", value: ["buyer", "seller"] })).toBe("a role is one of buyer, seller");
+    expect(describeCondition({ field: "unknown.field", op: "contains", value: "x" })).toBe("unknown.field includes x");
   });
 });
 

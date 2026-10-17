@@ -56,7 +56,7 @@ export function HomeVerticalCards({ d, team }: { d: HomeExtras; team: boolean })
         )}
       </section>
 
-      <section className="ws-card" aria-labelledby="home-deadlines">
+      <section className="ws-card vx-home-tall" aria-labelledby="home-deadlines">
         <header className="ws-card-header">
           <h2 id="home-deadlines">Approaching deadlines</h2>
         </header>
@@ -150,7 +150,7 @@ export function HomeVerticalCards({ d, team }: { d: HomeExtras; team: boolean })
                     <span className="ws-row-title">
                       {s.label}{" "}
                       {s.mock ? (
-                        <span className="badge badge-info" title="Not a real connection">
+                        <span className="badge badge-info vx-mock-badge" title="Not a real connection">
                           <FlaskConical aria-hidden="true" /> {s.mock_label || "Mock provider"}
                         </span>
                       ) : null}

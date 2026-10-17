@@ -4,7 +4,7 @@
  * test/unit/verticals.test.ts.
  */
 
-import type { AutomationCatalog, AutomationRule, ChecklistStatus, EventKind, Property, Urgency } from "./types";
+import type { AutomationCatalog, AutomationRule, ChecklistStatus, EventKind, Property, RuleCondition, Urgency } from "./types";
 
 // --- labels ---------------------------------------------------------------------------------------
 
@@ -226,12 +226,61 @@ const ACTION_TEXT: Record<string, (p: Record<string, unknown>) => string> = {
 };
 
 /** "When a lead is created: assign an owner if it has none, then create the task …". */
+/** Plain-language names of the automation condition fields (apps/automation/engine.py). */
+export const CONDITION_FIELD_LABEL: Record<string, string> = {
+  "contact.kind": "the contact's type",
+  "contact.source": "the source",
+  "contact.priority": "the priority",
+  "contact.roles": "a role",
+  "contact.has_owner": "it has an owner",
+  "task.priority": "the task's priority",
+  "task.source": "the task's source",
+  "task.has_contact": "it's linked to a contact",
+  "task.has_opportunity": "it's linked to a deal",
+  "event.kind": "the event type",
+  "event.has_room": "it has a meeting room",
+  "opportunity.pipeline_id": "the pipeline (ID)",
+  "opportunity.pipeline_kind": "the pipeline type",
+  "opportunity.priority": "the deal's priority",
+  "stage.name": "the new stage",
+  "stage.is_won": "the new stage is a won stage",
+  "stage.is_lost": "the new stage is a lost stage",
+  "from_stage.name": "the previous stage",
+  "item.source": "the suggestion's source",
+  "item.has_assignee": "it has a suggested assignee",
+};
+
+/** Yes/no fields read as a statement and its negation. */
+const CONDITION_NEGATION: Record<string, string> = {
+  "contact.has_owner": "it has no owner",
+  "task.has_contact": "it isn't linked to a contact",
+  "task.has_opportunity": "it isn't linked to a deal",
+  "event.has_room": "it has no meeting room",
+  "stage.is_won": "the new stage isn't a won stage",
+  "stage.is_lost": "the new stage isn't a lost stage",
+  "item.has_assignee": "it has no suggested assignee",
+};
+
+const OPERATOR_TEXT: Record<string, string> = { equals: "is", not_equals: "isn't", in: "is one of", contains: "includes" };
+
+export function conditionFieldLabel(field: string): string {
+  return CONDITION_FIELD_LABEL[field] ?? field;
+}
+
+export function describeCondition(c: RuleCondition): string {
+  const negation = CONDITION_NEGATION[c.field];
+  if (negation && (c.op === "equals" || c.op === "not_equals") && (c.value === true || c.value === false || c.value === "true" || c.value === "false")) {
+    const yes = (c.value === true || c.value === "true") === (c.op === "equals");
+    return yes ? conditionFieldLabel(c.field) : negation;
+  }
+  const value = Array.isArray(c.value) ? c.value.join(", ") : String(c.value);
+  return `${conditionFieldLabel(c.field)} ${OPERATOR_TEXT[c.op] ?? c.op} ${value}`;
+}
+
 export function describeRule(rule: Pick<AutomationRule, "trigger" | "trigger_label" | "conditions" | "actions">, catalog?: AutomationCatalog | null): string {
   const label = catalog?.triggers.find((t) => t.value === rule.trigger)?.label ?? rule.trigger_label ?? rule.trigger;
   const when = `When ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
-  const cond = rule.conditions.length
-    ? ` and ${rule.conditions.map((c) => `${c.field} ${c.op.replace("_", " ")} ${Array.isArray(c.value) ? c.value.join(" or ") : String(c.value)}`).join(" and ")}`
-    : "";
+  const cond = rule.conditions.length ? ` and ${rule.conditions.map(describeCondition).join(" and ")}` : "";
   const acts = rule.actions.map((a) => (ACTION_TEXT[a.type] ?? ((): string => a.type))(a.params)).join(", then ");
   return `${when}${cond}: ${acts || "do nothing"}.`;
 }

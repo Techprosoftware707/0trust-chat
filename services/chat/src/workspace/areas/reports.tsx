@@ -54,7 +54,7 @@ function PipelineCard({ pipelineId }: { pipelineId: string }) {
             <Mini value={d.totals.open_count ?? 0} label="Open deals" />
             <Mini value={money(d.totals.open_value, d.pipeline.currency)} label="Open value" />
             <Mini value={money(d.totals.weighted_value, d.pipeline.currency)} label="Weighted by stage probability" />
-            <Mini value={`${d.totals.won_count ?? 0} · ${money(d.totals.won_value, d.pipeline.currency)}`} label="Won" />
+            <Mini value={money(d.totals.won_value, d.pipeline.currency)} label={`Won · ${d.totals.won_count ?? 0} deal${d.totals.won_count === 1 ? "" : "s"}`} />
           </div>
           <ul className="ws-bars" aria-label="Value by stage">
             {d.stages.map((s) => (

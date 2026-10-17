@@ -30,8 +30,8 @@ import type { CalendarEventFull } from "../verticals/types";
 import { timeRange } from "./calendar";
 
 function Tabs({ active }: { active: string }) {
-  const tabs: [string, string, string][] = [["upcoming", "Upcoming meetings", areaHash("calls")], ["recent", "Recent calls", areaHash("calls", "recent")],
-    ["next-steps", "Next steps to review", areaHash("calls", "next-steps")]];
+  const tabs: [string, string, string][] = [["upcoming", "Upcoming", areaHash("calls")], ["recent", "Recent calls", areaHash("calls", "recent")],
+    ["next-steps", "Next steps", areaHash("calls", "next-steps")]];
   return (
     <nav className="ws-tabs" aria-label="Calls & Meetings">
       {tabs.map(([id, label, href]) => (

@@ -83,12 +83,15 @@ function TimeGrid({ days, events, today }: { days: Date[]; events: CalendarEvent
             return list.map((e) => {
             const b = dayBlock(e, d);
             const l = lanes.get(e.id) ?? { lane: 0, lanes: 1 };
+            const height = Math.max(22, (b.height / 60) * 48 - 2);
+            // Under ~40 minutes there is room for one line: title first, then the time.
+            const short = height < 34;
             return (
-              <a key={e.id} className={`vx-block ${e.kind}${e.status === "canceled" ? " canceled" : ""}`} href={areaHash("calendar", "event", e.id)}
-                style={{ top: (b.top / 60) * 48, height: Math.max(22, (b.height / 60) * 48 - 2), left: `calc(${(100 * l.lane) / l.lanes}% + 2px)`, width: `calc(${100 / l.lanes}% - 4px)` }}
-                aria-label={`${e.title}, ${timeRange(e)}`}>
+              <a key={e.id} className={`vx-block ${e.kind}${short ? " short" : ""}${e.status === "canceled" ? " canceled" : ""}`} href={areaHash("calendar", "event", e.id)}
+                style={{ top: (b.top / 60) * 48, height, left: `calc(${(100 * l.lane) / l.lanes}% + 2px)`, width: `calc(${100 / l.lanes}% - 4px)` }}
+                aria-label={`${e.title}, ${timeRange(e)}`} title={`${e.title}, ${timeRange(e)}`}>
                 <strong>{e.title}</strong>
-                {timeRange(e)}
+                <span className="vx-block-time">{timeRange(e)}</span>
               </a>
             );
             });

@@ -96,6 +96,10 @@
 .vx-block.call { border-left-color: var(--info); background: var(--info-soft); }
 .vx-block.canceled { opacity: 0.6; text-decoration: line-through; }
 .vx-block strong { display: block; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-block-time { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-block.short { display: flex; align-items: center; gap: var(--space-1); padding-block: 0; }
+.vx-block.short strong { flex: 0 1 auto; min-width: 0; }
+.vx-block.short .vx-block-time { flex: 0 100 auto; min-width: 0; }
 
 /* ---- reports ------------------------------------------------------------------------------- */
 .vx-report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
@@ -133,7 +137,17 @@
   .vx-checklist > li { grid-template-columns: minmax(0, 1fr); }
   .vx-checklist .vx-item-actions { justify-content: flex-start; }
 }
+/* An application's page: one column track that may shrink below its content's min-content
+   width (an implicit auto track would grow past the phone's width instead). */
+.vx-app .ws-detail-main, .vx-app .ws-section { grid-template-columns: minmax(0, 1fr); }
+.vx-app .ws-section-header { flex-wrap: wrap; gap: var(--space-2); }
 /* An application's page: the work comes first on narrow screens (the facts follow). */
 @media (max-width: 1180px) {
   .vx-app .ws-detail-side { order: 0; }
 }
+
+/* Home: the deadlines list is usually the tallest card; letting it span two rows keeps the
+   cards beside it from leaving a gap underneath. */
+.ws-home-grid > .vx-home-tall { grid-row: span 2; }
+/* The integrations' mock label is long; let it wrap rather than push the status off a phone. */
+.vx-mock-badge { white-space: normal; text-align: start; }

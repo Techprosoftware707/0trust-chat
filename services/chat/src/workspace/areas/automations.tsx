@@ -18,7 +18,7 @@ import { useApiResource, useWorkspace } from "../context";
 import { areaHash, defineArea, type AreaProps } from "../define";
 import type { Page } from "../types";
 import { ConnectionGate, DemoBadge, EmptyState, ErrorState, LoadingState, PageHeader, formatWhen } from "../ui";
-import { describeRule, executionBadgeClass } from "../verticals/logic";
+import { conditionFieldLabel, describeRule, executionBadgeClass } from "../verticals/logic";
 import { Field, fieldErrors } from "../verticals/shared";
 import type { AutomationCatalog, AutomationRule, Execution, RuleAction, RuleCondition } from "../verticals/types";
 import { automationBase } from "./notifications";
@@ -136,7 +136,7 @@ function ConditionEditor({ value, fields, operators, onChange, onRemove, index }
       <select id={`${uid}-f`} value={value.field} onChange={(e) => onChange({ ...value, field: e.target.value })}>
         {fields.map((f) => (
           <option key={f} value={f}>
-            {f}
+            {conditionFieldLabel(f)}
           </option>
         ))}
       </select>
@@ -146,7 +146,7 @@ function ConditionEditor({ value, fields, operators, onChange, onRemove, index }
       <select id={`${uid}-o`} value={value.op} onChange={(e) => onChange({ ...value, op: e.target.value as RuleCondition["op"], value: parse(raw, e.target.value) })}>
         {operators.map((o) => (
           <option key={o} value={o}>
-            {o.replace("_", " ")}
+            {{ equals: "is", not_equals: "isn't", in: "is one of", contains: "includes" }[o] ?? o}
           </option>
         ))}
       </select>

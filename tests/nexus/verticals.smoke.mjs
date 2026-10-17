@@ -112,6 +112,9 @@ async function shot(page, name) {
 async function noOverflow(page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 1, `horizontal overflow of ${overflow}px`);
+  // The area's own scroll container clips instead of growing the page: check it as well.
+  const inner = await page.evaluate(() => Math.max(0, ...[...document.querySelectorAll(".ws-area-scroll")].map((el) => el.scrollWidth - el.clientWidth)));
+  assert.ok(inner <= 1, `the page content is ${inner}px wider than the screen`);
 }
 
 async function signIn(ctx, username) {
