@@ -76,7 +76,7 @@ final class AuthModel {
         let storeID = StoredAccount.makeStoreID()
         let passphrase = StoredAccount.makeStorePassphrase()
         do {
-            let client = try await factory.newClient(homeserverURL: d.homeserverURL, storeID: storeID, passphrase: passphrase)
+            let client = try await factory.newClient(homeserverURL: d.homeserverURL, storeID: storeID, passphrase: passphrase, store: accountStore)
             let attempt = SSOAttempt(redirectBase: build.ssoRedirectBase)
             pendingSsoNonce = attempt.nonce
             defer { pendingSsoNonce = nil }

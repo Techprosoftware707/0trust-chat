@@ -8,7 +8,8 @@ import XCTest
 /// exactly as sign-in does (`ClientFactory.newClient`, native sliding-sync discovery, which
 /// requests the server's /versions) against public servers: a trusted certificate must
 /// work, an untrusted one must be refused. URLSession is the control: when it can't reach a
-/// server either, the test is skipped, never passed.
+/// server either, the test is skipped, never passed. (The first run found that sign-in's
+/// client could not be built at all: no session delegate with the multi-process lock.)
 final class SdkTlsTests: XCTestCase {
     private var root: URL!
 
@@ -22,7 +23,7 @@ final class SdkTlsTests: XCTestCase {
 
     private func newClient(_ homeserver: String) async throws -> Client {
         let factory = ClientFactory(paths: StorePaths(root: root, isShared: false))
-        return try await factory.newClient(homeserverURL: URL(string: homeserver)!, storeID: UUID().uuidString, passphrase: UUID().uuidString)
+        return try await factory.newClient(homeserverURL: URL(string: homeserver)!, storeID: UUID().uuidString, passphrase: UUID().uuidString, store: NoAccountYet())
     }
 
     /// nil when URLSession got an HTTP response; otherwise its error.
@@ -37,6 +38,13 @@ final class SdkTlsTests: XCTestCase {
         } catch {
             return URLError(.unknown)
         }
+    }
+
+    /// Sign-in's state: the account is saved only after the login succeeds.
+    private struct NoAccountYet: AccountStoring {
+        func load() -> StoredAccount? { nil }
+        func save(_ account: StoredAccount) throws {}
+        func delete() throws {}
     }
 
     func testSdkConnectsToAServerWithAPubliclyTrustedCertificate() async throws {

@@ -61,10 +61,13 @@ struct ClientFactory: Sendable {
         return builder
     }
 
-    /// A fresh client for signing in.
-    func newClient(homeserverURL: URL, storeID: String, passphrase: String) async throws -> Client {
+    /// A fresh client for signing in. The multi-process lock requires a session
+    /// delegate (the SDK refuses to build without one); it persists token
+    /// refreshes once sign-in has saved the account.
+    func newClient(homeserverURL: URL, storeID: String, passphrase: String, store: AccountStoring) async throws -> Client {
         try await builder(storeID: storeID, passphrase: passphrase, role: .app)
             .homeserverUrl(url: homeserverURL.absoluteString)
+            .setSessionDelegate(sessionDelegate: StoredSessionDelegate(store: store))
             .build()
     }
 
