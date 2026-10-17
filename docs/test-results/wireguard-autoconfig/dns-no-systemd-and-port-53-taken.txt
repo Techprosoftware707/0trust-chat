@@ -1,0 +1,58 @@
+=== deploy/lib/wireguard.sh without systemd, and with another DNS server on port 53, 2026-10-17 ~22:22-22:26 UTC.
+=== Plain ubuntu:24.04 containers (no systemd; NET_ADMIN and /dev/net/tun, wireguard-go). Driver: source deploy/lib/{common,host,wireguard}.sh, then
+=== wireguard_default_on + wireguard_enable (as install.sh/update.sh), a second wireguard_enable (a re-run), then wireguard_disable. Scripts: nosystemd.sh, foreign53.sh.
+
+--- defect found by the first run (fixed): the second wireguard_enable printed
+      ! DNS in the tunnel unavailable: port 53 on 10.77.0.1 is already served by another program (left untouched)
+    and stopped Lumen's own forwarder: in a container root has no CAP_SYS_PTRACE, so ss -p can't name a process owned by the dnsmasq user
+    ("ss -p sees the process: 0 of 1 udp sockets" below). Now a socket on exactly the tunnel address with no process details, while Lumen's
+    forwarder runs, counts as Lumen's; a wildcard one still counts as another program.
+
+=== 1. no systemd: the fallback (dnsmasq as a daemon with /run/lumen-wg-dns.pid), run on the fixed code
+dnsmasq-base not installed yet: _wg_dns_up must install it
+has_systemd: no
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ✔ WireGuard up on wg0 (10.77.0.0/24, UDP 51820, userspace wireguard-go: this kernel has no WireGuard module); devices dial 203.0.113.10:51820
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.nosd.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (this host's resolvers)
+    ✔ first device 'op-device' added (10.77.0.2); profile: /etc/lumen/wireguard/first-device.conf (root only)
+wireguard_enable exit 0
+INFO ss -p sees the process: 0 of 1 udp sockets
+INFO pid file: 2974 (dnsmasq); sockets: 10.77.0.1:53 / 10.77.0.1:53
+PASS state wireguard=enabled, wireguard_dns=enabled
+PASS dnsmasq-base was installed
+PASS the forwarder runs as a daemon with /run/lumen-wg-dns.pid, as user dnsmasq
+PASS its only sockets: 10.77.0.1:53 udp and tcp
+PASS ops.nosd.test -> 10.77.0.1 on 10.77.0.1:53
+PASS no answer on the container's other addresses
+PASS the first device profile sets DNS = 10.77.0.1
+INFO forwarded: example.com -> 0 ['172.66.147.243', '104.20.23.154']
+--- second wireguard_enable
+    ✔ WireGuard up on wg0 (10.77.0.0/24, UDP 51820, already running); devices dial 203.0.113.10:51820
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.nosd.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (this host's resolvers)
+    ✔ first device 'op-device' already registered (keys unchanged); profile still stored: /etc/lumen/wireguard/first-device.conf
+INFO pid file now: 2974
+ok ops.nosd.test -> 10.77.0.1 (tunnel DNS on 10.77.0.1:53)
+ok ops.nosd.test -> 10.77.0.1 (tunnel DNS on 10.77.0.1:53)
+PASS a second wireguard_enable keeps the same forwarder (no restart)
+    ✔ WireGuard stopped, with its DNS in the tunnel (keys kept in /etc/lumen/wireguard; delete them to revoke everything)
+PASS wireguard_disable stops it (no process, nothing on port 53, state disabled)
+no-systemd fallback: 9 passed, 0 failed
+
+=== 2. another DNS server already on 0.0.0.0:53 (a python3 UDP socket standing in for it)
+INFO foreign listener (pid 2761): 0.0.0.0:53 users:(("python3",pid=2761,fd=3))
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ✔ WireGuard up on wg0 (10.77.0.0/24, UDP 51820, userspace wireguard-go: this kernel has no WireGuard module); devices dial 203.0.113.10:51820
+    ! DNS in the tunnel unavailable: port 53 on 10.77.0.1 is already served by python3 (left untouched)
+    ! new device profiles get no DNS line; on each device the hosts-file line 10.77.0.1 ops.nosd.test points the console's name into the tunnel
+    ✔ first device 'op-device' added (10.77.0.2); profile: /etc/lumen/wireguard/first-device.conf (root only)
+wireguard_enable exit 0
+PASS WireGuard still enabled
+PASS DNS in the tunnel: unavailable, with the reason
+INFO reason: port 53 on 10.77.0.1 is already served by python3 (left untouched)
+PASS no Lumen forwarder running, the foreign listener untouched
+PASS first device profile without a DNS line, with the hosts-file line in its comments
+INFO summary:
+  WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
+                      console via WireGuard: https://ops.nosd.test:8443/  (hosts file on the device: 10.77.0.1 ops.nosd.test; DNS in the tunnel unavailable: port 53 on 10.77.0.1 is already served by python3 (left untouched))
+                      devices dial 203.0.113.10:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+foreign port 53: 4 passed, 0 failed

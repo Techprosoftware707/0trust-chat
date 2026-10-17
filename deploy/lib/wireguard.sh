@@ -112,6 +112,10 @@ _wg_dns_port_taken() {
     case "$local_addr" in "$addr:53" | "0.0.0.0:53" | "*:53" | "[::]:53") ;; *) continue ;; esac
     users="$(grep -o 'users:(.*' <<<"$line" || true)"
     [[ -n "$ours" && "$users" == *"pid=$ours,"* ]] && continue
+    # No process details (ss can't see another user's process without CAP_SYS_PTRACE, as in a
+    # container): a socket on exactly ADDR while Lumen's forwarder runs is Lumen's. A wildcard
+    # one never is (the forwarder binds only ADDR).
+    [[ -n "$ours" && -z "$users" && "$local_addr" == "$addr:53" ]] && continue
     users="$(grep -oE '"[^"]+"' <<<"$users" | head -n1 | tr -d '"')"
     printf '%s' "${users:-another program}"
     return 0
@@ -189,12 +193,31 @@ _wg_dns_up() {
       run dnsmasq --conf-file="$WG_DNS_CONF" --pid-file="$WG_DNS_PIDFILE" || { _wg_dns_unavailable "dnsmasq did not start (see $_log_file)"; return 1; }
     fi
   fi
-  if ! _wg_agent wg-dns-check --wait 15 >>"$_log_file" 2>&1; then
+  # A real query as a device would make: the console's name, then another name (forwarding).
+  local chk rc
+  if chk="$(_wg_agent wg-dns-check --wait 15 2>&1)"; then rc=0; else rc=$?; fi
+  _log "wg-dns-check (exit $rc): $chk"
+  if ((rc != 0 && rc != 3)); then
     _wg_dns_unavailable "the forwarder on $listen:53 did not answer (see $_log_file$(has_systemd && echo " and journalctl -u $WG_DNS_UNIT"))"; return 1
   fi
   state_set wireguard_dns enabled
   state_set wireguard_dns_reason ""
-  ok "DNS in the tunnel on $listen:53 (wg0 only): $name -> $listen, other names forwarded to $upstreams ($upnote)"
+  if ((rc == 3)); then
+    # Running and answering the console's name: kept, but said loudly (a device with the DNS line
+    # can't open other sites while connected), and new profiles get no DNS line until it works.
+    warn "DNS in the tunnel on $listen:53 answers $name, but FORWARDING FAILS: ${chk#error: forwarding fails: } (upstream: $upstreams, $upnote)"
+    warn "devices whose profile has DNS = $listen can't open other sites while connected; new profiles get no DNS line until this works. Check this server's own DNS (resolvectl status), then: sudo ./lumenctl wireguard enable"
+    return 1
+  fi
+  ok "DNS in the tunnel on $listen:53 (wg0 only): $name -> $listen, other names forwarded to $upstreams ($upnote); checked: ${chk#*forwarding: }"
+}
+
+# wireguard_dns_problem — '' when DNS in the tunnel works (console name and forwarding), else why.
+wireguard_dns_problem() {
+  local out
+  if out="$(_wg_agent wg-dns-check --wait 5 2>&1)"; then return 0; fi
+  out="${out#error: }"
+  printf '%s' "${out:-no answer}"
 }
 
 # wireguard_enable — bring up private operator access, idempotently:
@@ -315,9 +338,14 @@ wireguard_summary_lines() {
     else
       printf 'WireGuard:          on (wg0, %s, UDP %s); add a device (QR): sudo ./lumenctl wireguard add-device <name>, or in the console (WireGuard page)\n' "$subnet" "$port"
     fi
-    if wireguard_dns_active; then
+    local dnsproblem=""
+    wireguard_dns_active && dnsproblem="$(wireguard_dns_problem)"
+    if wireguard_dns_active && [[ -z "$dnsproblem" ]]; then
       printf '                    console via WireGuard: https://%s:%s/  (profiles set DNS = %s, which points the name into the tunnel: no hosts file)\n' "$ops" "$opsport" "$srv"
       wireguard_dns_hint '                    '
+    elif wireguard_dns_active; then
+      printf '                    DNS in the tunnel on %s does NOT work: %s. Devices whose profile has DNS = %s cannot open other sites while connected.\n' "$srv" "$dnsproblem" "$srv"
+      printf '                    console via WireGuard: https://%s:%s/  (hosts file on the device: %s %s)\n' "$ops" "$opsport" "$srv" "$ops"
     else
       printf '                    console via WireGuard: https://%s:%s/  (hosts file on the device: %s %s%s)\n' "$ops" "$opsport" "$srv" "$ops" \
         "$( [[ -n "$(state_get wireguard_dns_reason)" ]] && echo "; DNS in the tunnel unavailable: $(state_get wireguard_dns_reason)")"

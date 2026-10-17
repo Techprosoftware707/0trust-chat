@@ -105,9 +105,13 @@ if wireguard_wanted; then
   # DNS inside the tunnel: a real query for the console's name on the tunnel address.
   wgdns_srv="$(wg_server_ip)"; wgdns_ops="$(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)")"
   if [[ "$(state_get wireguard)" == enabled && "$(state_get wireguard_dns)" == enabled ]]; then
-    if LUMEN_CONF="$LUMEN_CONF" LUMEN_STATE="$LUMEN_STATE_FILE" LUMEN_WG_DIR="$LUMEN_CONFIG_DIR/wireguard" \
-      python3 "$LUMEN_REPO_DIR/deploy/host-agent/lumen_agent.py" wg-dns-check --wait 3 >/dev/null 2>&1; then
-      add ok wireguard-dns "$wgdns_ops -> $wgdns_srv on $wgdns_srv:53 (tunnel only)"
+    # The console's name, then another name: a forwarder that can't forward breaks all browsing
+    # on devices whose profile has the DNS line, while they are connected.
+    if wgdns_out="$(LUMEN_CONF="$LUMEN_CONF" LUMEN_STATE="$LUMEN_STATE_FILE" LUMEN_WG_DIR="$LUMEN_CONFIG_DIR/wireguard" \
+      python3 "$LUMEN_REPO_DIR/deploy/host-agent/lumen_agent.py" wg-dns-check --wait 3 2>&1)"; then
+      add ok wireguard-dns "$wgdns_ops -> $wgdns_srv on $wgdns_srv:53 (tunnel only); forwarding works (${wgdns_out#*forwarding: })"
+    elif [[ "$wgdns_out" == *"forwarding fails"* ]]; then
+      add warn wireguard-dns "FORWARDING FAILS (${wgdns_out#error: forwarding fails: }): devices with DNS = $wgdns_srv can't open other sites while connected; check this server's DNS (resolvectl status), then: sudo ./lumenctl wireguard enable"
     else
       add warn wireguard-dns "no answer on $wgdns_srv:53: devices with DNS = $wgdns_srv can't resolve names while connected (sudo ./lumenctl wireguard enable)"
     fi

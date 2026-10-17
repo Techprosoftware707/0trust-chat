@@ -274,7 +274,9 @@ if wireguard_active && [[ -f "$WG_FIRST_PROFILE" ]]; then
   cat <<EOF
      • WireGuard: copy the profile:  ssh <you>@<this server> sudo cat $WG_FIRST_PROFILE > lumen-wg.conf
        import lumen-wg.conf into the WireGuard app and connect (phone: sudo ./lumenctl wireguard show-profile),
-$(if wireguard_dns_active; then echo "       no hosts file needed: the profile sets DNS = $(wg_server_ip), which leads $ops_host into the tunnel,"; else echo "       add to your hosts file:  $(wg_server_ip) $ops_host"; fi)
+$(if grep -q '^DNS = ' "$WG_FIRST_PROFILE"; then echo "       no hosts file needed: the profile sets DNS = $(wg_server_ip), which leads $ops_host into the tunnel,"
+  elif wireguard_dns_active; then echo "       this profile predates DNS in the tunnel: after importing, set DNS servers to $(wg_server_ip) in the app,"
+  else echo "       add to your hosts file:  $(wg_server_ip) $ops_host"; fi)
        then delete the server copy:  sudo ./lumenctl wireguard forget-profile
 EOF
 elif wireguard_active; then

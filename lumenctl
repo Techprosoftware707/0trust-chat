@@ -194,7 +194,7 @@ case "$cmd" in
         if [[ "$ddns" != none ]]; then
           info "the profile sets DNS = $ddns: the console's name leads into the tunnel on the device (no hosts file)"
         else
-          warn "DNS in the tunnel is not answering: the profile has no DNS line; on the device add the hosts-file line $(wg_server_ip) $(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)")"
+          warn "DNS in the tunnel doesn't work right now ($(wireguard_dns_problem)): the profile has no DNS line; on the device add the hosts-file line $(wg_server_ip) $(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)")"
         fi
         printf '\nNext:\n  phone:     sudo ./lumenctl wireguard show-profile %s   (scan the QR code in the WireGuard app)\n' "$dname"
         printf '  computer:  ssh <you>@<this server> sudo cat %s > lumen-%s.conf   (import it in the WireGuard app)\n' "$dfile" "$dname"

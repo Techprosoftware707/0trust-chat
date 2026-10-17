@@ -1,0 +1,47 @@
+=== The systemd-resolved upstream path, functionally, 2026-10-17 ~22:20 UTC, on the upgraded test server of dns-upgrade-path.txt.
+=== The test image masks systemd-resolved, so its two files were simulated: /etc/resolv.conf bind-mounted to a stub file naming only 127.0.0.53 (nothing
+=== answers there, so forwarding can only work from the real list) and /run/systemd/resolve/resolv.conf with a real upstream. Driver: resolved-sim.sh
+=== (sources deploy/lib/{common,host,wireguard}.sh and runs _wg_dns_up, the step update.sh and lumenctl wireguard enable run).
+
+--- before: /etc/resolv.conf: nameserver 8.8.8.8 nameserver 8.8.4.4
+--- simulated: /etc/resolv.conf -> nameserver 127.0.0.53 (nothing listens there: noanswer ConnectionRefusedError); /run/systemd/resolve/resolv.conf -> nameserver 8.8.8.8
+--- _wg_dns_up (what update.sh and lumenctl wireguard enable run)
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 (systemd-resolved's upstream servers)
+exit 0
+INFO dnsmasq.conf: # Upstream: systemd-resolved's upstream servers (8.8.8.8 when this file was written). resolv-file=/run/systemd/resolve/resolv.conf
+INFO forwarded through 10.77.0.1: example.com -> 0 ['104.20.23.154', '172.66.147.243']; console name -> 0 ['10.77.0.1']
+--- upstream list changes (as after a DHCP renewal): 8.8.8.8 -> 8.8.4.4
+INFO example.org through 10.77.0.1: 0 ['104.20.26.136', '172.66.157.237']
+INFO journal: dnsmasq[20185]: started, version 2.91 cachesize 1000
+INFO journal: dnsmasq[20185]: reading /run/systemd/resolve/resolv.conf
+INFO journal: dnsmasq[20185]: using nameserver 8.8.8.8#53
+INFO journal: dnsmasq[20185]: reading /run/systemd/resolve/resolv.conf
+INFO journal: dnsmasq[20185]: using nameserver 8.8.4.4#53
+--- e2e (a new device through the agent) in this state
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS split tunnel: the profile routes only 10.77.0.1/32 into the tunnel
+PASS the profile sets DNS = 10.77.0.1 (the server's tunnel address)
+PASS DNS in the tunnel is enabled on this server
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+PASS the peer has no hosts entry for ops.lumen-it.test and uses 10.77.0.1 as its DNS server
+PASS ops.lumen-it.test resolves through the tunnel DNS to 10.77.0.1
+PASS the same answer over TCP
+PASS no IPv6 (AAAA) or HTTPS record for ops.lumen-it.test: empty answers, so nothing can bypass the tunnel
+PASS the console loads by name through the tunnel, with a certificate valid for ops.lumen-it.test
+INFO example.com: through the tunnel DNS 104.20.23.154,172.66.147.243; from the upstream 8.8.4.4 (read from /run/systemd/resolve/resolv.conf) directly 104.20.23.154,172.66.147.243
+PASS other names are forwarded to the server's upstream resolver (example.com)
+PASS no DNS answer on the server's non-tunnel address 192.168.78.1 (from the peer)
+PASS the forwarder answers on no other address of this server
+PASS its only sockets are 10.77.0.1:53 (udp and tcp)
+PASS access revoked after removing the peer
+PASS the tunnel DNS is unreachable for the revoked peer
+PASS peer removed from wg0.conf
+wireguard e2e: 21 passed, 0 failed
+--- restore the test server's resolver
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (this host's resolvers)
+exit 0
+INFO dnsmasq.conf: resolv-file=/etc/resolv.conf; example.com -> 0 ['104.20.23.154', '172.66.147.243']

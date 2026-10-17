@@ -180,11 +180,19 @@ class TestConsoleWireGuard:
 
     def test_states_the_dns_server_in_the_profiles(self, monkeypatch, admin, settings):
         settings.WIREGUARD_ENABLED = True
-        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True}
+        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True, "forwarding": True, "detail": "example.com -> 192.0.2.1"}
         html = self._get(monkeypatch, admin, _status(dns=dns, devices_without_dns=[]))
         assert "DNS for devices" in html and "DNS = 10.77.0.1" in html
         assert "no device needs a hosts-file edit" in html
         assert "Profiles issued without the DNS line" not in html
+
+    def test_forwarding_failure_is_said_plainly(self, monkeypatch, admin, settings):
+        settings.WIREGUARD_ENABLED = True
+        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True,
+               "forwarding": False, "detail": "example.com: REFUSED (no upstream resolver known: this server can't resolve names either)"}
+        html = self._get(monkeypatch, admin, _status(dns=dns))
+        assert "forwarding fails" in html and "can't forward other names" in html and "REFUSED" in html
+        assert "switch their tunnel off" in html and "no device needs a hosts-file edit" not in html
 
     def test_dns_unavailable_falls_back_to_the_hosts_line(self, monkeypatch, admin, settings):
         settings.WIREGUARD_ENABLED = True
@@ -197,7 +205,7 @@ class TestConsoleWireGuard:
 
     def test_devices_without_the_dns_line_get_the_manual_fix(self, monkeypatch, admin, settings):
         settings.WIREGUARD_ENABLED = True
-        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True}
+        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True, "forwarding": True, "detail": "example.com -> 192.0.2.1"}
         peers = _status()["peers"]
         peers[0] = dict(peers[0], dns_in_profile=False)
         html = self._get(monkeypatch, admin, _status(dns=dns, devices_without_dns=["operator-laptop"], peers=peers))

@@ -192,8 +192,11 @@ up by itself, and running it again changes nothing that already works:
   (`LUMEN_OPS_DOMAIN`) with that address and forwards every other query to the
   server's own resolvers (with systemd-resolved, the servers it lists in
   `/run/systemd/resolve/resolv.conf`, not its 127.0.0.53 stub; otherwise
-  `/etc/resolv.conf`). It never listens on a public interface, so it is not an
-  open resolver; UFW allows port 53 only on `wg0`. Device profiles set
+  `/etc/resolv.conf`; it follows changes of that list). It never listens on a
+  public interface, so it is not an open resolver; UFW allows port 53 only on
+  `wg0`. Setup, `update.sh` and the health check ask it for the console's name
+  **and** for public names (`example.com`, `iana.org`): if forwarding fails they
+  say so plainly, and new profiles get no DNS line until it works. Device profiles set
   `DNS = 10.77.0.1`, so the console's name leads into the tunnel on every
   device, phones included, with no hosts-file edit.
 - **First device.** If no device exists yet, the installer creates one named
@@ -292,6 +295,43 @@ either:
   `[Interface]`;
 - or give the device a new profile (`add-device`, above), import it, then
   revoke the old entry with `remove-peer`.
+
+**Tunnel on, nothing loads (Android).** Switch the tunnel off first: the
+phone's internet comes back. Then check, in this order:
+
+1. **Handshake.** In the WireGuard app, tap the tunnel: the Peer section shows
+   *Latest handshake* and *Transfer*. On the server, `sudo wg show wg0` shows
+   for each device (by public key) `latest handshake` and `transfer: … received,
+   … sent`. No handshake means the phone's packets never arrive: allow UDP 51820
+   in the provider's firewall (security group) and check the profile's
+   `Endpoint`. With the DNS line, a tunnel without a handshake resolves no name
+   at all.
+2. **"Block connections without VPN".** Android then "blocks any network
+   traffic that doesn't use the VPN" (Android's documentation). Lumen's tunnel
+   carries only the console's address, so every other site is blocked. Turn it
+   off: Settings → Network & internet → VPN → the gear next to WireGuard →
+   *Block connections without VPN* (Samsung: Settings → Connections → More
+   connection settings → VPN). *Always-on VPN* can stay on.
+3. **Private DNS** (Settings → Network & internet → Private DNS) must be
+   *Automatic* or *Off*. With a provider hostname, Android asks that provider
+   instead of the tunnel: other sites load, but the console's name resolves to
+   the public address and the console doesn't open.
+4. **Chrome's secure DNS** (Chrome → Settings → Privacy and security → Use
+   secure DNS): leave it on the current service provider (the default). A fixed
+   provider has the same effect as 3 for Chrome.
+5. **The server's forwarder:** `sudo ./healthcheck.sh` prints a `wireguard-dns`
+   line, either "forwarding works" or "FORWARDING FAILS" with the reason; check
+   by hand with `dig @10.77.0.1 example.com` and `dig @10.77.0.1
+   ops.example.com` (package `bind9-dnsutils`).
+
+Reading `wg show`'s transfer for the phone while it tries to open a page: with
+a handshake but only a few kilobytes that barely grow, and *received* about
+equal to *sent*, the DNS lookups reach the server and are answered, and the
+phone itself blocks the rest (2). *Received* growing while *sent* doesn't
+means the answers don't come back: check `sudo ufw status` for the two
+`53 on wg0` rules and the health check (5). Without the DNS line (before the
+fix, or after you removed it) the phone sends nothing but keepalives through
+the tunnel until you open the console.
 
 **When the server can't run WireGuard**, the installation still succeeds. The
 installer says why, `sudo ./lumenctl wireguard status` and the health check

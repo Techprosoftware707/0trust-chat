@@ -1,0 +1,106 @@
+=== DNS inside the tunnel with systemd-resolved really running, 2026-10-17 ~22:32-22:50 UTC, on the upgraded test server of dns-upgrade-path.txt.
+=== Setup: apt-get install systemd-resolved, unmask + start it; /etc/resolv.conf bind-mounted to /run/systemd/resolve/stub-resolv.conf (as the stock
+=== symlink); upstream servers set per link on eth0 with resolvectl (as networkd/DHCP does). resolvectl: "resolv.conf mode: stub", eth0 DNS Servers
+=== 8.8.8.8 8.8.4.4; systemd-resolve listens on 127.0.0.53%lo:53 and 127.0.0.54:53, Lumen's dnsmasq on 10.77.0.1:53 only.
+
+### A. update.sh in that state (the path the operator ran), then forwarding and the e2e; degraded cases (resolved-real.sh, code of 3f6774e)
+    update.sh: exit 0; WireGuard step: "✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (systemd-resolved's upstream servers)"
+=== 1. stock layout, after update.sh
+resolv-file: resolv-file=/run/systemd/resolve/resolv.conf
+  via 10.77.0.1: example.com -> 0 ['172.66.147.243', '104.20.23.154']
+  via 10.77.0.1: wikipedia.org -> 0 ['208.80.153.224']
+  via 10.77.0.1: ops.lumen-it.test -> 0 ['10.77.0.1']
+    journal: dnsmasq[68446]: reading /run/systemd/resolve/resolv.conf
+    journal: dnsmasq[68446]: using nameserver 8.8.8.8#53
+    journal: dnsmasq[68446]: using nameserver 8.8.4.4#53
+INFO example.com: through the tunnel DNS 104.20.23.154,172.66.147.243; from the upstream 8.8.8.8 (read from /run/systemd/resolve/resolv.conf) directly 104.20.23.154,172.66.147.243
+PASS other names are forwarded to the server's upstream resolver (example.com)
+wireguard e2e: 21 passed, 0 failed
+=== 2. resolved loses its upstream servers while the forwarder runs (DHCP lease gone): resolvectl revert eth0
+  /run/systemd/resolve/resolv.conf nameservers: 0; host: fails
+  via 10.77.0.1: example.net -> 5 []; ops -> 0 ['10.77.0.1']
+    journal: dnsmasq[68446]: no servers found in /run/systemd/resolve/resolv.conf, will retry
+  health check:     ✔ wireguard-dns: ops.lumen-it.test -> 10.77.0.1 on 10.77.0.1:53 (tunnel only)
+=== 3. servers come back: resolvectl dns eth0 8.8.8.8
+  via 10.77.0.1: example.org -> 0 ['172.66.157.237', '104.20.26.136']
+    journal: dnsmasq[68446]: reading /run/systemd/resolve/resolv.conf
+    journal: dnsmasq[68446]: using nameserver 8.8.8.8#53
+    journal: dnsmasq[68446]: using only locally-known addresses for ops.lumen-it.test
+=== 4. setup re-run while resolved has no upstream (resolved's list empty: the forwarder falls back to /etc/resolv.conf = the 127.0.0.53 stub)
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 127.0.0.53 (systemd-resolved's local stub (it lists no upstream server))
+  _wg_dns_up exit 0
+  resolv-file: resolv-file=/etc/resolv.conf
+  via 10.77.0.1: example.com -> 2 []
+  resolved gets its servers back -> via the stub: 0 ['104.20.23.154', '172.66.147.243']
+=== 5. systemd-resolved stopped (its upstream file is removed, the stub stops answering)
+  /run/systemd/resolve/resolv.conf: /run/systemd/resolve/resolv.conf
+  via 10.77.0.1: example.com -> 0 ['104.20.23.154', '172.66.147.243']; ops -> 0 ['10.77.0.1']
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (systemd-resolved's upstream servers)
+  _wg_dns_up exit 0
+  back: resolv-file /run/systemd/resolve/resolv.conf; example.com -> 0 ['104.20.23.154', '172.66.147.243']
+
+    Found: the setup step and the health check verified only the console's name (case 2: health check OK while forwarding returned REFUSED;
+    case 4: setup printed ✔ while forwarding returned SERVFAIL). Fixed: they now also query public names through the forwarder (B, D).
+
+### B. upstreams the server can't reach (question from the field: the operator's VPS lists two IPv6 upstreams)
+    a) IPv6 upstreams with no IPv6 route at all (this container has IPv6 disabled):
+    IPv6 on this server:  | addresses: 0
+    resolved's list: 1.1.1.1 8.8.8.8 2001:db8::53 2001:db8::54
+    a) IPv6 upstreams, no IPv6 route (sendto fails at once): 20 uncached names via 10.77.0.1: avg 18 ms, max 25 ms, without an upstream answer: 0
+        journal: dnsmasq[73537]: using nameserver 2001:db8::53#53
+        journal: dnsmasq[73537]: using nameserver 2001:db8::54#53
+        journal: dnsmasq[75236]: using nameserver 1.1.1.1#53
+        journal: dnsmasq[75236]: using nameserver 8.8.8.8#53
+        journal: dnsmasq[75236]: using nameserver 2001:db8::53#53
+        journal: dnsmasq[75236]: using nameserver 2001:db8::54#53
+    b) now a default IPv6 route exists but every packet to those servers is dropped silently: 
+    b) IPv6 upstreams, route present, packets silently dropped: 20 uncached names via 10.77.0.1: avg 21 ms, max 29 ms, without an upstream answer: 0
+    RTNETLINK answers: Operation not supported
+    RTNETLINK answers: Operation not supported
+    c) IPv4 upstreams only (reference): 20 uncached names via 10.77.0.1: avg 20 ms, max 30 ms, without an upstream answer: 0
+    b) servers that silently drop every query (iptables DROP; dnsmasq picks servers the same way for both families), listed after and before the working ones:
+    1.1.1.1 8.8.8.8 + two upstreams that silently drop (the user's order: working ones first): 30 uncached names: avg 21 ms, max 47 ms, over 1 s: 0, no upstream answer: 0
+    two silently dropping upstreams listed FIRST, then 1.1.1.1 8.8.8.8: 30 uncached names: avg 20 ms, max 31 ms, over 1 s: 0, no upstream answer: 0
+    Result: no slowdown and no failed lookup: dnsmasq sends a new query to several servers and keeps using the one that answers. No filtering needed.
+
+### C. the forwarding self-check, on the fixed code (fwd-check.sh). First version probed the server's primary domain: with resolved's list empty the
+    forwarder falls back to the 127.0.0.53 stub, which answered lumen-it.test from /etc/hosts (127.0.0.1) - a false "forwarding works". Now it probes
+    public names only (example.com, then iana.org):
+=== 1. update.sh with systemd-resolved running (stock layout)
+update exit 0
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (systemd-resolved's upstream servers); checked: example.com -> 172.66.147.243,104.20.23.154
+WireGuard: DNS in the tunnel on 10.77.0.1; device profiles set DNS = 10.77.0.1, so the console's name needs no hosts file.
+  profiles without the DNS line: itadmin-device. Add it in the WireGuard app (edit the tunnel, DNS servers: 10.77.0.1)
+  or give the device a new profile: sudo ./lumenctl wireguard add-device <name>, then show-profile <name>
+health:     ✔ wireguard-dns: ops.lumen-it.test -> 10.77.0.1 on 10.77.0.1:53 (tunnel only); forwarding works (example.com -> 172.66.147.243,104.20.23.154)
+=== 2. forwarding broken: systemd-resolved loses its upstream servers (resolvectl revert eth0)
+--- setup step (_wg_dns_up, as in update.sh / lumenctl wireguard enable):
+    ! DNS in the tunnel on 10.77.0.1:53 answers ops.lumen-it.test, but FORWARDING FAILS: iana.org: SERVFAIL (the upstream resolvers failed) (upstream: 127.0.0.53, systemd-resolved's local stub (it lists no upstream server))
+    ! devices whose profile has DNS = 10.77.0.1 can't open other sites while connected; new profiles get no DNS line until this works. Check this server's own DNS (resolvectl status), then: sudo ./lumenctl wireguard enable
+_wg_dns_up exit 1 ; state wireguard_dns=enabled
+--- health check:
+    ! wireguard-dns: FORWARDING FAILS (iana.org: SERVFAIL (the upstream resolvers failed)): devices with DNS = 10.77.0.1 can't open other sites while connected; check this server's DNS (resolvectl status), then: sudo ./lumenctl wireguard enable
+--- summary lines:
+WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); add a device (QR): sudo ./lumenctl wireguard add-device <name>, or in the console (WireGuard page)
+                    DNS in the tunnel on 10.77.0.1 does NOT work: forwarding fails: iana.org: SERVFAIL (the upstream resolvers failed). Devices whose profile has DNS = 10.77.0.1 cannot open other sites while connected.
+                    console via WireGuard: https://ops.lumen-it.test:8443/  (hosts file on the device: 10.77.0.1 ops.lumen-it.test)
+                    devices dial <egress-IPv4>:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+--- add-device while forwarding fails:
+    ✔ device 'fwdtest' added (10.77.0.3); its profile is stored root-only: /etc/lumen/wireguard/profiles/fwdtest.conf
+    ! DNS in the tunnel is not answering: the profile has no DNS line; on the device add the hosts-file line 10.77.0.1 ops.lumen-it.test
+
+DNS lines in its profile: 0
+fwdtest removed again
+=== 3. servers back (resolvectl dns eth0 8.8.8.8 8.8.4.4)
+health:     ✔ wireguard-dns: ops.lumen-it.test -> 10.77.0.1 on 10.77.0.1:53 (tunnel only); forwarding works (example.com -> 104.20.23.154,172.66.147.243)
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (systemd-resolved's upstream servers); checked: example.com -> 104.20.23.154,172.66.147.243
+_wg_dns_up exit 0
+
+### D. the install summary with a stored first-device profile that has no DNS line (key-less placeholder profile, install.sh --config re-run)
+install exit 0
+Result: SUCCESS — all endpoint checks passed
+     • WireGuard: copy the profile:  ssh <you>@<this server> sudo cat /etc/lumen/wireguard/first-device.conf > lumen-wg.conf
+       import lumen-wg.conf into the WireGuard app and connect (phone: sudo ./lumenctl wireguard show-profile),
+       this profile predates DNS in the tunnel: after importing, set DNS servers to 10.77.0.1 in the app,
+       then delete the server copy:  sudo ./lumenctl wireguard forget-profile
+       and add to your hosts file:  127.0.0.1 ops.lumen-it.test

@@ -584,17 +584,58 @@ def dns_query(server: str, name: str, qtype: int = 1, *, timeout: float = 1.0, t
         return parse_dns_response(s.recv(4096), qid)
 
 
-def tunnel_dns_ready(c: dict | None = None, timeout: float = 1.0) -> bool:
-    """True when the forwarder on the tunnel address answers the console's name with that address.
-    Device profiles get a DNS line only then: a DNS server that doesn't answer would leave the
-    device without any name resolution while the tunnel is up."""
+RCODE_TEXT = {1: "FORMERR", 2: "SERVFAIL (the upstream resolvers failed)", 4: "NOTIMP",
+              5: "REFUSED (no upstream resolver known: this server can't resolve names either)"}
+
+
+# Public names to test forwarding with. Not this server's own names: with systemd-resolved's stub
+# as the upstream, those can be answered from /etc/hosts (cloud images list the host's FQDN),
+# which would prove nothing about forwarding.
+DNS_PROBE_NAMES = ("example.com", "iana.org")
+
+
+def dns_probe_names(c: dict) -> list[str]:
+    """Names to test forwarding with; never the console's name, which the forwarder answers itself."""
+    ops = ops_domain(c).lower()
+    return [n for n in DNS_PROBE_NAMES if n != ops and not n.endswith("." + ops)]
+
+
+def tunnel_dns_check(c: dict | None = None, timeout: float = 1.0) -> dict:
+    """Ask the forwarder on the tunnel address, as a device would: the console's name must come
+    back as the tunnel address, and another name must be forwarded (an upstream answer, even
+    NXDOMAIN, proves forwarding; REFUSED, SERVFAIL or silence don't)."""
     c = conf() if c is None else c
     server = tunnel_ip(c)
+    out = {"console": False, "forwarding": False, "detail": ""}
     try:
         rcode, addrs = dns_query(server, ops_domain(c), 1, timeout=timeout)
+        out["console"] = rcode == 0 and server in addrs
     except (OSError, ValueError):
-        return False
-    return rcode == 0 and server in addrs
+        out["detail"] = f"no answer from {server}:53"
+        return out
+    if not out["console"]:
+        out["detail"] = f"{ops_domain(c)} -> {','.join(addrs) or RCODE_TEXT.get(rcode, f'rcode {rcode}')}"
+        return out
+    for name in dns_probe_names(c):
+        try:
+            rcode, addrs = dns_query(server, name, 1, timeout=max(timeout, 2.0))
+        except (OSError, ValueError):
+            out["detail"] = f"{name}: no answer (the upstream resolvers don't respond)"
+            continue
+        if rcode in (0, 3):
+            out["forwarding"] = True
+            out["detail"] = f"{name} -> {'NXDOMAIN' if rcode == 3 else ','.join(addrs) or 'no address'}"
+            break
+        out["detail"] = f"{name}: {RCODE_TEXT.get(rcode, f'rcode {rcode}')}"
+    return out
+
+
+def tunnel_dns_ready(c: dict | None = None, timeout: float = 1.0) -> bool:
+    """True when the forwarder answers the console's name with the tunnel address AND forwards
+    other names. Device profiles get a DNS line only then: a DNS server that doesn't answer, or
+    can't forward, would leave the device unable to open anything while the tunnel is up."""
+    check = tunnel_dns_check(c, timeout)
+    return check["console"] and check["forwarding"]
 
 
 def devices_without_dns(peers: list[dict]) -> list[str]:
@@ -643,6 +684,7 @@ def op_wg_status(args: dict) -> dict:
     first = key_meta.get("first_device") or {}
     profile = first_device_profile()
     dns_state = state.get("wireguard_dns", "")
+    dns_check = tunnel_dns_check(c, timeout=0.5) if up and dns_state == "enabled" else {"console": False, "forwarding": False, "detail": ""}
     stored = sorted(p.stem for p in stored_profiles_dir().glob("*.conf")) if stored_profiles_dir().is_dir() else []
     return {
         "interface": WG_IF,
@@ -661,7 +703,8 @@ def op_wg_status(args: dict) -> dict:
         # DNS inside the tunnel: profiles say `DNS = server`; the forwarder answers `name` with it.
         "dns": {"server": tunnel_ip(c), "name": ops_domain(c), "state": dns_state,
                 "unavailable_reason": state.get("wireguard_dns_reason", "") if dns_state == "unavailable" else "",
-                "answering": bool(up and tunnel_dns_ready(c, timeout=0.5))},
+                # answering: the console's name; forwarding: other names (devices browse through it).
+                "answering": dns_check["console"], "forwarding": dns_check["forwarding"], "detail": dns_check["detail"]},
         "devices_without_dns": devices_without_dns(wg_peers()),
         # Profiles of `lumenctl wireguard add-device` still stored on the server (names only).
         "stored_profiles": stored,
@@ -1249,20 +1292,29 @@ def cli(argv: list[str]) -> int:
             for k, v in write_dns_config().items():
                 print(f"{k}={' '.join(str(v).split())}")
         elif a.cmd == "wg-dns-check":
+            # Exit 0: the console's name and forwarding work; 2: no answer for the console's name;
+            # 3: the console's name works but other names aren't forwarded.
             c = conf()
             deadline = time.monotonic() + a.wait
-            while not tunnel_dns_ready(c):
-                if time.monotonic() >= deadline:
-                    raise OpError(f"no answer for {ops_domain(c)} from the tunnel DNS on {tunnel_ip(c)}:53")
-                time.sleep(0.5)
-            print(f"ok {ops_domain(c)} -> {tunnel_ip(c)} (tunnel DNS on {tunnel_ip(c)}:53)")
+            while True:
+                check = tunnel_dns_check(c)
+                if (check["console"] and check["forwarding"]) or time.monotonic() >= deadline:
+                    break
+                time.sleep(1)
+            if not check["console"]:
+                raise OpError(f"no answer for {ops_domain(c)} from the tunnel DNS on {tunnel_ip(c)}:53 ({check['detail']})")
+            if not check["forwarding"]:
+                print(f"error: forwarding fails: {check['detail']}", file=sys.stderr)
+                return 3
+            print(f"ok {ops_domain(c)} -> {tunnel_ip(c)} on {tunnel_ip(c)}:53; forwarding: {check['detail']}")
         elif a.cmd == "wg-dns-info":
             c = conf()
             state = install_state()
+            check = tunnel_dns_check(c) if interface_exists() else {"console": False, "forwarding": False, "detail": "wg0 is down"}
             info = {"SERVER": tunnel_ip(c), "NAME": ops_domain(c), "STATE": state.get("wireguard_dns", ""),
                     "REASON": state.get("wireguard_dns_reason", ""),
-                    "ANSWERING": "1" if interface_exists() and tunnel_dns_ready(c) else "0",
-                    "WITHOUT_DNS": ",".join(devices_without_dns(wg_peers()))}
+                    "ANSWERING": "1" if check["console"] else "0", "FORWARDING": "1" if check["forwarding"] else "0",
+                    "DETAIL": check["detail"], "WITHOUT_DNS": ",".join(devices_without_dns(wg_peers()))}
             for k, v in info.items():
                 print(f"{k}={' '.join(str(v).split())}")
     except OpError as exc:

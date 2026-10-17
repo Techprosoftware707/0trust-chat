@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import atexit
 import base64
+import contextlib
 import hashlib
 import io
 import ipaddress
@@ -81,7 +82,7 @@ class AgentTestCase(unittest.TestCase):
         self.host = FakeHost()
         self.iface = False
         self._saved = {k: getattr(agent, k) for k in ("CONF_PATH", "STATE_PATH", "WG_DIR", "WG_CONF", "WG_IF", "run", "interface_exists",
-                                                      "tunnel_dns_ready", "HOST_RESOLV", "RESOLVED_UPSTREAM")}
+                                                      "tunnel_dns_ready", "tunnel_dns_check", "dns_query", "HOST_RESOLV", "RESOLVED_UPSTREAM")}
         agent.CONF_PATH = self.tmp / "lumen.conf"
         agent.STATE_PATH = self.tmp / "state.json"
         agent.WG_DIR = self.tmp / "etc-lumen" / "wireguard"
@@ -92,6 +93,11 @@ class AgentTestCase(unittest.TestCase):
         # The tunnel DNS probe sends a real query: replaced (answering unless a test says otherwise).
         self.dns_answers = True
         agent.tunnel_dns_ready = lambda c=None, timeout=1.0: self.dns_answers
+        agent.tunnel_dns_check = lambda c=None, timeout=1.0: {"console": self.dns_answers, "forwarding": self.dns_answers, "detail": "fake"}
+
+        def no_network(*a, **kw):
+            raise AssertionError("a unit test tried to send a DNS query")
+        agent.dns_query = no_network
         agent.HOST_RESOLV = self.tmp / "etc-resolv.conf"
         agent.RESOLVED_UPSTREAM = self.tmp / "run-systemd-resolve-resolv.conf"
         self.write_conf("")
@@ -583,6 +589,95 @@ class DnsUpstream(AgentTestCase):
     def test_odd_lines_and_scoped_addresses(self):
         agent.HOST_RESOLV.write_text("nameserver\nnameserver not-an-ip\n#nameserver 1.1.1.1\nnameserver fe80::1%eth0\n domain x\n")
         self.assertEqual(self.choose()[1], ["fe80::1%eth0"])
+
+
+class DnsSelfCheck(AgentTestCase):
+    """The real check (console name, then forwarding), with dns_query answered by a fake server."""
+
+    def setUp(self):
+        super().setUp()
+        self.answers: dict[str, object] = {}
+        self.asked: list[str] = []
+        agent.tunnel_dns_check = self._saved["tunnel_dns_check"]
+        agent.tunnel_dns_ready = self._saved["tunnel_dns_ready"]
+
+        def fake(server, name, qtype=1, *, timeout=1.0, tcp=False):
+            self.assertEqual(server, "10.77.0.1")  # only ever the tunnel address
+            self.asked.append(name)
+            a = self.answers.get(name, OSError("timed out"))
+            if isinstance(a, Exception):
+                raise a
+            return a
+        agent.dns_query = fake
+
+    def test_console_name_and_forwarding(self):
+        self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": (0, ["93.184.215.14"])}
+        self.assertEqual(agent.tunnel_dns_check(), {"console": True, "forwarding": True, "detail": "example.com -> 93.184.215.14"})
+        self.assertTrue(agent.tunnel_dns_ready())
+        self.assertEqual(self.asked[:2], ["ops.example.com", "example.com"])
+
+    def test_nxdomain_from_upstream_proves_forwarding(self):
+        self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": (3, [])}
+        self.assertTrue(agent.tunnel_dns_check()["forwarding"])
+
+    def test_never_probes_this_servers_own_names(self):
+        # Through systemd-resolved's stub those can come from /etc/hosts: no proof of forwarding.
+        self.write_conf("LUMEN_PRIMARY_DOMAIN=mylumen.duckdns.org\n")
+        self.answers = {"ops.mylumen.duckdns.org": (0, ["10.77.0.1"]), "mylumen.duckdns.org": (0, ["127.0.1.1"]),
+                        "example.com": (5, []), "iana.org": (5, [])}
+        check = agent.tunnel_dns_check()
+        self.assertFalse(check["forwarding"])
+        self.assertNotIn("mylumen.duckdns.org", self.asked[1:])
+
+    def test_refused_servfail_or_silence_is_not_forwarding(self):
+        for upstream, expect in (((5, []), "REFUSED"), ((2, []), "SERVFAIL"), (OSError("timed out"), "no answer")):
+            self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": upstream, "iana.org": upstream}
+            check = agent.tunnel_dns_check()
+            self.assertTrue(check["console"])
+            self.assertFalse(check["forwarding"])
+            self.assertIn(expect, check["detail"])
+            self.assertFalse(agent.tunnel_dns_ready())  # so no profile gets a DNS line
+
+    def test_a_second_probe_name_when_the_first_fails(self):
+        self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": OSError("timed out"), "iana.org": (0, ["192.0.43.8"])}
+        check = agent.tunnel_dns_check()
+        self.assertTrue(check["forwarding"])
+        self.assertEqual(check["detail"], "iana.org -> 192.0.43.8")
+
+    def test_console_name_wrong_or_silent(self):
+        self.answers = {"ops.example.com": (0, ["203.0.113.9"])}
+        self.assertEqual(agent.tunnel_dns_check()["console"], False)
+        self.answers = {}
+        check = agent.tunnel_dns_check()
+        self.assertEqual((check["console"], check["forwarding"]), (False, False))
+        self.assertEqual(self.asked[-1], "ops.example.com")  # nothing else asked without an answer
+
+    def test_probe_names_never_the_console(self):
+        self.assertEqual(agent.dns_probe_names({"LUMEN_PRIMARY_DOMAIN": "example.org"}), ["example.com", "iana.org"])
+        self.assertEqual(agent.dns_probe_names({"LUMEN_PRIMARY_DOMAIN": "x.example.com", "LUMEN_OPS_DOMAIN": "example.com"}), ["iana.org"])
+
+    def test_profile_has_no_dns_line_while_forwarding_fails(self):
+        agent.ensure_wireguard_server_key()
+        self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": (5, []), "iana.org": (5, [])}
+        result = agent.op_wg_add_peer({"name": "phone"}, "alice")
+        self.assertNotIn("DNS", profile_sections(result["config"])["Interface"])
+        self.assertEqual(result["dns"], "")
+        self.assertEqual(agent.devices_without_dns(agent.wg_peers()), ["phone"])
+
+    def test_cli_exit_codes(self):
+        self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": (5, []), "iana.org": (5, [])}
+        err = io.StringIO()
+        with redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            self.assertEqual(agent.cli(["wg-dns-check"]), 3)
+        self.assertIn("forwarding fails: iana.org: REFUSED", err.getvalue())
+        self.answers = {}
+        with redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(agent.cli(["wg-dns-check"]), 2)
+        self.answers = {"ops.example.com": (0, ["10.77.0.1"]), "example.com": (0, ["93.184.215.14"])}
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(agent.cli(["wg-dns-check"]), 0)
+        self.assertIn("forwarding: example.com -> 93.184.215.14", out.getvalue())
 
 
 class DnsWire(unittest.TestCase):

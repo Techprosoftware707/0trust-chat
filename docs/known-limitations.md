@@ -143,13 +143,17 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
     namespace (resolver = the profile's DNS server, no hosts entry), not with
     the Android, iOS, Windows or macOS apps on real devices; how those apply
     the DNS line is documented from their source code
-    ([admin guide](operations/admin-guide.md#wireguard)). On a device whose
+    ([admin guide](operations/admin-guide.md#wireguard)). Lumen's tunnel is a
+    split tunnel (only the console's address): with Android's *Block
+    connections without VPN* on, nothing else loads while it is connected, so
+    that setting must stay off. On a device whose
     Android Private DNS is set to a provider hostname, or whose browser uses
     its own secure DNS with a fixed provider, the console's name still
     resolves publicly and the console doesn't load: the hosts-file line (or
-    the setting) is the way out. The test servers had no systemd-resolved, so
-    there the forwarder followed `/etc/resolv.conf`; the systemd-resolved
-    choice (`/run/systemd/resolve/resolv.conf`) is covered by unit tests.
+    the setting) is the way out. The test servers have no systemd-resolved
+    (masked in the image): its choice (`/run/systemd/resolve/resolv.conf`,
+    not the 127.0.0.53 stub) was exercised with resolved's two files
+    simulated, and by unit tests, not with resolved itself running.
     While a device is connected, the server sees its DNS lookups (not logged
     by Lumen); without the DNS line a device needs the hosts-file line,
     which phones can't add. Profiles issued before this feature have no DNS
