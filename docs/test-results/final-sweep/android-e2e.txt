@@ -1,0 +1,84 @@
+Android app end to end against a real Lumen server, on the CI emulator (android.yml, job
+"App against a real Lumen server (emulator)": install.sh --test on a stock ubuntu-24.04 runner,
+API 35 google_apis x86_64 emulator, test CA installed as a USER CA, debug app driven through its
+UI by io.lumen.secure.e2e.ServerE2eTest, a web user in Playwright Chromium; tests/apps/android-e2e).
+Observed facts only, 2026-10-17. Status: NOT GREEN YET; the last attempt could not start (billing).
+
+Runner (run 38987977838): 2 CPU cores, 7938 MB RAM, 14 GB free on / before clean-up, 30 GB after
+removing preinstalled toolchains; primary address 10.1.0.237; Docker 28.0.4 preinstalled.
+
+== Run 38987977838 (commit 5eb3848): found an app bug, the Rust SDK could not do TLS at all ==
+Installer: "Result: SUCCESS — all endpoint checks passed" (install.sh --test --yes
+  --test-ip 10.1.0.237, about 3 min; all 29 endpoint checks passed; the installer was not
+  changed for the runner).
+PASS test CA installed in the device's user CA store (as Settings > Install a certificate does)
+PASS installed app-x86_64-debug.apk and app-debug-androidTest.apk
+    [web] PASS portal sign-up for the Android user (droid0808cd7b) (5 s)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] FAIL single sign-on opens the homeserver's SSO URL in Custom Tabs: AssertionError: timed out after 90 s waiting for the app to open the browser
+Cause, from the app's logcat:
+  E org.matrix.rust.sdk: matrix_sdk_ffi::platform::android_platform: The JavaVM hasn't been initialized: `org.matrix.rustsdk.Android.init(context)` must be called before `init_platform` | bindings/matrix-sdk-ffi/src/platform/android_platform.rs:46
+  W Lumen   : [auth] SSO start failed (InternalException: Expect rustls-platform-verifier to be initialized)
+sdk-android 26.09.28 ships neither the JNI entry class org.matrix.rustsdk.Android nor the JVM half of
+rustls-platform-verifier (org.rustls.platformverifier.CertificateVerifier): every HTTPS request
+of the Rust SDK failed on Android, in debug and release. Fixed in 2d6f36b (apps/android): the app
+declares the JNI entry point and calls it before initPlatform, and ships a port of the upstream
+verifier component (same JNI contract; trust anchors from the app's network security config, so
+release builds trust system CAs only, debug builds also user CAs).
+
+== Run 38990967219 (commit 2d6f36b): the TLS fix works; stopped in the test's own HTTP helper ==
+Installer: "Result: SUCCESS — all endpoint checks passed" (server name 10-1-0-152.sslip.io).
+Job "Instrumented tests (emulator)" (no server): 15 tests, 0 failures, 4 skipped; the new
+  io.lumen.secure.RustTlsTest 3/3 passed: sdkGetsTheJvmAndContextForTlsVerification,
+  verifierRejectsACertificateNoTrustedCaIssued, verifierRejectsGarbage. The 3 ServerE2eTest
+  phases are skipped there by design (no server arguments).
+Job "App against a real Lumen server (emulator)":
+PASS test CA installed in the device's user CA store (as Settings > Install a certificate does)
+  (device: -rw-r--r-- 1 system system u:object_r:misc_user_data_file:s0 424 ... 33c83ea1.0 in
+  /data/misc/user/0/cacerts-added)
+PASS installed app-x86_64-debug.apk and app-debug-androidTest.apk
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droid03b3970e) (4 s)
+PASS portal account @droid03b3970e:10-1-0-152.sslip.io created (password generated at runtime, not printed)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] PASS single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] PASS the SSO URL carries the app's redirect with a fresh per-attempt nonce
+The Rust SDK reached the server over TLS verified against the user-installed test CA:
+  I org.matrix.rust.sdk: matrix_sdk::client::builder: selected sliding sync version version=Native | crates/matrix-sdk/src/client/builder/mod.rs:715 | spans: build{homeserver=HomeserverUrl("https://matrix.10-1-0-152.sslip.io")}
+Then:
+    [device] FAIL portal sign-in and the SSO redirect chain over HTTPS end at the app's callback: AssertionError: sign-in chain stopped with HTTP 400 at matrix.10-1-0-152.sslip.io/_synapse/client/oidc/callback (hops: [302 matrix.10-1-0-152.sslip.io/_matrix/client/v3/login/sso/redirect/oidc-lumen, 302 10-1-0-152.sslip.io/identity/o/authorize, 400 matrix.10-1-0-152.sslip.io/_synapse/client/oidc/callback])
+The portal sign-in inside the test was accepted (the chain went on from the portal's authorize
+endpoint back to Synapse). Diagnosis (from the client side; no server log was captured): the
+test's stand-in browser used java.net.CookieManager, which parses a Set-Cookie with Max-Age and no
+Expires (Synapse's oidc_session cookie) as an RFC 2965 cookie and sends it back as
+name="value";$Path=..., which Synapse cannot match. This is a defect of the test helper, not of
+the app or the server (tests/integration/app_sso.py passes the same chain with Python requests).
+Fixed in ca5047a (RFC 6265 cookie jar in the test). Not yet run.
+
+== Run 38993220911 (commit ca5047a): blocked by GitHub billing ==
+"Build, test, package": success (unit tests, lint, debug and release builds).
+"Instrumented tests (emulator)" and "App against a real Lumen server (emulator)" ended 1 s after
+creation with no runner. Annotation on both:
+  "The job was not started because recent account payments have failed or your spending limit
+  needs to be increased. Please check the 'Billing & plans' section in your settings"
+Debug APKs built from ca5047a (with the TLS fix): artifact "android-e2e-apks" holds
+app-x86_64-debug.apk (sha256 4b5e2883a544a744a0d114e11845222f46e9e00ebeded46ece51c2d2a565d047;
+org.rustls.platformverifier.CertificateVerifier in classes14.dex, org.matrix.rustsdk.Android in
+classes18.dex, checked by unpacking) and app-debug-androidTest.apk; artifact "lumen-android" holds
+app-universal-debug.apk (sha256 6d8cfee285f99c83b5cfa60ab91551a37e6f32c3a4e232382d41dca1086e7c08)
+and app-arm64-v8a-debug.apk (sha256 416f1589febaa1d90e8c15e50b02064515bff26d00171d1a6836b3b3d05b54aa).
+
+== Not observed yet ==
+- SSO completing in the app: callback delivery, the wrong-nonce callback being ignored, the Rust
+  SDK's m.login.token login, first sync, device keys and the "Lumen on <model>" device name on the
+  server.
+- The encrypted DM with the web user: invite accepted in the app, the web user's message shown
+  decrypted, the reply sent from the composer and read decrypted by the web user, the database
+  holding only m.room.encrypted for the room.
+- Sign-out: token refused afterwards, local stores and Keystore key gone, no device left on the
+  server.
+- Session restore after the process restarts between phases.
+- The release build's TLS path on a device (R8 keep rules are in place; release trusting system
+  CAs only is by construction, not tested).
