@@ -271,8 +271,8 @@ messages are copied, at most 18,000 characters. The audit records the count, nev
 | `tests/test_nexus_assistant_integrations.py` | 11 passed | Gmail/Slack/HighLevel tools on B2's **fake providers**: personal mail owner-only, other-workspace IDs, untrusted fencing, injected email triggers nothing (dev and mocked model), drafts two-phase and never sent, failure recorded, MCP read and confirm |
 | `tests/test_nexus_isolation.py` (AI part) | passed | AI endpoints and objects of another workspace are 404, chat context and Save to record reject foreign IDs, tools never return other workspaces' rows |
 | `tests/deploy/test_render_apps.py::TestNexusAi` | 3 passed | `app.env` settings, no key in it, edge 404 when off, invalid settings refused |
-| Whole portal suite | 805 passed, 1 failed | The failure is `test_nexus_meetings_reports.py::test_home_sections_and_connected_services_slot` (the verticals team's test still expects no connected-services list, which the integrations team now provides). It's not in B3 code and was reported to main |
-| SPA `npm test` (vitest, jsdom) | 158 passed | Includes `test/unit/assistant.test.tsx` (13): history building, facts vs AI text, dev label, source links, proposals and Confirm, Save to record payloads and message list, connector steps, the confirmation message with its draft link |
+| Whole portal suite | 807 passed | At `f704d66` plus the B3 commits. After the integrations team's `cc48713`/`bac4609`, the B3 suites with `test_nexus_isolation.py`, `test_nexus_integrations_isolation.py` and `test_nexus_auth.py` passed again (391) |
+| SPA `npm test` (vitest, jsdom) | 168 passed | Includes `test/unit/assistant.test.tsx` (13): history building, facts vs AI text, dev label, source links, proposals and Confirm, Save to record payloads and message list, connector steps, the confirmation message with its draft link |
 | SPA `typecheck`, `lint`, `build` | clean | |
 
 **Browser smoke** (Playwright against the slot-3 dev servers, development provider):
@@ -305,8 +305,6 @@ use a mock HTTP session.
 * Connect a real Claude (claude.ai and Claude Code) to a deployed test server with a public
   certificate, and record the result.
 * Run the in-app assistant against the Anthropic API with a real key and a current model ID.
-* The SPA link `#/inbox/<id>` in email results assumes the route of the inbox area, which
-  isn't built yet. It is documented for the integrations team.
 * Token refresh through the SDK (it refreshes only after expiry) and the 403 step-up flow are
   covered by pytest, not by the SDK script.
 * MCP `resources`, `prompts` and server-to-client requests are not offered.
