@@ -29,7 +29,7 @@
 </div>
 <section class="card stack">
   <div class="card-header"><h2>Configuration</h2></div>
-  <dl class="kv"><dt>SFU address</dt><dd class="mono">wss://{{ config.rtc_domain }}</dd><dt>Advertised IP</dt><dd class="mono">{{ config.public_ip }}</dd><dt>Encryption</dt><dd>Media is end-to-end encrypted by the clients (per-participant keys exchanged over Matrix); the SFU forwards ciphertext. Signalling and TURN use TLS/DTLS in addition.</dd><dt>Recording</dt><dd>None — the SFU has no recording component.</dd></dl>
+  <dl class="kv"><dt>SFU address</dt><dd class="mono">wss://{{ config.rtc_domain }}</dd><dt>Advertised IP</dt><dd class="mono">{{ config.public_ip }}</dd><dt>Encryption</dt><dd>Media is end-to-end encrypted by the clients (per-participant keys exchanged over Matrix); the SFU forwards ciphertext. In addition, signalling uses TLS (wss) and media uses DTLS-SRTP on every hop, also through the TURN relay. TURN runs on UDP 3478; Lumen does not offer TURN over TLS.</dd><dt>Recording</dt><dd>None — the SFU has no recording component.</dd></dl>
   <div class="table-wrap"><table class="table"><thead><tr><th>Port</th><th>Purpose</th></tr></thead><tbody>{% for p, why in config.ports %}<tr><td class="mono">{{ p }}</td><td class="small">{{ why }}</td></tr>{% endfor %}</tbody></table></div>
   <p class="xsmall subtle mb-0">These must also be open in any cloud-provider firewall in front of this server. HTTPS working does not prove media connectivity.</p>
 </section>
