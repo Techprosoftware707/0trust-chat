@@ -79,7 +79,10 @@ class AuthController(private val sessions: SessionManager, private val scope: Co
             _state.update {
                 when (r) {
                     SsoFinishResult.Success -> AuthFlowState()
-                    SsoFinishResult.Ignored -> it.copy(busy = false, error = if (it.waitingForBrowser) SignInError.CALLBACK_IGNORED else it.error)
+                    // Say so whenever the sign-in screen is open, also after returning from the
+                    // browser (a stale or forged link arriving later would otherwise do nothing
+                    // visible). After a successful sign-in `server` is null: a duplicate is silent.
+                    SsoFinishResult.Ignored -> it.copy(busy = false, error = if (it.server != null) SignInError.CALLBACK_IGNORED else it.error)
                     is SsoFinishResult.Failed -> it.copy(busy = false, waitingForBrowser = false, error = SignInError.SSO_FAILED)
                 }
             }
