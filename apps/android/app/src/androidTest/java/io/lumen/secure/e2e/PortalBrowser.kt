@@ -1,8 +1,6 @@
 package io.lumen.secure.e2e
 
 import java.io.IOException
-import java.net.CookieManager
-import java.net.CookiePolicy
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -22,7 +20,7 @@ import javax.net.ssl.HttpsURLConnection
  * host and path only, never query strings.
  */
 internal class PortalBrowser {
-    private val cookies = CookieManager(null, CookiePolicy.ACCEPT_ALL)
+    private val cookies = CookieJar()
 
     class Response(val status: Int, val location: String?, val body: String)
 
@@ -72,9 +70,7 @@ internal class PortalBrowser {
             conn.useCaches = false
             conn.setRequestProperty("User-Agent", "Lumen-Android-E2E")
             conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/json")
-            cookies.get(uri, emptyMap())["Cookie"]?.takeIf { it.isNotEmpty() }?.let {
-                conn.setRequestProperty("Cookie", it.joinToString("; "))
-            }
+            cookies.header(uri)?.let { conn.setRequestProperty("Cookie", it) }
             if (referer != null) {
                 conn.setRequestProperty("Referer", referer)
                 URI(referer).let { r -> conn.setRequestProperty("Origin", "${r.scheme}://${r.authority}") }
@@ -86,13 +82,62 @@ internal class PortalBrowser {
                 conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             }
             val status = conn.responseCode
-            cookies.put(uri, conn.headerFields.filterKeys { it != null })
+            conn.headerFields.forEach { (name, values) -> if (name.equals("Set-Cookie", ignoreCase = true)) values.forEach { cookies.store(uri, it) } }
             val location = conn.getHeaderField("Location")
             val stream = if (status >= HttpURLConnection.HTTP_BAD_REQUEST) conn.errorStream else conn.inputStream
             val body = stream?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
             return Response(status, location, body)
         } finally {
             conn.disconnect()
+        }
+    }
+
+    /**
+     * Browser-style cookies (RFC 6265): sent back as `name=value`, matched by host (or Domain)
+     * and path prefix. java.net.CookieManager is not usable here: it treats any cookie with
+     * Max-Age as an RFC 2965 cookie and sends it back quoted with `$Path`, which servers (Synapse's
+     * OIDC session cookie) do not accept.
+     */
+    private class CookieJar {
+        private class Cookie(val domain: String, val hostOnly: Boolean, val path: String, val name: String, val value: String, val secure: Boolean)
+
+        private val cookies = mutableListOf<Cookie>()
+
+        fun store(uri: URI, header: String) {
+            val parts = header.split(';').map { it.trim() }
+            val nameValue = parts.first().split('=', limit = 2)
+            if (nameValue.size != 2 || nameValue[0].isBlank()) return
+            val host = uri.host.lowercase()
+            var domain = host
+            var hostOnly = true
+            var path = "/"
+            var secure = false
+            var delete = false
+            parts.drop(1).forEach { attr ->
+                val kv = attr.split('=', limit = 2)
+                val value = kv.getOrNull(1)?.trim()
+                when (kv[0].trim().lowercase()) {
+                    "domain" -> value?.trimStart('.')?.lowercase()?.takeIf { host == it || host.endsWith(".$it") }?.let {
+                        domain = it
+                        hostOnly = false
+                    }
+                    "path" -> if (value != null && value.startsWith("/")) path = value
+                    "secure" -> secure = true
+                    "max-age" -> if ((value?.toLongOrNull() ?: 1L) <= 0L) delete = true
+                }
+            }
+            cookies.removeAll { it.domain == domain && it.path == path && it.name == nameValue[0] }
+            if (!delete) cookies += Cookie(domain, hostOnly, path, nameValue[0], nameValue[1], secure)
+        }
+
+        fun header(uri: URI): String? {
+            val host = uri.host.lowercase()
+            val path = uri.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
+            return cookies.filter { c ->
+                (if (c.hostOnly) host == c.domain else host == c.domain || host.endsWith(".${c.domain}")) &&
+                    (path == c.path || path.startsWith(if (c.path.endsWith("/")) c.path else c.path + "/")) &&
+                    (!c.secure || uri.scheme == "https")
+            }.sortedByDescending { it.path.length }.joinToString("; ") { "${it.name}=${it.value}" }.ifEmpty { null }
         }
     }
 
