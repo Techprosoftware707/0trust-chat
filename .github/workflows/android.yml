@@ -79,12 +79,16 @@ jobs:
             echo "::error::ANDROID_TEST_KEYSTORE_BASE64 is not a complete base64 copy of the key. Paste the whole output of: cat ~/lumen-test-key/ANDROID_TEST_KEYSTORE_BASE64.txt (or: base64 -w 76 ~/lumen-test-key/lumen-test.p12)"
             exit 1
           fi
-          if ! keytool -list -keystore "$ks" -storetype pkcs12 -storepass:env LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD -alias lumen-test > /dev/null 2>&1; then
-            echo "::error::the test key does not open with ANDROID_TEST_KEYSTORE_PASSWORD, or has no entry 'lumen-test' (incomplete copy, or the two secrets swapped?)"
+          # The generated password has no whitespace; a copied one may have picked some up.
+          TEST_KS_PW="$(printf '%s' "$LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD" | tr -d '[:space:]')"
+          echo "::add-mask::$TEST_KS_PW"
+          export TEST_KS_PW
+          if ! keytool -list -keystore "$ks" -storetype pkcs12 -storepass:env TEST_KS_PW -alias lumen-test > /dev/null 2>&1; then
+            echo "::error::the test key does not open with ANDROID_TEST_KEYSTORE_PASSWORD, or has no entry 'lumen-test'. Decoded key: $(stat -c %s "$ks") bytes, SHA-256 $(sha256sum "$ks" | cut -d' ' -f1). If that matches 'stat -c %s' and 'sha256sum' of ~/lumen-test-key/lumen-test.p12, re-enter the password secret; otherwise re-paste the key secret."
             exit 1
           fi
           # Public: compare with the fingerprint make-test-signing-key.sh printed.
-          keytool -list -v -keystore "$ks" -storetype pkcs12 -storepass:env LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD -alias lumen-test | grep -m1 'SHA256:'
+          keytool -list -v -keystore "$ks" -storetype pkcs12 -storepass:env TEST_KS_PW -alias lumen-test | grep -m1 'SHA256:'
           echo "LUMEN_ANDROID_TEST_KEYSTORE_PATH=$ks" >> "$GITHUB_ENV"
       - name: Debug and release builds
         env:

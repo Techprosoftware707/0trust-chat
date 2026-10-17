@@ -22,7 +22,7 @@ mkdir -p "$out"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-openssl rand -base64 24 | tr -d '\n' >"$out/ANDROID_TEST_KEYSTORE_PASSWORD.txt"
+openssl rand -base64 24 >"$out/ANDROID_TEST_KEYSTORE_PASSWORD.txt"   # one line, ends with a line break
 # An EC P-256 key keeps the secret short (about 20 lines to copy).
 openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 9125 \
   -subj "/CN=Lumen test builds" -keyout "$work/key.pem" -out "$work/cert.pem" 2>/dev/null

@@ -45,7 +45,8 @@ val releaseSigningAvailable = keystorePath != null && keystorePassword != null &
 // key is generated anew on every machine, i.e. on every CI run. A PKCS#12 file whose key password
 // is the store password, alias "lumen-test" (apps/android/tools/make-test-signing-key.sh).
 val testKeystorePath: String? = System.getenv("LUMEN_ANDROID_TEST_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
-val testKeystorePassword: String? = System.getenv("LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() }
+// Trimmed: the generated password has no whitespace, a pasted copy may end with a line break.
+val testKeystorePassword: String? = System.getenv("LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD")?.trim()?.takeIf { it.isNotEmpty() }
 val testSigningAvailable = testKeystorePath != null && testKeystorePassword != null
 
 android {
