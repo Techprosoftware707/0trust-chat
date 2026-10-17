@@ -100,6 +100,19 @@ Both refuse to run unless `NEXUS_ENVIRONMENT` is `development` or `test`. Reset 
 rows flagged `is_demo` inside workspaces whose settings are flagged demo, and keeps any demo
 row a real row depends on (it says what it kept).
 
+### Integrations in mock mode (team B2)
+
+`env.sh` sets `NEXUS_INTEGRATIONS_MOCK=1` and a throwaway `NEXUS_INTEGRATIONS_KEY`, so
+**Integrations** connects Gmail, Slack and HighLevel to local fake providers through a mock
+consent page. The OAuth state, PKCE and session binding run for real. Everything they create
+is labelled "Mock provider (development)": fictional `example.com` senders and "(mock data)"
+subjects. Nothing reaches Google, Slack or HighLevel. **Sync now** on a connection runs a sync
+immediately; the worker (`manage.py lumen_worker`) runs `integrations.sync` and
+`integrations.retention` on their schedule. For the unconfigured state an administrator sees,
+start the portal with `NEXUS_INTEGRATIONS_MOCK=0`. Real credentials go in the variables in
+[CONFIG.md](CONFIG.md#integrations-and-the-unified-inbox-team-b2). Provider webhooks can't
+reach `127.0.0.1`; the webhook handlers are covered by pytest.
+
 ## 4. Tests
 
 ### Portal (pytest, PostgreSQL)
@@ -203,6 +216,23 @@ appointment reminders) run on the worker's schedule; to run them once by hand:
 SPA unit tests of the verticals logic are in `services/chat/test/unit/verticals.test.tsx`.
 They run as part of `npm test`.
 
+### Integrations and the unified inbox (team B2)
+
+All of these are mock-based (fake providers, no live service):
+
+```sh
+cd services/portal
+POSTGRES_PORT=55433 POSTGRES_DB=nexus /home/user/nexus-venv/bin/python -m pytest tests/test_nexus_integrations_*.py
+cd ../chat && npx vitest run test/unit/inbox-merge.test.ts
+# browser smoke (portal and chat dev servers of the slot running, mock mode on): 11 checks, screenshots
+. dev/nexus/env.sh && node tests/nexus/integrations.smoke.mjs            # docs/nexus/screenshots/b2/
+. dev/nexus/env.sh && node tests/nexus/integrations.smoke.mjs --no-shots
+```
+
+The smoke removes the slot's mock connections first, then connects all three providers,
+syncs, and walks the inbox, an email reply sent through the confirmation dialog, a Slack
+reply, record linking, an agent's view, dark mode and phone width.
+
 ### Brand contrast (WCAG 2.2 AA)
 
 ```sh
@@ -240,6 +270,8 @@ python3 -m unittest discover -s tests/deploy -v
 | Pipelines missing stages after many resets | `bash dev/nexus/setup.sh --fresh` |
 | Port 8710 or 5710 in use | a previous dev server is still running; stop it (`pkill -f "runserver 127.0.0.1:8710"`, `pkill -f "vite --port 5710"`) |
 | `invalid_client` / redirect mismatch on the OAuth round trip | `lumen_bootstrap` registers `nexus-web` with exactly `LUMEN_APP_BASE_URL/oauth/callback`; open the SPA at `http://127.0.0.1:5710`, not `localhost` |
+| vitest misses an area file that exists (e.g. after a pull) | vitest 5's file cache kept an old `import.meta.glob` expansion: `find services/chat/node_modules/.vitest-cache -maxdepth 1 -type f -delete` (only removes this checkout's links) |
+| Integrations page says "Not set up on this server yet" | no `NEXUS_INTEGRATIONS_KEY` (every provider), or mock mode is off and the provider has no client ID and secret (Gmail, Slack; HighLevel still offers a private integration token): source `dev/nexus/env.sh` or set the variables in CONFIG.md |
 
 ## Not part of this environment
 

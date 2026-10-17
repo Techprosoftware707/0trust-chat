@@ -464,6 +464,120 @@ entry and must run inside the caller's transaction (`@api_endpoint` provides one
 
 The AI tools on these services are in `apps/crm/ai_tools_verticals.py` (team B3).
 
+## 13. Integrations and the unified inbox (team B2)
+
+`apps.integrations` (migration `integrations.0001_initial`) and the SPA areas **Inbox**
+(`areas/inbox.tsx`) and **Integrations** (`areas/integrations.tsx`). Provider setup, scopes,
+storage, retention and what is tested are in [INTEGRATIONS.md](INTEGRATIONS.md); variables are
+in [CONFIG.md](CONFIG.md#integrations-and-the-unified-inbox-team-b2). Feature flag:
+`integrations` (on wherever `crm` is on).
+
+### Models (all `TenantModel` unless noted, all behind `access` policies)
+
+| Model | What it is | Who sees it |
+|---|---|---|
+| `IntegrationConnection` | one connected Gmail mailbox, Slack workspace or HighLevel sub-account: status (`connected`, `needs_reauth`, `error`, `disconnected`), granted scopes, sync and error state, `is_mock` | Gmail: its owner (owners/admins see status only); Slack/HighLevel: every member |
+| `IntegrationCredential` (not tenant, no API) | AES-256-GCM access/refresh tokens bound to their row and field, key ID, version | only `tokens.py` |
+| `OAuthState` (not tenant) | one authorization in progress: hashed nonce, session-binding hash, encrypted PKCE verifier, 10-minute expiry, single use | nobody |
+| `WebhookEvent` (not tenant) | dedup record `(provider, event_id)` and outcome, no payload | nobody |
+| `InboxItem` | one synced external item: email thread, Slack message, HighLevel conversation, missed call; priority, assignee, labels, done; `visibility` personal (Gmail) or workspace | personal items: only the owner, not even admins; workspace items: record readers |
+| `InboxReadState`, `InboxMute`, `PendingAction` | per-person read marks, muted groups (`matrix:<room>`, `nexus:notification:<type>`, provider groups), confirmations for external writes | the person only |
+| `InboxLink` | item ↔ record (contact, opportunity, task, …), optional timeline `Activity` | like the item |
+| `EmailMessage`, `EmailDraft` | Gmail message metadata (never bodies); reply drafts (text cleared after send) | the mailbox owner |
+| `ExternalRecord` | mirrors of HighLevel opportunities, pipelines, tags, custom fields, opened contacts | record readers |
+
+Dedup and linking to CRM records use `crm.ExternalRecordMapping`
+(`{account}:thread:{id}`, `{channel}:{ts}`, HighLevel IDs); a HighLevel contact matches a Nexus
+contact **only** by its HighLevel ID mapping; email/phone matches are suggestions a person
+confirms.
+
+### Routes
+
+Public (`apps/integrations/urls.py`, under `/integrations/`): `oauth/begin` (needs the portal
+session of the person who started), `oauth/{google,slack,crm-connector}/callback`,
+`webhooks/slack/events`, `webhooks/gohighlevel` (CSRF-exempt, signature-checked, rate
+limited), `mock/<slug>/authorize` (mock mode only). After a flow the browser returns to
+`#/integrations/connected/<provider>` or `#/integrations/error/<code>[/<provider>]`.
+
+API (`api_urls.py`, under `/api/v1/workspaces/<id>/integrations/`):
+
+* Connections: `providers` (catalog with setup facts, never values), `connections`,
+  `connections/oauth-start` (returns the portal `begin` URL), `connections/private-token`,
+  `connections/<id>` (GET/PATCH settings), `…/sync`, `…/disconnect`, `…/slack-channels`.
+* Inbox: `inbox` (filters `source`, `kind`, `unread`, `assignee=me|none|<public_id>`, `label`,
+  `priority`, `status=open|done|all`, `q`, `linked=<type>:<id>`, `connection`, `muted=exclude|include|only`,
+  `mentions=me`), `inbox/counts`, `inbox/mark`, `inbox/mutes[/<id>]`, `inbox/<id>` (GET/PATCH),
+  `…/suggestions`, `…/links[/<link_id>]`, `…/permalink`, `…/conversation` (HighLevel
+  messages, read-only), `…/drafts`, `…/messages/<mid>/body` (sanitized, on demand),
+  `…/messages/<mid>/attachments/<aid>` (proxied download).
+* Gmail: `gmail/search?q=` (live Gmail search), `drafts/<id>` (PATCH/DELETE),
+  `drafts/<id>/send-request`.
+* External writes: `slack/post-request`, `ghl/actions` (create/update contact, start a
+  workflow), `actions/<id>` (GET/DELETE = cancel), `actions/<id>/confirm`.
+* HighLevel: `ghl/contacts[?q=]`, `ghl/contacts/<ext>` (with tasks and appointments),
+  `…/link`, `…/import`, `ghl/opportunities`, `ghl/opportunities/<ext>/link`, `ghl/pipelines`,
+  `ghl/tags`, `ghl/custom-fields`, `ghl/workflows`.
+
+Every item response carries `external: true`, `untrusted: true`, `origin`
+(`synced_email`, `external_message`, `imported_record`, `external_notification`; never
+`native`), `is_mock`/`mock_label`, `capabilities` (`reply`, with a reason when unsupported) and
+`external_url`/`open_label` for linking out.
+
+### Conventions added
+
+* **Provider errors** map to: `reauth_required` 409 (the connection moved to
+  `needs_reauth`), `not_configured` 409, `scope_missing` 403, `rate_limited` 429 with
+  `Retry-After`, `not_found` 404, `provider_unavailable` 502, `provider_rejected` 400, and
+  provider-specific 400/403 codes (e.g. `slack_not_in_channel`) — `errors.py`.
+* **`@api_endpoint(atomic=False)`** on views that call a provider: a rotated refresh token
+  must never be rolled back with the request; such views manage their own short transactions.
+* **Two-step confirmation for every external write** (`actions.py`): a `*-request` call stores
+  a `PendingAction` with a preview and returns a single-use `confirmation_token` once (hash
+  stored, 10 minutes, bound to the person and the exact payload; a changed draft invalidates
+  it). `actions/<id>/confirm {confirmation_token}` spends the token atomically *before*
+  calling the provider; a wrong, used, expired or foreign token is `403 confirmation_invalid`.
+  The result is "sent" only when the provider answered with the created ID; a timeout says
+  "check your Sent folder" instead. The AI assistant never receives these tokens.
+* **Mock mode** (`NEXUS_INTEGRATIONS_MOCK`, development/test only): in-process fake providers
+  behind the same HTTP transport seam (`http.get_transport()`); everything they create is
+  `is_mock` and labelled "Mock provider (development)".
+
+### Services other teams may call
+
+Plain functions; each one authorizes through `access` with the `actor` it is given (404 for
+other people's or other workspaces' rows), audits, and never returns tokens. Synced content
+is external and untrusted: pass it on as data, never as instructions.
+
+| Function | Returns / does |
+|---|---|
+| `health.service_health(actor)` | one row per provider: `{service, label, status (connected/needs_reauth/error/not_connected/not_configured), status_label, detail, checked_at, link, mock, mock_label}` (Home's connected-services card) |
+| `services.list_inbox(actor, limit=50, **filters)` / `services.inbox_queryset(actor, …)` | serialized items / the authorized queryset (filters as in the `inbox` endpoint) |
+| `services.get_inbox_item(actor, item_id)` | one item with messages and drafts |
+| `services.counts(actor)` | `{unread, unread_by_source}` |
+| `services.get_thread(actor, item_id, include_bodies=False)` | a Gmail thread's metadata |
+| `services.message_body(request, actor, item_id, message_id)` | the sanitized body (fetched from Gmail, not stored; audited read) |
+| `services.search_email(actor, query, connection_id=None, limit=20)` | live Gmail search (`q` syntax) through the person's own mailbox |
+| `services.create_reply_draft(request, actor, item_id, body)` / `update_draft` / `discard_draft` | a reply draft in Gmail (never sends) |
+| `services.list_slack_messages(actor, channel_id=None, q=None, limit=50)`, `slack_channels`, `slack_permalink` | synced Slack messages, channels, a permalink |
+| `services.ghl_search_contacts(actor, query, …)`, `ghl_get_contact`, `ghl_list_records(actor, kind, …)`, `ghl_list_opportunities`, `ghl_conversation`, `ghl_workflows` | HighLevel reads (live or mirrored) |
+| `services.add_link` / `remove_link` / `item_suggestions` / `contact_suggestions` | links between items and records, and suggested contacts (by email/phone, suggestions only) |
+| `services.update_item`, `mark_read`, `add_mute`, `remove_mute` | inbox state |
+| `actions.prepare_send_draft`, `prepare_slack_post`, `prepare_ghl` → `(PendingAction, token)`; `actions.confirm`, `actions.cancel` | the confirmation flow above; only a UI that shows the preview to the person may call `confirm` |
+
+`apps/integrations/ai_tools.py` (team B3) uses these read and draft services.
+
+### SPA
+
+* `#/inbox`, `#/inbox/<item uuid>` (and `#/inbox/item|room|notification|meeting/<id>`) open
+  the unified inbox; `#/integrations[/connected/<p>|/error/<code>]` the setup page.
+* `workspace/integrations/merge.ts` (pure, unit-tested) merges, in the browser, native rooms
+  from the Matrix client (decrypted previews never leave the device; only room IDs are sent,
+  for links and mutes), synced items, workspace notifications and meeting follow-ups.
+* `workspace/integrations/ui.tsx` exports reusable pieces: `SourceBadge`, `MockBadge`,
+  `ExternalNote`, `SafeHtmlFrame` (sandboxed iframe, `default-src 'none'`),
+  `ConfirmActionDialog` (shows the preview, spends the token), `RecordPicker`, `StatusBadge`.
+* The inbox detail embeds B3's `AskAiPanel` with `context.inbox_item_id`.
+
 ## Foundation status
 
 See the final report in the hand-off and the commit history of
@@ -473,7 +587,7 @@ Known gaps at hand-off:
 * No optimistic-concurrency check on updates (last write wins); no bulk endpoints.
 * Calendar, Calls & Meetings, Inbox, AI Assistant, Reports, Integrations are coming-soon
   pages (the calendar *API* exists). Since then Calendar, Calls & Meetings and Reports have
-  shipped (section 12).
+  shipped (section 12), and Inbox and Integrations (section 13).
 * The SPA's API calls are cross-origin (app domain → portal domain); a same-origin `/api`
   proxy on the app domain would remove CORS but is not set up.
 * Members see the list of workspace members (needed for assignment pickers).

@@ -1,9 +1,10 @@
 # Nexus integrations: Gmail, GoHighLevel, Slack and the unified inbox
 
 `apps.integrations` (portal) and the **Inbox** and **Integrations** areas (chat SPA). The API
-contract and the service functions other teams call are in [ARCHITECTURE.md](ARCHITECTURE.md)
-("Integrations"); variables are in [CONFIG.md](CONFIG.md); decisions in
-[IMPLEMENTATION-NOTES.md](IMPLEMENTATION-NOTES.md) ("Integrations and the unified inbox").
+contract and the service functions other teams call are in
+[ARCHITECTURE.md](ARCHITECTURE.md#13-integrations-and-the-unified-inbox-team-b2) (section 13);
+variables are in [CONFIG.md](CONFIG.md#integrations-and-the-unified-inbox-team-b2); decisions in
+[IMPLEMENTATION-NOTES.md](IMPLEMENTATION-NOTES.md#team-b2-integrations-and-the-unified-inbox) ("Team B2").
 
 **Testing status, honestly:** no real Google, Slack or HighLevel credentials exist for this
 work. Every automated test and the browser smoke run against local **fake providers**
@@ -74,7 +75,8 @@ message.
 create**, select the scopes from §4, copy the token; in Nexus: Integrations → GoHighLevel →
 "Use a private integration token" → paste the token and the location ID. It is stored
 encrypted and never shown again. It does not refresh; HighLevel recommends rotating it every
-90 days (reconnect with the new one). Webhooks are not available with B.
+90 days: **Replace token** on the connection stores the new one and keeps the connection and
+its synced data. Webhooks are not available with B.
 
 ### Slack
 
@@ -141,7 +143,9 @@ session and person (and nothing else). This is untested against the live service
 **Tokens** are encrypted with AES-256-GCM (`apps/integrations/crypto.py`): key from
 `NEXUS_INTEGRATIONS_KEY_FILE` (env only in development), a random 96-bit nonce per value, and
 associated data binding each ciphertext to its connection and field (a copied value does not
-decrypt elsewhere). Several keys may be listed (first encrypts, all decrypt) for rotation.
+decrypt elsewhere). Several keys may be listed (first encrypts, all decrypt) for rotation;
+`manage.py nexus_integrations_rekey` re-encrypts every credential with the first key, so the
+old one can be removed (CONFIG.md, "Rotating the integrations key").
 Tokens are never logged, serialized, returned or audited; tests assert this with `caplog`.
 
 **Refresh.** Access tokens are refreshed 90 seconds before expiry, or once after a 401, under
@@ -295,7 +299,7 @@ fake providers through the transport seam; no network):
 * inbox: badges/origins, per-person unread, assignment/priority/labels/done, mutes, roles,
   search, linked filter, dashboard health rows; tenant isolation of every model and
   endpoint; no token or secret values in logs, API responses or the audit log; ciphertext
-  bound to row and key; key rotation.
+  bound to row and key; key rotation and re-encryption (`nexus_integrations_rekey`).
 
 **Mock-based browser smoke** (`tests/nexus/integrations.smoke.mjs`, slot servers in mock mode,
 screenshots in `docs/nexus/screenshots/b2/`). **SPA unit tests**:

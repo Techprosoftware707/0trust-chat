@@ -29,6 +29,7 @@ const PORTAL = process.env.NEXUS_PORTAL_URL || `http://127.0.0.1:${process.env.N
 const APP = process.env.NEXUS_APP_URL || `http://127.0.0.1:${process.env.NEXUS_CHAT_PORT || 5710}`;
 const PASSWORD = process.env.NEXUS_DEMO_PASSWORD;
 const shots = !process.argv.includes("--no-shots");
+const MAX_SHOT_BYTES = 300_000;
 if (!PASSWORD) throw new Error("source dev/nexus/env.sh first (NEXUS_DEMO_PASSWORD)");
 if (process.env.NEXUS_INTEGRATIONS_MOCK !== "1") throw new Error("this smoke runs in mock mode only: NEXUS_INTEGRATIONS_MOCK=1");
 fs.mkdirSync(SHOTS, { recursive: true });
@@ -92,7 +93,19 @@ async function shot(page, name) {
   const close = page.locator(".toast-close");
   for (let n = await close.count(); n > 0; n--) await close.first().click().catch(() => undefined);
   await page.waitForTimeout(150);
-  await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
+  const file = path.join(SHOTS, `${name}.png`);
+  await page.screenshot({ path: file });
+  // Screenshots stay under 300 KB: strip metadata losslessly, then fall back to a 256-colour
+  // palette (ImageMagick's convert, when installed).
+  for (const args of [[file, "-strip", `PNG24:${file}`], [file, "-strip", "-colors", "256", `PNG8:${file}`]]) {
+    if (fs.statSync(file).size < MAX_SHOT_BYTES) break;
+    try {
+      execFileSync("convert", args, { stdio: "ignore" });
+    } catch {
+      break;
+    }
+  }
+  if (fs.statSync(file).size >= MAX_SHOT_BYTES) console.warn(`WARN ${name}.png is ${fs.statSync(file).size} bytes`);
 }
 
 async function noOverflow(page) {

@@ -294,3 +294,81 @@ Known gaps:
 * `dev/nexus/setup.sh` on slot 1 reported failed Matrix shared-secret registrations
   (`matrix-users.mjs`, HMAC) for the demo people. The accounts already existed and signing in
   worked; it wasn't investigated further (shared homeserver, not B1's to change).
+
+## Team B2: integrations and the unified inbox
+
+What was built is in [INTEGRATIONS.md](INTEGRATIONS.md) and
+[ARCHITECTURE.md](ARCHITECTURE.md#13-integrations-and-the-unified-inbox-team-b2); the settings
+are in [CONFIG.md](CONFIG.md#integrations-and-the-unified-inbox-team-b2). Decisions and
+findings:
+
+* **No new dependencies.** Token encryption uses `cryptography` (AES-GCM, Ed25519 for
+  HighLevel webhooks), which was already pinned; provider calls use `requests`. Nothing was
+  added to `package.json`.
+* **Nothing was tested against a live provider.** No Google, Slack or HighLevel credentials
+  were available. Every pytest and the browser smoke use the in-process fakes in
+  `apps/integrations/mock/providers.py`, which answer the documented URLs and shapes. Each
+  external detail was checked against the official documentation on 2026-10-17 (the URL list
+  is in INTEGRATIONS.md §11).
+* **Starting OAuth from a bearer-only API.** The SPA calls `connections/oauth-start` with its
+  API token and gets back a portal URL `/integrations/oauth/begin?t=…`. That URL only works in
+  a browser that holds the *same person's* portal session. It then binds the flow to that
+  session (a random value in the session, its hash on the `OAuthState` row) before it
+  redirects to the provider. The `state` parameter is a signed token (`django.core.signing`,
+  10 minutes) naming a nonce that is stored hashed and can be used once. A callback with
+  another user, workspace, session, provider, a reused or an expired state fails with a named
+  error and is logged as a security event.
+* **PKCE**:
+  * Google: S256 together with the client secret.
+  * Slack: none. Enabling PKCE turns a Slack app into a public client whose refresh tokens
+    expire after 30 days (Slack's "Using PKCE" page), and this server is a confidential
+    client.
+  * HighLevel: none. Its documentation describes neither PKCE nor a `state` round trip. The
+    state is still sent; if HighLevel doesn't echo it, the callback accepts only the single
+    pending HighLevel flow bound to this browser session and person (`_state_from_session`).
+    This has not been verified live.
+* **HighLevel API `Version: v3`** (`NEXUS_GHL_API_VERSION`) is the latest version in the
+  published reference. Only Sub-Account (Location) tokens are accepted. Agency (Company)
+  installs are refused, because they would expose every sub-account. Webhooks use the
+  documented Ed25519 `X-GHL-Signature`. The legacy RSA `X-WH-Signature` is deprecated and
+  refused.
+* **Workflow starts in HighLevel never happen outside production.** They need:
+  * `NEXUS_ENVIRONMENT=production`;
+  * a workspace that is not in mock mode;
+  * an owner/admin opt-in on the connection;
+  * a confirmation for each start.
+
+  In development and test the UI shows the toggle as blocked by the environment.
+* **`@api_endpoint(atomic=False)`** (shared, also used by B3): views that call a provider
+  must not roll back a rotated refresh token with the request. Token refresh runs under a
+  `select_for_update` lock with a version check. A refusal (`invalid_grant`, revoked app) is
+  recorded after the lock's transaction, and the connection moves to `needs_reauth`.
+* **The OAuth result is a path, not a query.** The SPA's area routes match
+  `#/<id>/<path>`, so the callback redirects to `#/integrations/connected/<provider>` or
+  `#/integrations/error/<code>[/<provider>]`.
+* **The E2EE boundary in the inbox.** Native rooms are merged in the browser from the Matrix
+  client (`useRoomSummaries`). Their decrypted previews and missed calls never reach the
+  server. The server only ever sees a room ID, and only when a person links a room to a record
+  (`crm/room-links`) or mutes it (`matrix:<room id>`). Synced items can never claim to be
+  native: `merge.ts` forces an external origin whatever the payload says (unit-tested).
+* **External writes are two-step** (`PendingAction`). The token is spent before the provider
+  is called, so a double click or a replay can't send twice. A send whose outcome is unknown
+  (timeout, 5xx) is shown as "check your Sent folder", never as sent. B3's AI tools can create
+  Gmail drafts only; they never get a confirmation token.
+* **Gmail is incremental.** It uses `history.list` from the stored `historyId`; a 404 (history
+  too old) falls back to a 30-day sync. There is no push (Pub/Sub watch): that would need a
+  Google Cloud topic for each installation, so the worker polls every
+  `NEXUS_INTEGRATIONS_SYNC_SECONDS`. Bodies and attachments are fetched on demand and never
+  stored. HTML is sanitized with an allowlist (`sanitize.py`) and shown as text by default.
+* **Key rotation.** `NEXUS_INTEGRATIONS_KEY` holds a list of keys and `manage.py
+  nexus_integrations_rekey` re-encrypts all credentials. The `migrate` tool container (used
+  by `lumenctl manage`) now gets the key's secret file as well.
+* **Dev environment**:
+  * `dev/nexus/setup.sh` on slot 2 failed at the Matrix shared-secret registration (the shared
+    homeserver has another checkout's secret). The demo accounts already existed with the
+    same passwords, and signing in worked.
+  * The slot-2 portal once held 46 idle PostgreSQL connections. It now runs with
+    `POSTGRES_CONN_MAX_AGE=0` (B1) and is stopped after each smoke run.
+  * vitest 5's file cache (`services/chat/node_modules/.vitest-cache`) kept an old
+    `import.meta.glob` expansion of `registry.ts`, so areas added by B1 were missing until the
+    cache was cleared (DEVELOPMENT.md, Troubleshooting).
