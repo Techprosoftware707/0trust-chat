@@ -1,5 +1,23 @@
 package io.lumen.secure.calls
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import io.lumen.secure.ui.components.Avatar
+import io.lumen.secure.ui.components.CenteredState
+import io.lumen.secure.ui.theme.LumenBrand
+import io.lumen.secure.ui.theme.LumenDarkColors
+import io.lumen.secure.ui.theme.LumenEase
+import io.lumen.secure.ui.theme.brandHero
+import io.lumen.secure.ui.theme.brandWash
+import io.lumen.secure.ui.theme.isDark
 import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.compose.foundation.background
@@ -10,13 +28,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -129,7 +146,7 @@ fun CallScreen(
 
 /** The label comes only from the widget's `e2ee` report; nothing is claimed before it reports. */
 @Composable
-private fun EncryptionChip(label: CallEncryptionLabel, notYetReported: Boolean) {
+internal fun EncryptionChip(label: CallEncryptionLabel, notYetReported: Boolean) {
     val c = MaterialTheme.lumenColors
     val (text, color, icon) = when {
         notYetReported -> Triple(stringResource(R.string.call_connecting), c.textMuted, R.drawable.ic_lucide_clock)
@@ -179,66 +196,71 @@ private fun routeIcon(r: AudioRoute?): Int = when (r?.type) {
 }
 
 @Composable
-private fun Incoming(caller: String?, video: Boolean, onAnswer: (Boolean) -> Unit, onDecline: () -> Unit) {
+internal fun Incoming(caller: String?, video: Boolean, onAnswer: (Boolean) -> Unit, onDecline: () -> Unit) {
     val c = MaterialTheme.lumenColors
-    Column(
-        Modifier.fillMaxSize().background(c.bg).safeDrawingPadding().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(48.dp))
-            Icon(painterResource(R.drawable.ic_lucide_phone_incoming), null, tint = c.accent, modifier = Modifier.size(48.dp))
-            Spacer(Modifier.height(16.dp))
-            Text(
-                caller ?: stringResource(R.string.notification_incoming_call),
-                style = MaterialTheme.typography.headlineMedium, color = c.text, textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(if (video) R.string.call_incoming_video else R.string.call_incoming_voice),
-                style = MaterialTheme.typography.bodyLarge, color = c.textMuted,
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            Button(
-                onClick = onDecline,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = c.danger),
-            ) {
-                Icon(painterResource(R.drawable.ic_lucide_phone_off), null)
-                Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.call_decline))
-            }
-            if (video) {
-                Button(onClick = { onAnswer(true) }, shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = c.success)) {
-                    Icon(painterResource(R.drawable.ic_lucide_video), null)
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.call_answer_video))
+    val dark = MaterialTheme.isDark
+    val onSuccess = if (dark) LumenDarkColors.accentContrast else Color.White
+    Box(Modifier.fillMaxSize().background(c.bg).then(if (dark) Modifier.brandHero() else Modifier.brandWash(1.6f))) {
+        Column(
+            Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(48.dp))
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(176.dp)) {
+                    // Soft rings breathe outwards while it rings (follows the system animation setting).
+                    val ring = rememberInfiniteTransition(label = "ring")
+                    val t by ring.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LumenEase.Out)), label = "t")
+                    Box(
+                        Modifier.size(120.dp).graphicsLayer {
+                            scaleX = 1f + 0.45f * t
+                            scaleY = 1f + 0.45f * t
+                            alpha = 0.45f * (1f - t)
+                        }.border(2.dp, LumenBrand.gradient, CircleShape),
+                    )
+                    Avatar(caller ?: "?", size = 120.dp, ring = true)
+                }
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    caller ?: stringResource(R.string.notification_incoming_call),
+                    style = MaterialTheme.typography.headlineMedium, color = c.text, textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(if (video) R.drawable.ic_lucide_video else R.drawable.ic_lucide_phone), null, tint = c.textMuted, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(if (video) R.string.call_incoming_video else R.string.call_incoming_voice), style = MaterialTheme.typography.bodyLarge, color = c.textMuted)
                 }
             }
-            Button(onClick = { onAnswer(false) }, shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = c.success)) {
-                Icon(painterResource(R.drawable.ic_lucide_phone), null)
-                Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.call_answer))
+            Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
+                CallAction(R.drawable.ic_lucide_phone_off, stringResource(R.string.call_decline), c.danger, c.dangerContrast, onDecline)
+                if (video) CallAction(R.drawable.ic_lucide_video, stringResource(R.string.call_answer_video), c.success, onSuccess) { onAnswer(true) }
+                CallAction(R.drawable.ic_lucide_phone, stringResource(R.string.call_answer), c.success, onSuccess) { onAnswer(false) }
             }
         }
     }
 }
 
+/** A large round call button with its label underneath (one touch target, read as one button). */
 @Composable
-private fun Message(title: String, body: String?, onClose: () -> Unit) {
+private fun CallAction(icon: Int, label: String, color: Color, contentColor: Color, onClick: () -> Unit) {
     val c = MaterialTheme.lumenColors
     Column(
-        Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+        Modifier.clip(MaterialTheme.shapes.large).clickable(role = Role.Button, onClick = onClick).padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
-        Text(title, style = MaterialTheme.typography.titleLarge, color = c.text, textAlign = TextAlign.Center)
-        if (body != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = c.textMuted, textAlign = TextAlign.Center)
+        Box(Modifier.size(72.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), null, tint = contentColor, modifier = Modifier.size(30.dp))
         }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onClose) { Text(stringResource(R.string.action_close)) }
+        Spacer(Modifier.height(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = c.text)
+    }
+}
+
+@Composable
+internal fun Message(title: String, body: String?, onClose: () -> Unit, icon: Int = R.drawable.ic_lucide_phone_off) {
+    Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+        CenteredState(title, body, icon = icon, actionLabel = stringResource(R.string.action_close), onAction = onClose)
     }
 }

@@ -8,7 +8,7 @@
     <!-- Timeline and previews -->
     <string name="room_unnamed">Unnamed chat</string>
     <string name="timeline_deleted">Message deleted</string>
-    <string name="timeline_utd">Unable to decrypt this message</string>
+    <string name="timeline_utd">Waiting for the key to this message</string>
     <string name="timeline_image">Image</string>
     <string name="timeline_file">File</string>
     <string name="timeline_video">Video</string>
@@ -91,40 +91,39 @@
 
     <!-- Startup and session -->
     <string name="state_opening">Opening your encrypted chats…</string>
-    <string name="restore_failed_title">Your session could not be opened</string>
-    <string name="restore_failed_body">The app could not open its local encrypted storage. If this keeps happening, sign out on this device and sign in again; you will need your recovery key for older encrypted messages.</string>
+    <string name="restore_failed_title">We couldn\'t open your chats</string>
+    <string name="restore_failed_body">Lumen couldn\'t open its encrypted storage on this device. If this keeps happening, sign out on this device and sign in again. You\'ll need your recovery key for older encrypted messages.</string>
     <string name="restore_failed_sign_out">Sign out on this device</string>
-    <string name="signed_out_remote">You were signed out because this session ended on the server (for example, it was removed from another device). Local data on this device has been deleted.</string>
+    <string name="signed_out_remote">You were signed out because this session ended on the server, for example after it was removed from another device. Lumen has deleted its data from this device.</string>
 
     <!-- Sign-in -->
     <string name="auth_welcome">Welcome to Lumen</string>
-    <string name="auth_server_explain">Enter your server name, such as example.com, or your full Matrix ID. Your organisation or provider gives you this.</string>
+    <string name="auth_server_explain">Enter your server, like example.com, or your full Matrix ID. Your organisation or provider can tell you which one to use.</string>
     <string name="auth_server_label">Server</string>
     <string name="auth_server_placeholder">example.com</string>
     <string name="auth_sign_in_to">Sign in to %1$s</string>
     <string name="auth_continue_sso">Continue with your %1$s account</string>
-    <string name="auth_waiting_browser">Finish signing in using the browser window. You will come back here automatically.</string>
+    <string name="auth_waiting_browser">Finish in the browser window that just opened. You\'ll come back here automatically.</string>
     <string name="auth_create_account">Create an account</string>
     <string name="auth_username">Username</string>
     <string name="auth_password">Password</string>
     <string name="auth_sign_in">Sign in</string>
-    <string name="auth_privacy_note">You sign in on your server\'s own page in the browser. This app never sees your password or verification codes.</string>
+    <string name="auth_privacy_note">You sign in on your server\'s own page. Lumen never sees your password or verification codes.</string>
     <string name="auth_change_server">Use a different server</string>
-    <string name="auth_no_browser">No browser is available to sign in. Install or enable a web browser and try again.</string>
-    <string name="auth_error_sso">Sign-in did not complete. Please try again.</string>
-    <string name="auth_error_sso_start">Could not start signing in with this server. Check your connection and try again.</string>
-    <string name="auth_error_password">Sign-in failed. Check your username and password.</string>
-    <string name="auth_error_callback">That sign-in link was not for this attempt and was ignored. Start signing in again from this screen.</string>
-    <string name="discovery_invalid_input">Enter a server name such as example.com, a Matrix ID such as @you:example.com, or an https:// address.</string>
-    <string name="discovery_unreachable">The server could not be reached. Check the name and your connection.</string>
-    <string name="discovery_invalid_well_known">This server\'s configuration file is invalid, so the app will not connect to it.</string>
-    <string name="discovery_not_matrix">This does not look like a Matrix server.</string>
-    <string name="discovery_no_login">This server offers no sign-in method this app supports.</string>
+    <string name="auth_no_browser">We couldn\'t find a web browser to sign in with. Install or turn on a browser, then try again.</string>
+    <string name="auth_error_sso">Sign-in didn\'t finish. You can try again whenever you\'re ready.</string>
+    <string name="auth_error_sso_start">We couldn\'t start sign-in with this server. Check your connection and try again.</string>
+    <string name="auth_error_password">That username and password didn\'t work. Check them and try again.</string>
+    <string name="auth_error_callback">That sign-in link was from an earlier attempt, so we ignored it. Start again from this screen.</string>
+    <string name="discovery_invalid_input">Try a server name like example.com, a Matrix ID like @you:example.com, or an https:// address.</string>
+    <string name="discovery_unreachable">We couldn\'t reach that server. Check the name and your connection, then try again.</string>
+    <string name="discovery_invalid_well_known">This server\'s setup file has a problem, so Lumen won\'t connect to it. Your server\'s admin can fix this.</string>
+    <string name="discovery_not_matrix">This doesn\'t look like a Matrix server. Check the name and try again.</string>
+    <string name="discovery_no_login">This server doesn\'t offer a way to sign in that Lumen supports yet.</string>
     <string name="link_privacy">Privacy policy</string>
     <string name="link_help">Help</string>
 
     <!-- Room list -->
-    <string name="cd_search_rooms">Search chats</string>
     <string name="rooms_search_placeholder">Search chats</string>
     <string name="filter_all">All</string>
     <string name="filter_people">People</string>
@@ -134,31 +133,31 @@
     <string name="rooms_loading">Loading your chats…</string>
     <string name="rooms_no_match">No chats match your search</string>
     <string name="rooms_empty_title">No chats yet</string>
-    <string name="rooms_empty_body">Start a conversation with someone on your server or any Matrix server.</string>
+    <string name="rooms_empty_body">Say hello to someone on your server, or on any Matrix server.</string>
     <string name="rooms_invited_by">%1$s invited you</string>
     <string name="cd_call_active">Call in progress</string>
     <string name="cd_not_encrypted">Not end-to-end encrypted</string>
     <string name="invite_accept">Accept</string>
     <string name="invite_decline">Decline</string>
     <string name="invite_block">Decline and block</string>
-    <string name="banner_offline">You are offline. Messages will be sent when you are back online.</string>
+    <string name="banner_offline">You\'re offline. We\'ll send your messages as soon as you\'re back.</string>
     <string name="banner_reconnecting">Reconnecting…</string>
-    <string name="banner_notifications">Allow notifications to hear about new messages and calls.</string>
-    <string name="banner_verify_device">This device is not verified yet. Verify it to read your encrypted history and to be trusted by your contacts.</string>
-    <string name="banner_recovery">Set up recovery so you can restore your encrypted messages on a new device.</string>
-    <string name="empty_detail_title">Select a chat</string>
-    <string name="empty_detail_body">Your conversations are end-to-end encrypted.</string>
+    <string name="banner_notifications">Turn on notifications so you don\'t miss messages and calls.</string>
+    <string name="banner_verify_device">Verify this device to read your encrypted history and let your contacts trust it.</string>
+    <string name="banner_recovery">Set up recovery so you can restore your messages on a new device.</string>
+    <string name="empty_detail_title">Pick a chat to start</string>
+    <string name="empty_detail_body">New chats are end-to-end encrypted with Matrix.</string>
 
     <!-- Room -->
     <string name="room_encrypted">End-to-end encrypted</string>
     <string name="room_not_encrypted">Not encrypted</string>
     <string name="room_not_encrypted_warning">Messages in this chat are not end-to-end encrypted. The server can read them.</string>
     <string name="room_loading">Loading…</string>
-    <string name="room_empty">No messages yet. Say hello!</string>
+    <string name="room_empty">No messages yet</string>
     <string name="room_start">This is the beginning of the conversation</string>
     <string name="room_new_messages">New</string>
-    <string name="room_not_member">You are not a member of this chat.</string>
-    <string name="room_action_failed">That did not work. Check your connection and try again.</string>
+    <string name="room_not_member">You\'re no longer in this chat.</string>
+    <string name="room_action_failed">That didn\'t work. Check your connection and try again.</string>
     <string name="room_search">Search in this chat</string>
     <string name="room_search_placeholder">Search messages</string>
     <string name="room_search_scope">Searches the messages loaded on this device (the server cannot search encrypted chats). Scroll up to load older messages.</string>
@@ -173,9 +172,9 @@
     <string name="call_start_video">Start video call</string>
     <string name="call_join_voice">Join call (voice)</string>
     <string name="call_join_video">Join call (video)</string>
-    <string name="timeline_call_active">A call is in progress</string>
-    <string name="timeline_call_ended">Call</string>
-    <string name="timeline_utd_long">Unable to decrypt this message. It may arrive later, or verify this device or use your recovery key.</string>
+    <string name="timeline_call_active">Call in progress</string>
+    <string name="timeline_call_ended">Call started</string>
+    <string name="timeline_utd_long">This message is encrypted and its key hasn\'t reached this device yet. It often arrives shortly. Verifying this device or entering your recovery key can help.</string>
     <string name="reply_unknown">Reply</string>
     <string name="message_edited">(edited)</string>
     <string name="message_actions">Message options</string>
@@ -203,7 +202,7 @@
     <string name="composer_attach_file">File</string>
     <string name="composer_editing">Editing message</string>
     <string name="composer_replying_to">Replying to %1$s</string>
-    <string name="attach_failed">The file could not be read.</string>
+    <string name="attach_failed">We couldn\'t read that file. Try picking it again.</string>
     <string name="identity_changed">%1$s\'s identity has changed. This can happen if they reset their encryption or use a new account key. Check with them before sharing anything sensitive.</string>
     <string name="identity_violation_verified">%1$s was verified, but their identity has changed. Messages to them are on hold until you decide.</string>
     <string name="identity_acknowledge">I understand</string>
@@ -229,11 +228,11 @@
     <string name="new_chat_group">Group</string>
     <string name="new_chat_encrypted_note">New chats are always end-to-end encrypted.</string>
     <string name="new_chat_search_users">Search people or enter a Matrix ID</string>
-    <string name="new_chat_no_users">No people found. You can enter a full Matrix ID such as @name:example.com.</string>
+    <string name="new_chat_no_users">No one found yet. You can also enter a full Matrix ID like @name:example.com.</string>
     <string name="new_chat_user_id">Matrix ID (@name:example.com)</string>
     <string name="new_chat_group_name">Group name</string>
     <string name="new_chat_create_group">Create encrypted group</string>
-    <string name="new_chat_failed">The chat could not be created.</string>
+    <string name="new_chat_failed">We couldn\'t create the chat. Check your connection and try again.</string>
 
     <!-- Links -->
     <string name="link_room_title">Open this chat?</string>
@@ -242,7 +241,7 @@
     <string name="link_user_title">Start a chat?</string>
     <string name="link_user_body">A link wants to start an encrypted chat with %1$s.</string>
     <string name="link_user_confirm">Start chat</string>
-    <string name="link_failed">This link could not be opened. The chat may not exist or you may not have access.</string>
+    <string name="link_failed">We couldn\'t open this link. The chat may not exist, or you may not have access.</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -318,7 +317,6 @@
     <string name="security_keystore_unknown">Device key: Android Keystore.</string>
 
     <!-- Encryption, recovery and verification -->
-    <string name="encryption_this_device">This device</string>
     <string name="encryption_device_verified">Verified</string>
     <string name="encryption_device_unverified">Not verified</string>
     <string name="encryption_device_unverified_desc">Verify with another signed-in device, or enter your recovery key.</string>
@@ -337,7 +335,7 @@
     <string name="recovery_change_key">Create a new recovery key</string>
     <string name="recovery_working">Working…</string>
     <string name="recovery_backing_up">Backing up keys: %1$d of %2$d</string>
-    <string name="recovery_error">Recovery could not be set up. Check your connection and try again.</string>
+    <string name="recovery_error">We couldn\'t set up recovery. Check your connection and try again.</string>
     <string name="recovery_key_title">Your recovery key</string>
     <string name="recovery_key_body">Write this down or save it in a password manager. It is shown only once. Anyone with this key can read your encrypted history.</string>
     <string name="recovery_key_copy">Copy</string>
@@ -345,7 +343,7 @@
     <string name="recovery_key_saved">I have saved it</string>
     <string name="recover_body">Enter the recovery key you saved when you set up recovery.</string>
     <string name="recover_key_label">Recovery key</string>
-    <string name="recover_failed">That key did not work. Check it and try again.</string>
+    <string name="recover_failed">That key didn\'t work. Check it and try again.</string>
     <string name="verify_title">Verification</string>
     <string name="verify_waiting">Accept the request on the other device…</string>
     <string name="verify_starting">Starting…</string>
@@ -355,17 +353,18 @@
     <string name="verify_compare_body">Check that the same emoji appear in the same order on the other device.</string>
     <string name="verify_match">They match</string>
     <string name="verify_no_match">They don\'t match</string>
-    <string name="verify_done_title">Verified</string>
-    <string name="verify_done_body">Verification is complete.</string>
+    <string name="verify_done_title">Verification complete</string>
+    <string name="verify_done_body">Nice work. Lumen will show this as verified from now on.</string>
     <string name="verify_failed_title">Verification stopped</string>
-    <string name="verify_failed_body">The verification was cancelled or failed. Nothing was marked as verified.</string>
+    <string name="verify_failed_body">The verification was cancelled or didn\'t finish, so nothing was marked as verified. You can try again any time.</string>
 
     <!-- Devices -->
     <string name="devices_title">Devices</string>
     <string name="devices_explain">Devices signed in to your account. Remove any you do not recognise. Removing a device signs it out and it stops receiving keys for new messages.</string>
     <string name="devices_loading">Loading devices…</string>
-    <string name="devices_failed">The device list could not be loaded.</string>
-    <string name="devices_this">this device</string>
+    <string name="devices_failed">We couldn\'t load your devices. Check your connection and try again.</string>
+    <string name="devices_this_section">This device</string>
+    <string name="devices_other_section">Other devices</string>
     <string name="devices_last_seen">last seen %1$s</string>
     <string name="devices_verification_unavailable">verification status not shown in this app</string>
     <string name="devices_remove">Remove</string>
@@ -375,7 +374,6 @@
     <string name="devices_password_needed">Removing %1$s needs your password, which this app does not ask for. Remove it from the web app instead.</string>
 
     <!-- App lock -->
-    <string name="lock_title">Lumen is locked</string>
     <string name="lock_unlock">Unlock</string>
     <string name="lock_prompt_title">Unlock Lumen</string>
     <string name="lock_prompt_subtitle">Use your fingerprint, face or screen lock</string>
@@ -384,7 +382,7 @@
     <!-- About -->
     <string name="about_title">About</string>
     <string name="about_version">Version %1$s (%2$d)</string>
-    <string name="about_server">Server</string>
+    <string name="about_version_short">Version %1$s</string>
     <string name="about_components">Components</string>
     <string name="about_sdk">Matrix Rust SDK</string>
     <string name="about_calls">Calls</string>
@@ -394,8 +392,44 @@
     <string name="about_push_none">Not included in this build</string>
     <string name="about_no_tracking">No analytics, no crash reporting</string>
     <string name="about_no_tracking_desc">This app sends nothing to third parties except push registration (when enabled).</string>
-    <string name="licenses_title">Open-source licences</string>
+    <string name="licenses_title">Third-party licences</string>
     <string name="licenses_intro">Lumen uses the Matrix Rust SDK (Apache-2.0), AndroidX and Jetpack Compose (Apache-2.0), Kotlin and kotlinx (Apache-2.0), JNA (Apache-2.0), Firebase Cloud Messaging (Apache-2.0), Inter and JetBrains Mono (SIL OFL 1.1) and Lucide icons (ISC). Bundled licence texts:</string>
+    <!-- Polish: welcome, empty states, About (Matrix) -->
+    <string name="auth_tagline">Secure messaging built on Matrix, the open standard.</string>
+    <string name="auth_new">New · Built on Matrix</string>
+    <string name="cd_mentioned">you were mentioned</string>
+    <string name="rooms_no_match_body">Try a different name or word.</string>
+    <string name="rooms_empty_action">Start a chat</string>
+    <string name="rooms_filter_empty">Nothing here yet</string>
+    <string name="rooms_filter_empty_body">Chats that match this filter will show up here.</string>
+    <string name="action_clear">Clear</string>
+    <string name="room_empty_body_encrypted">Say hello! Messages here are end-to-end encrypted.</string>
+    <string name="room_empty_body_plain">Say hello! Messages here are not end-to-end encrypted.</string>
+    <string name="room_encrypted_matrix">End-to-end encrypted with Matrix</string>
+    <string name="room_encrypted_matrix_desc">Messages and files are encrypted on each device. Only the people in this chat can read them.</string>
+    <string name="room_more">More options</string>
+    <string name="room_jump_latest">Jump to the latest message</string>
+    <string name="room_search_none">No loaded messages match your search</string>
+    <string name="room_invite_body">Join to read and send messages in this chat.</string>
+    <string name="timeline_today">Today</string>
+    <string name="timeline_yesterday">Yesterday</string>
+    <string name="lock_welcome">Welcome back</string>
+    <string name="lock_body">Lumen is locked. Unlock to continue to your chats.</string>
+    <string name="encryption_status_verified">This device is verified</string>
+    <string name="encryption_status_verified_desc">Your contacts can trust the messages you send from it.</string>
+    <string name="encryption_status_unverified">Verify this device</string>
+    <string name="recovery_enabled_desc">You can restore your encrypted messages on any new device.</string>
+    <string name="about_matrix_title">Lumen runs on Matrix</string>
+    <string name="about_matrix_body">Matrix is the open standard for secure, decentralised messaging. Lumen is built on open standards, so you are never locked in.</string>
+    <string name="about_homeserver">Homeserver</string>
+    <string name="about_matrix_id">Matrix ID</string>
+    <string name="about_device_id">Device ID</string>
+    <string name="about_encryption">Encryption</string>
+    <string name="about_encryption_value">End-to-end encrypted by default (Olm and Megolm, using vodozemac in the Matrix Rust SDK)</string>
+    <string name="about_this_device">This device</string>
+    <string name="about_federation">Your account works with people on any Matrix server, and you can also sign in with other Matrix apps.</string>
+    <string name="about_wireguard">Lumen servers include WireGuard for private administration.</string>
+
     <plurals name="cd_unread">
         <item quantity="one">%1$d unread message</item>
         <item quantity="other">%1$d unread messages</item>

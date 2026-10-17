@@ -24,7 +24,8 @@ LUCIDE_REACT = ROOT / "services" / "chat" / "node_modules" / "lucide-react" / "d
 OUT = Path(__file__).resolve().parents[1] / "app" / "src" / "main" / "res" / "drawable"
 
 ICONS = [
-    "arrow-left", "ban", "bell", "bluetooth", "check", "check-check", "circle-alert", "clock", "cloud-off",
+    "arrow-left", "ban", "bell", "bluetooth", "check", "check-check", "chevron-down", "chevron-right", "circle-alert",
+    "circle-check", "clock", "cloud-off", "fingerprint", "globe", "server", "sparkles",
     "copy", "download", "ear", "external-link", "eye-off", "file", "headphones", "image", "info",
     "key-round", "laptop", "lock", "log-out", "message-circle", "messages-square", "more-horizontal",
     "paperclip", "pencil", "phone", "phone-incoming", "phone-off", "picture-in-picture-2", "plus",

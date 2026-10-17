@@ -1,5 +1,19 @@
 package io.lumen.secure.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import io.lumen.secure.ui.components.RowEnd
+import io.lumen.secure.ui.components.SettingsGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,8 +53,6 @@ import io.lumen.secure.matrix.MatrixSession
 import io.lumen.secure.ui.components.Avatar
 import io.lumen.secure.ui.components.Banner
 import io.lumen.secure.ui.components.BannerKind
-import io.lumen.secure.ui.components.CenteredState
-import io.lumen.secure.ui.components.SectionHeader
 import io.lumen.secure.ui.components.SettingRow
 import io.lumen.secure.ui.nav.NavViewModel
 import io.lumen.secure.ui.nav.Screen
@@ -49,7 +61,7 @@ import kotlinx.coroutines.launch
 import org.matrix.rustcomponents.sdk.MembershipState
 import org.matrix.rustcomponents.sdk.RoomMember
 
-private data class MemberUi(val userId: String, val name: String, val invited: Boolean, val ignored: Boolean, val verified: Boolean?)
+data class MemberUi(val userId: String, val name: String, val invited: Boolean, val ignored: Boolean, val verified: Boolean?)
 
 @Composable
 fun RoomInfoScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, roomId: String) {
@@ -91,41 +103,26 @@ fun RoomInfoScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, r
         }
     }
 
-    DetailScaffold(stringResource(R.string.room_info_title), onBack = { nav.pop() }) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Avatar(roomName.ifEmpty { "?" }, size = 64.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(roomName, style = MaterialTheme.typography.titleLarge, color = c.text)
-            topic?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
-        }
-        if (!encrypted) Banner(stringResource(R.string.room_not_encrypted_warning), BannerKind.WARNING, R.drawable.ic_lucide_shield_alert)
-        if (error) Banner(stringResource(R.string.room_action_failed), BannerKind.DANGER, R.drawable.ic_lucide_circle_alert)
-        SettingRow(stringResource(R.string.room_invite), icon = R.drawable.ic_lucide_user_plus, onClick = { inviteOpen = true })
-        SettingRow(stringResource(R.string.room_leave), icon = R.drawable.ic_lucide_log_out, onClick = { confirmLeave = true })
-        SectionHeader(stringResource(R.string.room_members, members?.size ?: 0))
-        val list = members
-        if (list == null) {
-            CenteredState(stringResource(R.string.room_loading), loading = true)
-        } else {
-            list.forEach { m ->
-                MemberRow(
-                    m, isSelf = m.userId == session.userId,
-                    onVerify = { encryption?.verifyUser(m.userId) },
-                    onMessage = { scope.launch { try { nav.openRoom(DirectChats.open(session, m.userId)) } catch (e: Exception) { error = true } } },
-                    onIgnore = {
-                        scope.launch {
-                            try {
-                                if (m.ignored) session.client.unignoreUser(m.userId) else session.client.ignoreUser(m.userId)
-                                reload++
-                            } catch (e: Exception) {
-                                error = true
-                            }
-                        }
-                    },
-                )
-            }
-        }
-    }
+    RoomInfoContent(
+        name = roomName, topic = topic, encrypted = encrypted, error = error, members = members, selfUserId = session.userId,
+        actions = RoomInfoActions(
+            onBack = { nav.pop() },
+            onInvite = { inviteOpen = true },
+            onLeave = { confirmLeave = true },
+            onVerify = { m -> encryption?.verifyUser(m.userId) },
+            onMessage = { m -> scope.launch { try { nav.openRoom(DirectChats.open(session, m.userId)) } catch (e: Exception) { error = true } } },
+            onIgnore = { m ->
+                scope.launch {
+                    try {
+                        if (m.ignored) session.client.unignoreUser(m.userId) else session.client.ignoreUser(m.userId)
+                        reload++
+                    } catch (e: Exception) {
+                        error = true
+                    }
+                }
+            },
+        ),
+    )
 
     if (inviteOpen) {
         var userId by remember { mutableStateOf("") }
@@ -170,15 +167,77 @@ fun RoomInfoScreen(graph: AppGraph, session: MatrixSession, nav: NavViewModel, r
     }
 }
 
+class RoomInfoActions(
+    val onBack: () -> Unit = {},
+    val onInvite: () -> Unit = {},
+    val onLeave: () -> Unit = {},
+    val onVerify: (MemberUi) -> Unit = {},
+    val onMessage: (MemberUi) -> Unit = {},
+    val onIgnore: (MemberUi) -> Unit = {},
+)
+
+@Composable
+fun RoomInfoContent(
+    name: String,
+    topic: String?,
+    encrypted: Boolean,
+    error: Boolean,
+    members: List<MemberUi>?,
+    selfUserId: String,
+    actions: RoomInfoActions,
+) {
+    val c = MaterialTheme.lumenColors
+    DetailScaffold(stringResource(R.string.room_info_title), onBack = actions.onBack) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Avatar(name.ifEmpty { "?" }, size = 88.dp, ring = true)
+            Spacer(Modifier.height(12.dp))
+            Text(name, style = MaterialTheme.typography.headlineSmall, color = c.text, textAlign = TextAlign.Center, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            topic?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = c.textMuted, textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (error) Banner(stringResource(R.string.room_action_failed), BannerKind.DANGER, R.drawable.ic_lucide_circle_alert)
+        SettingsGroup {
+            if (encrypted) {
+                SettingRow(stringResource(R.string.room_encrypted_matrix), stringResource(R.string.room_encrypted_matrix_desc), R.drawable.ic_lucide_lock, tint = c.success)
+            } else {
+                SettingRow(stringResource(R.string.room_not_encrypted), stringResource(R.string.room_not_encrypted_warning), R.drawable.ic_lucide_shield_alert, tint = c.warning)
+            }
+        }
+        SettingsGroup {
+            SettingRow(stringResource(R.string.room_invite), icon = R.drawable.ic_lucide_user_plus, onClick = actions.onInvite)
+            SettingRow(stringResource(R.string.room_leave), icon = R.drawable.ic_lucide_log_out, onClick = actions.onLeave, tint = c.danger, end = RowEnd.NONE)
+        }
+        SettingsGroup(stringResource(R.string.room_members, members?.size ?: 0)) {
+            if (members == null) {
+                val label = stringResource(R.string.room_loading)
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = c.accent, strokeWidth = 3.dp, modifier = Modifier.size(28.dp).semantics { contentDescription = label })
+                }
+            } else {
+                members.forEach { m ->
+                    MemberRow(
+                        m, isSelf = m.userId == selfUserId,
+                        onVerify = { actions.onVerify(m) },
+                        onMessage = { actions.onMessage(m) },
+                        onIgnore = { actions.onIgnore(m) },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun MemberRow(m: MemberUi, isSelf: Boolean, onVerify: () -> Unit, onMessage: () -> Unit, onIgnore: () -> Unit) {
     val c = MaterialTheme.lumenColors
     var menu by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Avatar(m.name, size = 36.dp)
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Avatar(m.name, size = 40.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(m.name, style = MaterialTheme.typography.bodyLarge, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(m.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 listOfNotNull(
                     m.userId,
@@ -189,11 +248,20 @@ private fun MemberRow(m: MemberUi, isSelf: Boolean, onVerify: () -> Unit, onMess
             )
         }
         when (m.verified) {
-            true -> Icon(painterResource(R.drawable.ic_lucide_shield_check), stringResource(R.string.member_verified), tint = c.success)
-            false -> Icon(painterResource(R.drawable.ic_lucide_shield), stringResource(R.string.member_not_verified), tint = c.textSubtle)
+            true -> Row(
+                Modifier.clip(CircleShape).background(c.successSoft).padding(horizontal = 8.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(painterResource(R.drawable.ic_lucide_shield_check), null, tint = c.success, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(R.string.member_verified), style = MaterialTheme.typography.labelSmall, color = c.success)
+            }
+            false -> Icon(painterResource(R.drawable.ic_lucide_shield), stringResource(R.string.member_not_verified), tint = c.textSubtle, modifier = Modifier.size(18.dp))
             null -> Unit
         }
-        if (!isSelf) {
+        if (isSelf) {
+            Spacer(Modifier.width(12.dp))
+        } else {
             IconButton(onClick = { menu = true }) { Icon(painterResource(R.drawable.ic_lucide_more_horizontal), stringResource(R.string.member_actions, m.name)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(stringResource(R.string.member_message)) }, onClick = { menu = false; onMessage() })
