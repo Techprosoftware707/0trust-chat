@@ -8,25 +8,30 @@ Status values:
   built for iOS or run on a simulator or device yet.
 - **not implemented**.
 
-Current state (2026-10-15):
+Current state (2026-10-17):
 
-- **CI** ([run 38706433166](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38706433166),
-  commit cbd9cec, Xcode 26.3; first green run 38700890640, raw excerpt in
-  `docs/test-results/ios-ci.txt`):
+- **CI** ([run 38993174644](https://github.com/Techprosoftware707/0trust-chat/actions/runs/38993174644),
+  commit cd851f0, Xcode 26.3; raw excerpt in
+  `docs/test-results/final-sweep/ios-ci.txt`):
   - the app and the NSE build for the simulator with no compiler warnings,
     with the call widget (`services/chat/dist-widget`) bundled;
   - the unsigned Release archive builds;
   - on an iPhone 17 Pro and an iPad Pro 13-inch (M5) simulator (iOS 26.2),
-    all 78 unit tests pass on each: the 71 LumenCore tests (incl.
-    `apps/shared/test-vectors` and the native MSC4533/MSC4515 interception)
-    and 7 app-level tests against the SDK;
+    all 80 unit tests pass on each: the 71 LumenCore tests (incl.
+    `apps/shared/test-vectors` and the native MSC4533/MSC4515 interception),
+    7 app-level tests against the SDK, and 2 that build the sign-in client
+    against real public servers (`SdkTlsTests`: a trusted certificate works,
+    a self-signed one is refused). Their first run found that sign-in could
+    never work (the SDK refused to build the client: no session delegate
+    with the multi-process lock); fixed;
   - the launch UI test passes;
   - the discovery UI test was skipped: no `LUMEN_UITEST_SERVER`.
 - **Linux** (`docs/test-results/ios-linux-check.txt`): the same LumenCore
   tests pass, and the Matrix layer type-checks against the real SDK
   bindings with warnings as errors.
-- **Nothing has run on a device**, and no test has talked to a real Matrix
-  server yet.
+- **Nothing has run on a device.** The only server contact is building the
+  sign-in client against matrix.org (no account); no test has signed in to a
+  Lumen server from the app.
 - So a row is **implemented** only where its whole behaviour is pure logic
   covered by those tests. Rows that need a server, a device or a person
   remain **implemented-unverified** even though they build.
@@ -39,7 +44,7 @@ Current state (2026-10-15):
 | Discovery: well-known, `io.lumen.app`, `/versions`, `/login`, sliding-sync check | implemented-unverified | Parser and service unit-tested with a fake HTTP client, incl. shared vectors; not yet run against a real server (UI test needs `LUMEN_UITEST_SERVER`) |
 | URL policy (https only, no user-info, loopback http in Debug only) | implemented | Shared vectors pass on iOS simulators and Linux |
 | SSO callback nonce check | implemented | Unit-tested incl. shared vectors |
-| SSO via `ASWebAuthenticationSession` + `startSsoLogin` / `SsoHandler.finish` | implemented-unverified | Builds; not yet run against a server |
+| SSO via `ASWebAuthenticationSession` + `startSsoLogin` / `SsoHandler.finish` | implemented-unverified | The sign-in client is built against a real server in CI (`SdkTlsTests`); the browser step and the login itself have not run against a Lumen server |
 | Password login | not implemented | Lumen servers are SSO-only; the app explains this on password-only servers |
 | Sign-up in Safari view (`signup_url`) | implemented-unverified | |
 | Session in Keychain (AfterFirstUnlockThisDeviceOnly, shared group) | implemented-unverified | |
