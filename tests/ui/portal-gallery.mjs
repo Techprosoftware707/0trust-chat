@@ -515,6 +515,12 @@ for (const [name, who, target] of pages()) {
   }
   try {
     await gotoPage(page, url);
+    if (who !== "anon" && /\/accounts\/login\//.test(page.url())) {
+      // The console ends sessions after 30 idle minutes; sign in again and retry.
+      await signIn(page, who === "op" ? ops : site, state[who]);
+      saveState();
+      await gotoPage(page, url);
+    }
     if (/\/accounts\/reauthenticate\//.test(page.url())) {
       await passReauth(page, state[who].password);
       await gotoPage(page, url);
@@ -577,6 +583,10 @@ await special("auth-reauthenticate", async () => {
 await special("ops-recovery-link", async () => {
   const page = await pageFor("op");
   await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
+  if (/\/accounts\/login\//.test(page.url())) {
+    await signIn(page, ops, state.op);
+    await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
+  }
   await page.locator(`a:has-text("${state.member.username}")`).first().click();
   await page.waitForLoadState("domcontentloaded");
   page.once("dialog", (d) => d.accept());
@@ -590,6 +600,10 @@ await special("ops-recovery-link", async () => {
 await special("ops-calls-selftest", async () => {
   const page = await pageFor("op");
   await page.goto(ops + "/ops/calls/");
+  if (/\/accounts\/login\//.test(page.url())) {
+    await signIn(page, ops, state.op);
+    await page.goto(ops + "/ops/calls/");
+  }
   await submit(page, 'main form button:has-text("Run media self-test")');
   await passReauth(page, state.op.password);
   await page.locator(".alert").first().waitFor({ timeout: 120000 });
@@ -615,7 +629,11 @@ for (const r of results) {
   if (r.focus?.length) { totals.focus += r.focus.length; rows.push(`- no visible focus: ${r.focus.join("; ")}`); }
   if (rows.length) lines.push(`## ${r.page}`, "", ...rows, "");
 }
-lines.splice(3, 0, `Totals: ${Object.entries(totals).map(([k, v]) => `${k} ${v}`).join(" · ")}`, "", problems.length ? `Console/CSP/HTTP problems: ${problems.length}\n\n${[...new Set(problems)].map((p) => `- ${p}`).join("\n")}\n` : "Console/CSP/HTTP problems: none", "");
+// The error pages under test (403/404/429/500) answer with those statuses on purpose.
+const expected = (p) => /status of (403|404|429|500)\b|__gallery__\/500$/.test(p);
+const real = [...new Set(problems.filter((p) => !expected(p)))];
+const expectedCount = problems.filter(expected).length;
+lines.splice(3, 0, `Totals: ${Object.entries(totals).map(([k, v]) => `${k} ${v}`).join(" · ")}`, "", real.length ? `Console/CSP/HTTP problems: ${real.length}\n\n${real.map((p) => `- ${p}`).join("\n")}\n` : "Console/CSP/HTTP problems: none", `(${expectedCount} expected error statuses from the 403/404/429/500 pages themselves are not counted.)`, "");
 fs.writeFileSync(path.join(OUT, "audit.md"), lines.join("\n"));
 log(`\n${lines.slice(0, 6).join("\n")}`);
 }

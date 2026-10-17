@@ -32,7 +32,8 @@
       <div class="auth-mobile-brand">{% include "includes/brand.html" %}</div>
       {% include "includes/messages.html" %}
       {% block content %}{% endblock %}
-      <nav class="auth-foot" aria-label="Helpful links">{% if lumen.surface != "ops" %}<a href="/">{% icon "arrow-left" %} {{ brand.short_name }} home</a><a href="{% url 'site:privacy' %}">Privacy</a><a href="{% url 'site:terms' %}">Terms</a><a href="{% url 'site:contact' %}?topic=support">Help</a>{% else %}<a href="{% url 'account_login' %}">{% icon "log-in" %} Operator sign-in</a>{% endif %}</nav>
+      {% if lumen.surface != "ops" %}<nav class="auth-foot" aria-label="Helpful links"><a href="/">{% icon "arrow-left" %} {{ brand.short_name }} home</a><a href="{% url 'site:privacy' %}">Privacy</a><a href="{% url 'site:terms' %}">Terms</a><a href="{% url 'site:contact' %}?topic=support">Help</a></nav>
+      {% else %}<p class="auth-foot subtle mb-0">{% icon "lock" %} Private operator console · Lumen {{ lumen.version }}</p>{% endif %}
     </div>
   </main>
 </div>

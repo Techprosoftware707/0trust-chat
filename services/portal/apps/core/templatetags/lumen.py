@@ -144,3 +144,14 @@ def seconds_ago(value):
         return f"{s // 3600} h"
     days = s // 86400
     return f"{days} day{'s' if days != 1 else ''}"
+
+
+@register.filter
+def join_lines(items):
+    """One item per line (for a textarea). Django template tags can't span lines, so
+    `join:"<newline>"` does not work; the result is still auto-escaped."""
+    if not items:
+        return ""
+    if isinstance(items, str):
+        return items
+    return "\n".join(str(i) for i in items)

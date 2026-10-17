@@ -317,6 +317,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm);
 .table a { font-weight: 600; text-decoration: none; }
 .table a:hover { text-decoration: underline; }
 .table .actions { text-align: right; white-space: nowrap; }
+.table td.break { min-width: 12rem; }
+.table td.mono.break { max-width: 32rem; }
 .table td .icon { color: var(--text-subtle); }
 .table td .badge .icon, .table td .event-label .icon { color: inherit; }
 .event-label { display: inline-flex; align-items: center; gap: 0.55rem; }
@@ -647,7 +649,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm);
 .sidebar nav a[aria-current="page"] { background: var(--accent-soft); color: var(--ui-accent-fg); font-weight: 620; }
 .sidebar nav a[aria-current="page"] > .icon:first-child { color: var(--ui-accent-fg); }
 .sidebar-foot { margin-top: auto; display: grid; gap: var(--space-2); font-size: var(--text-sm); }
-.sidebar-foot .cluster { gap: var(--space-2); }
+.sidebar-foot .cluster { gap: 2px; flex-wrap: nowrap; }
+.sidebar-foot .btn-ghost.btn-sm { padding-inline: 0.6rem; }
+.sidebar-foot .cluster form { display: flex; }
 .sidebar-close { display: none; }
 .user-chip { display: flex; gap: var(--space-3); align-items: center; padding: 0.65rem 0.75rem; border: 1px solid var(--ui-card-border); border-radius: var(--radius-md); background: var(--surface); min-width: 0; }
 .user-chip .break { min-width: 0; }
@@ -661,6 +665,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm);
 .app-main .card h3 { font-size: 0.9375rem; font-weight: 650; letter-spacing: -0.01em; margin-bottom: var(--space-2); }
 .app-main .card-header h2, .app-main .card-header h3 { margin-bottom: 0; }
 .app-main .card.stack > h2 + *, .app-main .card.stack-sm > h2 + * { margin-top: var(--space-2); }
+.app-main .card > .list-rows + h3, .app-main .card > dl + h3, .app-main .card > .list-rows + h2 { margin-top: var(--space-5); }
 .app-topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; padding-bottom: var(--space-1); }
 .app-topbar > div:first-child { min-width: 0; flex: 1 1 22rem; }
 .app-topbar h1 { font-size: clamp(1.5rem, 1.35rem + 0.6vw, 1.875rem); letter-spacing: -0.028em; margin-bottom: var(--space-1); overflow-wrap: anywhere; }

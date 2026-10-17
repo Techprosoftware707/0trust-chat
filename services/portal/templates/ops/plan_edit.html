@@ -25,8 +25,7 @@
       {% if is_bool %}<label class="checkbox"><input type="checkbox" name="ent_{{ key }}" {% if value %}checked{% endif %}> <span>{{ label }}</span></label>
       {% else %}<div class="field"><label for="ent_{{ key }}">{{ label }}</label><input id="ent_{{ key }}" name="ent_{{ key }}" type="number" min="0" value="{{ value|default_if_none:0 }}" required></div>{% endif %}
     {% endfor %}
-    <div class="field"><label for="features">Marketing bullet points (one per line)</label><textarea id="features" name="features" rows="6">{{ plan.features|join:"
-" }}</textarea></div>
+    <div class="field"><label for="features">Marketing bullet points (one per line)</label><textarea id="features" name="features" rows="6">{{ plan.features|join_lines }}</textarea></div>
   </section>
 </div>
 <div class="form-actions"><button class="btn btn-primary" type="submit">Save plan</button><a class="btn btn-ghost" href="{% url 'ops:plans' %}">Cancel</a></div>

@@ -185,3 +185,16 @@ class TestFilters:
         assert seconds_ago(12) == "12 s" and seconds_ago(600) == "10 min" and seconds_ago(7200) == "2 h" and seconds_ago(86400) == "1 day"
         assert count_where([{"a": True}, {"a": False}, {}], "a") == 1
         assert isodate("2026-10-17T00:22:33Z").year == 2026 and isodate("not a date") == "not a date" and isodate("") == ""
+
+
+class TestPlanEditor:
+    def test_marketing_bullets_are_one_per_line(self):
+        from apps.billing.models import Plan
+
+        plan = Plan.objects.exclude(features=[]).first()
+        assert plan is not None
+        admin = make_user("plan-admin", staff_role="owner", mfa=True)
+        html = ops_client(admin).get(f"/ops/plans/{plan.pk}/").content.decode()
+        assert "plan.features" not in html  # the template tag must not leak into the textarea
+        body = html.split('name="features"', 1)[1].split("</textarea>", 1)[0]
+        assert body.split(">", 1)[1].splitlines()[0].strip() == str(plan.features[0]).replace("&", "&amp;").replace("'", "&#x27;").replace('"', "&quot;")
