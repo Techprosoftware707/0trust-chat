@@ -10,6 +10,7 @@ import {
   type MatrixEvent,
   type Room,
 } from "matrix-js-sdk";
+import { DecryptionFailureCode } from "matrix-js-sdk/lib/crypto-api/index.js";
 import { parseMessage, stripReplyFallback, toPlainText } from "../lib/markdown";
 import { unseenMissedCall } from "../calls/history";
 
@@ -73,7 +74,10 @@ export function lastMessageEvent(room: Room): MatrixEvent | undefined {
 export function previewText(ev: MatrixEvent | undefined, myUserId: string): string {
   if (!ev) return "";
   if (ev.isRedacted()) return "Message deleted";
-  if (ev.isDecryptionFailure()) return "Unable to decrypt message";
+  if (ev.isDecryptionFailure()) {
+    // Calm and true: the key may still arrive (unknown session), otherwise it's just encrypted.
+    return ev.decryptionFailureReason === DecryptionFailureCode.MEGOLM_UNKNOWN_INBOUND_SESSION_ID ? "Encrypted message · waiting for its key" : "Encrypted message";
+  }
   if (ev.isEncrypted() && ev.isBeingDecrypted()) return "Decrypting…";
   if (ev.getType() === EventType.RoomMessageEncrypted) return "Encrypted message";
   const c = ev.getContent() as { msgtype?: string; body?: unknown };
@@ -106,6 +110,8 @@ export interface RoomSummary {
   unread: number;
   highlight: number;
   preview: string;
+  /** the preview stands for an encrypted message this device can't show (yet) */
+  previewEncrypted: boolean;
   inviter: string | null;
   /** the latest call here was missed and not seen yet */
   missedCall: { video: boolean; ts: number } | null;
@@ -136,6 +142,7 @@ export function summarise(client: MatrixClient): RoomSummary[] {
       unread: room.getUnreadNotificationCount(NotificationCountType.Total) ?? 0,
       highlight: room.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
       preview: previewText(last, me),
+      previewEncrypted: !!last?.isDecryptionFailure(),
       inviter,
       missedCall: missedCallOf(client, room, me),
     });

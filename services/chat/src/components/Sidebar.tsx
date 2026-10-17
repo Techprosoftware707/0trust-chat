@@ -1,6 +1,9 @@
 import { useId, useMemo, useState } from "react";
 import {
   Check,
+  ChevronRight,
+  KeyRound,
+  LockKeyhole,
   LogOut,
   PhoneCall,
   PhoneMissed,
@@ -76,7 +79,10 @@ function RoomListItem({ s, active }: { s: RoomSummary; active: boolean }) {
                 <PhoneMissed aria-hidden="true" /> Missed {s.missedCall.video ? "video call" : "call"}
               </span>
             ) : (
-              <span className="room-preview">{s.preview || (s.isDm ? "Direct message" : "Group")}</span>
+              <span className={`room-preview${s.previewEncrypted ? " encrypted" : ""}`}>
+                {s.previewEncrypted ? <LockKeyhole aria-hidden="true" /> : null}
+                {s.preview || (s.isDm ? "Direct message" : "Group")}
+              </span>
             )}
             {s.unread > 0 ? (
               <span className={`unread-badge${s.highlight > 0 ? " highlight" : ""}`} aria-hidden="true">
@@ -147,19 +153,22 @@ function SecurityNudge() {
   const ui = useUi();
   const { next, loading } = ui.security;
   if (loading || next === "ok" || next === "unknown") return null;
+  // Setting up a backup is a good next step, not an emergency: a calm card with a clear action.
+  // An unverified device can't read earlier messages yet, so that one is a (gentle) warning.
   const text =
     next === "setup"
-      ? { title: "Set up secure backup", body: "Protect your encrypted messages with a recovery key.", action: () => ui.openDialog({ type: "setup-recovery", mode: "setup" }) }
+      ? { tone: "info", icon: <KeyRound aria-hidden="true" />, title: "Set up secure backup", body: "Keep your messages safe with a recovery key.", action: () => ui.openDialog({ type: "setup-recovery", mode: "setup" }) }
       : next === "verify"
-        ? { title: "Verify this device", body: "Confirm it's you to read your earlier encrypted messages.", action: () => ui.openDialog({ type: "verify-device" }) }
-        : { title: "Finish secure backup", body: "Your message keys aren't backed up yet.", action: () => ui.openDialog({ type: "settings", tab: "security" }) };
+        ? { tone: "warn", icon: <ShieldAlert aria-hidden="true" />, title: "Verify this device", body: "Confirm it's you to read your earlier messages.", action: () => ui.openDialog({ type: "verify-device" }) }
+        : { tone: "info", icon: <KeyRound aria-hidden="true" />, title: "Finish secure backup", body: "Your message keys aren't backed up yet.", action: () => ui.openDialog({ type: "settings", tab: "security" }) };
   return (
-    <button type="button" className="security-nudge" onClick={text.action}>
-      <ShieldAlert aria-hidden="true" />
-      <span>
+    <button type="button" className={`security-nudge ${text.tone}`} onClick={text.action}>
+      <span className="security-nudge-icon">{text.icon}</span>
+      <span className="security-nudge-text">
         <strong>{text.title}</strong>
         <span>{text.body}</span>
       </span>
+      <ChevronRight aria-hidden="true" className="security-nudge-go" />
     </button>
   );
 }
@@ -275,16 +284,35 @@ export function Sidebar({ summaries, activeRoomId, onSignOut }: { summaries: Roo
           </section>
         ) : null}
         {totalJoined === 0 ? (
-          <div className="list-empty">
-            <MessageSquarePlus aria-hidden="true" />
-            <p>No conversations yet.</p>
-            <button type="button" className="btn btn-sm btn-primary" onClick={() => ui.openDialog({ type: "new-dm" })}>
-              Start one
-            </button>
-          </div>
+          invites.length ? null : (
+            <div className="list-empty">
+              <span className="empty-art" aria-hidden="true">
+                <MessageSquarePlus />
+              </span>
+              <p className="list-empty-title">No conversations yet</p>
+              <p>Say hello to someone — every new conversation is end-to-end encrypted.</p>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => ui.openDialog({ type: "new-dm" })}>
+                New message
+              </button>
+            </div>
+          )
         ) : joined.length === 0 ? (
           <div className="list-empty">
-            <p>No conversations match.</p>
+            <span className="empty-art" aria-hidden="true">
+              <Search />
+            </span>
+            <p className="list-empty-title">Nothing matches</p>
+            <p>Try another name, or show all conversations.</p>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => {
+                setQuery("");
+                setFilter("all");
+              }}
+            >
+              Show all
+            </button>
           </div>
         ) : (
           <ul className="room-list list-plain">

@@ -142,7 +142,7 @@ export function RoomInfoPanel({ roomId, onClose }: { roomId: string; onClose: ()
             <p className="enc-title">{encrypted ? "End-to-end encrypted" : encrypted === false ? "Not encrypted" : "Checking encryption…"}</p>
             <p className="small muted">
               {encrypted
-                ? "Messages and files are encrypted on each device. Only the devices of the people here can read them — not the server."
+                ? "Messages and files are encrypted on each device with Matrix's Olm/Megolm encryption. Only the devices of the people here can read them — not the server."
                 : encrypted === false
                   ? "The server can read messages and files in this conversation."
                   : ""}

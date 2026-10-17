@@ -112,7 +112,7 @@ export function CallTile({ p, large, screen, avatarMxc }: { p: CallParticipant; 
   const label = screen ? `${p.name}'s screen` : p.isLocal ? `${p.name} (you)` : p.name;
   return (
     <figure
-      className={`call-tile${large ? " large" : ""}${screen ? " screen" : ""}${p.speaking && !screen ? " speaking" : ""}${p.pending ? " pending" : ""}${p.encryption === "unknown" ? " unknown" : ""}`}
+      className={`call-tile${large ? " large" : ""}${screen ? " screen" : ""}${track ? " has-video" : ""}${p.speaking && !screen ? " speaking" : ""}${p.pending ? " pending" : ""}${p.encryption === "unknown" ? " unknown" : ""}`}
       data-identity={p.identity}
       data-participant={p.userId ?? ""}
       data-encryption={p.encryption}

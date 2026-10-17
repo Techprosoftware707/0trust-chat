@@ -73,5 +73,11 @@ export function buildMenu(a: MenuActions): void {
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-  app.setAboutPanelOptions({ applicationName: brand, applicationVersion: app.getVersion(), copyright: "AGPL-3.0-or-later" });
+  app.setAboutPanelOptions({
+    applicationName: brand,
+    applicationVersion: app.getVersion(),
+    copyright: "AGPL-3.0-or-later",
+    // macOS and Windows show this under the version
+    credits: `${brand} runs on Matrix, the open standard for secure, decentralised messaging. Conversations are end-to-end encrypted by default.`,
+  });
 }

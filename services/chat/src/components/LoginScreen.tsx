@@ -1,3 +1,4 @@
+import { securityPageUrl } from "./settings/AboutTab";
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { ArrowLeft, ExternalLink, Fingerprint, Info, KeyRound, LockKeyhole, LogIn, Server, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import type { LoginResponse } from "matrix-js-sdk";
@@ -159,6 +160,8 @@ export function LoginScreen({ config, notice, noticeKind = "info", onLoggedIn }:
     !!config.sso &&
     (defaultOptions === null || defaultOptions.sso.some((p) => p.id === config.sso!.idpId || p.id === null));
 
+  const securityPage = securityPageUrl(config.portalUrl);
+
   const lookup = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -208,8 +211,22 @@ export function LoginScreen({ config, notice, noticeKind = "info", onLoggedIn }:
           </div>
           {mode === "default" ? (
             <>
-              <h1>Sign in</h1>
+              <h1>Welcome back</h1>
               <p className="muted">Sign in to {config.brand.name} to continue to your conversations.</p>
+              <p className="auth-matrix small">
+                <span className="auth-new">New</span>
+                <span>
+                  Secure messaging built on Matrix, the open standard.
+                  {securityPage ? (
+                    <>
+                      {" "}
+                      <a href={securityPage} target="_blank" rel="noopener noreferrer">
+                        Learn more
+                      </a>
+                    </>
+                  ) : null}
+                </span>
+              </p>
               <DesktopStorageNotice />
               {notice ? (
                 <div className={`alert ${noticeKind === "error" ? "alert-danger" : "alert-info"}`} role={noticeKind === "error" ? "alert" : "status"}>

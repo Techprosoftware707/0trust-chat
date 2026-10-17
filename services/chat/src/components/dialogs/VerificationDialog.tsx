@@ -249,10 +249,13 @@ export function VerificationDialog({ request, onClose }: { request: Verification
   } else if (phase === VerificationPhase.Done) {
     body = (
       <div className="verify-state">
-        <BadgeCheck className="verify-icon ok" aria-hidden="true" />
+        <BadgeCheck className="verify-icon ok celebrate" aria-hidden="true" />
         <p role="status">
           {request.isSelfVerification ? (
-            <>This device is verified. Your encryption keys will be shared with it from your other device.</>
+            <>
+              <strong className="verify-headline">Nicely done.</strong> This device is verified. Your encryption keys will be shared with it from your other
+              device.
+            </>
           ) : (
             <>
               <strong>{otherName}</strong> is verified. Messages from their verified devices will show a green shield.

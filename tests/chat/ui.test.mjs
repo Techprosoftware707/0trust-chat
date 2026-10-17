@@ -513,7 +513,8 @@ test("new device: history is unreadable until verified with the recovery key, th
   await p.getByRole("heading", { name: "Verify this device" }).waitFor({ timeout: T });
   await p.getByRole("button", { name: "Later" }).click();
   await p.locator(".room-item", { hasText: "Grace Hopper" }).click();
-  await p.getByText("Unable to decrypt this message").first().waitFor({ timeout: T });
+  // calm wording: the key isn't on this device; verifying it restores the history from the backup
+  await p.locator(".msg-utd").first().waitFor({ timeout: T });
   await shot(p, "desktop-light-new-device-utd");
   await p.getByRole("button", { name: /Verify this device/ }).first().click();
   await p.getByRole("button", { name: /Use your recovery key/ }).click();

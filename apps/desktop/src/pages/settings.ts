@@ -107,6 +107,10 @@ function render(v: View) {
   $("update-check").hidden = ["disabled", "checking", "downloading", "downloaded"].includes(v.update.status);
   $("update-install").hidden = v.update.status !== "downloaded";
   $("about").textContent = `${v.brand.name} desktop ${v.appVersion} · Electron ${v.electronVersion}${v.packaged ? "" : " · development build"}`;
+  const short = v.brand.shortName;
+  $("about-matrix").textContent =
+    `${short} runs on Matrix, the open standard for secure, decentralised messaging. Conversations are end-to-end encrypted by default, you verify people and devices by comparing emoji, and your key backup opens only with your recovery key. Because it's Matrix, there's no lock-in: you can talk with people on other Matrix servers and use other Matrix apps such as Element.`;
+  $("about-wireguard").textContent = `${short} servers include WireGuard for private administration of the server. Your chats don't travel through it: they're protected end to end by Matrix.`;
 }
 
 $<HTMLFormElement>("pin-form").addEventListener("submit", (e) => {

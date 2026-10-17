@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { EventTimeline, KnownMembership, MatrixEventEvent, RoomEvent, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { History, LockKeyhole, Search, Server, X } from "lucide-react";
+import { History, LockKeyhole, Search, Server, X, SearchX } from "lucide-react";
 import { useMatrix } from "../matrix/context";
 import { isMessageEvent } from "../matrix/rooms";
 import { formatListTimestamp } from "../lib/format";
@@ -183,6 +183,15 @@ export function SearchPanel({ onClose, currentRoomId }: { onClose: () => void; c
           <p className="form-error" role="alert">
             Server search failed: {serverError}
           </p>
+        ) : null}
+        {term.trim().length >= 2 && merged.length === 0 && !serverBusy ? (
+          <div className="list-empty search-empty">
+            <span className="empty-art" aria-hidden="true">
+              <SearchX />
+            </span>
+            <p className="list-empty-title">No matches yet</p>
+            <p>{canLoadMore ? "Try other words, or load more history to search further back." : "Try other words or the other conversations."}</p>
+          </div>
         ) : null}
         <ul className="list-plain search-results">
           {merged.map((h) => (

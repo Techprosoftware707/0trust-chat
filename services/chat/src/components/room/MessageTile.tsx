@@ -12,10 +12,12 @@ import {
   Check,
   CheckCheck,
   Clock,
-  Lock,
+  Hourglass,
+  LockKeyhole,
   Pencil,
   Reply,
   RotateCcw,
+  ShieldAlert,
   SmilePlus,
   Trash2,
   TriangleAlert,
@@ -34,23 +36,69 @@ import { Attachment } from "./Attachment";
 import { EncryptionShield, isPendingLocal } from "./EncryptionShield";
 import { MessageBody } from "./MessageBody";
 
-const UTD_HINTS: Partial<Record<DecryptionFailureCode, string>> = {
-  [DecryptionFailureCode.MEGOLM_UNKNOWN_INBOUND_SESSION_ID]:
-    "The sender's device hasn't shared the key for this message with this device yet. It often arrives shortly.",
-  [DecryptionFailureCode.OLM_UNKNOWN_MESSAGE_INDEX]: "This device received the key only for later messages in this conversation.",
-  [DecryptionFailureCode.HISTORICAL_MESSAGE_NO_KEY_BACKUP]:
-    "This message was sent before this device signed in, and there is no key backup to restore it from.",
-  [DecryptionFailureCode.HISTORICAL_MESSAGE_BACKUP_UNCONFIGURED]:
-    "Sent before this device signed in. Verify this device or enter your recovery key to restore your key backup.",
-  [DecryptionFailureCode.HISTORICAL_MESSAGE_WORKING_BACKUP]: "Your key backup doesn't contain the key for this message.",
-  [DecryptionFailureCode.HISTORICAL_MESSAGE_USER_NOT_JOINED]: "You can't read this message: it was sent before you joined.",
-  [DecryptionFailureCode.MEGOLM_KEY_WITHHELD]: "The sender's device chose not to share the key for this message with you.",
-  [DecryptionFailureCode.MEGOLM_KEY_WITHHELD_FOR_UNVERIFIED_DEVICE]:
-    "The sender only shares keys with verified devices. Verify this device to read new messages.",
-  [DecryptionFailureCode.SENDER_IDENTITY_PREVIOUSLY_VERIFIED]: "Blocked: the sender's verified identity has changed.",
-  [DecryptionFailureCode.UNSIGNED_SENDER_DEVICE]: "Blocked: sent from a device its owner hasn't verified.",
-  [DecryptionFailureCode.UNKNOWN_SENDER_DEVICE]: "Blocked: sent from an unknown device.",
+/**
+ * Why a message can't be shown, in calm words: whether its key may still arrive, isn't
+ * available on this device, or was held back on purpose — and what helps, if anything.
+ */
+type UtdKind = "waiting" | "unavailable" | "blocked";
+const UTD: Partial<Record<DecryptionFailureCode, { kind: UtdKind; hint: string; verify?: boolean }>> = {
+  [DecryptionFailureCode.MEGOLM_UNKNOWN_INBOUND_SESSION_ID]: {
+    kind: "waiting",
+    hint: "The sender's device hasn't shared the key with this device yet. It usually arrives shortly.",
+  },
+  [DecryptionFailureCode.OLM_UNKNOWN_MESSAGE_INDEX]: { kind: "unavailable", hint: "This device only has the key for later messages in this conversation." },
+  [DecryptionFailureCode.HISTORICAL_MESSAGE_NO_KEY_BACKUP]: {
+    kind: "unavailable",
+    hint: "It was sent before this device signed in, and there's no key backup to restore it from.",
+  },
+  [DecryptionFailureCode.HISTORICAL_MESSAGE_BACKUP_UNCONFIGURED]: {
+    kind: "unavailable",
+    hint: "It was sent before this device signed in. Verify this device to restore it from your key backup.",
+    verify: true,
+  },
+  [DecryptionFailureCode.HISTORICAL_MESSAGE_WORKING_BACKUP]: { kind: "unavailable", hint: "Your key backup doesn't include the key for this message." },
+  [DecryptionFailureCode.HISTORICAL_MESSAGE_USER_NOT_JOINED]: { kind: "unavailable", hint: "It was sent before you joined, so its key was never shared with you." },
+  [DecryptionFailureCode.MEGOLM_KEY_WITHHELD]: { kind: "unavailable", hint: "The sender's device chose not to share the key for this message with you." },
+  [DecryptionFailureCode.MEGOLM_KEY_WITHHELD_FOR_UNVERIFIED_DEVICE]: {
+    kind: "unavailable",
+    hint: "The sender only shares keys with verified devices. Verify this device to read new messages.",
+    verify: true,
+  },
+  [DecryptionFailureCode.SENDER_IDENTITY_PREVIOUSLY_VERIFIED]: { kind: "blocked", hint: "Not shown because the sender's verified identity has changed." },
+  [DecryptionFailureCode.UNSIGNED_SENDER_DEVICE]: { kind: "blocked", hint: "Not shown because it was sent from a device its owner hasn't verified." },
+  [DecryptionFailureCode.UNKNOWN_SENDER_DEVICE]: { kind: "blocked", hint: "Not shown because it was sent from an unknown device." },
 };
+const UTD_TITLE: Record<UtdKind, string> = {
+  waiting: "Waiting for this message's key",
+  unavailable: "This message can't be read on this device",
+  blocked: "Message not shown",
+};
+
+function UndecryptableMessage({ reason }: { reason: DecryptionFailureCode | null }) {
+  const ui = useUi();
+  const info = (reason && UTD[reason]) || { kind: "waiting" as const, hint: "The key for this message hasn't reached this device yet." };
+  const unverified = !ui.security.loading && !ui.security.thisDeviceVerified && ui.security.crossSigningExists;
+  // Verifying helps whenever this device isn't trusted yet: it can then get keys from your
+  // other devices and from your key backup.
+  const offerVerify = unverified && (info.verify || info.kind === "waiting");
+  return (
+    <div className={`msg-utd utd-${info.kind}`}>
+      {info.kind === "waiting" ? <Hourglass aria-hidden="true" /> : info.kind === "blocked" ? <ShieldAlert aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
+      <div>
+        <p className="msg-utd-title">{UTD_TITLE[info.kind]}</p>
+        <p className="msg-utd-hint">
+          {info.hint}
+          {info.kind === "waiting" && !offerVerify ? " Keeping another of your signed-in devices open can help." : ""}
+        </p>
+        {offerVerify ? (
+          <button type="button" className="link-button msg-utd-action" onClick={() => ui.openDialog({ type: "verify-device" })}>
+            Verify this device
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export interface TileProps {
   event: MatrixEvent;
@@ -60,6 +108,8 @@ export interface TileProps {
   readers: string[];
   roomEncrypted: boolean | null;
   version: number;
+  /** arrived or sent while the conversation is open: animate its entrance once */
+  fresh?: boolean;
   onReply: (ev: MatrixEvent) => void;
   onEdit: (ev: MatrixEvent) => void;
 }
@@ -179,18 +229,7 @@ function MessageContent({ event, room }: { event: MatrixEvent; room: Room }) {
   if (event.isRedacted()) {
     return <p className="msg-deleted">Message deleted</p>;
   }
-  if (event.isDecryptionFailure()) {
-    const reason = event.decryptionFailureReason;
-    return (
-      <div className="msg-utd">
-        <Lock aria-hidden="true" />
-        <div>
-          <p className="msg-utd-title">Unable to decrypt this message</p>
-          <p className="msg-utd-hint">{(reason && UTD_HINTS[reason]) || "The key for this message isn't available on this device."}</p>
-        </div>
-      </div>
-    );
-  }
+  if (event.isDecryptionFailure()) return <UndecryptableMessage reason={event.decryptionFailureReason} />;
   if (event.getType() === EventType.RoomMessageEncrypted) {
     return <p className="msg-pending-decrypt">Decrypting…</p>;
   }
@@ -212,7 +251,7 @@ function MessageContent({ event, room }: { event: MatrixEvent; room: Room }) {
   }
 }
 
-export const MessageTile = memo(function MessageTile({ event, room, continuation, isOwn, readers, roomEncrypted, onReply, onEdit }: TileProps) {
+export const MessageTile = memo(function MessageTile({ event, room, continuation, isOwn, readers, roomEncrypted, fresh, onReply, onEdit }: TileProps) {
   const client = useClient();
   const ui = useUi();
   const [picker, setPicker] = useState(false);
@@ -233,7 +272,7 @@ export const MessageTile = memo(function MessageTile({ event, room, continuation
   return (
     <article
       id={id ? `ev-${id}` : undefined}
-      className={`msg${isOwn ? " own" : ""}${continuation ? " cont" : ""}${failed ? " failed" : ""}${local && !failed ? " pending" : ""}`}
+      className={`msg${isOwn ? " own" : ""}${continuation ? " cont" : ""}${failed ? " failed" : ""}${local && !failed ? " pending" : ""}${fresh ? " fresh" : ""}`}
       aria-label={`${isOwn ? "You" : name}, ${formatTime(ts)}`}
       tabIndex={0}
     >
