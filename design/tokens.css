@@ -30,7 +30,9 @@
 :root {
   /* ---- Palette (raw) ---------------------------------------------------- */
   --lm-midnight-950: #050b1a;
+  --lm-midnight-925: #081024;
   --lm-midnight-900: #0a1630;
+  --lm-midnight-875: #0c1731;
   --lm-midnight-850: #0d1b3a;
   --lm-midnight-800: #112245;
   --lm-midnight-700: #182d59;
@@ -176,8 +178,8 @@
 /* Dark theme: explicit choice wins; otherwise follow the OS. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #081024;
-  --bg-elevated: #0c1731;
+  --bg: var(--lm-midnight-925);
+  --bg-elevated: var(--lm-midnight-875);
   --surface: #101c37;
   --surface-2: #14213f;
   --surface-3: #1b2a4d;
@@ -214,8 +216,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #081024;
-    --bg-elevated: #0c1731;
+    --bg: var(--lm-midnight-925);
+    --bg-elevated: var(--lm-midnight-875);
     --surface: #101c37;
     --surface-2: #14213f;
     --surface-3: #1b2a4d;

@@ -1,6 +1,6 @@
 {% extends "docs/base_docs.html" %}
 {% block article %}
-<p class="lead">Talk to people on other Matrix servers and use other Matrix apps.</p>
+<p class="lead">{{ brand.short_name }} is built on Matrix, the open standard for secure, decentralised messaging. That is why you can talk to people on other Matrix servers and use other Matrix apps. <a href="{% url 'site:federation' %}">How Matrix works</a>.</p>
 <h2>Messaging someone on another server</h2>
 <p>Start a new chat with their full address, for example <code>@sam:example.org</code>. Their server must be reachable and allowed by this server's federation policy ({{ lumen.federation_mode }}).</p>
 <h2>Encryption across servers</h2>

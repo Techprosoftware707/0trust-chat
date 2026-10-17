@@ -1,0 +1,26 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n allauth account lumen %}
+{% block head_title %}Sign in{% endblock head_title %}
+{% block content %}
+    <div class="stack-sm">
+      <h1>{% if lumen.surface == "ops" %}Operator sign-in{% else %}Welcome back{% endif %}</h1>
+      <p class="muted mb-0">{% if lumen.surface == "ops" %}Sign in with your operator account. You'll confirm it's you with your second factor next.{% else %}Sign in to manage your account, workspaces and security.{% endif %}</p>
+    </div>
+    {% url 'account_login' as login_url %}
+    {% element form form=form method="post" action=login_url tags="entrance,login" %}
+        {% slot body %}
+            {% csrf_token %}
+            {% element fields form=form unlabeled=True %}
+            {% endelement %}
+            {{ redirect_field }}
+        {% endslot %}
+        {% slot actions %}
+            {% element button type="submit" tags="prominent,login" %}
+                Sign in
+            {% endelement %}
+        {% endslot %}
+    {% endelement %}
+    {% if lumen.surface != "ops" %}
+    <p class="auth-switch mb-0">New to {{ brand.short_name }}? {% if lumen.registration_mode == "open" %}<a href="{{ signup_url }}">Create a free account</a>{% else %}Ask your workspace admin for an invitation.{% endif %}</p>
+    {% endif %}
+{% endblock content %}

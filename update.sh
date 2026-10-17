@@ -71,6 +71,11 @@ fi
 new_version="$(grep -E '^LUMEN_VERSION=' "$LUMEN_REPO_DIR/deploy/versions.env" | cut -d= -f2)"
 info "updating Lumen ${old_version:-?} → $new_version"
 
+# Before rendering (the console allow-list uses WG_SUBNET). Never fails the update.
+step "WireGuard"
+wireguard_default_on
+if wireguard_wanted; then wireguard_enable || true; else wireguard_off_note; fi
+
 step "Validating new configuration"
 ensure_dirs
 ensure_secrets
@@ -110,7 +115,6 @@ step "Restarting services"
 if ! (start_services) ; then rollback; fail_update "services did not become healthy"; fi
 refresh_internal_ca_bundle
 bootstrap_synapse_admin
-if truthy "$(conf_get WIREGUARD_ENABLED false)"; then wireguard_enable; fi
 configure_firewall
 install_systemd_units
 
@@ -134,3 +138,8 @@ json.dump(d, open(p, "w"), indent=2)
 PY
 docker image rm lumen/portal:rollback >/dev/null 2>&1 || true
 printf '\n%sUpdate complete:%s Lumen %s is running and all endpoint checks passed.\n' "$C_GREEN" "$C_RESET" "$new_version"
+if ! wireguard_wanted; then
+  printf 'WireGuard is off; turn it on with: sudo ./lumenctl wireguard enable\n'
+elif ! wireguard_active; then
+  printf 'WireGuard unavailable on this host: %s (the SSH tunnel still works: sudo ./lumenctl admin-tunnel)\n' "$(state_get wireguard_reason)"
+fi

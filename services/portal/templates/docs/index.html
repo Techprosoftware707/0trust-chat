@@ -3,6 +3,6 @@
 {% block main %}
 <header class="page-head"><div class="container stack-sm"><p class="eyebrow">Help center</p><h1>Documentation</h1><p class="lead">Guides for using {{ brand.short_name }} safely, managing a team, and running your own server.</p></div></header>
 <section class="section"><div class="container grid grid-3">
-  {% for s, t, d in docs %}<a class="card card-link stack-sm" href="{% url 'site:doc' s %}"><h3 class="mb-0">{{ t }}</h3><p class="muted small mb-0">{{ d }}</p></a>{% endfor %}
+  {% for s, t, d in docs %}<a class="card card-link stack-sm" href="{% url 'site:doc' s %}"><h2 class="card-title mb-0">{{ t }}</h2><p class="muted small mb-0">{{ d }}</p><span class="link-arrow small">Read {% icon "arrow-right" %}</span></a>{% endfor %}
 </div></section>
 {% endblock %}

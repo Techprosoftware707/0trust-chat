@@ -6,11 +6,13 @@
 # Steps: select Xcode -> install XcodeGen 2.46.0 (pinned, checksum-verified)
 # -> checks (generated tokens, no disabled TLS verification) -> LumenCore
 # `swift test` -> xcodegen generate -> simulator build -> tests on an iPhone
-# and an iPad simulator -> unsigned Release archive.
+# and an iPad simulator (including the screenshot capture) -> unsigned
+# Release archive (checked to contain no screenshot mode).
 #
 # Outputs in apps/ios/build/:
 #   Lumen-unsigned.xcarchive.zip  LumenTests.xcresult  Lumen.xcodeproj.zip
 #   SHA256SUMS-ios.txt            logs/*.log
+#   screenshots/<device>/<screen>--<appearance>[--<text size>][--p<page>].png
 #
 # Environment:
 #   LUMEN_DEFAULT_SERVER   optional server name baked into the build (empty: the user is asked)
@@ -140,21 +142,45 @@ if best:
 ' "$1"
 }
 if [[ "${LUMEN_SKIP_TESTS:-0}" != "1" ]]; then
-  IPHONE="$(pick_sim 'iPhone 17 Pro')"; [[ -n "$IPHONE" ]] || IPHONE="$(pick_sim 'iPhone')"
+  # The largest iPhone, so every iPhone screenshot size fits on its screen.
+  IPHONE="$(pick_sim 'iPhone 17 Pro Max')"; [[ -n "$IPHONE" ]] || IPHONE="$(pick_sim 'iPhone 17 Pro')"; [[ -n "$IPHONE" ]] || IPHONE="$(pick_sim 'iPhone')"
   IPAD="$(pick_sim 'iPad Pro 13-inch (M5)')"; [[ -n "$IPAD" ]] || IPAD="$(pick_sim 'iPad')"
   [[ -n "$IPHONE" ]] || fail "no iPhone simulator available"
   DESTS=(-destination "id=$IPHONE")
   [[ -n "$IPAD" ]] && DESTS+=(-destination "id=$IPAD")
   if [[ -n "${LUMEN_UITEST_SERVER:-}" ]]; then export TEST_RUNNER_LUMEN_UITEST_SERVER="$LUMEN_UITEST_SERVER"; fi
+  # LumenUITests/ScreenshotTests: the app's DEBUG screenshot mode writes here.
+  SHOTS="$OUT/screenshots"
+  mkdir -p "$SHOTS"
+  export TEST_RUNNER_LUMEN_SCREENSHOT_DIR="$SHOTS"
   "${XB[@]}" -configuration Debug "${DESTS[@]}" -resultBundlePath "$OUT/LumenTests.xcresult" \
     -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 \
     test "${SETTINGS[@]}" 2>&1 | tee "$LOGS/test.log" || fail "tests failed (see LumenTests.xcresult and logs/test.log)"
   note "tests passed on simulators $IPHONE${IPAD:+ and $IPAD}"
+  if [[ -z "$(find "$SHOTS" -name '*.png' -print -quit)" ]]; then
+    # The simulator didn't let the app write to the host folder: collect them
+    # from the app's own Documents folder.
+    for sim in "$IPHONE" ${IPAD:+"$IPAD"}; do
+      data="$(xcrun simctl get_app_container "$sim" "${LUMEN_BUNDLE_ID:-io.lumen.secure}" data 2>/dev/null || true)"
+      if [[ -n "$data" && -d "$data/Documents/LumenScreenshots" ]]; then cp -R "$data/Documents/LumenScreenshots/." "$SHOTS/"; fi
+    done
+  fi
+  SHOT_COUNT="$(find "$SHOTS" -name '*.png' | wc -l | tr -d ' ')"
+  [[ "$SHOT_COUNT" -gt 0 ]] || fail "the screenshot tests produced no screenshots"
+  note "screenshots: $SHOT_COUNT PNG files in screenshots/ ($(cat "$SHOTS"/manifest-*.txt 2>/dev/null | grep -c FAILED || true) failed)"
 fi
 
 # --- Unsigned archive ----------------------------------------------------------
 "${XB[@]}" -configuration Release -destination 'generic/platform=iOS' -archivePath "$OUT/Lumen.xcarchive" archive "${SETTINGS[@]}" 2>&1 | tee "$LOGS/archive.log" \
   || fail "archive failed (see logs/archive.log)"
+# The screenshot mode (Lumen/Debug, launch argument -LumenScreenshots) is
+# DEBUG-only: it must not be in the Release binary.
+APP_BIN="$OUT/Lumen.xcarchive/Products/Applications/Lumen.app/Lumen"
+[[ -f "$APP_BIN" ]] || fail "archive has no app binary at $APP_BIN"
+if LC_ALL=C grep -a -q -E 'LumenScreenshots|LUMEN_SCREENSHOT_DIR|ScreenshotRunner|PreviewFixtures' "$APP_BIN"; then
+  fail "the Release archive contains the DEBUG screenshot mode"
+fi
+note "Release binary contains no screenshot mode or preview data"
 (cd "$OUT" && ditto -c -k --keepParent Lumen.xcarchive Lumen-unsigned.xcarchive.zip && rm -rf Lumen.xcarchive)
 note "unsigned archive: Lumen-unsigned.xcarchive.zip (not installable on devices until signed)"
 

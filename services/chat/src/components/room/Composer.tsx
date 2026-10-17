@@ -10,6 +10,7 @@ import { errorMessage } from "../../lib/errors";
 import { usePrefs } from "../../lib/prefs";
 import { getDraft, setDraft } from "../../lib/drafts";
 import { ProgressBar } from "../primitives/Spinner";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 interface Upload {
   id: number;
@@ -172,7 +173,10 @@ export const Composer = forwardRef<ComposerHandle, {
     }
   };
 
-  const placeholder = encrypted === false ? "Message (not encrypted)…" : encrypted ? "Write an encrypted message…" : "Write a message…";
+  // Short enough for one line on a small phone (the hint line below is hidden there).
+  const narrow = useMediaQuery("(max-width: 480px)");
+  const placeholder =
+    encrypted === false ? "Message (not encrypted)…" : encrypted ? (narrow ? "Encrypted message…" : "Write an encrypted message…") : narrow ? "Message…" : "Write a message…";
   const replyName = replyTo ? (replyTo.getSender() === me ? "yourself" : (room.getMember(replyTo.getSender() ?? "")?.name ?? replyTo.getSender())) : "";
 
   return (
@@ -181,7 +185,9 @@ export const Composer = forwardRef<ComposerHandle, {
         <ul className="uploads list-plain" aria-label="Uploads">
           {uploads.map((u) => (
             <li key={u.id} className={`upload${u.error ? " error" : ""}`}>
-              <FileUp aria-hidden="true" />
+              <span className="upload-icon" aria-hidden="true">
+                <FileUp />
+              </span>
               <div className="upload-main">
                 <span className="upload-name">{u.name}</span>
                 {u.error ? (

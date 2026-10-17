@@ -112,6 +112,10 @@ truthy() { case "${1,,}" in 1 | true | yes | on) return 0 ;; *) return 1 ;; esac
 
 # Voice/video calling (LiveKit SFU + authorization service) is on unless disabled.
 calls_enabled() { truthy "$(conf_get CALLS_ENABLED true)"; }
+# WireGuard (private operator access) is on unless lumen.conf turns it off. wireguard_active:
+# wanted AND brought up by Lumen (state "enabled"); "unavailable" when this host can't run it.
+wireguard_wanted() { local v; v="$(conf_get WIREGUARD_ENABLED)"; [[ -z "$v" ]] || truthy "$v"; }
+wireguard_active() { wireguard_wanted && [[ "$(state_get wireguard)" == enabled ]]; }
 rtc_domain() { conf_get LUMEN_RTC_DOMAIN "rtc.$(conf_get LUMEN_PRIMARY_DOMAIN)"; }
 push_enabled() { truthy "$(conf_get PUSH_ENABLED false)"; }
 # push_active — push is enabled AND at least one platform has its credential. render.py writes

@@ -4,14 +4,13 @@
 <div class="app-topbar"><div><h1>Calls</h1><p>LiveKit SFU and the MatrixRTC authorization service. Figures come from the SFU's own counters, sampled every minute by the worker. No call content, participant identities or room names are shown or stored here.</p></div>
 {% if perms.manage_platform and config.enabled %}<form method="post">{% csrf_token %}<button class="btn" type="submit">{% icon "activity" %} Run media self-test</button></form>{% endif %}</div>
 {% if not config.enabled %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>Calls are disabled (<code>CALLS_ENABLED=false</code>).</div></div>{% endif %}
-{% if selftest %}<div class="alert {% if selftest.ok %}alert-success{% else %}alert-danger{% endif %}">{% if selftest.ok %}{% icon "check-circle-2" %}{% else %}{% icon "x-circle" %}{% endif %}<div class="stack-sm grow-1"><div>{% if selftest.ok %}Media self-test passed: the SFU forwarded real audio and video between test peers on this host.{% else %}Media self-test failed.{% endif %} This proves the SFU and its media ports from this server; reaching it from the internet also needs the firewall ports below.</div><pre class="xsmall mb-0">{{ selftest.output }}</pre></div></div><br>{% endif %}
+{% if selftest %}<div class="alert {% if selftest.ok %}alert-success{% else %}alert-danger{% endif %}">{% if selftest.ok %}{% icon "check-circle-2" %}{% else %}{% icon "x-circle" %}{% endif %}<div class="stack-sm grow-1"><div>{% if selftest.ok %}Media self-test passed: the SFU forwarded real audio and video between test peers on this host.{% else %}Media self-test failed.{% endif %} This proves the SFU and its media ports from this server; reaching it from the internet also needs the firewall ports below.</div><pre class="xsmall mb-0">{{ selftest.output }}</pre></div></div>{% endif %}
 <div class="grid grid-4">
   <div class="card stat"><span class="stat-label">Active calls</span><span class="stat-value">{{ latest.detail.rooms|default:"0" }}</span><span class="stat-note">{% if latest %}sampled {{ latest.at|timesince }} ago{% else %}no sample yet{% endif %}</span></div>
   <div class="card stat"><span class="stat-label">Participants</span><span class="stat-value">{{ latest.detail.participants|default:"0" }}</span><span class="stat-note">{{ latest.detail.tracks_published.AUDIO|default:"0" }} audio · {{ latest.detail.tracks_published.VIDEO|default:"0" }} video tracks</span></div>
   <div class="card stat"><span class="stat-label">SFU throughput</span><span class="stat-value">{% if rate %}{{ rate.mbps_out|floatformat:1 }}{% else %}—{% endif %}</span><span class="stat-note">{% if rate %}Mbit/s out · {{ rate.mbps_in|floatformat:1 }} in (last minute){% else %}needs two samples{% endif %}</span></div>
   <div class="card stat"><span class="stat-label">SFU CPU · memory</span><span class="stat-value">{% if rate %}{{ rate.cpu_pct|floatformat:0 }}%{% else %}—{% endif %}</span><span class="stat-note">of one core · {% if latest %}{{ latest.detail.rss_bytes|filesizeformat }} RSS{% endif %}</span></div>
 </div>
-<br>
 <div class="grid grid-2">
   <section class="card stack">
     <div class="card-header"><h2>Connection quality</h2><span class="xsmall muted">measured by the SFU, last minute</span></div>
@@ -28,14 +27,12 @@
     </ul>
   </section>
 </div>
-<br>
 <section class="card stack">
   <div class="card-header"><h2>Configuration</h2></div>
-  <dl class="kv"><dt>SFU address</dt><dd class="mono">wss://{{ config.rtc_domain }}</dd><dt>Advertised IP</dt><dd class="mono">{{ config.public_ip }}</dd><dt>Encryption</dt><dd>Media is end-to-end encrypted by the clients (per-participant keys exchanged over Matrix); the SFU forwards ciphertext. Signalling and TURN use TLS/DTLS in addition.</dd><dt>Recording</dt><dd>None — the SFU has no recording component.</dd></dl>
+  <dl class="kv"><dt>SFU address</dt><dd class="mono">wss://{{ config.rtc_domain }}</dd><dt>Advertised IP</dt><dd class="mono">{{ config.public_ip }}</dd><dt>Encryption</dt><dd>Media is end-to-end encrypted by the clients (per-participant keys exchanged over Matrix); the SFU forwards ciphertext. In addition, signalling uses TLS (wss) and media uses DTLS-SRTP on every hop, also through the TURN relay. TURN runs on UDP 3478; {{ brand.short_name }} does not offer TURN over TLS.</dd><dt>Recording</dt><dd>None — the SFU has no recording component.</dd></dl>
   <div class="table-wrap"><table class="table"><thead><tr><th>Port</th><th>Purpose</th></tr></thead><tbody>{% for p, why in config.ports %}<tr><td class="mono">{{ p }}</td><td class="small">{{ why }}</td></tr>{% endfor %}</tbody></table></div>
   <p class="xsmall subtle mb-0">These must also be open in any cloud-provider firewall in front of this server. HTTPS working does not prove media connectivity.</p>
 </section>
-<br>
 <section class="card stack">
   <div class="card-header"><h2>Last 30 minutes</h2></div>
   {% if rows %}<div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>Calls</th><th>Participants</th><th>Mbit/s out</th><th>Mbit/s in</th><th>CPU</th><th>RTT</th><th>Loss</th></tr></thead><tbody>

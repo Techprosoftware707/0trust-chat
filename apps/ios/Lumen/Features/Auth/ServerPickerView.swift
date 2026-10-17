@@ -1,10 +1,12 @@
 import LumenCore
 import SwiftUI
 
-/// Server picker and sign-in (integration.md §2–3). The server field is
-/// pre-filled with the build's `LUMEN_DEFAULT_SERVER`.
+/// Welcome, server picker and sign-in (integration.md §2–3). The server field
+/// is pre-filled with the build's `LUMEN_DEFAULT_SERVER`.
 struct ServerPickerView: View {
     @Bindable var auth: AuthModel
+    /// A sign-in error to show from the start (DEBUG screenshots).
+    var initialError: String? = nil
     @Environment(AppModel.self) private var model
     @Environment(\.lumen) private var c
     @State private var error: String?
@@ -14,54 +16,81 @@ struct ServerPickerView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: LumenDimens.space5) {
-                HStack(spacing: LumenDimens.space3) {
-                    BrandMark(size: 48)
-                    Text(auth.discovery?.brandName ?? LumenAppInfo.defaultBrandName)
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(c.text)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
+            VStack(spacing: LumenDimens.space5) {
+                hero
 
-                Text("Private conversations, end-to-end encrypted on every device.")
+                VStack(alignment: .leading, spacing: LumenDimens.space4) {
+                    switch auth.phase {
+                    case .ready(let d), .signingIn(let d):
+                        signInSection(d)
+                    default:
+                        serverSection
+                    }
+                    if case .failed(let message) = auth.phase {
+                        BannerView(style: .danger, systemImage: "exclamationmark.triangle", text: message)
+                    }
+                    if let error {
+                        BannerView(style: .danger, systemImage: "exclamationmark.triangle", text: error)
+                    }
+                }
+                .lumenCard(padding: LumenDimens.space5)
+
+                Label("End-to-end encrypted by default · Works with any Matrix server", systemImage: "lock.shield")
+                    .font(.footnote)
                     .foregroundStyle(c.textMuted)
-
-                serverSection
-
-                switch auth.phase {
-                case .ready(let d), .signingIn(let d):
-                    signInSection(d)
-                case .failed(let message):
-                    BannerView(style: .danger, systemImage: "exclamationmark.triangle", text: message)
-                        .clipShape(RoundedRectangle(cornerRadius: LumenDimens.radiusMd))
-                default:
-                    EmptyView()
-                }
-
-                if let error {
-                    BannerView(style: .danger, systemImage: "exclamationmark.triangle", text: error)
-                        .clipShape(RoundedRectangle(cornerRadius: LumenDimens.radiusMd))
-                }
+                    .multilineTextAlignment(.center)
             }
-            .padding(LumenDimens.space5)
+            .padding(.horizontal, LumenDimens.space5)
+            .padding(.vertical, LumenDimens.space6)
             .frame(maxWidth: 520)
             .frame(maxWidth: .infinity)
         }
-        .background(c.bg.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
+        .background { WelcomeBackground().ignoresSafeArea() }
         .sheet(item: $safariURL) { SafariView(url: $0.url).ignoresSafeArea() }
+        .sensoryFeedback(.error, trigger: errorCount) { old, new in new > old }
+        .onAppear { if let initialError, error == nil { error = initialError } }
         .task {
             // A pre-configured server is looked up straight away.
             if case .idle = auth.phase, !auth.serverInput.isEmpty { await auth.discover() }
         }
     }
 
-    private var serverSection: some View {
-        VStack(alignment: .leading, spacing: LumenDimens.space2) {
-            Text("Server")
-                .font(.subheadline.weight(.semibold))
+    private var errorCount: Int {
+        var n = error == nil ? 0 : 1
+        if case .failed = auth.phase { n += 2 }
+        return n
+    }
+
+    private var hero: some View {
+        VStack(spacing: LumenDimens.space3) {
+            BrandMarkHero(size: 76)
+            CapsuleLabel(text: "New · Built on Matrix", systemImage: "sparkles", tint: c.accent, background: c.accentSoft)
+            Text("Welcome to \(auth.discovery?.brandName ?? LumenAppInfo.defaultBrandName)")
+                .font(.title.weight(.bold))
+                .foregroundStyle(c.text)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            Text("Secure messaging built on Matrix, the open standard.")
+                .font(.body)
                 .foregroundStyle(c.textMuted)
-            HStack {
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, LumenDimens.space4)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var discovering: Bool { auth.phase == .discovering }
+
+    private var serverSection: some View {
+        VStack(alignment: .leading, spacing: LumenDimens.space3) {
+            Text("Your server")
+                .font(.headline)
+                .foregroundStyle(c.text)
+            HStack(spacing: LumenDimens.space2) {
+                Image(systemName: "server.rack")
+                    .foregroundStyle(c.textSubtle)
+                    .accessibilityHidden(true)
                 TextField("example.com", text: $auth.serverInput)
                     .textContentType(.URL)
                     .keyboardType(.URL)
@@ -69,7 +98,7 @@ struct ServerPickerView: View {
                     .autocorrectionDisabled()
                     .submitLabel(.go)
                     .focused($fieldFocused)
-                    .onSubmit { Task { await auth.discover() } }
+                    .onSubmit { lookUp() }
                     .onChange(of: auth.serverInput) { _, _ in
                         if case .ready = auth.phase { auth.reset() }
                         if case .failed = auth.phase { auth.reset() }
@@ -77,70 +106,85 @@ struct ServerPickerView: View {
                     .accessibilityLabel("Server name or address")
                     .accessibilityIdentifier("serverField")
             }
-            .padding(LumenDimens.space3)
-            .background(c.surface, in: RoundedRectangle(cornerRadius: LumenDimens.radiusMd))
-            .overlay(RoundedRectangle(cornerRadius: LumenDimens.radiusMd).strokeBorder(c.border))
+            .padding(.horizontal, LumenDimens.space3)
+            .frame(minHeight: 50)
+            .background(c.surface2, in: RoundedRectangle(cornerRadius: LumenDimens.radiusMd, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: LumenDimens.radiusMd, style: .continuous)
+                .strokeBorder(fieldFocused ? c.accent : c.border, lineWidth: fieldFocused ? 1.5 : 1))
 
-            Text("The server name from your Matrix ID (the part after the colon), or your organisation's address.")
+            Text("The part after the colon in your Matrix ID, or your organisation's address.")
                 .font(.footnote)
-                .foregroundStyle(c.textSubtle)
+                .foregroundStyle(c.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
 
-            if !isReady {
-                AsyncButton {
-                    fieldFocused = false
-                    await auth.discover()
-                } label: {
+            Button(action: lookUp) {
+                if discovering {
+                    HStack(spacing: LumenDimens.space2) {
+                        ProgressView().tint(c.accentContrast)
+                        Text("Looking up the server…")
+                    }
+                } else {
                     Text("Continue")
                 }
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(auth.serverInput.trimmingCharacters(in: .whitespaces).isEmpty || auth.phase == .discovering)
-                .accessibilityIdentifier("continueButton")
-                if auth.phase == .discovering {
-                    ProgressView("Looking up the server…")
-                        .frame(maxWidth: .infinity)
-                }
             }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(auth.serverInput.trimmingCharacters(in: .whitespaces).isEmpty)
+            .accessibilityIdentifier("continueButton")
         }
     }
 
-    private var isReady: Bool {
-        switch auth.phase {
-        case .ready, .signingIn: return true
-        default: return false
-        }
+    private func lookUp() {
+        guard !discovering else { return }
+        fieldFocused = false
+        error = nil
+        Task { await auth.discover() }
     }
 
     @ViewBuilder
     private func signInSection(_ d: ServerDiscovery) -> some View {
+        let signingIn: Bool = { if case .signingIn = auth.phase { return true } else { return false } }()
         VStack(alignment: .leading, spacing: LumenDimens.space3) {
-            Label(d.homeserverURL.host ?? d.serverName, systemImage: "lock.shield")
-                .font(.footnote)
-                .foregroundStyle(c.textMuted)
-                .accessibilityLabel("Server: \(d.homeserverURL.host ?? d.serverName), connection verified with TLS")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: LumenDimens.space2) {
+                    serverIdentity(d)
+                    Spacer(minLength: LumenDimens.space2)
+                    changeServerButton(disabled: signingIn)
+                }
+                VStack(alignment: .leading, spacing: LumenDimens.space2) {
+                    serverIdentity(d)
+                    changeServerButton(disabled: signingIn)
+                }
+            }
+            .accessibilityElement(children: .contain)
 
-            let signingIn: Bool = { if case .signingIn = auth.phase { return true } else { return false } }()
             if d.loginFlows.sso.isEmpty {
                 BannerView(style: .warning, systemImage: "exclamationmark.triangle",
-                           text: "This server only offers password sign-in. This app signs in through your server's sign-in page (single sign-on) so that it never handles your password; use the web app for this server.")
-                    .clipShape(RoundedRectangle(cornerRadius: LumenDimens.radiusMd))
+                           text: "This server only offers password sign-in. Lumen signs in through your server's own sign-in page, so it never handles your password. Use the web app for this server.")
             } else {
                 ForEach(providers(d), id: \.name) { provider in
                     Button {
                         Task { await signIn(provider) }
                     } label: {
                         if signingIn {
-                            ProgressView()
+                            HStack(spacing: LumenDimens.space2) {
+                                ProgressView().tint(c.accentContrast)
+                                Text("Waiting for your sign-in page…")
+                            }
                         } else {
-                            Label(provider.id == d.lumen?.ssoIdpId ? "Continue with your \(d.lumen?.displayShortName ?? "Lumen") account" : "Continue with \(provider.name)", systemImage: "person.badge.key")
+                            Label(provider.id == d.lumen?.ssoIdpId ? "Continue with your \(d.lumen?.displayShortName ?? "Lumen") account" : "Continue with \(provider.name)",
+                                  systemImage: "person.badge.key")
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle())
-                    .disabled(signingIn)
+                    .allowsHitTesting(!signingIn)
                     .accessibilityIdentifier("ssoButton")
                 }
-                Text("You'll sign in on your server's page in a secure browser sheet. This app never sees your password or two-factor codes.")
+                Text(signingIn
+                     ? "Finish signing in on your server's page. You can close it to come back here."
+                     : "You'll sign in on your server's page in a secure browser sheet. Lumen never sees your password or two-factor codes.")
                     .font(.footnote)
-                    .foregroundStyle(c.textSubtle)
+                    .foregroundStyle(c.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if let signup = d.lumen?.signupURL {
@@ -150,26 +194,52 @@ struct ServerPickerView: View {
                     Text("New here? Create your \(d.lumen?.displayShortName ?? "Lumen") account")
                 }
                 .buttonStyle(SecondaryButtonStyle())
+                .disabled(signingIn)
                 .accessibilityHint("Opens the account sign-up page")
             }
 
-            HStack {
-                if let privacy = d.lumen?.privacyURL {
-                    Button("Privacy policy") { safariURL = IdentifiedURL(url: privacy) }
+            if d.lumen?.privacyURL != nil || d.lumen?.helpURL != nil {
+                HStack(spacing: LumenDimens.space4) {
+                    if let privacy = d.lumen?.privacyURL {
+                        Button("Privacy policy") { safariURL = IdentifiedURL(url: privacy) }
+                    }
+                    if let help = d.lumen?.helpURL {
+                        Button("Help") { safariURL = IdentifiedURL(url: help) }
+                    }
                 }
-                Spacer()
-                if let help = d.lumen?.helpURL {
-                    Button("Help") { safariURL = IdentifiedURL(url: help) }
-                }
+                .font(.footnote.weight(.medium))
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
             }
-            .font(.footnote)
-
-            Button("Use a different server") {
-                auth.reset()
-                fieldFocused = true
-            }
-            .font(.footnote)
         }
+    }
+
+    private func serverIdentity(_ d: ServerDiscovery) -> some View {
+        HStack(spacing: LumenDimens.space2) {
+            Image(systemName: "lock.shield.fill")
+                .foregroundStyle(c.success)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(d.homeserverURL.host ?? d.serverName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(c.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Secure connection")
+                    .font(.caption)
+                    .foregroundStyle(c.textMuted)
+            }
+        }
+    }
+
+    private func changeServerButton(disabled: Bool) -> some View {
+        Button("Change server") {
+            auth.reset()
+            error = nil
+            fieldFocused = true
+        }
+        .buttonStyle(ChipButtonStyle())
+        .disabled(disabled)
+        .accessibilityLabel("Use a different server")
     }
 
     private func providers(_ d: ServerDiscovery) -> [LoginFlows.IdentityProvider] {
@@ -187,7 +257,7 @@ struct ServerPickerView: View {
         } catch let e as WebAuthenticationError {
             if case .failed(let m) = e { error = m }
         } catch {
-            self.error = "Sign-in didn't complete. Please try again."
+            self.error = "Sign-in didn't finish. Please try again."
             Diagnostics.log("Sign-in failed: \(error.localizedDescription)")
         }
     }

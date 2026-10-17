@@ -1,0 +1,219 @@
+=== Run B continued, same test server (WireGuard never brought up so far)
+=== B3: drop-in removed; WIREGUARD_ENABLED=false set in lumen.conf (like a --test-host installation from before the default); install.sh --yes, then update.sh --no-pull --yes
+--- installer output (complete, summary included)
+Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261017T071304Z.log
+
+==> Configuration
+    using existing configuration /etc/lumen/lumen.conf
+    ✔ configuration valid
+
+==> Preflight checks
+    ✔ operating system: Ubuntu 24.04.5 LTS
+    ✔ CPU architecture: x86_64
+    ✔ CPU cores: 4
+    ✔ systemd is running
+    ✔ memory: 16093 MB
+    ! 8 GB free on /var/lib; media uploads and backups grow over time (40 GB+ recommended)
+    ! 8 GB free on /var/backups; media uploads and backups grow over time (40 GB+ recommended)
+    ! system clock is not NTP-synchronised; two-factor codes and certificates depend on accurate time (timedatectl set-ntp true)
+    ✔ internet access to package registries
+    existing Lumen installation found (version 1.0.0); re-running reconciles configuration and preserves all data
+    ✔ port 80/tcp is used by Lumen (users:(("caddy",pid=14078,fd=8)))
+    ✔ port 443/tcp is used by Lumen (users:(("caddy",pid=14078,fd=10)))
+    ✔ port 443/udp is used by Lumen (users:(("caddy",pid=14078,fd=11)))
+    ✔ port 8443/tcp is used by Lumen (users:(("caddy",pid=14078,fd=5)))
+    ✔ port 7882/udp is used by Lumen (users:(("livekit-server",pid=14025,fd=5)))
+    ✔ port 7889/udp is free
+    ✔ port 7881/tcp is used by Lumen (users:(("livekit-server",pid=14025,fd=11)))
+    ✔ port 3478/udp is used by Lumen (users:(("livekit-server",pid=14025,fd=12)))
+    ✔ Docker 29.9.1
+    ✔ UFW is active; Lumen will add its rules without resetting existing ones
+    ! TLS_MODE=internal: using a private test CA; browsers and other Matrix servers will NOT trust this server. Testing only.
+    4 warning(s); continuing
+
+==> Host packages and Docker
+    ✔ host packages installed: ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common
+    ✔ Docker already installed (29.9.1)
+
+==> WireGuard
+    off (WIREGUARD_ENABLED=false in /etc/lumen/lumen.conf)
+
+==> Secrets and directories
+    ✔ backup encryption key present
+    ✔ secrets present in /etc/lumen/secrets (generated once, never printed)
+
+==> Rendering and validating configuration
+    validating Caddy configuration
+    ✔ Caddy configuration valid
+    validating homeserver configuration (and generating the signing key if missing)
+    ✔ homeserver configuration valid; signing key present
+    validating Compose file
+    ✔ Compose configuration valid
+    ✔ configuration activated (previous kept in /etc/lumen/rendered.prev)
+
+==> Firewall and automatic updates
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 7882-7889/udp 7881/tcp 3478/udp
+    ✔ automatic security updates enabled (no automatic reboots)
+
+==> Container images
+    ✔ images ready, pinned by digest (0 pulled, 8 already present)
+    ✔ portal image built (lumen/portal:1.0.0)
+    ✔ web chat app built
+
+==> Database
+    ✔ PostgreSQL healthy; roles and databases in place
+    ✔ portal database migrated and bootstrapped
+
+==> Services
+    ✔ synapse healthy
+    ✔ portal healthy
+    ✔ ops healthy
+    ✔ caddy running
+    ✔ calls authorization service healthy
+    ✔ LiveKit SFU running
+    ✔ internal CA bundle in place
+    ✔ homeserver admin token valid
+
+==> Host agent and timers
+    ✔ systemd units installed: lumen-agent, lumen-backup.timer (03:17 daily), lumen-healthcheck.timer
+
+==> Operator account
+    ✔ operator 'operator' already exists (new link: sudo ./lumenctl operator-link operator)
+
+==> Initial encrypted backup
+    ✔ first backup created
+    ✔ backup restore verified in an isolated database
+
+==> Verifying public endpoints
+    ✔ website: https://172-17-0-5.sslip.io/healthz reports database OK
+    ✔ TLS certificate valid and trusted for 172-17-0-5.sslip.io
+    ✔ TLS certificate valid for app.172-17-0-5.sslip.io
+    ✔ TLS certificate valid for matrix.172-17-0-5.sslip.io
+    ✔ Matrix discovery: /.well-known/matrix/server → matrix.172-17-0-5.sslip.io:443
+    ✔ Matrix discovery: /.well-known/matrix/client → https://matrix.172-17-0-5.sslip.io
+    ✔ chat app: https://app.172-17-0-5.sslip.io/ serves the web client
+    ✔ chat app: config.json points at this homeserver
+    ✔ homeserver: client API responds
+    ✔ homeserver: single sign-on through the portal is offered
+    ✔ portal: OIDC discovery document
+    ✔ security: homeserver admin API is not public
+    ✔ security: operator console paths are not public
+    ✔ security: internal API is not public
+    ✔ operator console reachable on the private port (ops.172-17-0-5.sslip.io:8443 via loopback)
+    ✔ apps: discovery block (io.lumen.app) in /.well-known/matrix/client
+    ✔ test setup: http://172-17-0-5.sslip.io/lumen-test-ca.crt serves this server's test CA
+    ✔ calls: TLS certificate valid for rtc.172-17-0-5.sslip.io
+    ✔ calls: SFU signalling answers on https://rtc.172-17-0-5.sslip.io/
+    ✔ calls: homeserver advertises the SFU (MatrixRTC transports)
+    ✔ calls: SFU tokens require sign-in (anonymous request refused)
+    ✔ calls: SFU tokens only for room members (authorization service via homeserver)
+    ✔ security: SFU admin API is not public
+    ✔ calls: WebRTC media listening on udp/7882
+    ✔ calls: ICE/TCP listening on tcp/7881
+    ✔ calls: TURN answers STUN on udp/3478
+    ✔ calls: SFU forwarded real audio+video to test subscribers (self-test from this host)
+    ✔ security: PostgreSQL is not listening on a public address
+    ✔ security: Synapse is not listening on a public address
+
+──────────────── Lumen deployment summary ────────────────
+Result: SUCCESS — all endpoint checks passed
+Website & portal:   https://172-17-0-5.sslip.io
+Chat app:           https://app.172-17-0-5.sslip.io
+Homeserver:         https://matrix.172-17-0-5.sslip.io  (server name: 172-17-0-5.sslip.io)
+Operator console:   https://ops.172-17-0-5.sslip.io:8443  (private: SSH tunnel)
+TLS:                INTERNAL TEST CA — not trusted by browsers or other servers
+Federation:         closed
+Database:           healthy
+Encryption:         end-to-end encryption on by default for all new rooms (Olm/Megolm, client-side)
+Backups:            /var/backups/lumen, daily at 03:17, age-encrypted
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          off; turn it on with: sudo ./lumenctl wireguard enable
+Voice/video:        enabled — SFU wss://rtc.172-17-0-5.sslip.io, ports 7882-7889/udp (media), 7881/tcp (ICE/TCP), 3478/udp (TURN)
+Email:              not configured — email verification and reset-by-email are off
+Payments:           none
+
+TEST SETUP (no domain). In the apps, enter the server:  172-17-0-5.sslip.io
+  172-17-0-5.sslip.io and every name under it resolve to 172.17.0.5 through sslip.io (public DNS).
+  172.17.0.5 is a private address: test devices must be on the same network (or VPN).
+  Each test device must trust this server's private test CA once. TLS stays fully verified;
+  this CA has only ever signed this server's names. Compare the fingerprint before trusting it.
+    Download:  http://172-17-0-5.sslip.io/lumen-test-ca.crt     (on the server: sudo ./lumenctl test-ca)
+    SHA-256:   DE:59:26:2D:84:D4:EA:2C:CB:5F:67:26:86:EB:18:3C:B6:78:13:51:1E:A7:B6:85:1A:8A:AF:A6:2A:4D:37:53
+    Windows:   PowerShell, in the download folder:
+                 Import-Certificate -FilePath .\lumen-test-ca.crt -CertStoreLocation Cert:\CurrentUser\Root
+               (or double-click it → Install Certificate → Current User → Trusted Root Certification Authorities)
+    Android:   Settings → Security → Encryption & credentials → Install a certificate → CA certificate,
+               then use the Lumen test build (debug APK); release builds trust system CAs only.
+    Browsers:  Chrome/Edge on Windows use the Windows store above; Firefox: Settings → Certificates → Import.
+
+Operator setup:
+  1. Connect to the console from your computer, either
+     • SSH tunnel:  ssh -L 8443:127.0.0.1:8443 <you>@<this server>
+       and add to your hosts file:  127.0.0.1 ops.172-17-0-5.sslip.io
+  2. On the server:  sudo cat /etc/lumen/operator-setup-link.txt   (one-time link, 24 h)
+  3. Open the link (https://ops.172-17-0-5.sslip.io:8443/…), choose a password, then enrol two-factor authentication.
+
+Remaining manual items:
+  • this is a TEST setup: for production, install fresh on your real domain (accounts and rooms don't move over)
+  • optional: configure SMTP_* to enable email verification and password reset
+  • store /etc/lumen/backup/identity.txt offline; without it backups cannot be decrypted
+
+Log: /var/log/lumen/install-20261017T071304Z.log
+--- update.sh with WireGuard off
+update.sh with WIREGUARD_ENABLED=false: exit 0; off (WIREGUARD_ENABLED=false in /etc/lumen/lumen.conf)|WireGuard is off; turn it on with: sudo ./lumenctl wireguard enable|
+WIREGUARD_ENABLED=false
+
+=== B4: sudo ./lumenctl wireguard enable  (the one command for an existing installation)
+    ✔ WireGuard up on wg0 (10.78.0.0/24, UDP 51820, userspace wireguard-go: this kernel has no WireGuard module); devices dial 172-17-0-5.sslip.io:51820
+    ✔ first device 'operator-device' added (10.78.0.2); profile: /etc/lumen/wireguard/first-device.conf (root only)
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 7882-7889/udp 7881/tcp 3478/udp 51820/udp 8443/tcp on wg0
+    validating Caddy configuration
+    ✔ Caddy configuration valid
+    validating homeserver configuration (and generating the signing key if missing)
+    ✔ homeserver configuration valid; signing key present
+    validating Compose file
+    ✔ Compose configuration valid
+    ✔ configuration activated (previous kept in /etc/lumen/rendered.prev)
+    ✔ PostgreSQL healthy; roles and databases in place
+    ✔ synapse healthy
+    ✔ portal healthy
+    ✔ ops healthy
+    ✔ caddy running
+    ✔ calls authorization service healthy
+    ✔ LiveKit SFU running
+    ✔ internal CA bundle in place
+
+WireGuard:          on (wg0, 10.78.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
+                    console via WireGuard: https://ops.172-17-0-5.sslip.io:8443/  (hosts file on the device: 10.78.0.1 ops.172-17-0-5.sslip.io)
+                    devices dial 172-17-0-5.sslip.io:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+--- checks after enable (post-install-check.sh on the enable output; its first line means: lumen.conf now says true)
+PASS lumen.conf now says WIREGUARD_ENABLED=true (key was absent in the given config)
+PASS wg0 is up (10.78.0.1/24)
+PASS wg-quick@wg0 active and enabled at boot
+PASS installer state wireguard=enabled
+PASS first device profile 0600 root:root (600 root:root)
+PASS directory 0700 root:root (700 root:root)
+PASS exactly one peer, named <operator>-device: ['operator-device']
+PASS UFW: UDP 51820 and the console on wg0
+PASS Caddy console allow-list contains WG_SUBNET
+PASS no WireGuard key value (3 checked) in the install output/summary or /var/log/lumen
+PASS no 'PrivateKey = …' or 'PresharedKey = …' line in the install output or logs
+PASS summary names the profile and the QR command
+PASS summary has the provider-firewall note
+PASS healthcheck reports 'wireguard: wg0 up'
+post-install: 14 passed, 0 failed
+--- console allow-list in the rendered Caddyfile (lines with the WireGuard subnet)
+223:	@outside not remote_ip 127.0.0.1/8 ::1/128 10.78.0.0/24
+--- tests/integration/wireguard_e2e.sh --profile /etc/lumen/wireguard/first-device.conf (the generated profile, from another network namespace)
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS console reachable through the tunnel (10.78.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+wireguard e2e: 6 passed, 0 failed
+
+=== B5: update.sh --no-pull --yes with WireGuard on
+update exit 0; ✔ WireGuard up on wg0 (10.78.0.0/24, UDP 51820, already running); devices dial 172-17-0-5.sslip.io:51820 ✔ first device 'operator-device' already registered (keys unchanged); profile still stored: /etc/lumen/wireguard/first-device.conf 
+keys and profile unchanged: yes; peers: 1; wg0: 10.78.0.1/24
+key values in any B log or /var/log/lumen: 0 file(s)

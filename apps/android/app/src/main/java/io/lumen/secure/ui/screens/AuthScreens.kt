@@ -5,12 +5,31 @@ import android.content.Context
 import androidx.core.net.toUri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.ui.res.painterResource
+import io.lumen.secure.ui.components.Pill
+import io.lumen.secure.ui.components.PrimaryButton
+import io.lumen.secure.ui.theme.LumenEase
+import io.lumen.secure.ui.theme.brandHero
+import io.lumen.secure.ui.theme.brandWash
+import io.lumen.secure.ui.theme.isDark
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
@@ -18,8 +37,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.lumen.secure.AppGraph
 import io.lumen.secure.R
+import io.lumen.secure.auth.AuthFlowState
 import io.lumen.secure.auth.SignInError
 import io.lumen.secure.core.config.DiscoveredServer
 import io.lumen.secure.core.config.DiscoveryFailure
@@ -61,54 +79,114 @@ fun openInBrowser(context: Context, url: String): Boolean = try {
     false
 }
 
+/** Everything the sign-in screens do, as callbacks (the stateful wiring is in [AuthFlow]). */
+class AuthActions(
+    val onInput: (String) -> Unit = {},
+    val onDiscover: () -> Unit = {},
+    val onSso: () -> Unit = {},
+    val onOpenUrl: (String) -> Unit = {},
+    val onChangeServer: () -> Unit = {},
+    val onPassword: (user: String, password: String) -> Unit = { _, _ -> },
+)
+
 @Composable
 fun AuthFlow(graph: AppGraph, reason: SignOutReason?) {
     val state by graph.auth.state.collectAsState()
-    Column(
-        Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(32.dp))
-            LogoMark(64.dp)
-            Spacer(Modifier.height(16.dp))
-            if (reason == SignOutReason.REMOTE) {
-                Banner(stringResource(R.string.signed_out_remote), BannerKind.WARNING, R.drawable.ic_lucide_triangle_alert)
-                Spacer(Modifier.height(16.dp))
+    val context = LocalContext.current
+    var browserMissing by remember { mutableStateOf(false) }
+    AuthContent(
+        state = state,
+        reason = reason,
+        browserMissing = browserMissing,
+        actions = remember(graph) {
+            AuthActions(
+                onInput = graph.auth::setInput,
+                onDiscover = graph.auth::discover,
+                onSso = { graph.auth.startSso { url -> browserMissing = !openInBrowser(context, url) } },
+                onOpenUrl = { url -> browserMissing = !openInBrowser(context, url) },
+                onChangeServer = {
+                    browserMissing = false
+                    graph.auth.changeServer()
+                },
+                onPassword = graph.auth::passwordLogin,
+            )
+        },
+    )
+}
+
+@Composable
+fun AuthContent(state: AuthFlowState, reason: SignOutReason?, browserMissing: Boolean, actions: AuthActions) {
+    val dark = MaterialTheme.isDark
+    // Light mode: the airy brand wash. Dark mode: the midnight hero with its sunrise glow.
+    Box(Modifier.fillMaxSize().then(if (dark) Modifier.brandHero() else Modifier.brandWash(1.6f))) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight).fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Column(Modifier.widthIn(max = 440.dp).fillMaxWidth().animateContentSize(LumenEase.med()), horizontalAlignment = Alignment.CenterHorizontally) {
+                    LogoMark(60.dp, glow = true)
+                    if (reason == SignOutReason.REMOTE) {
+                        Spacer(Modifier.height(8.dp))
+                        Banner(stringResource(R.string.signed_out_remote), BannerKind.WARNING, R.drawable.ic_lucide_triangle_alert, modifier = Modifier.padding(horizontal = 0.dp))
+                    }
+                    val server = state.server
+                    if (server == null) ServerPicker(state, actions) else SignIn(state, server, browserMissing, actions)
+                }
             }
-            val server = state.server
-            if (server == null) ServerPicker(graph) else SignIn(graph, server)
         }
     }
 }
 
+/** The card the sign-in controls sit on: white on the wash in light mode, a tonal step in dark mode. */
 @Composable
-private fun ServerPicker(graph: AppGraph) {
-    val state by graph.auth.state.collectAsState()
+private fun AuthCard(content: @Composable ColumnScope.() -> Unit) {
     val c = MaterialTheme.lumenColors
+    val dark = MaterialTheme.isDark
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = if (dark) c.surface.copy(alpha = 0.92f) else c.surface,
+        border = BorderStroke(1.dp, c.border),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp), content = content)
+    }
+}
+
+@Composable
+private fun ServerPicker(state: AuthFlowState, actions: AuthActions) {
+    val c = MaterialTheme.lumenColors
+    Spacer(Modifier.height(4.dp))
+    Pill(stringResource(R.string.auth_new), icon = R.drawable.ic_lucide_sparkles)
+    Spacer(Modifier.height(16.dp))
     Text(stringResource(R.string.auth_welcome), style = MaterialTheme.typography.headlineMedium, color = c.text, textAlign = TextAlign.Center)
     Spacer(Modifier.height(8.dp))
-    Text(stringResource(R.string.auth_server_explain), style = MaterialTheme.typography.bodyMedium, color = c.textMuted, textAlign = TextAlign.Center)
-    Spacer(Modifier.height(24.dp))
-    OutlinedTextField(
-        value = state.serverInput,
-        onValueChange = graph.auth::setInput,
-        label = { Text(stringResource(R.string.auth_server_label)) },
-        placeholder = { Text(stringResource(R.string.auth_server_placeholder)) },
-        singleLine = true,
-        isError = state.discoveryError != null,
-        supportingText = state.discoveryError?.let { e -> { Text(stringResource(discoveryMessage(e))) } },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, autoCorrectEnabled = false),
-        keyboardActions = KeyboardActions(onGo = { if (state.serverInput.isNotBlank()) graph.auth.discover() }),
-        modifier = Modifier.fillMaxWidth().testTag("server_input"),
-    )
-    Spacer(Modifier.height(16.dp))
-    Button(
-        onClick = graph.auth::discover,
-        enabled = !state.discovering && state.serverInput.isNotBlank(),
-        modifier = Modifier.fillMaxWidth().testTag("server_continue"),
-    ) {
-        if (state.discovering) CircularProgressIndicator(Modifier.height(18.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.action_continue))
+    Text(stringResource(R.string.auth_tagline), style = MaterialTheme.typography.bodyLarge, color = c.textMuted, textAlign = TextAlign.Center)
+    Spacer(Modifier.height(28.dp))
+    AuthCard {
+        Text(stringResource(R.string.auth_server_explain), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        OutlinedTextField(
+            value = state.serverInput,
+            onValueChange = actions.onInput,
+            label = { Text(stringResource(R.string.auth_server_label)) },
+            placeholder = { Text(stringResource(R.string.auth_server_placeholder)) },
+            leadingIcon = { Icon(painterResource(R.drawable.ic_lucide_server), null) },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            isError = state.discoveryError != null,
+            supportingText = state.discoveryError?.let { e -> { Text(stringResource(discoveryMessage(e))) } },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, autoCorrectEnabled = false),
+            keyboardActions = KeyboardActions(onGo = { if (state.serverInput.isNotBlank()) actions.onDiscover() }),
+            modifier = Modifier.fillMaxWidth().testTag("server_input"),
+        )
+        PrimaryButton(
+            text = stringResource(R.string.action_continue),
+            onClick = actions.onDiscover,
+            enabled = state.discovering || state.serverInput.isNotBlank(),
+            loading = state.discovering,
+            modifier = Modifier.fillMaxWidth().testTag("server_continue"),
+        )
     }
 }
 
@@ -120,15 +198,14 @@ private fun discoveryMessage(e: DiscoveryFailure): Int = when (e) {
     DiscoveryFailure.NO_SUPPORTED_LOGIN -> R.string.discovery_no_login
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SignIn(graph: AppGraph, server: DiscoveredServer) {
-    val state by graph.auth.state.collectAsState()
-    val context = LocalContext.current
+private fun SignIn(state: AuthFlowState, server: DiscoveredServer, browserMissing: Boolean, actions: AuthActions) {
     val c = MaterialTheme.lumenColors
-    var browserMissing by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(12.dp))
     Text(stringResource(R.string.auth_sign_in_to, server.displayName), style = MaterialTheme.typography.headlineSmall, color = c.text, textAlign = TextAlign.Center)
-    Spacer(Modifier.height(4.dp))
-    Text(server.serverName ?: server.homeserverUrl, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+    Spacer(Modifier.height(10.dp))
+    Pill(server.serverName ?: server.homeserverUrl, icon = R.drawable.ic_lucide_globe)
     Spacer(Modifier.height(24.dp))
 
     state.error?.let { e ->
@@ -142,71 +219,81 @@ private fun SignIn(graph: AppGraph, server: DiscoveredServer) {
                 },
             ),
             BannerKind.DANGER, R.drawable.ic_lucide_circle_alert,
+            modifier = Modifier.padding(bottom = 8.dp),
         )
-        Spacer(Modifier.height(16.dp))
     }
     if (browserMissing) {
-        Banner(stringResource(R.string.auth_no_browser), BannerKind.DANGER, R.drawable.ic_lucide_circle_alert)
-        Spacer(Modifier.height(16.dp))
+        Banner(stringResource(R.string.auth_no_browser), BannerKind.DANGER, R.drawable.ic_lucide_circle_alert, modifier = Modifier.padding(bottom = 8.dp))
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+    AuthCard {
         if (server.loginFlows.sso && server.loginFlows.token) {
-            Button(
-                onClick = { graph.auth.startSso { url -> browserMissing = !openInBrowser(context, url) } },
-                enabled = !state.busy,
+            PrimaryButton(
+                text = stringResource(R.string.auth_continue_sso, server.lumen?.brandShortName ?: server.displayName),
+                onClick = actions.onSso,
+                enabled = true,
+                loading = state.busy,
                 modifier = Modifier.fillMaxWidth().testTag("sso_button"),
-            ) {
-                if (state.busy) {
-                    CircularProgressIndicator(Modifier.height(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Text(stringResource(R.string.auth_continue_sso, server.lumen?.brandShortName ?: server.displayName))
-                }
-            }
+            )
             if (state.waitingForBrowser) {
-                Text(stringResource(R.string.auth_waiting_browser), style = MaterialTheme.typography.bodySmall, color = c.textMuted, textAlign = TextAlign.Center)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Icon(painterResource(R.drawable.ic_lucide_external_link), null, tint = c.accent, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.auth_waiting_browser), style = MaterialTheme.typography.bodySmall, color = c.textMuted)
+                }
             }
         }
         server.lumen?.signupUrl?.let { signup ->
-            OutlinedButton(onClick = { browserMissing = !openInBrowser(context, signup) }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.auth_create_account))
-            }
+            OutlinedButton(
+                onClick = { actions.onOpenUrl(signup) },
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) { Text(stringResource(R.string.auth_create_account)) }
         }
         // Password sign-in only when the server offers it and no SSO is available (integration.md §2).
-        if (server.loginFlows.password && !(server.loginFlows.sso && server.loginFlows.token)) PasswordForm(graph, state.busy)
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.auth_privacy_note), style = MaterialTheme.typography.bodySmall, color = c.textMuted, textAlign = TextAlign.Center)
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            server.lumen?.privacyUrl?.let { u -> TextButton(onClick = { openInBrowser(context, u) }) { Text(stringResource(R.string.link_privacy)) } }
-            server.lumen?.helpUrl?.let { u -> TextButton(onClick = { openInBrowser(context, u) }) { Text(stringResource(R.string.link_help)) } }
-            TextButton(onClick = graph.auth::changeServer) { Text(stringResource(R.string.auth_change_server)) }
-        }
+        if (server.loginFlows.password && !(server.loginFlows.sso && server.loginFlows.token)) PasswordForm(actions, state.busy)
+    }
+    Spacer(Modifier.height(16.dp))
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+        Icon(painterResource(R.drawable.ic_lucide_lock), null, tint = c.textSubtle, modifier = Modifier.padding(top = 2.dp).size(14.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.auth_privacy_note), style = MaterialTheme.typography.bodySmall, color = c.textMuted)
+    }
+    Spacer(Modifier.height(8.dp))
+    FlowRow(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+        server.lumen?.privacyUrl?.let { u -> TextButton(onClick = { actions.onOpenUrl(u) }) { Text(stringResource(R.string.link_privacy)) } }
+        server.lumen?.helpUrl?.let { u -> TextButton(onClick = { actions.onOpenUrl(u) }) { Text(stringResource(R.string.link_help)) } }
+        TextButton(onClick = actions.onChangeServer) { Text(stringResource(R.string.auth_change_server)) }
     }
 }
 
 @Composable
-private fun PasswordForm(graph: AppGraph, busy: Boolean) {
+private fun PasswordForm(actions: AuthActions, busy: Boolean) {
     var user by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     OutlinedTextField(
         value = user, onValueChange = { user = it }, singleLine = true,
         label = { Text(stringResource(R.string.auth_username)) },
+        shape = MaterialTheme.shapes.medium,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next, autoCorrectEnabled = false),
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
         value = password, onValueChange = { password = it }, singleLine = true,
         label = { Text(stringResource(R.string.auth_password)) },
+        shape = MaterialTheme.shapes.medium,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
         modifier = Modifier.fillMaxWidth(),
     )
-    Button(
+    PrimaryButton(
+        text = stringResource(R.string.auth_sign_in),
         onClick = {
-            graph.auth.passwordLogin(user, password)
+            actions.onPassword(user, password)
             password = ""
         },
-        enabled = !busy && user.isNotBlank() && password.isNotEmpty(),
+        enabled = busy || (user.isNotBlank() && password.isNotEmpty()),
+        loading = busy,
         modifier = Modifier.fillMaxWidth(),
-    ) { Text(stringResource(R.string.auth_sign_in)) }
+    )
 }

@@ -17,6 +17,7 @@
       <li><a href="#transport">Transport security</a></li>
       <li><a href="#post-quantum">Post-quantum status</a></li>
       <li><a href="#accounts">Account security</a></li>
+      <li><a href="#operators">Operator access</a></li>
       <li><a href="#limits">Limits</a></li>
     </ul>
   </nav>
@@ -61,7 +62,7 @@
         <tr><td>Encrypted key backup (stored on the server)</td><td><strong>Not post-quantum.</strong> Your message keys are backed up encrypted to a Curve25519 key that only your recovery key unlocks. That protects them today, but a future quantum computer could attack the stored copy.</td></tr>
         <tr><td>Browser ↔ server connections</td><td><strong>Hybrid post-quantum key exchange</strong> (X25519MLKEM768, combining X25519 with NIST FIPS 203 ML-KEM) is offered and used automatically when your browser supports it. This protects the connection to our server, not the end-to-end layer.</td></tr>
         <tr><td>Server ↔ server federation</td><td>Hybrid key exchange is used when both servers support it; many Matrix servers do not yet.</td></tr>
-        <tr><td>Operator VPN (WireGuard)</td><td>Each peer uses a preshared key, which WireGuard mixes into its handshake for post-quantum resistance of the tunnel.</td></tr>
+        <tr><td>Operator access (WireGuard)</td><td>Each operator device has its own preshared key, which WireGuard mixes into its handshake. Recorded tunnel traffic stays confidential even against a future quantum computer, as long as the key stays secret. The tunnel is for administration only; it doesn't carry chats.</td></tr>
       </tbody>
     </table>
     <p>You will not see a "quantum-safe" badge on your chats, because that would not be true. The full analysis is published with the source code.</p>
@@ -74,6 +75,10 @@
       <li>Your chat sign-in goes through your {{ brand.short_name }} account (single sign-on). The account service decides <em>who</em> you are; it never sees your message keys.</li>
     </ul>
 
+    <h2 id="operators">Operator access</h2>
+    <p>The people who run a {{ brand.short_name }} server administer it through a private console that isn't on the public internet. It accepts connections only through a <strong>WireGuard</strong> tunnel, an SSH tunnel or allow-listed addresses, and then asks for the operator's password and second factor. WireGuard is set up when {{ brand.short_name }} is installed, with a preshared key for every operator device; operators can turn it off and use an SSH tunnel instead.</p>
+    <p>Operators see account metadata, never message content. Every operator action is written to a tamper-evident audit log. <a href="{% url 'site:zero_trust' %}">How the architecture limits what any one component can do</a>.</p>
+
     <h2 id="limits">Limits we want you to know</h2>
     <ul>
       <li>If your device is compromised (malware, an unlocked phone), encryption can't help: the attacker sees what you see.</li>
@@ -82,6 +87,10 @@
       <li>{{ brand.short_name }} is not an anonymity tool. Use Tor or similar if you need to hide your IP address.</li>
     </ul>
     <p>Found a problem? Please tell us through our <a href="{% url 'site:disclosure' %}">vulnerability disclosure policy</a>.</p>
+    <div class="related section-foot">
+      <a class="card card-link" href="{% url 'site:federation' %}"><h3>Built on Matrix</h3><p>Open standard, federation and your own server.</p></a>
+      <a class="card card-link" href="{% url 'site:zero_trust' %}"><h3>Zero-trust architecture</h3><p>Separated services and a private console.</p></a>
+    </div>
   </div>
 </div></section>
 {% endblock %}

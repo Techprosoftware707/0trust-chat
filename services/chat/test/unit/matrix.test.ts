@@ -200,3 +200,45 @@ describe("blocking (m.ignored_user_list)", () => {
     expect(c.setIgnoredUsers).not.toHaveBeenCalled();
   });
 });
+
+describe("previews of messages this device can't decrypt", () => {
+  async function utd(code: string): Promise<MatrixEvent> {
+    const { DecryptionError } = await import("matrix-js-sdk/lib/common-crypto/CryptoBackend.js");
+    const ev = new MatrixEvent({
+      type: "m.room.encrypted",
+      sender: "@a:x",
+      event_id: "$utd",
+      room_id: "!r:x",
+      origin_server_ts: 1,
+      content: { algorithm: "m.megolm.v1.aes-sha2", ciphertext: "x", session_id: "s", sender_key: "k", device_id: "D" },
+    });
+    const crypto = { decryptEvent: async () => Promise.reject(new DecryptionError(code as never, "test")) };
+    await ev.attemptDecryption(crypto as never);
+    return ev;
+  }
+
+  it("say the key may still arrive only when it may (unknown session), never alarmist", async () => {
+    const { previewText } = await import("../../src/matrix/rooms");
+    expect(previewText(await utd("MEGOLM_UNKNOWN_INBOUND_SESSION_ID"), "@me:x")).toBe("Encrypted message · waiting for its key");
+    expect(previewText(await utd("HISTORICAL_MESSAGE_NO_KEY_BACKUP"), "@me:x")).toBe("Encrypted message");
+    for (const code of ["MEGOLM_UNKNOWN_INBOUND_SESSION_ID", "UNKNOWN_ERROR"]) {
+      expect(previewText(await utd(code), "@me:x")).not.toMatch(/unable|fail|error/i);
+    }
+  });
+});
+
+describe("timeline runs", () => {
+  it("puts consecutive call items in one card and consecutive notices in one block", async () => {
+    const { groupRuns } = await import("../../src/matrix/timeline");
+    const e = new MatrixEvent({ type: "m.room.message", sender: "@a:x", event_id: "$m", content: { msgtype: "m.text", body: "hi" } });
+    const call = (k: string) => ({ kind: "call" as const, key: k, event: e, marker: { kind: "call-declined" as const, sender: "@a:x" } });
+    const notice = (k: string) => ({ kind: "notice" as const, key: k, event: e, text: k });
+    const blocks = groupRuns([notice("n1"), notice("n2"), call("c1"), call("c2"), call("c3"), { kind: "message", key: "m", event: e, continuation: false }, call("c4")]);
+    expect(blocks.map((b) => (b.kind === "call-run" || b.kind === "notice-run" ? `${b.kind}:${b.items.length}` : b.kind))).toEqual([
+      "notice-run:2",
+      "call-run:3",
+      "message",
+      "call-run:1",
+    ]);
+  });
+});

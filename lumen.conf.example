@@ -102,10 +102,16 @@ PUSH_ENABLED=false
 #PUSH_APNS_SANDBOX=false                    # true only for development builds run from Xcode (TestFlight and App Store use production)
 #PUSH_PORT=5000                             # 127.0.0.1 only
 
-# --- WireGuard (optional private admin network; never replaces end-to-end encryption)
-WIREGUARD_ENABLED=false
-#WG_SUBNET=10.77.0.0/24
-#WG_PORT=51820
+# --- WireGuard: private operator access to the console (on by default) ----------------------
+# The installer sets it up: wg0, a free subnet, UDP WG_PORT in the firewall, and a first device
+# profile in /etc/lumen/wireguard/first-device.conf (QR: sudo ./lumenctl wireguard show-profile).
+# Only for reaching the console; chat and federation never use it. Hosts that can't run it
+# (containers without the kernel module, an existing non-Lumen wg0) are skipped with a warning.
+WIREGUARD_ENABLED=true
+#WG_SUBNET=10.77.0.0/24                     # another one is picked if this overlaps a host network
+#WG_PORT=51820                              # also allow it in your provider's firewall, if any
+#WG_ENDPOINT=                               # what devices dial (default: the primary domain if it
+#                                           # resolves to this server, else the public IPv4)
 
 # --- Email (optional) -----------------------------------------------------------------
 # Without SMTP: no email verification or password reset by email; operators can issue

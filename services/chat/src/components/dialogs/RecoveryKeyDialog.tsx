@@ -22,7 +22,7 @@ export function RecoveryKeyDialog({ onClose }: { onClose: () => void }) {
     return (
       <Dialog title="Device verified" icon={<CircleCheck />} onClose={onClose}>
         <div className="verify-state">
-          <CircleCheck className="verify-icon ok" aria-hidden="true" />
+          <CircleCheck className="verify-icon ok celebrate" aria-hidden="true" />
           <p role="status">
             This device is now verified.{" "}
             {result === "no-backup"

@@ -2,13 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% if lumen.environment_label %}[{{ lumen.environment_label }}] {% endif %}{% block title %}{{ brand.name }}{% endblock %}{% if not request.path == "/" %} · {{ brand.name }}{% endif %}</title>
   <meta name="description" content="{% block meta_description %}{{ brand.tagline }}{% endblock %}">
+  <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#0a1430">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f6fa">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#060c1d">
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="application-name" content="{{ brand.name }}">
+  <meta name="apple-mobile-web-app-title" content="{{ brand.short_name }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ brand.name }}">
+  <meta property="og:title" content="{{ brand.name }}">
+  <meta property="og:description" content="{{ brand.tagline }}">
+  {% if request %}<meta property="og:url" content="{{ request.build_absolute_uri }}">{% endif %}
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="{{ lumen.brand_asset_url }}favicon.svg" type="image/svg+xml">
+  <link rel="mask-icon" href="{{ lumen.brand_asset_url }}favicon.svg" color="#0a1430">
   <script src="{% static 'lumen/js/theme.js' %}"></script>
   <link rel="preload" href="{% static 'design/fonts/inter-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'design/tokens.css' %}">
@@ -19,8 +30,8 @@
 <body class="{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main">Skip to content</a>
   {% if lumen.environment_label %}<div class="env-banner" role="note" aria-label="Environment">{% icon "flag" %} <strong>{{ lumen.environment_label }} environment</strong> · synthetic demo data <span class="env-banner-note">Don't enter real customer information.</span></div>{% endif %}
-  {% if lumen.maintenance %}<div class="banner" role="status">{% icon "construction" %} {{ lumen.maintenance_message|default:"Scheduled maintenance is in progress. New sign-ups are paused." }}</div>{% endif %}
-  {% if lumen.announcement %}<div class="banner" role="status">{{ lumen.announcement }}</div>{% endif %}
+  {% if lumen.maintenance %}<div class="banner" role="status">{% icon "construction" %} <span>{{ lumen.maintenance_message|default:"Scheduled maintenance is in progress. New sign-ups are paused for now." }}</span></div>{% endif %}
+  {% if lumen.announcement %}<div class="banner" role="status">{% icon "info" %} <span>{{ lumen.announcement }}</span></div>{% endif %}
   {% block body %}{% endblock %}
   <script src="{% static 'lumen/js/app.js' %}" defer></script>
   {% block scripts %}{% endblock %}

@@ -5,7 +5,6 @@
 <div class="table-wrap"><table class="table"><thead><tr><th>Component</th><th>Status</th><th>Last result</th><th>Checked</th><th>Latency</th><th>Last 24h</th></tr></thead><tbody>
 {% for row in rows %}<tr><td><strong>{{ row.label }}</strong></td><td>{% include "ops/_status_badge.html" with s=row.status %}</td><td class="small">{{ row.snapshot.summary|default:"—" }}</td><td class="small nowrap">{% if row.snapshot %}{{ row.snapshot.at|timesince }} ago{% else %}never{% endif %}</td><td class="small">{% if row.snapshot.latency_ms is not None %}{{ row.snapshot.latency_ms }} ms{% endif %}</td><td><span class="cluster history">{% for h in history|get_item:row.key %}<span class="status-dot status-{{ h.status }}" title="{{ h.at|date:'H:i' }} {{ h.status }}"></span>{% endfor %}</span></td></tr>{% endfor %}
 </tbody></table></div>
-<br>
 <section class="card stack">
   <h2>Host</h2>
   {% if host_error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>Host agent: {{ host_error }}</div></div>{% endif %}

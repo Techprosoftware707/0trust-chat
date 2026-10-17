@@ -1,6 +1,7 @@
-# Android app: unit tests, lint, debug + release APK, release AAB, instrumented tests on
-# an emulator (GitHub's Linux runners have KVM), and the app end to end against a real Lumen
-# server installed on the runner (install.sh --test). Release signing only with secrets.
+# Android app: unit tests, lint, debug + release APK, release AAB, screenshots of every screen
+# (Robolectric), instrumented tests on an emulator (GitHub's Linux runners have KVM), and the app
+# end to end against a real Lumen server installed on the runner (install.sh --test). Release
+# signing only with secrets.
 name: android
 
 on:
@@ -137,6 +138,34 @@ jobs:
           path: |
             apps/android/app/build/reports
             apps/android/app/build/test-results
+          retention-days: 7
+
+  screenshots:
+    # Every screen rendered from the real composables with fake state (Robolectric native graphics,
+    # Roborazzi): phones at 360 and 411 dp, a tablet at 840 dp, light and dark, 150 % and 200 % text.
+    name: Screenshots (every screen, sizes, themes, large text)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Render the screens
+        run: ./gradlew --no-daemon :app:screenshots
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: android-screenshots
+          path: apps/android/app/build/outputs/roborazzi
+          if-no-files-found: error
           retention-days: 7
 
   instrumented:

@@ -110,7 +110,6 @@ check_ports() {
     local lo hi udp; udp="$(conf_get CALLS_UDP_PORTS 7882-7889)"; lo="${udp%-*}"; hi="${udp#*-}"
     specs+=("udp:$lo" "udp:$hi" "tcp:$(conf_get CALLS_TCP_PORT 7881)" "udp:$(conf_get CALLS_TURN_UDP_PORT 3478)")
   fi
-  truthy "$(conf_get WIREGUARD_ENABLED false)" && specs+=("udp:$(conf_get WG_PORT 51820)")
   for spec in "${specs[@]}"; do
     proto="${spec%%:*}"; port="${spec#*:}"
     owner="$(port_owner "$proto" "$port")"
@@ -128,6 +127,17 @@ check_ports() {
       fi
     fi
   done
+  # WireGuard is optional: a busy port means WireGuard is skipped with a warning, not a failed install.
+  if wireguard_wanted; then
+    local wgp; wgp="$(conf_get WG_PORT 51820)"
+    if [[ -z "$(ss -Hlun "sport = :$wgp" 2>/dev/null)" ]]; then
+      ok "port $wgp/udp is free (WireGuard)"
+    elif ip link show wg0 >/dev/null 2>&1 && head -n 3 /etc/wireguard/wg0.conf 2>/dev/null | grep -qF '# Managed by Lumen (lumen-agent)'; then
+      ok "port $wgp/udp is used by Lumen's WireGuard (wg0)"
+    else
+      pf_warn "port $wgp/udp is already in use$( [[ -n "$(port_owner udp "$wgp")" ]] && echo " by $(port_owner udp "$wgp")"); WireGuard will be skipped (set WG_PORT to a free port in lumen.conf); the console stays reachable through an SSH tunnel"
+    fi
+  fi
 }
 
 check_conflicting_services() {

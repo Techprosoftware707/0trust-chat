@@ -1,0 +1,56 @@
+=== deploy/lib/wireguard.sh alone (no Lumen stack) in a throwaway systemd Ubuntu 24.04 container, 2026-10-17 06:46 UTC.
+=== Each scenario starts from "WireGuard never configured by Lumen". Driver: source common.sh/host.sh/wireguard.sh, then wireguard_default_on + wireguard_enable.
+=== (Scenario 2: the dummy-interface module is missing in this kernel, so a veth pair carries 10.77.0.5/24.)
+=== Ran on an earlier revision of wireguard.sh: since then the chosen subnet is written before the foreign-wg0 check and the first endpoint is kept
+=== in /etc/lumen/wireguard/server.json. The full-install runs (no-wireguard-possible.txt) cover these paths again on the final code.
+
+=== 1. a foreign /etc/wireguard/wg0.conf (no Lumen marker)
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ! WireGuard unavailable: /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched)
+    ! the operator console stays reachable through an SSH tunnel (see the summary); retry later with: sudo ./lumenctl wireguard enable
+state: unavailable | /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched)
+PASS foreign wg0.conf unchanged
+PASS foreign wg0 not started
+PASS wg-quick@wg0 not enabled
+PASS no device profile
+explicit 'lumenctl wireguard enable' exit=1 (ERROR: WireGuard could not be enabled: /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched))
+=== 2. WG_SUBNET overlaps a host network (10.77.0.5/24 on a veth)
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    WG_SUBNET=10.78.0.0/24 (10.77.0.0/24 overlaps 10.77.0.0/24 on vlumt0 on this host)
+    ✔ WireGuard up on wg0 (10.78.0.0/24, UDP 51820, userspace wireguard-go: this kernel has no WireGuard module); devices dial 203.0.113.7:51820
+    ✔ first device 'itadmin-device' added (10.78.0.2); profile: /etc/lumen/wireguard/first-device.conf (root only)
+wireguard_enable rc=0
+--- summary
+WireGuard:          on (wg0, 10.78.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
+                    console via WireGuard: https://ops.lumen-it.test:8443/  (hosts file on the device: 10.78.0.1 ops.lumen-it.test)
+                    devices dial 203.0.113.7:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+state: enabled | 
+WG_SUBNET=10.78.0.0/24
+wg0              UNKNOWN        10.78.0.1/24 
+=== 3. wg-quick fails (systemd drop-in makes wg-quick@wg0 exit 1)
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ! WireGuard unavailable: wg-quick could not start wg0 (see /var/log/lumen/wgunit-20261017T064657Z.log and journalctl -u wg-quick@wg0)
+    ! the operator console stays reachable through an SSH tunnel (see the summary); retry later with: sudo ./lumenctl wireguard enable
+state: unavailable | wg-quick could not start wg0 (see /var/log/lumen/wgunit-20261017T064657Z.log and journalctl -u wg-quick@wg0)
+PASS unit not left in failed state
+PASS not enabled at boot
+=== 4. UDP 51820 already in use
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ! WireGuard unavailable: UDP port 51820 is already in use on this host (set WG_PORT to a free port in /etc/lumen/lumen.conf)
+    ! the operator console stays reachable through an SSH tunnel (see the summary); retry later with: sudo ./lumenctl wireguard enable
+state: unavailable | UDP port 51820 is already in use on this host (set WG_PORT to a free port in /etc/lumen/lumen.conf)
+=== 5. no kernel module and no TUN device
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ! WireGuard unavailable: this kernel has no WireGuard support and there is no TUN device for the userspace implementation (usual in unprivileged containers and LXC; the kernel of an Ubuntu 24.04 VM or server has it)
+    ! the operator console stays reachable through an SSH tunnel (see the summary); retry later with: sudo ./lumenctl wireguard enable
+state: unavailable | this kernel has no WireGuard support and there is no TUN device for the userspace implementation (usual in unprivileged containers and LXC; the kernel of an Ubuntu 24.04 VM or server has it)
+=== 6. back to normal: comes up, first device created
+    WireGuard is on by default (WIREGUARD_ENABLED=true written to /etc/lumen/lumen.conf)
+    ✔ WireGuard up on wg0 (10.77.0.0/24, UDP 51820, userspace wireguard-go: this kernel has no WireGuard module); devices dial 203.0.113.7:51820
+    ✔ first device 'itadmin-device' added (10.77.0.2); profile: /etc/lumen/wireguard/first-device.conf (root only)
+wireguard_enable rc=0
+--- summary
+WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
+                    console via WireGuard: https://ops.lumen-it.test:8443/  (hosts file on the device: 10.77.0.1 ops.lumen-it.test)
+                    devices dial 203.0.113.7:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+state: enabled | 

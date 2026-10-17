@@ -1,3 +1,3 @@
-{% extends "base.html" %}{% load lumen %}
+{% extends "error_base.html" %}{% load lumen %}
 {% block title %}Too many attempts{% endblock %}
-{% block body %}<main id="main" class="auth-main"><div class="auth-panel stack center"><span class="feature-icon violet">{% icon "gauge" %}</span><h1>Too many attempts</h1><p class="muted">This was tried too often in a short time. Wait a few minutes, then try again.</p><p><a class="btn" href="/">Go home</a></p></div></main>{% endblock %}
+{% block error_content %}<span class="feature-icon warm">{% icon "clock" %}</span><span class="error-code">Error 429</span><h1>Too many attempts</h1><p>That was tried a lot in a short time, so we paused it to keep accounts safe. Wait a few minutes, then try again.</p><div class="error-actions"><a class="btn btn-primary" href="/">Go to the homepage</a><a class="btn btn-ghost" href="/contact/?topic=support">Contact support</a></div>{% endblock %}

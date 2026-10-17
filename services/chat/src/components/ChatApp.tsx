@@ -209,6 +209,25 @@ export function ChatApp({ config, client, session, onSignedOut }: Props) {
     };
   }, [client, toast, dismissToast, openDialog, reportError]);
 
+  // --- On-screen keyboard: size the app to the visual viewport, so the composer stays above
+  // the keyboard on phones where the keyboard doesn't resize the layout viewport (iOS). ---
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    const apply = () => {
+      if (vv.scale > 1.01) return; // pinch-zoomed: leave the layout alone
+      root.style.setProperty("--app-height", `${Math.round(vv.height)}px`);
+      if (window.scrollY) window.scrollTo(0, 0);
+    };
+    apply();
+    vv.addEventListener("resize", apply);
+    return () => {
+      vv.removeEventListener("resize", apply);
+      root.style.removeProperty("--app-height");
+    };
+  }, []);
+
   // --- Desktop notifications ---
   useEffect(() => startDesktopNotifications(client, config.brand.name), [client, config.brand.name]);
 

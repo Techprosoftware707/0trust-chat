@@ -83,9 +83,10 @@ DEFAULTS: dict[str, str] = {
     "PUSH_APNS_KEY_ID": "",
     "PUSH_APNS_TOPIC": "",  # default: APP_LINKS_APPLE_BUNDLE_ID
     "PUSH_APNS_SANDBOX": "false",  # true for development builds (APNs sandbox)
-    "WIREGUARD_ENABLED": "false",
-    "WG_SUBNET": "10.77.0.0/24",
+    "WIREGUARD_ENABLED": "true",  # private operator access, on by default (deploy/lib/wireguard.sh)
+    "WG_SUBNET": "10.77.0.0/24",  # the installer picks a free one if this overlaps a host network
     "WG_PORT": "51820",
+    "WG_ENDPOINT": "",  # host or address devices dial; the installer fills it in
     "SMTP_HOST": "",
     "SMTP_PORT": "587",
     "SMTP_USER": "",
@@ -239,6 +240,12 @@ def validate(cfg: dict[str, str]) -> None:
             errors.append("WG_SUBNET must be a private IPv4 network of /29 or larger")
     except ValueError:
         errors.append("WG_SUBNET is not a valid network (e.g. 10.77.0.0/24)")
+    if cfg["WG_ENDPOINT"]:
+        try:
+            ipaddress.ip_address(cfg["WG_ENDPOINT"])
+        except ValueError:
+            if not DOMAIN_RE.match(cfg["WG_ENDPOINT"].lower()):
+                errors.append("WG_ENDPOINT must be a host name or an IP address (without a port; the port is WG_PORT)")
     num_keys = ("CALLS_TCP_PORT", "CALLS_TURN_UDP_PORT", "CALLS_MAX_PARTICIPANTS", "WG_PORT",
                 "LUMEN_OPS_PORT", "SMTP_PORT", "BILLING_GRACE_DAYS", "DEFAULT_MAX_UPLOAD_MB")
     for k in num_keys:

@@ -12,3 +12,13 @@ describe("encryption labels", () => {
     expect(renderToStaticMarkup(<EncryptionBadge encrypted={null} />)).toBe("");
   });
 });
+
+describe("links to the website", () => {
+  it("points 'Learn more' at the website's security page, only when there is a website", async () => {
+    const { securityPageUrl } = await import("../../src/components/settings/AboutTab");
+    expect(securityPageUrl("https://lumen.example")).toBe("https://lumen.example/security/");
+    expect(securityPageUrl("https://lumen.example/portal/")).toBe("https://lumen.example/security/");
+    expect(securityPageUrl(null)).toBeNull();
+    expect(securityPageUrl("not a url")).toBeNull();
+  });
+});

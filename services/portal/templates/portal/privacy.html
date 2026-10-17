@@ -2,10 +2,10 @@
 {% block title %}Privacy & data{% endblock %}
 {% block main %}
 <div class="app-topbar"><div><h1>Privacy &amp; data</h1><p>See what we hold, take a copy, or delete your account.</p></div></div>
-<div class="grid grid-2">
+<div class="grid grid-2 align-start">
   <section class="card stack">
     <h2>What this portal stores about you</h2>
-    <ul class="check-list">
+    <ul class="check-list x-list">
       <li>{% icon "user" %} Username, display name and email addresses</li>
       <li>{% icon "key-round" %} Password hash (Argon2id) and two-factor authenticators</li>
       <li>{% icon "shield-check" %} Security events — kept {{ retention.security_events_days }} days</li>
@@ -21,9 +21,8 @@
     <a class="btn" href="{% url 'portal:profile' %}">Change in profile</a>
   </section>
 </div>
-<br>
-<section class="card stack danger-zone">
-  <h2>{% icon "trash-2" %} Delete account</h2>
+<section class="card stack danger-zone" aria-labelledby="delete-title">
+  <h2 id="delete-title">{% icon "trash-2" %} Delete account</h2>
   {% if user.status == "pending_deletion" %}
     <div class="alert alert-danger">{% icon "triangle-alert" %}<div>Your account is scheduled for deletion on <strong>{{ user.deletion_scheduled_for|date:"j F Y" }}</strong>. Until then you can cancel. Chat sign-in is blocked meanwhile.</div></div>
     <form method="post" action="{% url 'portal:account_delete_cancel' %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Cancel deletion</button></form>

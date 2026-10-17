@@ -25,9 +25,30 @@ body,
   padding: var(--space-5);
   text-align: center;
 }
+.call-widget-status {
+  background: var(--brand-wash), var(--bg);
+}
+.call-widget-pulse {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: widget-pulse 2s var(--ease-out) infinite;
+}
+@keyframes widget-pulse {
+  70% { box-shadow: 0 0 0 18px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .call-widget-pulse { animation: none; }
+}
 .call-widget-title {
   margin: 0;
   font-size: var(--text-lg);
+  font-weight: 650;
 }
 .call-widget-detail {
   margin: 0;

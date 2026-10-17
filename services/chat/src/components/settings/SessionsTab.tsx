@@ -153,7 +153,7 @@ export function SessionsTab() {
                     </span>
                   )}
                   <span className="device-meta small muted">
-                    <span className="mono">{d.device_id}</span> · Last active {formatRelative(d.last_seen_ts)}
+                    <span className="mono">{d.device_id}</span> · Last active {formatRelative(d.last_seen_ts).replace(/^Just now$/, "just now")}
                     {d.last_seen_ip ? ` · ${d.last_seen_ip}` : ""}
                   </span>
                   <span className="device-trust small">

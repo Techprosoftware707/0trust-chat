@@ -27,6 +27,8 @@ struct RootView: View {
                 PrivacyCoverView()
             }
         }
+        .sensoryFeedback(.success, trigger: model.lock.isLocked) { wasLocked, isLocked in wasLocked && !isLocked }
+        .animation(.easeOut(duration: LumenMotion.durMed), value: model.lock.isLocked)
         .fullScreenCover(isPresented: $calls.isPresented) {
             CallScreen(coordinator: model.calls)
                 .lumenTheme()
@@ -51,16 +53,19 @@ struct PendingLink: Identifiable {
     }
 }
 
+/// Continues the launch screen (the 96 pt mark, centred on the page
+/// background) while the session opens.
 struct LaunchView: View {
     @Environment(\.lumen) private var c
+
     var body: some View {
-        VStack(spacing: LumenDimens.space5) {
-            BrandMark(size: 72)
+        ZStack {
+            c.bg.ignoresSafeArea()
+            BrandMark(size: 96)
             ProgressView()
+                .offset(y: 96)
                 .accessibilityLabel("Opening your session")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(c.bg)
     }
 }
 
@@ -71,20 +76,33 @@ struct LaunchFailedView: View {
     @State private var confirmReset = false
 
     var body: some View {
-        VStack(spacing: LumenDimens.space4) {
-            BrandMark(size: 64)
-            Text(message)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(c.text)
-            AsyncButton { await model.retryLaunch() } label: { Text("Try again") }
-                .buttonStyle(PrimaryButtonStyle())
-            Button("Sign out on this device", role: .destructive) { confirmReset = true }
-                .buttonStyle(SecondaryButtonStyle())
+        GeometryReader { geo in
+        ScrollView {
+            VStack(spacing: LumenDimens.space4) {
+                BrandMarkHero(size: 64)
+                    .padding(.bottom, LumenDimens.space2)
+                Text("Lumen couldn't open")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(c.text)
+                    .accessibilityAddTraits(.isHeader)
+                Text(message)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(c.textMuted)
+                VStack(spacing: LumenDimens.space3) {
+                    AsyncButton { await model.retryLaunch() } label: { Text("Try again") }
+                        .buttonStyle(PrimaryButtonStyle())
+                    Button("Sign out on this device", role: .destructive) { confirmReset = true }
+                        .buttonStyle(SecondaryButtonStyle())
+                }
+                .padding(.top, LumenDimens.space2)
+            }
+            .padding(LumenDimens.space5)
+            .frame(maxWidth: 480)
+            .frame(maxWidth: .infinity, minHeight: geo.size.height)
         }
-        .padding(LumenDimens.space5)
-        .frame(maxWidth: 480)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(c.bg)
+        }
+        .background { WelcomeBackground().ignoresSafeArea() }
         .confirmationDialog("Delete this device's local data?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Delete local data", role: .destructive) { model.resetLocalData() }
         } message: {
@@ -95,12 +113,12 @@ struct LaunchFailedView: View {
 
 /// Covers the content in the app switcher and while inactive.
 struct PrivacyCoverView: View {
-    @Environment(\.lumen) private var c
     var body: some View {
         ZStack {
-            c.bg.ignoresSafeArea()
-            BrandMark(size: 72)
+            WelcomeBackground().ignoresSafeArea()
+            BrandMarkHero(size: 76)
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Content hidden")
     }
 }
@@ -109,21 +127,46 @@ struct LockView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.lumen) private var c
 
+    private var kind: Biometrics.Kind { Biometrics.kind }
+
+    private var symbol: String {
+        switch kind {
+        case .faceID: return "faceid"
+        case .touchID: return "touchid"
+        case .opticID: return "opticid"
+        case .passcodeOnly, .unavailable: return "lock.open.fill"
+        }
+    }
+
     var body: some View {
-        VStack(spacing: LumenDimens.space5) {
-            BrandMark(size: 72)
-            Text("\(model.session?.brandShortName ?? "Lumen") is locked")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(c.text)
-            AsyncButton { await model.unlock() } label: {
-                Label("Unlock with \(Biometrics.label)", systemImage: "lock.open")
+        VStack(spacing: LumenDimens.space4) {
+            Spacer(minLength: LumenDimens.space6)
+            BrandMarkHero(size: 76)
+            VStack(spacing: LumenDimens.space2) {
+                Text("Welcome back")
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(c.text)
+                    .accessibilityAddTraits(.isHeader)
+                Text("\(model.session?.brandShortName ?? "Lumen") is locked. Unlock to see your conversations.")
+                    .font(.body)
+                    .foregroundStyle(c.textMuted)
+                    .multilineTextAlignment(.center)
             }
-            .buttonStyle(PrimaryButtonStyle())
-            .frame(maxWidth: 360)
+            Spacer(minLength: LumenDimens.space6)
+            if kind == .unavailable {
+                BannerView(style: .warning, systemImage: "lock.trianglebadge.exclamationmark",
+                           text: "This device has no passcode right now, so Lumen can't be unlocked. Turn on a passcode in iOS Settings, then come back.")
+            } else {
+                AsyncButton { await model.unlock() } label: {
+                    Label(kind == .passcodeOnly ? "Unlock with passcode" : "Unlock with \(Biometrics.label)", systemImage: symbol)
+                }
+                .buttonStyle(PrimaryButtonStyle())
+            }
         }
         .padding(LumenDimens.space5)
+        .frame(maxWidth: 420)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(c.bg.ignoresSafeArea())
+        .background { WelcomeBackground().ignoresSafeArea() }
         .task { await model.unlock() }
     }
 }

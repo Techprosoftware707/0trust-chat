@@ -77,7 +77,7 @@ DOCS = [
     ("devices", "Devices & sessions", "Sign in on new devices, verify them and sign out old ones."),
     ("workspaces", "Workspaces & invitations", "Invite your team, manage roles and require MFA."),
     ("billing", "Plans & billing", "What each plan includes and how billing works."),
-    ("federation", "Federation", "Talk to people on other Matrix servers and use other Matrix apps."),
+    ("federation", "Matrix & federation", "Talk to people on other Matrix servers and use other Matrix apps."),
     ("account-recovery", "Account recovery", "What to do if you lose your password, MFA device or recovery key."),
     ("self-hosting", "Self-hosting", "Run your own Lumen server on Ubuntu 24.04 with one command."),
 ]

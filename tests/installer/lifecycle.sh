@@ -9,7 +9,10 @@
 # (data rolled back to the backup), update.sh, uninstall (data kept) and
 # re-install on the kept data, and a secret-leak scan of all Lumen logs. With
 # CALLS_ENABLED=true it also restarts the SFU and runs the real media self-test
-# after every lifecycle step.
+# after every lifecycle step. With WireGuard on (the default) it checks wg0, the
+# installer's first device profile (file modes, a real tunnel from another network
+# namespace, show-profile, forget-profile), that no re-install, update or restore
+# adds a device or changes a key, and that no WireGuard key reaches any log.
 # Prints PASS/FAIL lines; exit status = number of failures.
 set -uo pipefail
 CONF="${1:?usage: lifecycle.sh /path/to/lumen.conf}"
@@ -30,16 +33,64 @@ make_user() { shell "from apps.accounts.models import User; u=User(username='$1'
 healthy() { ./healthcheck.sh >>"$LOG" 2>&1; local rc=$?; ((rc <= 1)); }   # 1 = warnings only
 calls_on() { grep -qE '^CALLS_ENABLED=(true|yes|1)$' "$CONF"; }
 media_ok() { ./lumenctl calls-selftest 15; }   # real WebRTC audio+video through the SFU
+# WireGuard is on unless the configuration turns it off (the installer's default).
+wg_on() { ! grep -qE '^WIREGUARD_ENABLED=(false|no|0|off)$' /etc/lumen/lumen.conf; }
+WGD=/etc/lumen/wireguard; PROFILE=$WGD/first-device.conf
+# Server key, preshared keys and the peer registry (not the stored profile, which forget-profile deletes).
+wg_keys_hash() { { cat $WGD/server.key $WGD/peers.json; find $WGD/psk -type f -print0 | sort -z | xargs -0 cat; } 2>/dev/null | sha256sum | cut -c1-16; }
+wg_endpoint() { grep -E '^WG_ENDPOINT=' /etc/lumen/lumen.conf | tail -n1 | cut -d= -f2; }
+wg_peer_count() { python3 -c "import json; print(len(json.load(open('$WGD/peers.json'))))" 2>/dev/null || echo 0; }
+wg_up() { ip link show wg0 >/dev/null 2>&1 && [[ "$(./lumenctl wireguard status 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["up"])')" == True ]]; }
+mode_of() { stat -c '%a %U:%G' "$1"; }
+# Key values to look for in logs, kept in a root-only file and never printed.
+KEYS=/root/.lifecycle-wg-keys; : >"$KEYS"; chmod 600 "$KEYS"
+collect_wg_keys() {
+  { cat $WGD/server.key; cat $WGD/psk/*.psk; grep -hE '^(PrivateKey|PresharedKey)' $PROFILE | sed -E 's/^[A-Za-z]+ *= *//'; } 2>/dev/null \
+    | grep -E '^[A-Za-z0-9+/]{43}=$' >>"$KEYS" || true
+  sort -u -o "$KEYS" "$KEYS"
+}
 
 s0="$(secrets_hash)"; k0="$(signing_hash)"
 make_user lcmarker-a
 check "marker account A created" user_exists lcmarker-a
+if wg_on; then
+  collect_wg_keys
+  w0="$(wg_keys_hash)"; p0="$(sha256sum $PROFILE 2>/dev/null | cut -c1-16)"; n0="$(wg_peer_count)"; e0="$(wg_endpoint)"
+fi
 
 echo "--- idempotent re-install"
 check "install.sh re-run succeeds" bash install.sh --config "$CONF" --yes
 [[ "$(secrets_hash)" == "$s0" ]] && ok "secrets unchanged by re-install" || bad "secrets unchanged by re-install"
 [[ "$(signing_hash)" == "$k0" ]] && ok "homeserver signing key unchanged by re-install" || bad "homeserver signing key unchanged by re-install"
 check "data kept across re-install (marker A)" user_exists lcmarker-a
+
+if wg_on; then
+  echo "--- WireGuard (on by default)"
+  check "wg0 is up and reported up by the host agent" wg_up
+  [[ "$(python3 -c "import json; print(json.load(open('/etc/lumen/state.json')).get('wireguard',''))")" == enabled ]] && ok "installer state: wireguard enabled" || bad "installer state: wireguard enabled"
+  [[ "$(mode_of $PROFILE)" == "600 root:root" ]] && ok "first device profile is 0600 root:root" || bad "first device profile is 0600 root:root" "$(mode_of $PROFILE 2>&1)"
+  [[ "$(mode_of $WGD)" == "700 root:root" ]] && ok "its directory is 0700 root:root" || bad "its directory is 0700 root:root" "$(mode_of $WGD 2>&1)"
+  [[ "$n0" == 1 && "$(wg_peer_count)" == 1 ]] && ok "re-install added no second device (1 peer)" || bad "re-install added no second device" "$n0 -> $(wg_peer_count)"
+  [[ "$(wg_keys_hash)" == "$w0" && "$(sha256sum $PROFILE | cut -c1-16)" == "$p0" ]] && ok "re-install changed no WireGuard key and left the profile as it was" || bad "re-install changed no WireGuard key"
+  # The re-install copied $CONF (without WG_ENDPOINT) over lumen.conf again: the endpoint in
+  # the devices' profiles must be kept, not detected anew.
+  [[ -n "$e0" && "$(wg_endpoint)" == "$e0" ]] && ok "WG_ENDPOINT kept across the --config re-install ($e0)" || bad "WG_ENDPOINT kept across the --config re-install" "$e0 -> $(wg_endpoint)"
+  check "the generated profile works from another network namespace: console only through the tunnel" bash tests/integration/wireguard_e2e.sh --profile "$PROFILE"
+  check "a device added later works and can be revoked" bash tests/integration/wireguard_e2e.sh
+  ./lumenctl wireguard show-profile >/root/show-profile.out 2>&1; rc=$?
+  if ((rc == 0)) && grep -q "$PROFILE" /root/show-profile.out && grep -q '█' /root/show-profile.out && ! grep -qF -f "$KEYS" /root/show-profile.out; then
+    ok "show-profile prints the path and a QR code, no key as text"
+  else
+    bad "show-profile prints the path and a QR code, no key as text" "exit $rc"
+  fi
+  rm -f /root/show-profile.out
+  grep -q "AUDIT wireguard show-profile" /var/log/lumen/lumenctl-latest.log && ok "show-profile is logged (without the profile)" || bad "show-profile is logged"
+  check "forget-profile deletes the stored profile" ./lumenctl wireguard forget-profile
+  [[ ! -e $PROFILE ]] && ok "profile gone; the device stays registered ($(wg_peer_count) peer)" || bad "profile gone after forget-profile"
+  check "forget-profile again is harmless" ./lumenctl wireguard forget-profile
+  if ./lumenctl wireguard show-profile >/dev/null 2>&1; then bad "show-profile refuses once the profile is forgotten"; else ok "show-profile refuses once the profile is forgotten"; fi
+  w1="$(wg_keys_hash)"
+fi
 if calls_on; then
   check "calls: media flows through the SFU after re-install" media_ok
   echo "--- calls: media-service restart"
@@ -102,12 +153,20 @@ if user_exists lcmarker-b; then bad "restore rolled back to the backup (marker B
 [[ "$(signing_hash)" == "$k0" ]] && ok "signing key intact after restore" || bad "signing key intact after restore"
 check "healthy after restore" healthy
 calls_on && check "calls: media flows after restore" media_ok
+if wg_on; then
+  check "WireGuard: wg0 up after restore" wg_up
+  [[ "$(wg_keys_hash)" == "$w1" && ! -e $PROFILE ]] && ok "WireGuard: restore changed no key and re-created no profile" || bad "WireGuard: restore changed no key and re-created no profile"
+fi
 
 echo "--- update"
 check "update.sh --no-pull succeeds" ./update.sh --no-pull --yes
 check "healthy after update" healthy
 check "data kept across update (marker A)" user_exists lcmarker-a
 calls_on && check "calls: media flows after update" media_ok
+if wg_on; then
+  check "WireGuard: wg0 up after update" wg_up
+  [[ "$(wg_keys_hash)" == "$w1" && "$(wg_peer_count)" == 1 && ! -e $PROFILE ]] && ok "WireGuard: update added no device, changed no key, re-created no profile" || bad "WireGuard: update added no device, changed no key"
+fi
 
 if calls_on; then
   echo "--- calls: turn off, then on again"
@@ -137,6 +196,11 @@ check "re-install on kept data succeeds" bash install.sh --config "$CONF" --yes
 check "kept data is live again (marker A)" user_exists lcmarker-a
 [[ "$(signing_hash)" == "$k0" ]] && ok "same server identity after re-install" || bad "same server identity after re-install"
 calls_on && check "calls: media flows after uninstall + re-install" media_ok
+if wg_on; then
+  check "WireGuard: wg0 up again after uninstall + re-install" wg_up
+  [[ "$(wg_keys_hash)" == "$w1" && "$(wg_peer_count)" == 1 && ! -e $PROFILE ]] && ok "WireGuard: same keys and devices after uninstall + re-install, no new profile" || bad "WireGuard: same keys and devices after uninstall + re-install"
+  [[ "$(wg_endpoint)" == "$e0" ]] && ok "WireGuard: WG_ENDPOINT unchanged through every re-install, restore and update" || bad "WireGuard: WG_ENDPOINT unchanged" "$e0 -> $(wg_endpoint)"
+fi
 
 echo "--- secret leak scan"
 leaks=0
@@ -150,6 +214,18 @@ while IFS= read -r -d '' f; do
   fi
 done < <(find /etc/lumen/secrets -type f -size +0 -print0)
 ((leaks == 0)) && ok "no secret values in installer/ops logs or diagnose output" || bad "no secret values in logs" "$leaks secrets leaked"
+if wg_on; then
+  # Every WireGuard key value this test saw (server, preshared, the first device's private key),
+  # and any "PrivateKey = <key>" / "PresharedKey = <key>" line, in the logs and in every
+  # installer output of this run (the summaries included).
+  scan=(/var/log/lumen /root/diagnose.out "$LOG")
+  for f in /root/install-*.log; do [[ -e "$f" ]] && scan+=("$f"); done
+  wgleaks="$(grep -rlF -f "$KEYS" "${scan[@]}" 2>/dev/null | wc -l)"
+  wglines="$(grep -rlE '(PrivateKey|PresharedKey) *= *[A-Za-z0-9+/]{43}=' "${scan[@]}" 2>/dev/null | wc -l)"
+  ((wgleaks == 0 && wglines == 0 && $(wc -l <"$KEYS") >= 3)) && ok "no WireGuard key in any log or installer summary ($(wc -l <"$KEYS") key values checked)" \
+    || bad "no WireGuard key in logs or summaries" "$wgleaks file(s) with a key value, $wglines with a key line"
+fi
+rm -f "$KEYS"
 
 echo "lifecycle: $pass passed, $fail failed"
 exit "$fail"

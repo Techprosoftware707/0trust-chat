@@ -1,6 +1,26 @@
 package io.lumen.secure.ui
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import io.lumen.secure.ui.theme.LumenEase
+import io.lumen.secure.ui.theme.LumenMotion
+import io.lumen.secure.ui.theme.brandWash
+import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -102,51 +122,129 @@ private fun RestoreFailed(graph: AppGraph) {
 @Composable
 private fun SignedInApp(graph: AppGraph, nav: NavViewModel, session: MatrixSession) {
     val context = LocalContext.current
-    BackHandler(enabled = nav.stack.size > 1) { nav.pop() }
     val ringing by graph.calls.ringing.collectAsState()
     val encryption by graph.encryption.collectAsState()
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val twoPane = maxWidth >= 720.dp
-        Column(Modifier.fillMaxSize()) {
-            ringing?.let { r ->
-                Banner(
-                    text = r.callerName?.let { stringResource(R.string.notification_incoming_call_from, it) } ?: stringResource(R.string.notification_incoming_call),
-                    kind = BannerKind.SUCCESS,
-                    icon = R.drawable.ic_lucide_phone_incoming,
-                    actionLabel = stringResource(R.string.call_answer),
-                    onAction = { context.startActivity(CallActivity.answerIntent(context, r.roomId, false)) },
-                    secondaryLabel = stringResource(R.string.call_decline),
-                    onSecondary = { graph.calls.declineRinging() },
-                )
-            }
-            if (twoPane) {
-                Row(Modifier.fillMaxSize()) {
-                    Box(Modifier.width(360.dp).fillMaxHeight()) {
-                        RoomListScreen(graph, session, nav, selectedRoomId = (nav.stack.firstOrNull { it is Screen.Room } as? Screen.Room)?.roomId)
-                    }
-                    VerticalDivider(color = MaterialTheme.lumenColors.border)
-                    Box(Modifier.weight(1f).fillMaxHeight()) {
-                        val top = nav.top
-                        if (top == Screen.Rooms) {
-                            CenteredState(
-                                title = stringResource(R.string.empty_detail_title),
-                                body = stringResource(R.string.empty_detail_body),
-                                icon = R.drawable.ic_lucide_messages_square,
-                            )
-                        } else {
-                            ScreenContent(graph, session, nav, top, twoPane = true)
-                        }
-                    }
-                }
-            } else {
-                ScreenContent(graph, session, nav, nav.top, twoPane = false)
-            }
+    // Predictive back: the screen follows the gesture (scales down and shifts), then pops on release.
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    PredictiveBackHandler(enabled = nav.stack.size > 1) { events ->
+        try {
+            events.collect { backProgress = it.progress }
+            backProgress = 0f
+            nav.pop()
+        } catch (e: CancellationException) {
+            backProgress = 0f
+            throw e
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        ringing?.let { r ->
+            Banner(
+                text = r.callerName?.let { stringResource(R.string.notification_incoming_call_from, it) } ?: stringResource(R.string.notification_incoming_call),
+                kind = BannerKind.SUCCESS,
+                icon = R.drawable.ic_lucide_phone_incoming,
+                actionLabel = stringResource(R.string.call_answer),
+                onAction = { context.startActivity(CallActivity.answerIntent(context, r.roomId, false)) },
+                secondaryLabel = stringResource(R.string.call_decline),
+                onSecondary = { graph.calls.declineRinging() },
+                modifier = Modifier.statusBarsPadding(),
+            )
+        }
+        Box(Modifier.weight(1f).then(if (ringing != null) Modifier.consumeWindowInsets(WindowInsets.statusBars) else Modifier)) {
+            val top = nav.top
+            ListDetailLayout(
+                detail = if (top == Screen.Rooms) null else DetailEntry(top, nav.stack.size),
+                backProgress = backProgress,
+                list = { RoomListScreen(graph, session, nav, selectedRoomId = (nav.stack.firstOrNull { it is Screen.Room } as? Screen.Room)?.roomId) },
+                detailContent = { entry, twoPane -> ScreenContent(graph, session, nav, entry.screen, twoPane = twoPane) },
+            )
         }
     }
 
     nav.pendingLink?.let { link -> LinkConfirmDialog(graph, session, nav, link) }
     encryption?.let { VerificationDialog(it) }
+}
+
+/** A detail screen and its depth in the back stack (deeper means the transition moves forward). */
+data class DetailEntry<T>(val screen: T, val depth: Int)
+
+/** From this window width on, the room list stays beside the chat (tablets, unfolded foldables, landscape). */
+val TwoPaneMinWidth = 720.dp
+
+private fun detailTransition(forward: Boolean): ContentTransform {
+    val dir = if (forward) 1 else -1
+    return (fadeIn(tween(LumenMotion.durMedMillis, easing = LumenEase.Out)) + slideInHorizontally(tween(LumenMotion.durMedMillis, easing = LumenEase.Out)) { w -> dir * w / 8 }) togetherWith
+        (fadeOut(tween(LumenMotion.durFastMillis, easing = LumenEase.Out)) + slideOutHorizontally(tween(LumenMotion.durMedMillis, easing = LumenEase.Out)) { w -> -dir * w / 16 })
+}
+
+/**
+ * List-detail layout: on wide windows the [list] stays on the left and the detail fills the rest;
+ * on narrow windows only one of them is shown. Screen changes slide and fade (220 ms, ease-out;
+ * Compose follows the system animator duration scale), and [backProgress] lets the detail follow
+ * a predictive back gesture.
+ */
+@Composable
+fun <T> ListDetailLayout(
+    detail: DetailEntry<T>?,
+    backProgress: Float = 0f,
+    list: @Composable () -> Unit,
+    detailContent: @Composable (DetailEntry<T>, twoPane: Boolean) -> Unit,
+) {
+    val c = MaterialTheme.lumenColors
+    val backModifier = Modifier.graphicsLayer {
+        val p = backProgress
+        if (p > 0f) {
+            scaleX = 1f - 0.08f * p
+            scaleY = 1f - 0.08f * p
+            translationX = 32.dp.toPx() * p
+            shape = RoundedCornerShape(28.dp * p)
+            clip = true
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val twoPane = maxWidth >= TwoPaneMinWidth
+        if (twoPane) {
+            val listWidth = if (maxWidth >= 1000.dp) 400.dp else 360.dp
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.width(listWidth).fillMaxHeight()) { list() }
+                VerticalDivider(color = c.border)
+                AnimatedContent(
+                    targetState = detail,
+                    transitionSpec = { detailTransition((targetState?.depth ?: 0) >= (initialState?.depth ?: 0)) },
+                    contentKey = { it?.screen },
+                    modifier = Modifier.weight(1f).fillMaxHeight().background(c.bg),
+                    label = "detail",
+                ) { entry ->
+                    if (entry != null) {
+                        Box(Modifier.fillMaxSize().then(if (entry == detail) backModifier else Modifier)) { detailContent(entry, true) }
+                    } else {
+                        Box(Modifier.fillMaxSize().brandWash()) {
+                            CenteredState(
+                                title = stringResource(R.string.empty_detail_title),
+                                body = stringResource(R.string.empty_detail_body),
+                                icon = R.drawable.ic_lucide_messages_square,
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            AnimatedContent(
+                targetState = detail,
+                transitionSpec = { detailTransition((targetState?.depth ?: 0) >= (initialState?.depth ?: 0)) },
+                contentKey = { it?.screen },
+                modifier = Modifier.fillMaxSize().background(c.bg),
+                label = "screen",
+            ) { entry ->
+                if (entry != null) {
+                    Box(Modifier.fillMaxSize().then(if (entry == detail) backModifier else Modifier)) { detailContent(entry, false) }
+                } else {
+                    list()
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -161,7 +259,7 @@ private fun ScreenContent(graph: AppGraph, session: MatrixSession, nav: NavViewM
         Screen.Encryption -> EncryptionScreen(graph, nav)
         Screen.Devices -> DevicesScreen(graph, session, nav)
         Screen.Blocked -> BlockedUsersScreen(session, nav)
-        Screen.About -> AboutScreen(graph, nav)
+        Screen.About -> AboutScreen(graph, session, nav)
         Screen.Licenses -> LicensesScreen(nav)
     }
 }

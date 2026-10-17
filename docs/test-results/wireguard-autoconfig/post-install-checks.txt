@@ -1,0 +1,17 @@
+=== Right after the fresh install (fresh-install.txt), inside the test server: deploy state, file modes, and a scan of the install output
+=== (summary included) and /var/log/lumen for every WireGuard key value (server key, preshared key, the device's private key); none printed.
+PASS lumen.conf now says WIREGUARD_ENABLED=true (key was absent in the given config)
+PASS wg0 is up (10.77.0.1/24)
+PASS wg-quick@wg0 active and enabled at boot
+PASS installer state wireguard=enabled
+PASS first device profile 0600 root:root (600 root:root)
+PASS directory 0700 root:root (700 root:root)
+PASS exactly one peer, named <operator>-device: ['itadmin-device']
+PASS UFW: UDP 51820 and the console on wg0
+PASS Caddy console allow-list contains WG_SUBNET
+PASS no WireGuard key value (3 checked) in the install output/summary or /var/log/lumen
+PASS no 'PrivateKey = …' or 'PresharedKey = …' line in the install output or logs
+PASS summary names the profile and the QR command
+PASS summary has the provider-firewall note
+PASS healthcheck reports 'wireguard: wg0 up'
+post-install: 14 passed, 0 failed

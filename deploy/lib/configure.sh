@@ -63,7 +63,7 @@ interactive_configure() {
   allow=""
   [[ "$fedmode" == allowlist ]] && ask allow "Allowed servers (comma-separated server names)" "" '^[a-z0-9.,:-]+$'
   ask_yn calls "Enable voice/video calls (LiveKit SFU; opens UDP 7882-7889, TCP 7881, UDP 3478)?" y
-  ask_yn wg "Enable WireGuard for private operator access (opens UDP 51820)?" n
+  ask_yn wg "Enable WireGuard for private operator access to the console (recommended; opens UDP 51820)?" y
   ask tls "TLS: acme (Let's Encrypt, production) or internal (test CA, testing only)" "acme" '^(acme|internal)$'
   ask smtp_host "SMTP server for account emails (empty = no email)" "" '^[a-z0-9.-]*$'
   smtp_port=587; smtp_user=""; smtp_from=""
@@ -173,7 +173,8 @@ FEDERATION_MODE=closed
 CALLS_ENABLED=$calls
 CALLS_PUBLIC_IP=$ip
 CALLS_ALLOW_PRIVATE_NODE_IP=$private
-WIREGUARD_ENABLED=false
+# Private operator access to the console (configured by the installer; see the summary).
+WIREGUARD_ENABLED=true
 BILLING_PROVIDER=none
 CONF
   # Networks with TLS inspection: the inspecting proxy's CA for image builds (as in lumen.conf).

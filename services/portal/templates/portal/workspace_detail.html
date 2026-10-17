@@ -1,32 +1,39 @@
 {% extends "portal/base_portal.html" %}{% load lumen %}
 {% block title %}{{ ws.name }}{% endblock %}
 {% block main %}
-<div class="app-topbar"><div><h1>{{ ws.name }}</h1><p>{{ plan.name }} plan · {{ seats }} of {{ limit }} seats used{% if ws.require_mfa %} · <span class="badge badge-info">MFA required</span>{% endif %}</p></div></div>
+<div class="app-topbar"><div><p class="eyebrow"><a href="{% url 'portal:workspaces' %}">Workspaces</a></p><h1>{{ ws.name }}</h1><p>{{ plan.name }} plan · {{ seats }} of {{ limit }} seats used{% if ws.require_mfa %} · <span class="badge badge-info">MFA required</span>{% endif %}</p></div></div>
 {% include "portal/_workspace_tabs.html" with tab="members" %}
 {% if new_invite %}
-<div class="alert alert-success">{% icon "mail-check" %}<div class="stack-sm grow-1"><div>Invitation link for <strong>{{ new_invite.email }}</strong> (shown once, expires in 7 days):</div><div class="codebox" id="invite-link">{{ new_invite.link }}</div><div><button type="button" class="btn btn-sm" data-copy="invite-link">{% icon "copy" %} Copy link</button></div></div></div><br>
+<div class="alert alert-success pop-in">{% icon "mail-check" %}<div class="stack-sm"><div>Invitation ready for <strong>{{ new_invite.email }}</strong>. Share this link with them — it's shown only once and expires in 7 days.</div><div class="codebox" id="invite-link">{{ new_invite.link }}</div><div><button type="button" class="btn btn-sm" data-copy="invite-link">{% icon "copy" %} <span data-copy-label>Copy link</span></button><span id="copy-status" class="visually-hidden" aria-live="polite"></span></div></div></div>
 {% endif %}
-<div class="grid grid-2">
-  <section class="card">
-    <div class="card-header"><h2>Members</h2><span class="xsmall muted">{{ members|length }} member{{ members|length|pluralize }}</span></div>
+<div class="grid grid-2 align-start">
+  <section class="card" aria-labelledby="members-title">
+    <div class="card-header"><h2 id="members-title">Members</h2><span class="xsmall">{{ members|length }} member{{ members|length|pluralize }}</span></div>
     <ul class="list-plain list-rows">
     {% for m in members %}
       <li>
-        <div class="cluster"><span class="avatar">{{ m.user|initials }}</span><div><strong>{{ m.user.name }}</strong>{% if m.user == user %} <span class="xsmall muted">(you)</span>{% endif %}<div class="xsmall muted mono">{{ m.user.matrix_id }}</div></div></div>
+        <div class="row-title"><span class="avatar avatar-sm" aria-hidden="true">{{ m.user|initials }}</span><div class="break"><strong>{{ m.user.name }}</strong>{% if m.user == user %} <span class="xsmall muted">(you)</span>{% endif %}<div class="xsmall muted mono">{{ m.user.matrix_id }}</div></div></div>
         <div class="cluster">
           <span class="badge badge-plain">{{ m.get_role_display }}</span>
-          <a class="btn btn-sm btn-ghost" href="{{ lumen.app_url }}/#/dm/{{ m.user.matrix_id|urlencode }}" title="Message">{% icon "message-circle" %}</a>
+          {% if m.user != user %}<a class="btn btn-sm btn-ghost btn-icon" href="{{ lumen.app_url }}/#/dm/{{ m.user.matrix_id|urlencode }}" title="Message {{ m.user.name }}" aria-label="Message {{ m.user.name }}">{% icon "message-circle" %}</a>{% endif %}
           {% if membership.can_manage and m.role != "owner" and m.user != user %}{% if m.role != "admin" or membership.role == "owner" %}
             <form class="role-form" method="post" action="{% url 'portal:workspace_member_role' ws.pk m.pk %}">{% csrf_token %}<label class="visually-hidden" for="role-{{ m.pk }}">Role for {{ m.user.name }}</label><select id="role-{{ m.pk }}" name="role">{% for v, l in roles %}<option value="{{ v }}" {% if v == m.role %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><button class="btn btn-sm" type="submit">Change role</button></form>
           {% endif %}{% endif %}
-          {% if membership.role == "owner" and m.role != "owner" %}
-            <form method="post" action="{% url 'portal:workspace_transfer' ws.pk m.pk %}" data-confirm="Make {{ m.user.name }} the owner? You will become an admin.">{% csrf_token %}<button class="btn btn-sm btn-ghost" type="submit">Make owner</button></form>
-          {% endif %}
-          {% if m.role != "owner" and membership.can_manage and m.user != user %}{% if m.role != "admin" or membership.role == "owner" %}
-            <form method="post" action="{% url 'portal:workspace_member_remove' ws.pk m.pk %}" data-confirm="Remove {{ m.user.name }} from {{ ws.name }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Remove</button></form>
-          {% endif %}{% endif %}
-          {% if m.user == user and m.role != "owner" %}
-            <form method="post" action="{% url 'portal:workspace_member_remove' ws.pk m.pk %}" data-confirm="Leave {{ ws.name }}?">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Leave</button></form>
+          {% if membership.role == "owner" and m.role != "owner" or m.role != "owner" and m.role != "admin" and membership.can_manage and m.user != user or m.user == user and m.role != "owner" %}
+          <details class="row-menu">
+            <summary class="btn btn-sm btn-ghost btn-icon" aria-label="Manage {{ m.user.name }}" title="Manage">{% icon "more-horizontal" %}</summary>
+            <div class="row-menu-panel">
+              {% if membership.role == "owner" and m.role != "owner" %}
+                <form method="post" action="{% url 'portal:workspace_transfer' ws.pk m.pk %}" data-confirm="Make {{ m.user.name }} the owner? You will become an admin.">{% csrf_token %}<button class="btn btn-sm btn-ghost" type="submit">{% icon "badge-check" %} Make owner</button></form>
+              {% endif %}
+              {% if m.role != "owner" and membership.can_manage and m.user != user %}{% if m.role != "admin" or membership.role == "owner" %}
+                <form method="post" action="{% url 'portal:workspace_member_remove' ws.pk m.pk %}" data-confirm="Remove {{ m.user.name }} from {{ ws.name }}?">{% csrf_token %}<button class="btn btn-sm btn-ghost is-danger" type="submit">{% icon "user-x" %} Remove from workspace</button></form>
+              {% endif %}{% endif %}
+              {% if m.user == user and m.role != "owner" %}
+                <form method="post" action="{% url 'portal:workspace_member_remove' ws.pk m.pk %}" data-confirm="Leave {{ ws.name }}?">{% csrf_token %}<button class="btn btn-sm btn-ghost is-danger" type="submit">{% icon "log-out" %} Leave workspace</button></form>
+              {% endif %}
+            </div>
+          </details>
           {% endif %}
         </div>
       </li>
@@ -35,22 +42,22 @@
   </section>
   <div class="stack">
   {% if membership.can_manage or ws.allow_member_invites %}
-    <section class="card stack">
-      <h2>Invite someone</h2>
+    <section class="card stack" aria-labelledby="invite-title">
+      <div class="card-title"><span class="icon-chip teal">{% icon "user-plus" %}</span><h2 id="invite-title" class="mb-0">Invite someone</h2></div>
       <form class="form" method="post" action="{% url 'portal:workspace_invite' ws.pk %}">{% csrf_token %}
-        <div class="field"><label for="inv-email">Email address</label><input id="inv-email" type="email" name="email" required autocomplete="off"></div>
-        {% if membership.can_manage %}<div class="field"><label for="inv-role">Role</label><select id="inv-role" name="role">{% for v, l in roles %}<option value="{{ v }}" {% if v == "member" %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><p class="xsmall muted mb-0">Managers see and change every business record; agents work on their own and shared records; team members read shared records and own their tasks; read-only people only read.</p></div>{% endif %}
-        <div class="form-actions"><button class="btn btn-primary" type="submit" {% if seats >= limit %}disabled{% endif %}>{% icon "user-plus" %} Invite</button>{% if seats >= limit %}<span class="small muted">Seat limit reached — <a href="{% url 'portal:workspace_billing' ws.pk %}">upgrade</a>.</span>{% endif %}</div>
+        <div class="field"><label for="inv-email">Email address</label><input id="inv-email" type="email" name="email" required autocomplete="off" placeholder="name@example.org"></div>
+        {% if membership.can_manage %}<div class="field"><label for="inv-role">Role</label><select id="inv-role" name="role" aria-describedby="inv-role-help">{% for v, l in roles %}<option value="{{ v }}" {% if v == "member" %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><p class="help mb-0" id="inv-role-help">Managers see and change every business record; agents work on their own and shared records; team members read shared records and own their tasks; read-only people only read.</p></div>{% endif %}
+        <div class="form-actions"><button class="btn btn-primary" type="submit" {% if seats >= limit %}disabled{% endif %}>{% icon "user-plus" %} Send invitation</button>{% if seats >= limit %}<span class="small muted">All seats are in use — <a href="{% url 'portal:workspace_billing' ws.pk %}">upgrade the plan</a> to add more.</span>{% endif %}</div>
       </form>
-      {% if not lumen.email_enabled %}<p class="xsmall subtle mb-0">Email delivery isn't configured on this server; you'll get a link to share yourself.</p>{% endif %}
+      {% if not lumen.email_enabled %}<p class="xsmall subtle mb-0">This server doesn't send email, so you'll get a link to share yourself.</p>{% endif %}
     </section>
   {% endif %}
   {% if membership.can_manage %}
-    <section class="card">
-      <div class="card-header"><h2>Pending invitations</h2></div>
+    <section class="card" aria-labelledby="pending-title">
+      <div class="card-header"><h2 id="pending-title">Pending invitations</h2>{% if invitations %}<span class="xsmall">{{ invitations|length }}</span>{% endif %}</div>
       {% if invitations %}
-      <ul class="list-plain list-rows">{% for inv in invitations %}<li><div><strong>{{ inv.email }}</strong><div class="xsmall muted">{{ inv.get_role_display }} · expires {{ inv.expires_at|date:"j M" }}</div></div><form method="post" action="{% url 'portal:workspace_invite_revoke' ws.pk inv.pk %}">{% csrf_token %}<button class="btn btn-sm btn-ghost" type="submit">Revoke</button></form></li>{% endfor %}</ul>
-      {% else %}<p class="muted small mb-0">No pending invitations.</p>{% endif %}
+      <ul class="list-plain list-rows">{% for inv in invitations %}<li><div class="row-title">{% icon "mail" %}<div class="break"><strong>{{ inv.email }}</strong><div class="xsmall muted">{{ inv.get_role_display }} · expires {{ inv.expires_at|date:"j M" }}</div></div></div><form method="post" action="{% url 'portal:workspace_invite_revoke' ws.pk inv.pk %}">{% csrf_token %}<button class="btn btn-sm btn-ghost" type="submit">Revoke</button></form></li>{% endfor %}</ul>
+      {% else %}<div class="empty"><p>No pending invitations. People you invite appear here until they join.</p></div>{% endif %}
     </section>
   {% endif %}
   </div>

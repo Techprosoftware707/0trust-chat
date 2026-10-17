@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking // Linux type-check (scripts/linux-check.sh)
+#endif
 import LumenCore
 import MatrixRustSDK
 import XCTest

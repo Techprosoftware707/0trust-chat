@@ -1,9 +1,9 @@
 {% extends "portal/base_portal.html" %}{% load lumen humanize %}
 {% block title %}{{ ws.name }} billing{% endblock %}
 {% block main %}
-<div class="app-topbar"><div><h1>{{ ws.name }}</h1><p>Plan, limits and invoices</p></div></div>
+<div class="app-topbar"><div><p class="eyebrow"><a href="{% url 'portal:workspaces' %}">Workspaces</a></p><h1>{{ ws.name }}</h1><p>Plan, limits and invoices.</p></div></div>
 {% include "portal/_workspace_tabs.html" with tab="billing" %}
-<div class="grid grid-2">
+<div class="grid grid-2 align-start">
   <section class="card stack">
     <div class="card-header"><h2>Current plan: {{ plan.name }}</h2>
       <span class="badge {% if sub.status == 'active' or sub.status == 'trialing' or sub.status == 'free' %}badge-success{% elif sub.status == 'past_due' %}badge-warning{% else %}badge-danger{% endif %}">{{ sub.get_status_display }}</span></div>
@@ -14,7 +14,7 @@
       <dt>Billing</dt><dd>{{ sub.get_provider_display }}{% if sub.provider != "none" %} · {{ sub.interval }}ly{% endif %}</dd>
       <dt>Seats</dt><dd>{{ seats }} of {{ plan.entitlements.max_members }} (members + pending invitations)</dd>
     </dl>
-    <div class="meter{% if seats >= plan.entitlements.max_members %} full{% endif %}"><span class="w-{{ seats|percent_of:plan.entitlements.max_members }}"></span></div>
+    <div class="meter{% if seats >= plan.entitlements.max_members %} full{% endif %}" role="img" aria-label="{{ seats }} of {{ plan.entitlements.max_members }} seats used"><span class="w-{{ seats|percent_of:plan.entitlements.max_members }}"></span></div>
     <ul class="list-plain list-rows">{% for key, label in labels.items %}{% with v=plan.entitlements|get_item:key %}<li><span class="small">{{ label }}</span><span class="small"><strong>{% if v is True %}Yes{% elif v is False %}No{% else %}{{ v|intcomma }}{% endif %}</strong></span></li>{% endwith %}{% endfor %}</ul>
     {% if membership.role == "owner" and sub.provider == "stripe" and sub.provider_customer_id %}
     <form method="post" action="{% url 'portal:workspace_billing_portal' ws.pk %}">{% csrf_token %}<button class="btn" type="submit">{% icon "credit-card" %} Manage billing &amp; payment method</button></form>
@@ -41,13 +41,12 @@
     {% if sub.provider == "stripe" %}<p class="xsmall subtle mb-0">To cancel or switch an existing subscription use “Manage billing”. Changes apply when Stripe confirms them.</p>{% endif %}
   </section>
 </div>
-<br>
-<section class="card">
-  <div class="card-header"><h2>Invoices</h2></div>
+<section class="card" aria-labelledby="inv-title">
+  <div class="card-header"><h2 id="inv-title">Invoices</h2></div>
   {% if invoices %}
-  <div class="table-wrap"><table class="table"><thead><tr><th>Number</th><th>Period</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>
-  {% for inv in invoices %}<tr><td class="mono small">{{ inv.number|default:inv.provider_invoice_id|truncatechars:24 }}</td><td class="small">{{ inv.period_start|date:"j M Y" }} – {{ inv.period_end|date:"j M Y" }}</td><td>{{ inv.amount_due|cents:inv.currency }}</td><td><span class="badge {% if inv.status == 'paid' %}badge-success{% elif inv.status == 'open' %}badge-warning{% endif %}">{{ inv.status|title }}</span></td><td class="actions">{% if inv.hosted_url %}<a class="btn btn-sm" href="{{ inv.hosted_url }}" rel="noopener" target="_blank">View {% icon "external-link" %}</a>{% endif %}</td></tr>{% endfor %}
+  <div class="table-wrap"><table class="table table-stack"><thead><tr><th>Number</th><th>Period</th><th>Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
+  {% for inv in invoices %}<tr><td data-label="Number" class="mono small">{{ inv.number|default:inv.provider_invoice_id|truncatechars:24 }}</td><td data-label="Period" class="small">{{ inv.period_start|date:"j M Y" }} – {{ inv.period_end|date:"j M Y" }}</td><td data-label="Amount">{{ inv.amount_due|cents:inv.currency }}</td><td data-label="Status"><span class="badge {% if inv.status == 'paid' %}badge-success{% elif inv.status == 'open' %}badge-warning{% endif %}">{{ inv.status|title }}</span></td><td class="actions">{% if inv.hosted_url %}<a class="btn btn-sm" href="{{ inv.hosted_url }}" rel="noopener" target="_blank">View {% icon "external-link" %}</a>{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
-  {% else %}<div class="empty"><p>No invoices. Invoices appear here once the payment provider issues them.</p></div>{% endif %}
+  {% else %}<div class="empty">{% icon "receipt" %}<p>No invoices yet. They appear here as soon as the payment provider issues them.</p></div>{% endif %}
 </section>
 {% endblock %}

@@ -1,32 +1,36 @@
-import { ArrowLeft, BadgeCheck, History, Info, Lock, Phone, PhoneCall, Search, ShieldAlert, ShieldOff, Video } from "lucide-react";
+import { ArrowLeft, BadgeCheck, EllipsisVertical, History, Info, Lock, Phone, PhoneCall, Search, ShieldAlert, ShieldOff, Video } from "lucide-react";
 import type { Room } from "matrix-js-sdk";
 import { useMatrix } from "../../matrix/context";
 import { openLobby, setCallView, useActiveCall, useCallSnapshot, useRoomCall } from "../../calls/store";
 import { usePresence, useUserTrust } from "../../hooks/matrix";
 import { formatRelative } from "../../lib/format";
 import { Avatar } from "../primitives/Avatar";
+import { Menu, type MenuItem } from "../primitives/Menu";
 import { presenceDot } from "../Sidebar";
 import { useUi, type PanelId } from "../UiContext";
 import { useWorkspaceOptional } from "../../workspace/context";
-import { allRoomPanels, isRoomPanelVisible } from "../../workspace/registry";
+import { allRoomPanels, isRoomPanelVisible, type RoomPanelDefinition } from "../../workspace/registry";
 
-/** Buttons for side panels registered by workspace areas (e.g. the CRM panel). */
-function RoomPanelButtons({ panel }: { panel: PanelId | null }) {
-  const ui = useUi();
+/** Side panels registered by workspace areas (e.g. the CRM panel); none in a plain chat deployment. */
+function useRoomPanels(): RoomPanelDefinition[] {
   const ws = useWorkspaceOptional();
-  if (!ws) return null; // plain chat deployment
-  const panels = allRoomPanels().filter((p) => ws.status !== "ready" || isRoomPanelVisible(p, ws.workspace));
+  if (!ws) return [];
+  return allRoomPanels().filter((p) => ws.status !== "ready" || isRoomPanelVisible(p, ws.workspace));
+}
+
+/** Header buttons for those panels. Like the other secondary actions they fold into "More" in a narrow header. */
+function RoomPanelButtons({ panels, panel, toggle }: { panels: RoomPanelDefinition[]; panel: PanelId | null; toggle: (p: PanelId) => void }) {
   return (
     <>
       {panels.map((p) => (
         <button
           key={p.id}
           type="button"
-          className="icon-btn"
+          className="icon-btn wide-only"
           aria-label={p.label}
           title={p.label}
           aria-pressed={panel === p.id}
-          onClick={() => ui.openPanel(panel === p.id ? null : p.id)}
+          onClick={() => toggle(p.id)}
         >
           <p.icon aria-hidden="true" />
         </button>
@@ -39,11 +43,11 @@ export function EncryptionBadge({ encrypted }: { encrypted: boolean | null }) {
   if (encrypted === null) return null;
   return encrypted ? (
     <span className="badge badge-success badge-plain" title="Messages are end-to-end encrypted: only members' devices can read them">
-      <Lock aria-hidden="true" /> Encrypted
+      <Lock aria-hidden="true" /> <span className="badge-label">Encrypted</span>
     </span>
   ) : (
     <span className="badge badge-warning badge-plain" title="Messages in this conversation are not end-to-end encrypted">
-      <ShieldOff aria-hidden="true" /> Not encrypted
+      <ShieldOff aria-hidden="true" /> <span className="badge-label">Not encrypted</span>
     </span>
   );
 }
@@ -62,18 +66,18 @@ export function TrustBadge({ userId, onVerify }: { userId: string; onVerify: () 
   if (status.isCrossSigningVerified())
     return (
       <span className="badge badge-success badge-plain" title="You've verified this person's identity">
-        <BadgeCheck aria-hidden="true" /> Verified
+        <BadgeCheck aria-hidden="true" /> <span className="badge-label">Verified</span>
       </span>
     );
   if (status.needsUserApproval || status.wasCrossSigningVerified())
     return (
       <button type="button" className="badge badge-danger badge-plain badge-button" onClick={onVerify} title="Their identity changed. Verify them again.">
-        <ShieldAlert aria-hidden="true" /> Identity changed
+        <ShieldAlert aria-hidden="true" /> <span className="badge-label">Identity changed</span>
       </button>
     );
   return (
     <button type="button" className="badge badge-plain badge-button" onClick={onVerify} title="Compare emoji to verify this person">
-      <ShieldAlert aria-hidden="true" /> Not verified
+      <ShieldAlert aria-hidden="true" /> <span className="badge-label">Not verified</span>
     </button>
   );
 }
@@ -138,6 +142,16 @@ export function RoomHeader({
   const members = room.getJoinedMemberCount();
   const sub = dmUserId ? (presenceText(presence) ?? dmUserId) : `${members} member${members === 1 ? "" : "s"}`;
   const mxc = room.getMxcAvatarUrl() ?? (dmUserId ? room.getMember(dmUserId)?.getMxcAvatarUrl() : null) ?? null;
+  const roomPanels = useRoomPanels();
+  const toggle = (p: PanelId) => ui.openPanel(panel === p ? null : p);
+  // In a narrow header (phones, tablets in portrait, a panel open on a small laptop) these move
+  // into a "More" menu so the conversation name keeps its room (CSS container query).
+  const more: MenuItem[] = [
+    ...roomPanels.map((p) => ({ label: p.label, icon: <p.icon aria-hidden="true" />, onSelect: () => toggle(p.id) })),
+    { label: "Search messages", icon: <Search aria-hidden="true" />, onSelect: () => toggle("search") },
+    ...(callsEnabled ? [{ label: "Call history", icon: <History aria-hidden="true" />, onSelect: () => toggle("calls") }] : []),
+    { label: "Conversation details", icon: <Info aria-hidden="true" />, onSelect: () => toggle("info") },
+  ];
   return (
     <header className="room-header">
       {isMobile ? (
@@ -147,48 +161,55 @@ export function RoomHeader({
       ) : null}
       <Avatar name={room.name} seed={dmUserId ?? room.roomId} mxc={mxc} size={40} presence={dmUserId ? presenceDot(presence) : null} />
       <div className="room-header-titles">
-        <h1 className="room-title">{room.name}</h1>
-        <p className="room-sub">{sub}</p>
-      </div>
-      <div className="room-header-badges">
-        <EncryptionBadge encrypted={encrypted} />
-        {dmUserId ? <TrustBadge userId={dmUserId} onVerify={() => void ui.verifyUser(dmUserId)} /> : null}
+        <h1 className="room-title" title={room.name}>
+          {room.name}
+        </h1>
+        <div className="room-sub">
+          <span className="room-sub-text">{sub}</span>
+          <span className="room-header-badges">
+            <EncryptionBadge encrypted={encrypted} />
+            {dmUserId ? <TrustBadge userId={dmUserId} onVerify={() => void ui.verifyUser(dmUserId)} /> : null}
+          </span>
+        </div>
       </div>
       <div className="room-header-actions">
         {callsEnabled ? <CallButtons room={room} /> : null}
-        <RoomPanelButtons panel={panel} />
+        <RoomPanelButtons panels={roomPanels} panel={panel} toggle={toggle} />
         {callsEnabled ? (
           <button
             type="button"
-            className="icon-btn hide-narrow"
+            className="icon-btn wide-only"
             aria-label="Call history"
             title="Call history"
             aria-pressed={panel === "calls"}
-            onClick={() => ui.openPanel(panel === "calls" ? null : "calls")}
+            onClick={() => toggle("calls")}
           >
             <History aria-hidden="true" />
           </button>
         ) : null}
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn wide-only"
           aria-label="Search messages"
           title="Search messages"
           aria-pressed={panel === "search"}
-          onClick={() => ui.openPanel(panel === "search" ? null : "search")}
+          onClick={() => toggle("search")}
         >
           <Search aria-hidden="true" />
         </button>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn wide-only"
           aria-label="Conversation details"
           title="Conversation details"
           aria-pressed={panel === "info"}
-          onClick={() => ui.openPanel(panel === "info" ? null : "info")}
+          onClick={() => toggle("info")}
         >
           <Info aria-hidden="true" />
         </button>
+        <div className="narrow-only">
+          <Menu label="More options" icon={<EllipsisVertical aria-hidden="true" />} items={more} />
+        </div>
       </div>
     </header>
   );

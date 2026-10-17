@@ -3,24 +3,30 @@
 <header class="site-header" data-menu-open="false">
   <div class="container bar">
     {% include "includes/brand.html" %}
-    <nav class="nav" aria-label="Main">
+    <nav class="nav" id="site-nav" aria-label="Main">
       <a href="{% url 'site:features' %}" {% nav_current '/features' %}>Features</a>
       <a href="{% url 'site:security' %}" {% nav_current '/security' %}>Security</a>
       <a href="{% url 'site:zero_trust' %}" {% nav_current '/zero-trust' %}>Zero trust</a>
-      <a href="{% url 'site:federation' %}" {% nav_current '/federation' %}>Federation</a>
+      <a href="{% url 'site:federation' %}" {% nav_current '/federation' %}>Matrix</a>
       <a href="{% url 'site:pricing' %}" {% nav_current '/pricing' %}>Pricing</a>
       <a href="{% url 'site:docs' %}" {% nav_current '/docs' %}>Docs</a>
+      <span class="nav-sep nav-mobile-only" aria-hidden="true"></span>
+      {% if user.is_authenticated %}
+      <a class="nav-mobile-only" href="{% url 'portal:dashboard' %}">{% icon "layout-dashboard" %} Your account</a>
+      {% else %}
+      <a class="nav-mobile-only" href="{% url 'account_login' %}">{% icon "log-in" %} Sign in</a>
+      {% endif %}
     </nav>
     <div class="header-actions">
       {% include "includes/theme_toggle.html" %}
       {% if user.is_authenticated %}
-        <a class="btn btn-ghost hide-mobile" href="{% url 'portal:dashboard' %}">Dashboard</a>
+        <a class="btn btn-ghost hide-mobile" href="{% url 'portal:dashboard' %}">Your account</a>
         <a class="btn btn-primary" href="{{ lumen.app_url }}">Open workspace</a>
       {% else %}
         <a class="btn btn-ghost hide-mobile" href="{% url 'account_login' %}">Sign in</a>
         {% if lumen.registration_mode == "open" %}<a class="btn btn-primary" href="{% url 'account_signup' %}">Get started</a>{% endif %}
       {% endif %}
-      <button type="button" class="theme-toggle menu-toggle" data-menu-toggle aria-expanded="false" aria-label="Menu">{% icon "menu" %}</button>
+      <button type="button" class="theme-toggle menu-toggle" data-menu-toggle aria-expanded="false" aria-controls="site-nav" aria-label="Menu">{% icon "menu" "icon-open" %}{% icon "x" "icon-close" %}</button>
     </div>
   </div>
 </header>
@@ -28,40 +34,42 @@
   {% block main %}{% endblock %}
 </main>
 <footer class="site-footer">
-  <div class="container footer-grid">
-    <div class="stack-sm">
-      {% include "includes/brand.html" %}
-      <p class="muted small">{{ brand.tagline }}</p>
-      <p class="subtle xsmall">Built on the open Matrix protocol. Runs on infrastructure operated by {{ brand.legal_name }}.</p>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="stack-sm">
+        {% include "includes/brand.html" %}
+        <p class="muted small">{{ brand.tagline }}</p>
+        <p class="subtle xsmall">Built on Matrix, the open standard for secure, decentralised messaging. Runs on infrastructure operated by {{ brand.legal_name }}.</p>
+      </div>
+      <div>
+        <h2 class="footer-title">Product</h2>
+        <ul>
+          <li><a href="{% url 'site:features' %}">Features</a></li>
+          <li><a href="{% url 'site:pricing' %}">Pricing</a></li>
+          <li><a href="{% url 'site:download' %}">Apps &amp; clients</a></li>
+          <li><a href="{% url 'site:status' %}">Status</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="footer-title">Trust</h2>
+        <ul>
+          <li><a href="{% url 'site:security' %}">Security &amp; privacy</a></li>
+          <li><a href="{% url 'site:zero_trust' %}">Zero-trust architecture</a></li>
+          <li><a href="{% url 'site:federation' %}">Matrix, federation &amp; self-hosting</a></li>
+          <li><a href="{% url 'site:disclosure' %}">Vulnerability disclosure</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="footer-title">Company</h2>
+        <ul>
+          <li><a href="{% url 'site:docs' %}">Documentation</a></li>
+          <li><a href="{% url 'site:contact' %}">Contact</a></li>
+          <li><a href="{% url 'site:privacy' %}">Privacy policy</a></li>
+          <li><a href="{% url 'site:terms' %}">Terms of service</a></li>
+        </ul>
+      </div>
     </div>
-    <div>
-      <h4>Product</h4>
-      <ul>
-        <li><a href="{% url 'site:features' %}">Features</a></li>
-        <li><a href="{% url 'site:pricing' %}">Pricing</a></li>
-        <li><a href="{% url 'site:download' %}">Apps &amp; clients</a></li>
-        <li><a href="{% url 'site:status' %}">Status</a></li>
-      </ul>
-    </div>
-    <div>
-      <h4>Trust</h4>
-      <ul>
-        <li><a href="{% url 'site:security' %}">Security &amp; privacy</a></li>
-        <li><a href="{% url 'site:zero_trust' %}">Zero-trust architecture</a></li>
-        <li><a href="{% url 'site:federation' %}">Federation &amp; self-hosting</a></li>
-        <li><a href="{% url 'site:disclosure' %}">Vulnerability disclosure</a></li>
-      </ul>
-    </div>
-    <div>
-      <h4>Company</h4>
-      <ul>
-        <li><a href="{% url 'site:docs' %}">Documentation</a></li>
-        <li><a href="{% url 'site:contact' %}">Contact</a></li>
-        <li><a href="{% url 'site:privacy' %}">Privacy policy</a></li>
-        <li><a href="{% url 'site:terms' %}">Terms of service</a></li>
-      </ul>
-    </div>
+    <div class="footer-legal"><p class="subtle xsmall">© {% now "Y" %} {{ brand.legal_name }}</p><p class="subtle xsmall">Lumen {{ lumen.version }}</p></div>
   </div>
-  <div class="container"><hr><p class="subtle xsmall">© {% now "Y" %} {{ brand.legal_name }} · Lumen {{ lumen.version }}</p></div>
 </footer>
 {% endblock %}

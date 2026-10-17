@@ -1,7 +1,7 @@
-{% if form.non_field_errors %}<div class="alert alert-danger" role="alert"><div>{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div></div>{% endif %}
+{% load lumen %}{% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{% icon "triangle-alert" %}<div>{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div></div>{% endif %}
 {% for field in form %}{% if field.is_hidden %}{{ field }}{% elif field.name == "website" %}<div class="visually-hidden" aria-hidden="true"><label for="{{ field.id_for_label }}">Leave this empty</label>{{ field }}</div>{% else %}
 <div class="field{% if field.errors %} field-error{% endif %}">
   {% if field.widget_type == "checkbox" %}<label class="checkbox" for="{{ field.id_for_label }}">{{ field }} <span>{{ field.label }}</span></label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}
-  {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
-  {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  {% if field.help_text %}<div class="help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+  {% if field.errors %}<ul class="errorlist" id="{{ field.auto_id }}_error">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
 </div>{% endif %}{% endfor %}

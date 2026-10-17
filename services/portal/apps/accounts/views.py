@@ -89,7 +89,7 @@ def _notifications(user, summary, memberships) -> list[dict]:
         )
     if not summary["mfa_enabled"]:
         notes.append(
-            {"level": "warning", "text": "Two-factor authentication is off.", "href": reverse("mfa_index"), "cta": "Turn on"}
+            {"level": "warning", "text": "Two-factor authentication is off. Turn it on to protect your account.", "href": reverse("mfa_index"), "cta": "Turn on"}
         )
     if summary["mfa_enabled"] and summary["recovery_codes_left"] is not None and summary["recovery_codes_left"] <= 2:
         notes.append(
@@ -104,7 +104,11 @@ def _notifications(user, summary, memberships) -> list[dict]:
         notes.append(
             {
                 "level": "info",
-                "text": f"{summary['failed_logins_7d']} failed sign-in attempt(s) in the last 7 days.",
+                "text": (
+                    "There was 1 failed sign-in attempt in the last 7 days."
+                    if summary["failed_logins_7d"] == 1
+                    else f"There were {summary['failed_logins_7d']} failed sign-in attempts in the last 7 days."
+                ),
                 "href": reverse("portal:security"),
                 "cta": "View",
             }
@@ -157,6 +161,8 @@ def dashboard(request):
         )
     ent = billing.user_entitlements(user)
     recent = SecurityEvent.objects.filter(user=user).order_by("-at")[:6]
+    # "Welcome back" once the person has signed in before; a brand-new account gets a first welcome.
+    returning = SecurityEvent.objects.filter(user=user, kind="login_success").count() > 1
     return render(
         request,
         "portal/dashboard.html",
@@ -166,6 +172,7 @@ def dashboard(request):
             "entitlements": ent,
             "recent_events": recent,
             "notifications": _notifications(user, summary, memberships),
+            "returning": returning,
         },
     )
 
@@ -332,7 +339,7 @@ def workspaces(request):
             messages.error(request, str(exc))
         else:
             audit(request, "workspace.create", target=ws)
-            messages.success(request, f"Workspace “{ws.name}” created.")
+            messages.success(request, f"“{ws.name}” is ready. Invite your team to get started.")
             return redirect("portal:workspace", ws.pk)
     memberships = Membership.objects.filter(user=request.user).select_related("workspace")
     rows = [

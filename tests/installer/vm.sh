@@ -3,6 +3,8 @@
 # storage) for installer tests, and copies the working tree into /root/lumen as
 # if it had been cloned. Harness-only extras: an optional CA bundle for networks
 # with TLS inspection, and /etc/hosts entries for the .test domains.
+# The test server shares the host's kernel: where that kernel has no WireGuard
+# module, the installer uses Ubuntu's wireguard-go package, as on an LXC host.
 set -euo pipefail
 NAME="${1:-lumen-it}"; DOMAIN="${2:-lumen-it.test}"; CA="${LUMEN_TEST_EXTRA_CA:-}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"

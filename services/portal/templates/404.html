@@ -1,3 +1,3 @@
-{% extends "base.html" %}{% load lumen %}
+{% extends "error_base.html" %}{% load lumen %}
 {% block title %}Not found{% endblock %}
-{% block body %}<main id="main" class="auth-main"><div class="auth-panel stack center"><span class="feature-icon violet">{% icon "search" %}</span><h1>We couldn't find that page</h1><p class="muted">The link may be wrong, or the page may have moved.</p><p><a class="btn" href="/">Go home</a></p></div></main>{% endblock %}
+{% block error_content %}<span class="feature-icon">{% icon "search" %}</span><span class="error-code">Error 404</span><h1>We couldn't find that page</h1><p>The link may be mistyped, or the page may have moved. Nothing is wrong with your account.</p><div class="error-actions">{% if user.is_authenticated %}<a class="btn btn-primary" href="/portal/">Back to your account</a>{% else %}<a class="btn btn-primary" href="/">Go to the homepage</a>{% endif %}<a class="btn btn-ghost" href="/docs/">Browse the docs</a></div>{% endblock %}

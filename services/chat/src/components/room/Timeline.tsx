@@ -9,7 +9,7 @@ import {
 } from "matrix-js-sdk";
 import { ArrowDown, LockKeyhole } from "lucide-react";
 import { useClient } from "../../matrix/context";
-import { buildTimeline } from "../../matrix/timeline";
+import { buildTimeline, groupRuns } from "../../matrix/timeline";
 import { buildCallHistory, callMarkers } from "../../calls/history";
 import { useRoomCall } from "../../calls/store";
 import { CallTimelineItem } from "../calls/CallTimelineItem";
@@ -19,7 +19,6 @@ import { getPrefs } from "../../lib/prefs";
 import { useEmitterVersion } from "../../hooks/useEmitter";
 import { useBlockedUsers } from "../../hooks/matrix";
 import { consumeHighlight, subscribeHighlight } from "../../lib/highlight";
-import { Spinner } from "../primitives/Spinner";
 import { MessageTile } from "./MessageTile";
 
 const PAGE = 30;
@@ -80,6 +79,9 @@ export function Timeline({
   const blockedList = useBlockedUsers(client);
   const blocked = useMemo(() => new Set(blockedList), [blockedList]);
   const items = useMemo(() => buildTimeline(events, nameOf, markers, blocked), [events, nameOf, markers, blocked]);
+  const blocks = useMemo(() => groupRuns(items), [items]);
+  // Messages that arrive (or are sent) while the conversation is open get a short entrance.
+  const openedAt = useRef(Date.now());
 
   // Who has read each of my recent messages: their read receipt (or a later message of
   // theirs) is at or after it. Only real receipt data from the server is used.
@@ -245,7 +247,8 @@ export function Timeline({
     const el = scrollRef.current;
     if (!el) return;
     atBottom.current = true;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
     setShowJump(false);
   };
 
@@ -265,22 +268,37 @@ export function Timeline({
         <div className="timeline-inner" ref={innerRef}>
           <div className="timeline-top">
             {paginating ? (
-              <Spinner size="sm" label="Loading earlier messages…" />
+              <div className="timeline-skeleton" role="status">
+                <span className="visually-hidden">Loading earlier messages…</span>
+                <span className="skeleton" />
+                <span className="skeleton" />
+                <span className="skeleton" />
+              </div>
             ) : paginateError ? (
               <button type="button" className="btn btn-sm" onClick={() => void loadOlder()}>
                 Couldn't load earlier messages — retry
               </button>
             ) : atStart ? (
-              <p className="timeline-start">
-                <LockKeyhole aria-hidden="true" /> This is the beginning of the conversation.
-              </p>
+              <div className="timeline-start">
+                <span className="timeline-start-icon" aria-hidden="true">
+                  <LockKeyhole />
+                </span>
+                <p className="timeline-start-title">This is the beginning of the conversation.</p>
+                <p className="timeline-start-text">
+                  {roomEncrypted
+                    ? "Messages here are end-to-end encrypted with Matrix: only the people in this conversation can read them."
+                    : roomEncrypted === false
+                      ? "Messages here are not end-to-end encrypted."
+                      : ""}
+                </p>
+              </div>
             ) : (
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => void loadOlder()}>
                 Load earlier messages
               </button>
             )}
           </div>
-          {items.map((it) => {
+          {blocks.map((it) => {
             if (it.kind === "day") {
               return (
                 <div key={it.key} className="day-sep" data-item={it.key} role="separator" aria-label={formatDayLabel(it.ts)}>
@@ -288,20 +306,29 @@ export function Timeline({
                 </div>
               );
             }
-            if (it.kind === "call") {
+            if (it.kind === "call-run") {
               return (
-                <div key={it.key} data-item={it.key}>
-                  <CallTimelineItem marker={it.marker} room={room} me={me} joinedHere={liveCall.joinedHere} />
+                <div key={it.key} className="call-log" role="group" aria-label={it.items.length === 1 ? "Call" : `${it.items.length} call events`}>
+                  {it.items.map((c) => (
+                    <div key={c.key} data-item={c.key}>
+                      <CallTimelineItem marker={c.marker} room={room} me={me} joinedHere={liveCall.joinedHere} ts={c.event.getTs()} />
+                    </div>
+                  ))}
                 </div>
               );
             }
-            if (it.kind === "notice") {
+            if (it.kind === "notice-run") {
               return (
-                <div key={it.key} className="notice" data-item={it.key}>
-                  {it.text}
+                <div key={it.key} className="notice-run">
+                  {it.items.map((n) => (
+                    <div key={n.key} className="notice" data-item={n.key}>
+                      {n.text}
+                    </div>
+                  ))}
                 </div>
               );
             }
+            if (it.kind !== "message") return null;
             const id = it.event.getId() ?? "";
             return (
               <div key={it.key} data-item={it.key}>
@@ -313,6 +340,7 @@ export function Timeline({
                   readers={readersByEvent.get(id) ?? EMPTY}
                   roomEncrypted={roomEncrypted}
                   version={version}
+                  fresh={it.event.getTs() >= openedAt.current - 1000}
                   onReply={onReply}
                   onEdit={onEdit}
                 />
@@ -322,7 +350,7 @@ export function Timeline({
         </div>
       </div>
       {showJump ? (
-        <button type="button" className="jump-latest btn btn-sm btn-primary" onClick={jumpToBottom}>
+        <button type="button" className="jump-latest btn btn-sm" onClick={jumpToBottom}>
           <ArrowDown aria-hidden="true" /> Jump to latest
         </button>
       ) : null}

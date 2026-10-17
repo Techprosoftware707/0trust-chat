@@ -256,11 +256,16 @@ export function SetupRecoveryDialog({
 
       {step === "done" ? (
         <div className="verify-state">
-          <CircleCheck className="verify-icon ok" aria-hidden="true" />
+          <CircleCheck className="verify-icon ok celebrate" aria-hidden="true" />
           <p role="status">
-            {mode === "reset"
-              ? "Your encryption has been reset and is protected by your new recovery key."
-              : "Secure backup is set up. Your message keys are backed up, encrypted with your recovery key."}
+            {mode === "reset" ? (
+              "Your encryption has been reset and is protected by your new recovery key."
+            ) : (
+              <>
+                <strong className="verify-headline">You're all set.</strong> Secure backup is set up: your message keys are backed up, encrypted with your
+                recovery key.
+              </>
+            )}
           </p>
           <div className="dialog-actions">
             <button type="button" className="btn btn-primary" onClick={onClose}>

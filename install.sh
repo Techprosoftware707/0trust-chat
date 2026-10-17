@@ -148,11 +148,17 @@ export LUMEN_CONF="$LUMEN_CONFIG_DIR/lumen.conf"
 state_set repo_dir "$LUMEN_REPO_DIR"
 state_set version "$VERSION"
 [[ "$(state_get install_status)" == complete ]] || state_set install_status in_progress
+wireguard_default_on
 
 phase "Host packages and Docker"
 install_packages
 install_docker
 ensure_groups
+
+# Before rendering: the Caddy allow-list for the console uses the subnet chosen here. WireGuard
+# never fails the installation; when this host can't run it, the summary says why.
+phase "WireGuard"
+if wireguard_wanted; then wireguard_enable || true; else wireguard_off_note; fi
 
 phase "Secrets and directories"
 ensure_dirs
@@ -171,9 +177,6 @@ promote_staging
 phase "Firewall and automatic updates"
 configure_firewall
 configure_unattended_upgrades
-
-phase "WireGuard"
-if truthy "$(conf_get WIREGUARD_ENABLED false)"; then wireguard_enable; else info "disabled (WIREGUARD_ENABLED=false)"; fi
 
 phase "Container images"
 pull_images
@@ -252,26 +255,36 @@ cat <<EOF
 Website & portal:   https://$p
 Chat app:           https://$(conf_get LUMEN_APP_DOMAIN "app.$p")
 Homeserver:         https://$(conf_get LUMEN_MATRIX_DOMAIN "matrix.$p")  (server name: $(conf_get MATRIX_SERVER_NAME "$p"))
-Operator console:   https://$(conf_get LUMEN_OPS_DOMAIN "ops.$p"):$(conf_get LUMEN_OPS_PORT 8443)  (private: SSH tunnel or WireGuard)
+Operator console:   https://$(conf_get LUMEN_OPS_DOMAIN "ops.$p"):$(conf_get LUMEN_OPS_PORT 8443)  (private: $(wireguard_active && echo "WireGuard or an SSH tunnel" || echo "SSH tunnel"))
 TLS:                $( [[ "$(conf_get TLS_MODE acme)" == acme ]] && echo "Let's Encrypt certificates (automatic renewal)" || echo "INTERNAL TEST CA — not trusted by browsers or other servers")
 Federation:         $(conf_get FEDERATION_MODE open)$( [[ "$(conf_get FEDERATION_MODE open)" == open ]] && echo " (external reachability is reported in the console after the first probe)")
 Database:           $(container_health postgres)
 Encryption:         end-to-end encryption on by default for all new rooms (Olm/Megolm, client-side)
 Backups:            $(conf_get BACKUP_DIR /var/backups/lumen), daily at $(conf_get BACKUP_SCHEDULE 03:17), age-encrypted
                     Copy the backup key OFF this server: $LUMEN_CONFIG_DIR/backup/identity.txt
-WireGuard:          $(truthy "$(conf_get WIREGUARD_ENABLED false)" && echo "enabled on wg0 (add devices in the console)" || echo disabled)
+$(wireguard_summary_lines)
 Voice/video:        $(calls_enabled && echo "enabled — SFU wss://$(rtc_domain), ports $(calls_ports_human)" || echo disabled)
 Email:              $( [[ -n "$(conf_get SMTP_HOST)" ]] && echo "SMTP $(conf_get SMTP_HOST)" || echo "not configured — email verification and reset-by-email are off")
 Payments:           $(conf_get BILLING_PROVIDER none)
 EOF
 if test_setup; then test_setup_summary; fi
+ops_host="$(conf_get LUMEN_OPS_DOMAIN "ops.$p")"; ops_port="$(conf_get LUMEN_OPS_PORT 8443)"
+printf '\nOperator setup:\n  1. Connect to the console from your computer, either\n'
+if wireguard_active && [[ -f "$WG_FIRST_PROFILE" ]]; then
+  cat <<EOF
+     • WireGuard: copy the profile:  ssh <you>@<this server> sudo cat $WG_FIRST_PROFILE > lumen-wg.conf
+       import lumen-wg.conf into the WireGuard app and connect (phone: sudo ./lumenctl wireguard show-profile),
+       add to your hosts file:  $(python3 -c 'import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))' "$(conf_get WG_SUBNET 10.77.0.0/24)") $ops_host
+       then delete the server copy:  sudo ./lumenctl wireguard forget-profile
+EOF
+elif wireguard_active; then
+  printf '     • WireGuard: a device profile from the console or: sudo ./lumenctl wireguard add-peer <name>\n'
+fi
 cat <<EOF
-
-Operator setup:
-  1. On your computer:  ssh -L $(conf_get LUMEN_OPS_PORT 8443):127.0.0.1:$(conf_get LUMEN_OPS_PORT 8443) <you>@<this server>
-     and add to your hosts file:  127.0.0.1 $(conf_get LUMEN_OPS_DOMAIN "ops.$p")
+     • SSH tunnel:  ssh -L $ops_port:127.0.0.1:$ops_port <you>@<this server>
+       and add to your hosts file:  127.0.0.1 $ops_host
   2. On the server:  sudo cat $LINK_FILE   (one-time link, 24 h)
-  3. Open the link, choose a password, then enrol two-factor authentication.
+  3. Open the link (https://$ops_host:$ops_port/…), choose a password, then enrol two-factor authentication.
 
 Remaining manual items:
 EOF

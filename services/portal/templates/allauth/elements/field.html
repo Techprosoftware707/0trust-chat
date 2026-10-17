@@ -6,8 +6,8 @@
   <textarea {% if attrs.required %}required{% endif %} {% if attrs.rows %}rows="{{ attrs.rows }}"{% endif %} {% if attrs.disabled %}disabled{% endif %} {% if attrs.readonly %}readonly{% endif %} {% if attrs.name %}name="{{ attrs.name }}"{% endif %} {% if attrs.id %}id="{{ attrs.id }}"{% endif %} {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %}>{% slot value %}{% endslot %}</textarea>
   {% else %}
   <label for="{{ attrs.id }}">{% slot label %}{% endslot %}</label>
-  <input {% if attrs.required %}required{% endif %} {% if attrs.disabled %}disabled{% endif %} {% if attrs.readonly %}readonly{% endif %} {% if attrs.name %}name="{{ attrs.name }}"{% endif %} {% if attrs.id %}id="{{ attrs.id }}"{% endif %} {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %} {% if attrs.autocomplete %}autocomplete="{{ attrs.autocomplete }}"{% endif %} {% if attrs.value is not None %}value="{{ attrs.value }}"{% endif %} type="{{ attrs.type }}" {% if attrs.errors %}aria-invalid="true"{% endif %}>
+  <input {% if attrs.required %}required{% endif %} {% if attrs.disabled %}disabled{% endif %} {% if attrs.readonly %}readonly{% endif %} {% if attrs.name %}name="{{ attrs.name }}"{% endif %} {% if attrs.id %}id="{{ attrs.id }}"{% endif %} {% if attrs.placeholder %}placeholder="{{ attrs.placeholder }}"{% endif %} {% if attrs.autocomplete %}autocomplete="{{ attrs.autocomplete }}"{% endif %} {% if attrs.value is not None %}value="{{ attrs.value }}"{% endif %} type="{{ attrs.type }}" {% if attrs.errors %}aria-invalid="true"{% endif %}{% if attrs.id and slots.help_text or attrs.id and attrs.errors %} aria-describedby="{% if slots.help_text %}{{ attrs.id }}-help{% endif %}{% if attrs.errors %} {{ attrs.id }}-error{% endif %}"{% endif %}>
   {% endif %}
-  {% if slots.help_text %}<div class="help">{% slot help_text %}{% endslot %}</div>{% endif %}
-  {% if attrs.errors %}<ul class="errorlist">{% for e in attrs.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  {% if slots.help_text %}<div class="help"{% if attrs.id %} id="{{ attrs.id }}-help"{% endif %}>{% slot help_text %}{% endslot %}</div>{% endif %}
+  {% if attrs.errors %}<ul class="errorlist"{% if attrs.id %} id="{{ attrs.id }}-error"{% endif %}>{% for e in attrs.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
 </div>

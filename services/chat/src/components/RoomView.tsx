@@ -178,22 +178,38 @@ export function RoomView({ roomId, isMobile, panel }: { roomId: string; isMobile
   const { client } = useMatrix();
   const room = useRoom(client, roomId);
   const { state } = useSyncState(client);
+  if (!room && state === null) {
+    // Still starting up: the shape of a conversation instead of a bare spinner.
+    return (
+      <div className="room room-loading" role="status">
+        <span className="visually-hidden">Loading conversation…</span>
+        <div className="room-header" aria-hidden="true">
+          <span className="skeleton skeleton-avatar" />
+          <span className="room-header-titles">
+            <span className="skeleton skeleton-line" />
+            <span className="skeleton skeleton-line short" />
+          </span>
+        </div>
+        <div className="room-loading-body" aria-hidden="true">
+          <span className="skeleton skeleton-bubble" />
+          <span className="skeleton skeleton-bubble own" />
+          <span className="skeleton skeleton-bubble wide" />
+        </div>
+      </div>
+    );
+  }
   if (!room) {
     return (
       <div className="empty-pane">
         <div className="empty-card">
-          {state === null ? (
-            <Spinner label="Loading conversation…" />
-          ) : (
-            <>
-              <DoorOpen aria-hidden="true" className="empty-icon" />
-              <h1>Conversation not available</h1>
-              <p className="muted">You're not a member of this conversation, or it doesn't exist.</p>
-              <a className="btn" href="#/">
-                Back to conversations
-              </a>
-            </>
-          )}
+          <span className="empty-art" aria-hidden="true">
+            <DoorOpen />
+          </span>
+          <h1>Conversation not available</h1>
+          <p className="muted">You're not a member of this conversation, or it doesn't exist. It may have been removed, or the link may be incomplete.</p>
+          <a className="btn" href="#/">
+            Back to conversations
+          </a>
         </div>
       </div>
     );

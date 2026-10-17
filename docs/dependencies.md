@@ -310,8 +310,9 @@ All licenses below are from **general knowledge** and are *to verify* against `/
 | unattended-upgrades | Ubuntu | Always | GPL-2.0 (*to verify*) |
 | update-notifier-common | Ubuntu | Always | GPL-3.0 (*to verify*) |
 | ufw | Ubuntu | Only if not already present and `FIREWALL_MANAGE` ≠ `no` | GPL-3.0 |
-| wireguard-tools | Ubuntu | Only if `WIREGUARD_ENABLED` | GPL-2.0-only |
-| qrencode | Ubuntu | Only if `WIREGUARD_ENABLED` | LGPL-2.1-or-later |
+| wireguard-tools | Ubuntu | Unless `WIREGUARD_ENABLED=false` (on by default) | GPL-2.0-only |
+| qrencode | Ubuntu | Unless `WIREGUARD_ENABLED=false` (on by default) | LGPL-2.1-or-later |
+| wireguard-go | Ubuntu (universe) | Only if WireGuard is on, the kernel has no WireGuard module and a TUN device exists (containers, LXC) | MIT (*to verify*) |
 | docker-ce | download.docker.com | Only if Docker or Compose is missing | Apache-2.0 |
 | docker-ce-cli | download.docker.com | Only if Docker or Compose is missing | Apache-2.0 |
 | containerd.io | download.docker.com | Only if Docker or Compose is missing | Apache-2.0 |
@@ -324,7 +325,7 @@ The installer also places first-party files on the host:
 - the systemd units from `deploy/systemd/`
 - `deploy/lib/verify_keys.py`, which uses `cryptography` if the host Python has it and otherwise falls back to the `openssl` CLI
 
-The WireGuard kernel module is part of the Ubuntu kernel and is not installed by Lumen.
+The WireGuard kernel module is part of the Ubuntu kernel and is not installed by Lumen. Where a kernel lacks it, Ubuntu's `wireguard-go` package (userspace) is used instead, as listed above.
 
 ---
 

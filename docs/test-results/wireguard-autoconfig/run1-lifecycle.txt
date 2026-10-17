@@ -1,0 +1,117 @@
+=== Run 1 (2026-10-17 06:48-07:05 UTC): fresh test server, install.sh --config with no WIREGUARD_ENABLED, then tests/installer/lifecycle.sh
+=== (The public IPv4 addresses the installer detected, i.e. this sandbox's egress NAT addresses, are replaced by <egress-IPv4-A/B/C>.)
+    Found: WG_ENDPOINT drifted from <egress-IPv4-A> (fresh install) to <egress-IPv4-B> (after the --config re-installs; this sandbox's egress address rotates).
+    Fixed (endpoint kept in /etc/lumen/wireguard/server.json) and covered by new lifecycle checks; see lifecycle.txt for the run on the fixed code.
+
+PASS marker account A created
+--- idempotent re-install
+PASS install.sh re-run succeeds
+PASS secrets unchanged by re-install
+PASS homeserver signing key unchanged by re-install
+PASS data kept across re-install (marker A)
+--- WireGuard (on by default)
+PASS wg0 is up and reported up by the host agent
+PASS installer state: wireguard enabled
+PASS first device profile is 0600 root:root
+PASS its directory is 0700 root:root
+PASS re-install added no second device (1 peer)
+PASS re-install changed no WireGuard key and left the profile as it was
+PASS the generated profile works from another network namespace: console only through the tunnel
+PASS a device added later works and can be revoked
+PASS show-profile prints the path and a QR code, no key as text
+PASS show-profile is logged (without the profile)
+PASS forget-profile deletes the stored profile
+PASS profile gone; the device stays registered (1 peer)
+PASS forget-profile again is harmless
+PASS show-profile refuses once the profile is forgotten
+PASS calls: media flows through the SFU after re-install
+--- calls: media-service restart
+PASS lumenctl restart livekit lkjwt
+PASS calls: media flows after the SFU restart
+PASS SFU configuration unchanged by restart
+PASS data untouched by the SFU restart (marker A)
+PASS healthy after the SFU restart
+--- crash recovery (no operator action)
+PASS synapse killed with SIGKILL comes back healthy on its own
+PASS portal killed with SIGKILL comes back healthy on its own
+PASS ops killed with SIGKILL comes back healthy on its own
+PASS postgres killed with SIGKILL comes back healthy on its own
+PASS healthy again on its own within 2 min of the crashes
+PASS data intact after the crashes (marker A)
+--- health and diagnostics
+PASS healthcheck.sh reports healthy (warnings allowed)
+PASS diagnose.sh completes (1 problem(s) explained)
+--- backup and full restore
+PASS backup.sh creates an encrypted archive
+PASS archive is age-encrypted
+PASS archive contents are not readable without the key
+PASS restore.sh --verify-only on the archive
+PASS marker account B created after the backup
+PASS full restore of the archive
+PASS restored data contains marker A
+PASS restore rolled back to the backup (marker B gone)
+PASS signing key intact after restore
+PASS healthy after restore
+PASS calls: media flows after restore
+PASS WireGuard: wg0 up after restore
+PASS WireGuard: restore changed no key and re-created no profile
+--- update
+PASS update.sh --no-pull succeeds
+PASS healthy after update
+PASS data kept across update (marker A)
+PASS calls: media flows after update
+PASS WireGuard: wg0 up after update
+PASS WireGuard: update added no device, changed no key, re-created no profile
+--- calls: turn off, then on again
+PASS install.sh with CALLS_ENABLED=false
+PASS calls off: SFU and authorization service removed
+PASS calls off: Lumen's calls firewall rules closed
+PASS calls off: homeserver no longer advertises the SFU
+PASS calls off: chat app configured without calls
+PASS data kept with calls off (marker A)
+PASS install.sh with calls on again
+PASS calls on: firewall rules back
+PASS calls on: media flows again
+--- uninstall (keep data) and re-install
+PASS uninstall.sh keeps data
+PASS no Lumen containers left running
+PASS data directories kept
+PASS backups kept
+PASS host agent removed
+PASS re-install on kept data succeeds
+PASS kept data is live again (marker A)
+PASS same server identity after re-install
+PASS calls: media flows after uninstall + re-install
+PASS WireGuard: wg0 up again after uninstall + re-install
+PASS WireGuard: same keys and devices after uninstall + re-install, no new profile
+--- secret leak scan
+PASS no secret values in installer/ops logs or diagnose output
+PASS no WireGuard key in any log or installer summary (3 key values checked)
+lifecycle: 74 passed, 0 failed
+
+=== WireGuard end-to-end runs inside that lifecycle (from /root/lifecycle-detail.log)
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+wireguard e2e: 6 passed, 0 failed
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+PASS access revoked after removing the peer
+PASS peer removed from wg0.conf
+wireguard e2e: 8 passed, 0 failed
+
+=== state at the end (public keys only)
+    ✔ wireguard: wg0 up
+Overall: degraded
+{'up': True, 'state': 'enabled', 'address': '10.77.0.1/24', 'listen_port': '51820', 'endpoint': '<egress-IPv4-B>:51820', 'first_device': {'name': 'itadmin-device', 'public_key': 'rq17O7Ph… (public key, shortened)', 'profile_stored': False, 'profile_path': ''}} peers: [('itadmin-device', '10.77.0.2/32', False, True)]
+51820/udp                  ALLOW       Anywhere                   # lumen: wireguard
+8443/tcp on wg0            ALLOW       Anywhere                   # lumen: operator console via wireguard
+WIREGUARD_ENABLED=true
+WG_ENDPOINT=<egress-IPv4-B>

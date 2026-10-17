@@ -11,7 +11,7 @@ install_packages() {
   run apt-get update -q || die "apt-get update failed (check DNS / mirror access). See $_log_file"
   local pkgs=(ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common)
   command -v ufw >/dev/null 2>&1 || { [[ "$(conf_get FIREWALL_MANAGE auto)" != no ]] && pkgs+=(ufw); }
-  truthy "$(conf_get WIREGUARD_ENABLED false)" && pkgs+=(wireguard-tools qrencode)
+  wireguard_wanted && pkgs+=(wireguard-tools qrencode)
   apt_install "${pkgs[@]}"
   ok "host packages installed: ${pkgs[*]}"
 }
@@ -113,7 +113,9 @@ configure_firewall() {
     done < <(ufw status numbered 2>/dev/null | grep "# lumen: calls" | sed -E 's/^\[ *([0-9]+)\].*/\1/' | sort -rn)
   fi
   local ops_port wg_if; ops_port="$(conf_get LUMEN_OPS_PORT 8443)"
-  if truthy "$(conf_get WIREGUARD_ENABLED false)"; then
+  # Only once Lumen's wg0 is actually up (not when this host can't run WireGuard). Added, never
+  # replacing anything; with firewalld or FIREWALL_MANAGE=no the operator opens UDP WG_PORT.
+  if wireguard_active; then
     run ufw allow "$(conf_get WG_PORT 51820)/udp" comment 'lumen: wireguard' && added+=("$(conf_get WG_PORT 51820)/udp")
     wg_if=wg0
     run ufw allow in on "$wg_if" to any port "$ops_port" proto tcp comment 'lumen: operator console via wireguard' && added+=("$ops_port/tcp on $wg_if")
@@ -176,7 +178,7 @@ install_systemd_units() {
 [Unit]
 Wants=lumen-agent.service
 EOF
-  if truthy "$(conf_get WIREGUARD_ENABLED false)"; then
+  if wireguard_active; then
     printf '[Unit]\nAfter=wg-quick@wg0.service\nWants=wg-quick@wg0.service\n' >>/etc/systemd/system/docker.service.d/lumen.conf
   fi
   run systemctl daemon-reload

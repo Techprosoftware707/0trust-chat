@@ -12,7 +12,11 @@ output is reproducible on any machine. If logo.svg changes, update the
 constants below and re-run.
 
 Outputs (in apps/ios/Lumen/Resources/Assets.xcassets):
-  AppIcon.appiconset/AppIcon-1024.png   opaque, full-bleed (iOS applies the mask)
+  AppIcon.appiconset/AppIcon-1024.png   opaque, full-bleed (iOS applies the mask);
+      the background gets the --brand-hero depth (midnight-900 to -950 with a
+      faint violet and warm peach glow)
+  AppIcon.appiconset/AppIcon-Dark-1024.png    iOS 18+ dark icon (deeper background)
+  AppIcon.appiconset/AppIcon-Tinted-1024.png  iOS 18+ tinted icon (grayscale mark on black)
   LaunchLogo.imageset/LaunchLogo{,@2x,@3x}.png   96 pt, transparent corners
 """
 from __future__ import annotations
@@ -27,6 +31,9 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "Lumen" / "Resources" / "Assets.xcassets"
 
 MIDNIGHT = (0x0A, 0x16, 0x30)
+MIDNIGHT_950 = (0x05, 0x0B, 0x1A)
+VIOLET_500 = (0x86, 0x76, 0xF4)
+PEACH_400 = (0xFF, 0xB3, 0x91)
 GLOW = (0x8B, 0xE3, 0xF0)
 STOPS = [(0.0, (0x5C, 0xD0, 0xE6)), (0.55, (0x3C, 0xCF, 0xB6)), (1.0, (0x86, 0x76, 0xF4))]
 GRAD_FROM, GRAD_TO = (10.0, 8.0), (56.0, 58.0)
@@ -48,8 +55,16 @@ def gradient(size: int, to_px) -> np.ndarray:
     return out
 
 
-def render(size: int, full_bleed: bool) -> Image.Image:
-    """Renders supersampled and downsamples for anti-aliasing."""
+def radial(xx, yy, cx, cy, r, alpha):
+    d = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    return np.clip(1.0 - d / r, 0.0, 1.0) ** 1.5 * alpha
+
+
+def render(size: int, full_bleed: bool, variant: str = "light") -> Image.Image:
+    """Renders supersampled and downsamples for anti-aliasing.
+
+    variant: "light" (the standard icon), "dark" (iOS 18 dark appearance) or
+    "tinted" (iOS 18 tinted appearance: grayscale mark on black)."""
     ss = 2 if size >= 512 else 4
     big = size * ss
     if full_bleed:
@@ -71,16 +86,30 @@ def render(size: int, full_bleed: bool) -> Image.Image:
         x1, y1 = to_px(62, 62)
         d.rounded_rectangle([x0, y0, x1, y1], radius=18 * k, fill=255)
     bg_a = np.asarray(bg_mask, dtype=np.float32) / 255.0
-    for ch in range(3):
-        canvas[..., ch] = MIDNIGHT[ch]
+    yy, xx = np.mgrid[0:big, 0:big].astype(np.float32) + 0.5
+    if full_bleed and variant == "tinted":
+        canvas[..., :3] = 0.0
+    elif full_bleed:
+        # --brand-hero depth: midnight-900 at the top to -950 at the bottom,
+        # a faint violet glow top right and a warm sunrise glow bottom left.
+        top, bottom = (MIDNIGHT, MIDNIGHT_950) if variant == "light" else (MIDNIGHT_950, (0x02, 0x05, 0x0E))
+        t = yy / big
+        for ch in range(3):
+            canvas[..., ch] = top[ch] * (1 - t) + bottom[ch] * t
+        for colour, (gx, gy), r, a in ((VIOLET_500, (0.95, 0.05), 0.75, 0.22), (PEACH_400, (0.05, 1.05), 0.70, 0.16)):
+            ga = radial(xx, yy, gx * big, gy * big, r * big, a if variant == "light" else a * 0.6)
+            for ch in range(3):
+                canvas[..., ch] = canvas[..., ch] * (1 - ga) + colour[ch] * ga
+    else:
+        for ch in range(3):
+            canvas[..., ch] = MIDNIGHT[ch]
     canvas[..., 3] = bg_a
 
     # Glow: radial, alpha 0.55 at the centre to 0 at r=16
     cx, cy = to_px(42, 22)
     r = 16 * k
-    yy, xx = np.mgrid[0:big, 0:big].astype(np.float32) + 0.5
     dist = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
-    glow_a = np.clip(1.0 - dist / r, 0.0, 1.0) * 0.55 * bg_a
+    glow_a = np.clip(1.0 - dist / r, 0.0, 1.0) * (0.35 if variant == "tinted" else 0.55) * bg_a
     for ch in range(3):
         canvas[..., ch] = canvas[..., ch] * (1 - glow_a) + GLOW[ch] * glow_a
 
@@ -103,6 +132,13 @@ def render(size: int, full_bleed: bool) -> Image.Image:
     md.ellipse([dx - dr, dy - dr, dx + dr, dy + dr], fill=255)
     mark_a = np.asarray(mark, dtype=np.float32) / 255.0
     grad = gradient(big, to_px)
+    if variant == "tinted":
+        # The system tints a grayscale icon: keep the mark's light-to-dark ramp.
+        lum = (0.2126 * grad[..., 0] + 0.7152 * grad[..., 1] + 0.0722 * grad[..., 2])
+        lum = 200.0 + (lum - lum.min()) / max(float(np.ptp(lum)), 1.0) * 55.0
+        grad = np.repeat(lum[..., None], 3, axis=2)
+        glow_gray = canvas[..., :3].mean(axis=2, keepdims=True)
+        canvas[..., :3] = np.repeat(glow_gray, 3, axis=2)
     for ch in range(3):
         canvas[..., ch] = canvas[..., ch] * (1 - mark_a) + grad[..., ch] * mark_a
 
@@ -127,8 +163,16 @@ def main() -> None:
     icon_dir = ASSETS / "AppIcon.appiconset"
     icon_dir.mkdir(parents=True, exist_ok=True)
     render(1024, full_bleed=True).save(icon_dir / "AppIcon-1024.png", optimize=True)
+    render(1024, full_bleed=True, variant="dark").save(icon_dir / "AppIcon-Dark-1024.png", optimize=True)
+    render(1024, full_bleed=True, variant="tinted").save(icon_dir / "AppIcon-Tinted-1024.png", optimize=True)
     write_json(icon_dir / "Contents.json", {
-        "images": [{"filename": "AppIcon-1024.png", "idiom": "universal", "platform": "ios", "size": "1024x1024"}],
+        "images": [
+            {"filename": "AppIcon-1024.png", "idiom": "universal", "platform": "ios", "size": "1024x1024"},
+            {"appearances": [{"appearance": "luminosity", "value": "dark"}],
+             "filename": "AppIcon-Dark-1024.png", "idiom": "universal", "platform": "ios", "size": "1024x1024"},
+            {"appearances": [{"appearance": "luminosity", "value": "tinted"}],
+             "filename": "AppIcon-Tinted-1024.png", "idiom": "universal", "platform": "ios", "size": "1024x1024"},
+        ],
         "info": info,
     })
 
@@ -144,18 +188,20 @@ def main() -> None:
     def color(r, g, b):
         return {"color-space": "srgb", "components": {"red": f"0x{r:02X}", "green": f"0x{g:02X}", "blue": f"0x{b:02X}", "alpha": "1.000"}}
 
-    # Launch background: midnight-950 in both appearances (the mark is designed for a dark ground).
+    # Launch background: the page background (--bg light #f6f8fb, dark #081024), so
+    # the launch screen hands over to the app without a flash. The mark carries
+    # its own midnight square.
     write_json(ASSETS / "LaunchBackground.colorset" / "Contents.json", {
         "colors": [
-            {"idiom": "universal", "color": color(0x05, 0x0B, 0x1A)},
-            {"idiom": "universal", "appearances": [{"appearance": "luminosity", "value": "dark"}], "color": color(0x05, 0x0B, 0x1A)},
+            {"idiom": "universal", "color": color(0xF6, 0xF8, 0xFB)},
+            {"idiom": "universal", "appearances": [{"appearance": "luminosity", "value": "dark"}], "color": color(0x08, 0x10, 0x24)},
         ],
         "info": info,
     })
-    # Accent: --accent light (cyan-600) / dark (cyan-400) from design/tokens.css.
+    # Accent: --accent light (cyan-700) / dark (cyan-400) from design/tokens.css.
     write_json(ASSETS / "AccentColor.colorset" / "Contents.json", {
         "colors": [
-            {"idiom": "universal", "color": color(0x0E, 0x8F, 0xB0)},
+            {"idiom": "universal", "color": color(0x0B, 0x6F, 0x8A)},
             {"idiom": "universal", "appearances": [{"appearance": "luminosity", "value": "dark"}], "color": color(0x5C, 0xD0, 0xE6)},
         ],
         "info": info,

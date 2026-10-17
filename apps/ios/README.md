@@ -131,6 +131,16 @@ CallKit, PushKit, WebKit, Keychain and the NSE need Xcode.
   (passed to the runner as `TEST_RUNNER_LUMEN_UITEST_SERVER` by
   `ci-build.sh`), it looks the server up and expects the SSO button. No
   account is used.
+- `LumenUITests/ScreenshotTests` (when `LUMEN_SCREENSHOT_DIR` is set, as in
+  CI): launches the app with `-LumenScreenshots`, a DEBUG-only mode
+  (`Lumen/Debug`, with made-up data from `Lumen/Matrix/PreviewFixtures.swift`)
+  that renders every screen at iPhone SE, 16 Pro and Pro Max sizes and iPad
+  11"/13" portrait, landscape and split-screen widths, in light and dark and at
+  large Dynamic Type sizes, into `apps/ios/build/screenshots/<device>/`
+  (CI artifact `lumen-ios-screenshots`). Nothing is signed in and no server is
+  contacted. The mode isn't compiled into Release: `ci-build.sh` fails if the
+  archived binary contains it. Curated before/after sets:
+  `docs/test-results/ui-polish/ios/`.
 
 ## Regenerating assets
 

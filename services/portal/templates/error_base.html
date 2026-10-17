@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% load lumen %}
+{% block robots %}noindex{% endblock %}
+{% block body %}
+<div class="error-page">
+  <header class="error-top">{% include "includes/brand.html" %}{% include "includes/theme_toggle.html" %}</header>
+  <main id="main" class="error-main">
+    <div class="error-card stack-sm fade-in">
+      {% block error_content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}

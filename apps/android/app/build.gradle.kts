@@ -162,6 +162,8 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            // Robolectric screenshot tests render the app's real resources (fonts, icons, strings).
+            isIncludeAndroidResources = true
         }
     }
 }
@@ -193,6 +195,28 @@ androidComponents {
         variant.sources.assets?.addGeneratedSourceDirectory(copyCallWidget, CopyCallWidget::outputDir)
         variant.sources.manifests.addGeneratedManifestFile(generateAppLinksManifest, GenerateAppLinksManifest::outputFile)
     }
+}
+
+// ---- Screenshot tests (JVM: Robolectric native graphics + Roborazzi) ----------------------------
+// `./gradlew :app:screenshots` renders the real screen composables with fake state on several
+// device sizes, light/dark and font scales into app/build/outputs/roborazzi/. They are left out of
+// the normal unit test run (slow; they download Robolectric's Android runtime on first use).
+val screenshotRun = gradle.startParameter.taskNames.any { it == "screenshots" || it.endsWith(":screenshots") }
+tasks.withType<Test>().configureEach {
+    if (screenshotRun && name == "testDebugUnitTest") {
+        filter.includeTestsMatching("io.lumen.secure.screenshots.*")
+        systemProperty("roborazzi.test.record", "true")
+        systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+        maxHeapSize = "2g"
+        outputs.upToDateWhen { false }
+    } else {
+        exclude("io/lumen/secure/screenshots/**")
+    }
+}
+tasks.register("screenshots") {
+    group = "verification"
+    description = "Renders screen screenshots (light/dark, phone/foldable/tablet, font scales) into build/outputs/roborazzi."
+    dependsOn("testDebugUnitTest")
 }
 
 tasks.named("preBuild") { dependsOn(rootProject.tasks.named("checkNoTlsBypass")) }
@@ -230,6 +254,12 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

@@ -71,6 +71,16 @@ final class RoomListModel {
         result?.controller().addOnePage()
     }
 
+    #if DEBUG
+    /// Fixed contents for DEBUG screenshots (no SDK).
+    func showPreview(_ summaries: [RoomSummary], isLoading: Bool = false, loadError: String? = nil, searchText: String = "") {
+        self.summaries = summaries
+        self.isLoading = isLoading
+        self.loadError = loadError
+        self.searchText = searchText
+    }
+    #endif
+
     private func applyFilter() {
         var filters: [RoomListEntriesDynamicFilterKind] = [.nonLeft, .nonSpace, .deduplicateVersions]
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)

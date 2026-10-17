@@ -56,6 +56,39 @@ from the beginning, and only complete runs are reported.
 | Android test builds | every CI run signed test APKs with a new key, so a phone refused to update ("App not installed") | optional fixed test key (`ANDROID_TEST_KEYSTORE_*` secrets, `apps/android/tools/make-test-signing-key.sh`); never in the repository |
 | new Android test (emulator, real Lumen server) | **Android sign-in could never work**: every HTTPS request of the Rust SDK failed ("Expect rustls-platform-verifier to be initialized"); the SDK package ships neither the JNI initialisation nor the Java half of the verifier | the app initialises the verifier and ships a port of it whose trust anchors follow the app's network security config: release builds trust system CAs only, debug builds also user-installed CAs |
 
+## WireGuard on by default — 2026-10-17
+
+WireGuard is now part of every installation: on by default and set up by the installer (a
+free subnet, the endpoint, `wg0`, UFW rules, and a first operator device profile in
+`/etc/lumen/wireguard/first-device.conf`). Where the host can't run it, the installation
+still succeeds and says why. All installer runs used fresh systemd test servers
+(`tests/installer/vm.sh`), whose kernel has no WireGuard module: the server side used
+Ubuntu's `wireguard-go` package, which the installer falls back to. Raw outputs:
+[`docs/test-results/wireguard-autoconfig/`](test-results/wireguard-autoconfig/).
+
+| Test | Result | Evidence |
+|---|---|---|
+| Host-agent unit tests (new `tests/deploy/test_host_agent.py`): subnet choice (overlaps with routes and addresses, never moving Lumen's live subnet, restored peers), endpoint choice (name behind cloud NAT, `/etc/hosts` loopback entry ignored, public IPv4, LAN, the first endpoint kept), first device created once (0600 file, 0700 directory, never again after re-runs, `forget-profile` or revocation), a foreign `wg0.conf` never overwritten (also not from the console), on by default, redaction; plus the renderer tests | **51/51** (36 new) | `unit-tests.txt` |
+| shellcheck, CI file set and every changed script | **no warnings** | `shellcheck.txt` |
+| Fresh `install.sh --config` with a configuration that does **not** set `WIREGUARD_ENABLED` (calls and push on) | install **exit 0, SUCCESS**; `WIREGUARD_ENABLED=true` written; `wg0` up on 10.77.0.0/24, `wg-quick@wg0` active and enabled; profile 0600 root:root in a 0700 directory, one device; UFW rules; console allow-list; summary with the profile, the QR command and the provider-firewall note; **no key value or key line** in the output, summary or `/var/log/lumen`: checks **14/14** | `fresh-install.txt`, `post-install-checks.txt` |
+| The generated profile, from a separate network namespace (`wireguard_e2e.sh --profile`) | **6/6**: console answers through the tunnel, not from the non-tunnel address; handshake with preshared key. A device added later: **8/8** including revocation | `wireguard-e2e.txt` |
+| `tests/installer/lifecycle.sh` (now with WireGuard checks: no second device, no key change and the same endpoint after every re-install, restore, update and uninstall + re-install; `show-profile`, `forget-profile`; no WireGuard key in any log or summary), crash recovery included | **76/76** (first run on the earlier code: 74/74, which showed the endpoint defect below) | `lifecycle.txt` (first run: `run1-lifecycle.txt`) |
+| WireGuard impossible, full `install.sh --test`: a foreign `/etc/wireguard/wg0.conf`, then a failing `wg-quick` (systemd drop-in in the test server) | both installs **exit 0, SUCCESS**; "unavailable" with the reason in the output, summary, `lumenctl wireguard status` and health check (warning, not failure); the foreign file unchanged, nothing started, enabled or opened; SSH-tunnel instructions in the summary | `no-wireguard-possible.txt` |
+| Same paths at function level, plus UDP 51820 taken and no TUN device | 6 scenarios as expected | `graceful-paths-functions.txt` |
+| An existing installation with `WIREGUARD_ENABLED=false`: install and update print the hint once; then `sudo ./lumenctl wireguard enable`; then `update.sh` | hint **1×** each; enable **exit 0**: subnet moved off an occupied 10.77.0.0/24 to 10.78.0.0/24, endpoint `172-17-0-5.sslip.io` (the name resolves to the server), first device profile, checks **14/14**, tunnel **6/6**; update keeps keys, device and profile | `test-setup-off-then-enable.txt` |
+
+Defects found and fixed: the endpoint was detected again on every `install.sh --config`
+re-run, because the operator's file replaces `lumen.conf` (seen as a changed public
+address in the first lifecycle run: this sandbox's egress address rotates). Devices
+already hold the first endpoint, so it is now kept in `/etc/lumen/wireguard/server.json`
+and checked by the lifecycle. Also, one check in the post-install test script used
+`grep -q` under `pipefail` and reported the health check wrongly in the first run (the
+WireGuard line itself read "✔ wireguard: wg0 up"); the script was fixed.
+
+Not verified: the kernel WireGuard path (no module in this kernel), a real cloud VM and
+provider firewall, a device across the internet, and phone import of the QR code (it was
+printed and checked for QR blocks and for no key as text, not scanned by a phone).
+
 ## Environment
 
 | | |
@@ -235,6 +268,8 @@ node tests/chat/deployed.e2ee.mjs
 python3 tests/integration/sso_flow.py --base lumen.test --ca /etc/lumen/ca/bundle.crt
 python3 tests/integration/entitlements.py
 bash tests/integration/wireguard_e2e.sh
+bash tests/integration/wireguard_e2e.sh --profile /etc/lumen/wireguard/first-device.conf   # the installer's profile
+python3 -m unittest discover -s tests/deploy -v                # renderer + host agent (WireGuard)
 bash tests/federation/run.sh
 bash tests/security/scan.sh
 # installer, fresh server each time

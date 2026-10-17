@@ -112,7 +112,14 @@ it), `identity.txt`, and your `lumen.conf` (also inside the backup).
    certificates if needed and re-verifies everything) and `sudo ./healthcheck.sh`.
 7. Federation resumes on its own: the server name and signing key are the same,
    so other servers accept it. If you had WireGuard peers, their profiles still
-   work (the server keys were restored).
+   work (the server keys were restored) when `WG_ENDPOINT` is a name that now
+   points at the new server; if it was the old server's IP address, set
+   `WG_ENDPOINT` to the new one and change `Endpoint` in each device's profile.
+   The replacement server's own installation created a first device profile
+   before the restore; that device is no longer registered, so delete the file
+   unless the backup brought back your old one: `sudo ./lumenctl wireguard
+   status` lists the registered devices, `sudo ./lumenctl wireguard
+   forget-profile` deletes `/etc/lumen/wireguard/first-device.conf`.
 
 ## Scenario 4 — backup key lost
 

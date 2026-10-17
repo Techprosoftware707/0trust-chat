@@ -38,13 +38,16 @@
     <figcaption class="small muted">Simplified single-server layout. The same separation lets each service move to its own host later.</figcaption>
   </figure>
 
+  <div>
+  <div class="section-head"><h2>Controls at every boundary</h2></div>
   <div class="grid grid-2">
-    <div class="card stack-sm"><h3>{% icon "lock-keyhole" %} Content is encrypted before it reaches us</h3><p class="muted mb-0">The strongest control is architectural: servers never receive message keys, so no server compromise, insider or subpoena can produce plaintext of encrypted rooms from server data.</p></div>
-    <div class="card stack-sm"><h3>{% icon "layers" %} Separated services and credentials</h3><p class="muted mb-0">Website/portal, operator console, worker and homeserver are separate processes with separate secrets. The public portal process doesn't contain admin routes, and only the console and worker hold the homeserver admin token.</p></div>
-    <div class="card stack-sm"><h3>{% icon "network" %} Private operator path</h3><p class="muted mb-0">The console listens only on a private port reachable through an SSH tunnel or WireGuard, checks a gateway secret on every request, requires operator MFA and re-authentication for sensitive actions.</p></div>
-    <div class="card stack-sm"><h3>{% icon "scroll-text" %} Tamper-evident audit log</h3><p class="muted mb-0">Every operator action is written to an append-only, hash-chained log that the database refuses to edit. Destructive actions need typed confirmation.</p></div>
-    <div class="card stack-sm"><h3>{% icon "key-round" %} Short-lived, revocable credentials</h3><p class="muted mb-0">OIDC codes live 60 seconds, tokens 5 minutes. Sessions expire when idle and can be ended from the security center. Secrets are generated per installation, stored in root-only files and rotated by the tooling.</p></div>
-    <div class="card stack-sm"><h3>{% icon "shield" %} Hardened by default</h3><p class="muted mb-0">Containers run as unprivileged users with dropped capabilities and no new privileges. The Docker socket is never exposed to any service. Only ports 80, 443 (and optional TURN/WireGuard) are open.</p></div>
+    <div class="card stack-sm"><h3 class="card-title">{% icon "lock-keyhole" %} Content is encrypted before it reaches us</h3><p class="muted mb-0">The strongest control is architectural: servers never receive message keys, so no server compromise, insider or subpoena can produce plaintext of encrypted rooms from server data.</p></div>
+    <div class="card stack-sm"><h3 class="card-title">{% icon "layers" %} Separated services and credentials</h3><p class="muted mb-0">Website/portal, operator console, worker and homeserver are separate processes with separate secrets. The public portal process doesn't contain admin routes, and only the console and worker hold the homeserver admin token.</p></div>
+    <div class="card stack-sm" id="wireguard"><h3 class="card-title">{% icon "network" %} Private operator path with WireGuard</h3><p class="muted mb-0">The console isn't on the public internet. It accepts connections only through a WireGuard tunnel, an SSH tunnel or allow-listed addresses, checks a gateway secret on every request, and requires operator MFA and re-authentication for sensitive actions. WireGuard is on by default, with a preshared key for every operator device; it carries administration, never chats.</p></div>
+    <div class="card stack-sm"><h3 class="card-title">{% icon "scroll-text" %} Tamper-evident audit log</h3><p class="muted mb-0">Every operator action is written to an append-only, hash-chained log that the database refuses to edit. Destructive actions need typed confirmation.</p></div>
+    <div class="card stack-sm"><h3 class="card-title">{% icon "key-round" %} Short-lived, revocable credentials</h3><p class="muted mb-0">OIDC codes live 60 seconds, tokens 5 minutes. Sessions expire when idle and can be ended from the security center. Secrets are generated per installation, stored in root-only files and rotated by the tooling.</p></div>
+    <div class="card stack-sm"><h3 class="card-title">{% icon "shield" %} Hardened by default</h3><p class="muted mb-0">Containers run as unprivileged users with dropped capabilities and no new privileges. The Docker socket is never exposed to any service. Only ports 80 and 443 are open to the web, plus the call media ports and the WireGuard port when those features are on.</p></div>
+  </div>
   </div>
 
   <div class="prose">

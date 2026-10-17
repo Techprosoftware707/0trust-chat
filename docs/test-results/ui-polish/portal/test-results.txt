@@ -1,0 +1,218 @@
+# Test results after the portal UI polish (observed 2026-10-17T07:32Z, commit 1dd83dd + docs)
+
+## pytest (services/portal)
+139 passed
+
+## UI suite: node tests/ui/portal.e2e.mjs
+PASS website / renders (200, one h1, no CSP/console errors)
+PASS website /features/ renders (200, one h1, no CSP/console errors)
+PASS website /security/ renders (200, one h1, no CSP/console errors)
+PASS website /zero-trust/ renders (200, one h1, no CSP/console errors)
+PASS website /federation/ renders (200, one h1, no CSP/console errors)
+PASS website /pricing/ renders (200, one h1, no CSP/console errors)
+PASS website /docs/ renders (200, one h1, no CSP/console errors)
+PASS website /download/ renders (200, one h1, no CSP/console errors)
+PASS website /status/ renders (200, one h1, no CSP/console errors)
+PASS website /contact/ renders (200, one h1, no CSP/console errors)
+PASS website /privacy/ renders (200, one h1, no CSP/console errors)
+PASS website /terms/ renders (200, one h1, no CSP/console errors)
+PASS website /security/disclosure/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/signup/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/login/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/password/reset/ renders (200, one h1, no CSP/console errors)
+PASS website: every internal link resolves (no 404/500)
+PASS website: docs articles render
+PASS website: dark theme follows the system preference
+PASS website: theme toggle switches and persists
+PASS mobile /: no horizontal overflow at 390px
+PASS mobile /features/: no horizontal overflow at 390px
+PASS mobile /security/: no horizontal overflow at 390px
+PASS mobile /zero-trust/: no horizontal overflow at 390px
+PASS mobile /federation/: no horizontal overflow at 390px
+PASS mobile /pricing/: no horizontal overflow at 390px
+PASS mobile /docs/: no horizontal overflow at 390px
+PASS mobile /download/: no horizontal overflow at 390px
+PASS mobile /status/: no horizontal overflow at 390px
+PASS mobile /contact/: no horizontal overflow at 390px
+PASS mobile /privacy/: no horizontal overflow at 390px
+PASS mobile /terms/: no horizontal overflow at 390px
+PASS mobile /security/disclosure/: no horizontal overflow at 390px
+PASS mobile /accounts/signup/: no horizontal overflow at 390px
+PASS mobile /accounts/login/: no horizontal overflow at 390px
+PASS mobile /accounts/password/reset/: no horizontal overflow at 390px
+PASS mobile: navigation menu opens and links are reachable
+PASS portal: sign up lands on the dashboard
+PASS portal: signup rejects a weak password with a clear message
+PASS portal: create a workspace and invite a member
+PASS portal: billing never fakes a payment when no provider is configured
+PASS portal: enable TOTP two-factor authentication
+PASS portal: other portal pages render
+PASS portal: data export downloads JSON
+PASS portal: sign-out, then sign-in requires the TOTP code
+PASS portal: customer cannot reach the operator console
+PASS mobile portal /portal/dashboard/: no horizontal overflow
+PASS mobile portal /portal/security/: no horizontal overflow
+PASS mobile portal /portal/workspaces/: no horizontal overflow
+PASS mobile portal workspace detail: no horizontal overflow
+PASS ops: console is not served on the public site
+PASS ops: setup link -> password -> mandatory TOTP enrolment -> console
+PASS ops: setup link is single-use
+PASS ops /ops/users/ renders
+PASS ops /ops/workspaces/ renders
+PASS ops /ops/plans/ renders
+PASS ops /ops/subscriptions/ renders
+PASS ops /ops/webhooks/ renders
+PASS ops /ops/health/ renders
+PASS ops /ops/federation/ renders
+PASS ops /ops/backups/ renders
+PASS ops /ops/wireguard/ renders
+PASS ops /ops/maintenance/ renders
+PASS ops /ops/security/ renders
+PASS ops /ops/audit/ renders
+PASS ops /ops/config/ renders
+PASS ops /ops/support/ renders
+PASS ops /ops/calls/ renders
+PASS ops: Calls page runs the real media self-test through the host agent
+PASS ops: user detail shows metadata only and finds the UI test customer
+PASS ops: destructive action requires recent re-authentication
+PASS ops: audit chain verifies
+PASS mobile ops /ops/dashboard/: no horizontal overflow
+PASS mobile ops /ops/users/: no horizontal overflow
+PASS mobile ops /ops/health/: no horizontal overflow
+
+UI e2e: 75 passed, 0 failed
+
+## Security scan: bash tests/security/scan.sh
+--- exposure
+FAIL unexpected listeners — tcp 127.0.0.1:55433 users:(("docker-proxy",pid=26273,fd=9))
+PASS public listeners are Caddy only (plus the calls SFU/TURN and WireGuard when enabled)
+PASS postgres: no published ports
+PASS synapse: no published ports
+PASS portal: no published ports
+PASS ops: no published ports
+PASS worker: no published ports
+PASS PostgreSQL only on the internal backend network (no route out)
+PASS operator console container has no egress network
+PASS console drops connections from non-allowed source IPs (same client reaches the public site: 200)
+PASS console reachable from loopback (SSH tunnel path)
+--- TLS
+PASS lumen.test refuses tls1
+PASS lumen.test refuses tls1.1
+PASS lumen.test negotiates TLS 1.3
+PASS app.lumen.test refuses tls1
+PASS app.lumen.test refuses tls1.1
+PASS app.lumen.test negotiates TLS 1.3
+PASS matrix.lumen.test refuses tls1
+PASS matrix.lumen.test refuses tls1.1
+PASS matrix.lumen.test negotiates TLS 1.3
+PASS plain HTTP redirects to HTTPS
+--- HTTP security headers
+PASS lumen.test/: strict-transport-security
+PASS lumen.test/: x-content-type-options
+PASS lumen.test/: strict CSP (no unsafe-inline, no framing)
+PASS lumen.test/: no Server header
+PASS lumen.test/accounts/login/: strict-transport-security
+PASS lumen.test/accounts/login/: x-content-type-options
+PASS lumen.test/accounts/login/: strict CSP (no unsafe-inline, no framing)
+PASS lumen.test/accounts/login/: no Server header
+PASS app.lumen.test/: strict-transport-security
+PASS app.lumen.test/: x-content-type-options
+PASS app.lumen.test/: strict CSP (no unsafe-inline, no framing)
+PASS app.lumen.test/: no Server header
+PASS matrix.lumen.test/_matrix/client/versions: strict-transport-security
+PASS matrix.lumen.test/_matrix/client/versions: x-content-type-options
+PASS matrix.lumen.test/_matrix/client/versions: no Server header
+--- application checks
+PASS homeserver admin API hidden (/_synapse/admin/v1/server_version → 404)
+PASS homeserver admin API hidden (/_synapse/admin/v1/users → 404)
+PASS /ops/ not served on the public site (404)
+PASS /ops/dashboard/ not served on the public site (404)
+PASS /internal/v1/media-limits not served on the public site (404)
+PASS /admin/ not served on the public site (404)
+PASS CSRF: POST without token rejected (403)
+PASS no open redirect via ?next= on sign-in
+PASS no open redirect via ?next= on sign-out
+PASS homeserver offers no password login (SSO only)
+PASS homeserver open registration disabled (403)
+--- calls (SFU, TURN, authorization)
+PASS SFU TCP: signalling and metrics on loopback only; public only ICE/TCP 7881
+PASS SFU UDP: only media 7882-7889, TURN 3478 and TURN relay allocations
+PASS SFU private path hidden on the public site (/twirp/livekit.RoomService/ListRooms → 404)
+PASS SFU private path hidden on the public site (/twirp/livekit.Egress/StartRoomCompositeEgress → 404)
+PASS SFU private path hidden on the public site (/metrics → 404)
+PASS SFU private path hidden on the public site (/sfu_webhook → 404)
+PASS SFU private path hidden on the public site (/debug/pprof/ → 404)
+PASS SFU API refused to containers outside the calls network (same client reaches signalling: 200)
+PASS SFU rejects a token not signed by this server's key (401)
+PASS a valid token cannot create rooms (auto-create off: unknown room → 404)
+PASS SFU token endpoint requires a signed-in Matrix user (401)
+PASS no TURN/TLS listener advertised on Caddy's port 443
+PASS SFU media restricted to the advertised address/interface (no Docker/VPN host candidates)
+PASS TURN: 5-minute credentials, no relaying to container/VPN networks, rooms not auto-created
+PASS TURN relay port range is not opened in the firewall
+PASS no recording/egress service running (calls are not recorded)
+PASS SFU and authorization-service logs contain no Matrix user IDs
+--- containers
+PASS lumen-lkjwt-1 runs as non-root (10401:10401)
+PASS lumen-lkjwt-1 read-only root filesystem
+PASS lumen-lkjwt-1 not privileged
+PASS lumen-lkjwt-1 drops all capabilities
+PASS lumen-lkjwt-1 no-new-privileges
+PASS lumen-lkjwt-1 has no Docker socket
+PASS lumen-lkjwt-1: no secret values in environment
+PASS lumen-synapse-1 runs as non-root (991:991)
+PASS lumen-synapse-1 read-only root filesystem
+PASS lumen-synapse-1 not privileged
+PASS lumen-synapse-1 drops all capabilities
+PASS lumen-synapse-1 no-new-privileges
+PASS lumen-synapse-1 has no Docker socket
+PASS lumen-synapse-1: no secret values in environment
+PASS lumen-caddy-1 runs as non-root (10200:10200)
+PASS lumen-caddy-1 read-only root filesystem
+PASS lumen-caddy-1 not privileged
+PASS lumen-caddy-1 drops all capabilities
+PASS lumen-caddy-1 no-new-privileges
+PASS lumen-caddy-1 has no Docker socket
+PASS lumen-caddy-1: no secret values in environment
+PASS lumen-ops-1 runs as non-root (10001:10300)
+PASS lumen-ops-1 read-only root filesystem
+PASS lumen-ops-1 not privileged
+PASS lumen-ops-1 drops all capabilities
+PASS lumen-ops-1 no-new-privileges
+PASS lumen-ops-1 has no Docker socket
+PASS lumen-ops-1: no secret values in environment
+PASS lumen-portal-1 runs as non-root (10001:10300)
+PASS lumen-portal-1 read-only root filesystem
+PASS lumen-portal-1 not privileged
+PASS lumen-portal-1 drops all capabilities
+PASS lumen-portal-1 no-new-privileges
+PASS lumen-portal-1 has no Docker socket
+PASS lumen-portal-1: no secret values in environment
+PASS lumen-worker-1 runs as non-root (10001:10300)
+PASS lumen-worker-1 read-only root filesystem
+PASS lumen-worker-1 not privileged
+PASS lumen-worker-1 drops all capabilities
+PASS lumen-worker-1 no-new-privileges
+PASS lumen-worker-1 has no Docker socket
+PASS lumen-worker-1: no secret values in environment
+PASS lumen-livekit-1 runs as non-root (10400:10400)
+PASS lumen-livekit-1 read-only root filesystem
+PASS lumen-livekit-1 not privileged
+PASS lumen-livekit-1 drops all capabilities
+PASS lumen-livekit-1 no-new-privileges
+PASS lumen-livekit-1 has no Docker socket
+PASS lumen-livekit-1: no secret values in environment
+PASS lumen-postgres-1 runs as non-root (70:70)
+PASS lumen-postgres-1 read-only root filesystem
+PASS lumen-postgres-1 not privileged
+PASS lumen-postgres-1 drops all capabilities
+PASS lumen-postgres-1 no-new-privileges
+PASS lumen-postgres-1 has no Docker socket
+PASS lumen-postgres-1: no secret values in environment
+--- repository and images
+PASS no private keys or live tokens in tracked files
+PASS portal image ENV carries no secrets
+PASS build-time CA secret not baked into image layers
+security scan: 122 passed, 1 failed
+
+The one FAIL is a non-Lumen dev container on this shared host (nexus-pg, 127.0.0.1:55433, another agent's test database); the coordinator stops it for the final scan.

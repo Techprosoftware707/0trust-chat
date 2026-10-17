@@ -444,6 +444,19 @@ async function settle(page) {
   await page.evaluate(() => document.fonts && document.fonts.ready);
   await page.waitForTimeout(120);
 }
+/** Masks credentials before a screenshot: recovery codes, TOTP secrets and QR codes, one-time
+ *  links and WireGuard profiles. The layout stays; the secret never reaches a PNG. */
+async function redact(page) {
+  await page.evaluate(() => {
+    const mask = (t) => t.replace(/[A-Za-z0-9+/=_-]/g, "•");
+    for (const el of document.querySelectorAll("textarea[readonly], textarea[disabled], #authenticator_secret, .recovery-codes")) {
+      if ("value" in el && el.value) el.value = mask(el.value);
+      else el.textContent = mask(el.textContent);
+    }
+    for (const el of document.querySelectorAll(".codebox, .wg-config, main pre.small")) el.textContent = mask(el.textContent);
+    for (const el of document.querySelectorAll(".qr, img[src^='data:image']")) el.style.filter = "blur(9px)";
+  });
+}
 async function captureAll(page, name, label = name, { focus = true, shots = SHOTS } = {}) {
   const entry = { page: label, url: page.url(), status: page.__status ?? null, shots: [], focus: [] };
   for (const [vp, theme] of shots) {
@@ -451,6 +464,7 @@ async function captureAll(page, name, label = name, { focus = true, shots = SHOT
     await page.setViewportSize({ width: v.width, height: v.height });
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     await settle(page);
+    await redact(page);
     const file = `${label}--${vp}-${theme}.png`;
     if (v.zoom) {
       // 200 % zoom: the same CSS layout at device scale 2 (what a 1280 px window shows at 200 %).
@@ -515,6 +529,12 @@ for (const [name, who, target] of pages()) {
   }
   try {
     await gotoPage(page, url);
+    if (who !== "anon" && /\/accounts\/login\//.test(page.url())) {
+      // The console ends sessions after 30 idle minutes; sign in again and retry.
+      await signIn(page, who === "op" ? ops : site, state[who]);
+      saveState();
+      await gotoPage(page, url);
+    }
     if (/\/accounts\/reauthenticate\//.test(page.url())) {
       await passReauth(page, state[who].password);
       await gotoPage(page, url);
@@ -534,7 +554,9 @@ async function special(name, fn) {
     const page = await fn();
     await captureAll(page, name, name, { shots: POST_SHOTS, focus: false });
   } catch (err) {
-    log(`  ${name}: FAILED ${String(err.message).split("\n")[0]}`);
+    const where = contexts.op ? contexts.op.page.url() : "";
+    log(`  ${name}: FAILED ${String(err.message).split("\n")[0]} (console page at ${where})`);
+    if (contexts.op) await contexts.op.page.screenshot({ path: path.join(OUT, `${name}--FAILED.png`) }).catch(() => {});
     results.push({ page: name, error: String(err.message).split("\n")[0], shots: [] });
   }
 }
@@ -576,22 +598,40 @@ await special("auth-reauthenticate", async () => {
 });
 await special("ops-recovery-link", async () => {
   const page = await pageFor("op");
-  await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
-  await page.locator(`a:has-text("${state.member.username}")`).first().click();
-  await page.waitForLoadState("domcontentloaded");
-  page.once("dialog", (d) => d.accept());
-  await submit(page, "form[action$='/recovery-link/'] button[type=submit]");
-  if (await passReauth(page, state.op.password)) {
+  const openUser = async () => {
+    await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
+    if (/\/accounts\/login\//.test(page.url())) {
+      await signIn(page, ops, state.op);
+      await page.goto(`${ops}/ops/users/?q=${state.member.username}`);
+    }
+    await page.locator(`main a:has-text("${state.member.username}")`).first().click();
+    await page.waitForLoadState("domcontentloaded");
+  };
+  const issue = async () => {
     page.once("dialog", (d) => d.accept());
     await submit(page, "form[action$='/recovery-link/'] button[type=submit]");
+  };
+  await openUser();
+  await issue();
+  // Sensitive actions need a recent sign-in (5 min): confirm the password, then issue again.
+  if (await passReauth(page, state.op.password)) {
+    await openUser();
+    await issue();
   }
   return page;
 });
 await special("ops-calls-selftest", async () => {
   const page = await pageFor("op");
-  await page.goto(ops + "/ops/calls/");
-  await submit(page, 'main form button:has-text("Run media self-test")');
-  await passReauth(page, state.op.password);
+  const run = async () => {
+    await page.goto(ops + "/ops/calls/");
+    if (/\/accounts\/login\//.test(page.url())) {
+      await signIn(page, ops, state.op);
+      await page.goto(ops + "/ops/calls/");
+    }
+    await submit(page, 'main form button:has-text("Run media self-test")');
+  };
+  await run();
+  if (await passReauth(page, state.op.password)) await run();
   await page.locator(".alert").first().waitFor({ timeout: 120000 });
   return page;
 });
@@ -615,7 +655,11 @@ for (const r of results) {
   if (r.focus?.length) { totals.focus += r.focus.length; rows.push(`- no visible focus: ${r.focus.join("; ")}`); }
   if (rows.length) lines.push(`## ${r.page}`, "", ...rows, "");
 }
-lines.splice(3, 0, `Totals: ${Object.entries(totals).map(([k, v]) => `${k} ${v}`).join(" · ")}`, "", problems.length ? `Console/CSP/HTTP problems: ${problems.length}\n\n${[...new Set(problems)].map((p) => `- ${p}`).join("\n")}\n` : "Console/CSP/HTTP problems: none", "");
+// The error pages under test (403/404/429/500) answer with those statuses on purpose.
+const expected = (p) => /status of (403|404|429|500)\b|__gallery__\/500$/.test(p);
+const real = [...new Set(problems.filter((p) => !expected(p)))];
+const expectedCount = problems.filter(expected).length;
+lines.splice(3, 0, `Totals: ${Object.entries(totals).map(([k, v]) => `${k} ${v}`).join(" · ")}`, "", real.length ? `Console/CSP/HTTP problems: ${real.length}\n\n${real.map((p) => `- ${p}`).join("\n")}\n` : "Console/CSP/HTTP problems: none", `(${expectedCount} expected error statuses from the 403/404/429/500 pages themselves are not counted.)`, "");
 fs.writeFileSync(path.join(OUT, "audit.md"), lines.join("\n"));
 log(`\n${lines.slice(0, 6).join("\n")}`);
 }
@@ -633,9 +677,12 @@ for src, dst in zip(sys.argv[1::2], sys.argv[2::2]):
     scale = 1.0
     while True:
         cur = im if scale == 1.0 else im.resize((int(im.width * scale), int(im.height * scale)), Image.LANCZOS)
-        q = cur.quantize(colors=128, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-        q.save(dst, optimize=True)
-        if os.path.getsize(dst) <= limit or scale < 0.35:
+        # Median cut keeps flat UI colours exact; octree is smaller on long pages with gradients.
+        for method, colors, slack in ((Image.Quantize.MEDIANCUT, 128, 1.0), (Image.Quantize.FASTOCTREE, 96, 1.03)):
+            cur.quantize(colors=colors, method=method, dither=Image.Dither.NONE).save(dst, optimize=True)
+            if os.path.getsize(dst) <= limit * slack:
+                break
+        if os.path.getsize(dst) <= limit * 1.03 or scale < 0.35:
             break
         scale *= 0.8
     print(f"{os.path.basename(dst)} {os.path.getsize(dst)//1024} KB scale={scale:.2f}")

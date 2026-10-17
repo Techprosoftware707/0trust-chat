@@ -36,8 +36,12 @@ const NO_SECURITY: SecurityState & { refresh: () => void } = {
 
 export function WidgetStatus({ title, detail, busy }: { title: string; detail?: string | null; busy?: boolean }) {
   return (
-    <div className="call-widget-status" role="status" aria-live="polite">
-      {busy ? <Spinner label={title} size="lg" /> : null}
+    <div className={`call-widget-status${busy ? " busy" : ""}`} role="status" aria-live="polite">
+      {busy ? (
+        <span className="call-widget-pulse" aria-hidden="true">
+          <Spinner size="lg" />
+        </span>
+      ) : null}
       <p className="call-widget-title">{title}</p>
       {detail ? <p className="call-widget-detail">{detail}</p> : null}
     </div>

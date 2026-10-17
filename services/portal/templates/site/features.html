@@ -9,8 +9,8 @@
 
 <section class="section"><div class="container stack-lg">
   <div class="grid grid-2">
-    <div class="stack">
-      <h2>Messaging</h2>
+    <section class="card stack" aria-labelledby="f-messaging">
+      <div class="card-title"><span class="feature-icon mb-0">{% icon "messages-square" %}</span><h2 id="f-messaging" class="mb-0">Messaging</h2></div>
       <ul class="check-list">
         <li>{% icon "check" %} End-to-end encrypted direct messages and group rooms, on by default</li>
         <li>{% icon "check" %} Replies, reactions, edits and deletions</li>
@@ -20,9 +20,9 @@
         <li>{% icon "check" %} Search across the messages your device can decrypt — locally, never on the server</li>
         <li>{% icon "check" %} Browser notifications, with message previews off by default</li>
       </ul>
-    </div>
-    <div class="stack">
-      <h2>Identity &amp; verification</h2>
+    </section>
+    <section class="card stack" aria-labelledby="f-identity">
+      <div class="card-title"><span class="feature-icon teal mb-0">{% icon "badge-check" %}</span><h2 id="f-identity" class="mb-0">Identity &amp; verification</h2></div>
       <ul class="check-list">
         <li>{% icon "check" %} Emoji (SAS) verification between people and between your own devices</li>
         <li>{% icon "check" %} Cross-signing: verify a person once, trust all their verified devices</li>
@@ -30,17 +30,31 @@
         <li>{% icon "check" %} Per-message and per-room encryption indicators that tell the truth — unencrypted rooms are labelled as such</li>
         <li>{% icon "check" %} Session list for every device, with remote sign-out</li>
       </ul>
-    </div>
-    <div class="stack">
-      <h2>Recovery</h2>
+    </section>
+    <section class="card stack" aria-labelledby="f-calls">
+      <div class="card-title"><span class="feature-icon violet mb-0">{% icon "video" %}</span><h2 id="f-calls" class="mb-0">Voice &amp; video</h2></div>
+      {% if lumen.calls_enabled %}
+      <ul class="check-list">
+        <li>{% icon "check" %} One-to-one and group calls with voice, video and screen sharing in the web app</li>
+        <li>{% icon "check" %} MatrixRTC, the Matrix calling standard, through a media server (SFU) on this server</li>
+        <li>{% icon "check" %} Per-frame end-to-end encryption with keys exchanged over Matrix: the SFU only forwards ciphertext</li>
+        <li>{% icon "check" %} No recording component on the server</li>
+        <li>{% icon "info" %} Calls need UDP or TCP port 7881; networks that allow only HTTPS on port 443 can't join calls yet</li>
+      </ul>
+      {% else %}
+      <p class="muted mb-0">Calls are turned off on this server by its operator. When they are on, {{ brand.short_name }} uses MatrixRTC with per-frame end-to-end encryption, so the call server only forwards ciphertext.</p>
+      {% endif %}
+    </section>
+    <section class="card stack" aria-labelledby="f-recovery">
+      <div class="card-title"><span class="feature-icon mb-0">{% icon "key-round" %}</span><h2 id="f-recovery" class="mb-0">Recovery</h2></div>
       <ul class="check-list">
         <li>{% icon "check" %} Encrypted server-side key backup (Matrix secure backup)</li>
         <li>{% icon "check" %} Recovery key generated on your device and never sent to us</li>
         <li>{% icon "check" %} Account recovery with MFA recovery codes, email reset (when configured) or assisted recovery</li>
       </ul>
-    </div>
-    <div class="stack">
-      <h2>Accounts &amp; teams</h2>
+    </section>
+    <section class="card stack" aria-labelledby="f-teams">
+      <div class="card-title"><span class="feature-icon teal mb-0">{% icon "building-2" %}</span><h2 id="f-teams" class="mb-0">Accounts &amp; teams</h2></div>
       <ul class="check-list">
         <li>{% icon "check" %} Two-factor authentication: authenticator apps, security keys (WebAuthn) and recovery codes</li>
         <li>{% icon "check" %} Workspaces with owners, admins and members</li>
@@ -48,28 +62,42 @@
         <li>{% icon "check" %} Workspace policy: require MFA before members can sign in to chat</li>
         <li>{% icon "check" %} Self-service data export and account deletion</li>
       </ul>
-    </div>
-    <div class="stack">
-      <h2>Network</h2>
+    </section>
+    <section class="card stack" aria-labelledby="f-network">
+      <div class="card-title"><span class="feature-icon violet mb-0">{% icon "waypoints" %}</span><h2 id="f-network" class="mb-0">Matrix network</h2></div>
       <ul class="check-list">
+        <li>{% icon "check" %} Built on Matrix, the open standard for decentralised messaging</li>
         <li>{% icon "check" %} Federation with independently operated Matrix servers</li>
-        <li>{% icon "check" %} Works with standard Matrix apps</li>
+        <li>{% icon "check" %} Works with standard Matrix apps such as Element</li>
         <li>{% icon "check" %} Operator-defined federation policy: open, allow-list or closed</li>
-        <li>{% icon "check" %} TLS 1.3 everywhere, with hybrid post-quantum key exchange where supported</li>
+        <li>{% icon "check" %} TLS 1.3, with hybrid post-quantum key exchange where your browser supports it</li>
       </ul>
-    </div>
-    <div class="stack">
-      <h2>Voice &amp; video</h2>
+    </section>
+  </div>
+
+  <section class="card stack" aria-labelledby="f-ops">
+    <div class="split start">
+      <div class="stack">
+        <div class="card-title"><span class="feature-icon warm mb-0">{% icon "network" %}</span><h2 id="f-ops" class="mb-0">For operators</h2></div>
+        <p class="muted mb-0">Running {{ brand.short_name }} for a team or community? The server comes with a private operator console that isn't on the public internet.</p>
+      </div>
       <ul class="check-list">
-        <li>{% icon "check" %} One-to-one voice and video calls using WebRTC (DTLS-SRTP media encryption)</li>
-        <li>{% icon "check" %} Call setup messages are end-to-end encrypted in encrypted rooms</li>
-        <li>{% icon "info" %} Available when the server operator enables the TURN relay. Group calls are not part of this release.</li>
+        <li>{% icon "check" %} Console reachable only through WireGuard, an SSH tunnel or allow-listed addresses</li>
+        <li>{% icon "check" %} WireGuard on by default, with a preshared key for every operator device</li>
+        <li>{% icon "check" %} Operator MFA, roles, re-authentication for sensitive actions and a tamper-evident audit log</li>
+        <li>{% icon "check" %} Health checks, encrypted backups with restore checks, and updates that roll back on failure</li>
       </ul>
     </div>
+  </section>
+
+  <div class="related">
+    <a class="card card-link" href="{% url 'site:security' %}"><h3>Security &amp; privacy</h3><p>Exactly what is protected, and what isn't.</p></a>
+    <a class="card card-link" href="{% url 'site:federation' %}"><h3>Matrix &amp; federation</h3><p>How independent servers form one network.</p></a>
+    <a class="card card-link" href="{% url 'site:zero_trust' %}"><h3>Zero-trust architecture</h3><p>Separated services and a private console.</p></a>
   </div>
 </div></section>
-<section class="section band"><div class="container cluster-between">
-  <div><h2 class="mb-0">Ready when you are.</h2><p class="muted mb-0">Create an account, or read how the security works first.</p></div>
+<section class="section band"><div class="container cta-band">
+  <div><h2>Ready when you are</h2><p class="muted">Create an account, or read how the security works first.</p></div>
   <div class="cluster">{% if lumen.registration_mode == "open" %}<a class="btn btn-primary btn-lg" href="{% url 'account_signup' %}">Get started</a>{% endif %}<a class="btn btn-lg" href="{% url 'site:security' %}">Security details</a></div>
 </div></section>
 {% endblock %}

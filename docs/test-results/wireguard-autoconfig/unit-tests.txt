@@ -1,0 +1,70 @@
+=== python3 -m unittest discover -s tests/deploy -p 'test_[hr]*.py' -v   (2026-10-17T07:20:46Z, Python 3.13.16)
+    tests/deploy/test_host_agent.py (new, WireGuard: 36 tests) + tests/deploy/test_render_apps.py (renderer: 15 tests)
+test_console_allow_list_includes_the_subnet_by_default (test_host_agent.Defaults.test_console_allow_list_includes_the_subnet_by_default) ... 
+ok
+test_endpoint_validation (test_host_agent.Defaults.test_endpoint_validation) ... ok
+test_explicit_off_is_respected (test_host_agent.Defaults.test_explicit_off_is_respected) ... ok
+test_on_when_the_key_is_absent (test_host_agent.Defaults.test_on_when_the_key_is_absent) ... ok
+test_explicit_wins (test_host_agent.EndpointChoice.test_explicit_wins) ... ok
+test_lan_address_last (test_host_agent.EndpointChoice.test_lan_address_last) ... ok
+test_loopback_hosts_entry_is_not_an_endpoint (test_host_agent.EndpointChoice.test_loopback_hosts_entry_is_not_an_endpoint) ... ok
+test_name_pointing_elsewhere_falls_back_to_public_ip (test_host_agent.EndpointChoice.test_name_pointing_elsewhere_falls_back_to_public_ip) ... ok
+test_name_resolving_to_an_interface_address (test_host_agent.EndpointChoice.test_name_resolving_to_an_interface_address) ... ok
+test_name_resolving_to_public_ip_behind_nat (test_host_agent.EndpointChoice.test_name_resolving_to_public_ip_behind_nat) ... ok
+test_nothing_known (test_host_agent.EndpointChoice.test_nothing_known) ... ok
+test_plan_keeps_the_first_endpoint (test_host_agent.EndpointChoice.test_plan_keeps_the_first_endpoint) ... ok
+test_plan_uses_the_primary_domain (test_host_agent.EndpointChoice.test_plan_uses_the_primary_domain) ... ok
+test_add_peer_response_is_redacted_in_the_log (test_host_agent.FirstDevice.test_add_peer_response_is_redacted_in_the_log) ... ok
+test_command_line_prints_no_key_material (test_host_agent.FirstDevice.test_command_line_prints_no_key_material) ... ok
+test_created_once_with_root_only_profile (test_host_agent.FirstDevice.test_created_once_with_root_only_profile) ... ok
+test_not_recreated_after_forget_or_revoke (test_host_agent.FirstDevice.test_not_recreated_after_forget_or_revoke) ... ok
+test_profile_only_inside_the_wireguard_directory (test_host_agent.FirstDevice.test_profile_only_inside_the_wireguard_directory) ... ok
+test_reruns_add_nothing_and_rotate_nothing (test_host_agent.FirstDevice.test_reruns_add_nothing_and_rotate_nothing) ... ok
+test_skipped_when_devices_exist_already (test_host_agent.FirstDevice.test_skipped_when_devices_exist_already) ... ok
+test_status_reports_the_stored_profile (test_host_agent.FirstDevice.test_status_reports_the_stored_profile) ... ok
+test_console_gets_a_clear_error (test_host_agent.ForeignWireGuard.test_console_gets_a_clear_error) ... ok
+test_console_subnet_avoids_the_foreign_vpn (test_host_agent.ForeignWireGuard.test_console_subnet_avoids_the_foreign_vpn) ... ok
+test_detected (test_host_agent.ForeignWireGuard.test_detected) ... ok
+test_interface_without_lumen_config (test_host_agent.ForeignWireGuard.test_interface_without_lumen_config) ... ok
+test_lumens_own_file_is_fine (test_host_agent.ForeignWireGuard.test_lumens_own_file_is_fine) ... ok
+test_never_overwritten (test_host_agent.ForeignWireGuard.test_never_overwritten) ... ok
+test_default_kept_when_free (test_host_agent.SubnetChoice.test_default_kept_when_free) ... ok
+test_explicit_subnet_moved_only_when_it_overlaps (test_host_agent.SubnetChoice.test_explicit_subnet_moved_only_when_it_overlaps) ... ok
+test_first_free_candidate_on_overlap (test_host_agent.SubnetChoice.test_first_free_candidate_on_overlap) ... ok
+test_host_networks_reads_routes_and_addresses (test_host_agent.SubnetChoice.test_host_networks_reads_routes_and_addresses) ... ok
+test_no_free_candidate_is_an_error (test_host_agent.SubnetChoice.test_no_free_candidate_is_an_error) ... ok
+test_plan_keeps_the_subnet_of_restored_peers (test_host_agent.SubnetChoice.test_plan_keeps_the_subnet_of_restored_peers) ... ok
+test_plan_never_moves_lumens_live_subnet (test_host_agent.SubnetChoice.test_plan_never_moves_lumens_live_subnet) ... ok
+test_plan_picks_a_free_subnet_on_a_new_host (test_host_agent.SubnetChoice.test_plan_picks_a_free_subnet_on_a_new_host) ... ok
+test_skips_every_overlapping_candidate (test_host_agent.SubnetChoice.test_skips_every_overlapping_candidate) ... ok
+test_call_widget_is_served_where_wellknown_points (test_render_apps.TestDiscovery.test_call_widget_is_served_where_wellknown_points) ... 
+ok
+test_calls_off_hides_widget (test_render_apps.TestDiscovery.test_calls_off_hides_widget) ... 
+ok
+test_closed_registration_hides_signup (test_render_apps.TestDiscovery.test_closed_registration_hides_signup) ... 
+ok
+test_wellknown_contains_no_secret_like_values (test_render_apps.TestDiscovery.test_wellknown_contains_no_secret_like_values) ... 
+ok
+test_wellknown_has_homeserver_and_lumen_block (test_render_apps.TestDiscovery.test_wellknown_has_homeserver_and_lumen_block) ... 
+ok
+test_no_ca_download_with_public_certificates_or_outside_test_setups (test_render_apps.TestNoDomainTestSetup.test_no_ca_download_with_public_certificates_or_outside_test_setups) ... 
+ok
+test_test_ca_offered_over_http_only_the_root_certificate (test_render_apps.TestNoDomainTestSetup.test_test_ca_offered_over_http_only_the_root_certificate) ... 
+ok
+test_platform_without_its_credential_is_left_out (test_render_apps.TestPush.test_platform_without_its_credential_is_left_out) ... 
+ok
+test_push_disabled_route_is_404 (test_render_apps.TestPush.test_push_disabled_route_is_404) ... 
+ok
+test_push_enabled_route_only_from_private_ranges (test_render_apps.TestPush.test_push_enabled_route_only_from_private_ranges) ... 
+ok
+test_push_needs_a_platform (test_render_apps.TestPush.test_push_needs_a_platform) ... ok
+test_push_never_includes_content (test_render_apps.TestPush.test_push_never_includes_content) ... 
+ok
+test_app_links_only_when_configured (test_render_apps.TestSsoAndAppLinks.test_app_links_only_when_configured) ... 
+ok
+test_app_scheme_is_whitelisted_for_sso (test_render_apps.TestSsoAndAppLinks.test_app_scheme_is_whitelisted_for_sso) ... 
+ok
+test_bad_identifiers_rejected (test_render_apps.TestSsoAndAppLinks.test_bad_identifiers_rejected) ... ok
+----------------------------------------------------------------------
+Ran 51 tests in 0.245s
+OK

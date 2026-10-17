@@ -1,44 +1,89 @@
 {% extends "ops/base_ops.html" %}{% load lumen humanize %}
 {% block title %}WireGuard{% endblock %}
 {% block main %}
-<div class="app-topbar"><div><h1>WireGuard</h1><p>Optional private network for operator access. It never replaces end-to-end encryption and isn't needed to chat or federate.</p></div></div>
-{% if not enabled %}<div class="alert alert-info">{% icon "info" %}<div>WireGuard is disabled. Enable it with <code>sudo ./lumenctl wireguard enable</code> (or set <code>WIREGUARD_ENABLED=true</code> in <code>lumen.conf</code> and run <code>update.sh</code>).</div></div><br>{% endif %}
-{% if error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>{{ error }}</div></div><br>{% endif %}
+<div class="app-topbar"><div><h1>WireGuard</h1><p>The private network operators use to reach this console. It doesn't carry chats: messages are protected by Matrix end-to-end encryption on their own.</p></div>{% if perms.manage_wireguard and enabled and status and status.state != "unavailable" %}<a class="btn btn-primary" href="#add-peer">{% icon "plus" %} Add operator device</a>{% endif %}</div>
+{% if error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<div>{{ error }}</div></div>{% endif %}
 {% if new_peer %}
-<section class="card stack">
-  <h2>{% icon "check-circle-2" %} Peer “{{ new_peer.name }}” created</h2>
+<section class="card stack pop-in" aria-labelledby="new-peer-title">
+  <div class="card-title"><span class="icon-chip teal">{% icon "check-circle-2" %}</span><h2 id="new-peer-title" class="mb-0">“{{ new_peer.name }}” can now connect</h2></div>
   {% if new_peer.config %}
-  <div class="alert alert-warning">{% icon "triangle-alert" %}<div>This configuration contains the peer's <strong>private key</strong>. It is shown once and not stored on the server. Download it or scan the QR code now.</div></div>
-  <div class="grid grid-2"><div class="qr">{{ qr_svg|safe }}</div><div class="stack-sm"><pre class="small">{{ new_peer.config }}</pre><a class="btn btn-primary" href="{% url 'ops:wg_download' %}">{% icon "download" %} Download .conf</a></div></div>
-  {% else %}<p class="muted">Registered your public key <span class="mono">{{ new_peer.public_key }}</span> with address {{ new_peer.address }}. Add the server's details to your own configuration.</p>{% endif %}
-</section><br>
+  <div class="alert alert-warning">{% icon "triangle-alert" %}<div>This profile contains the device's <strong>private key</strong> and its preshared key. It is shown only now and isn't stored on the server. Scan the QR code with the WireGuard app or download the file, then close this page.</div></div>
+  <div class="grid grid-2 align-start"><div class="qr">{{ qr_svg|safe }}</div><div class="stack-sm"><pre class="small">{{ new_peer.config }}</pre><a class="btn btn-primary" href="{% url 'ops:wg_download' %}">{% icon "download" %} Download .conf</a></div></div>
+  {% else %}<p class="muted mb-0">Registered your public key <span class="mono">{{ new_peer.public_key }}</span> with address {{ new_peer.address }}. Add the server's details and the preshared key to your own configuration.</p>{% endif %}
+</section>
+{% endif %}
+{% if not enabled %}
+<section class="card wg-status stack" aria-labelledby="wg-off-title">
+  <div class="wg-state"><span class="status-dot status-unknown" aria-hidden="true"></span><div><h2 id="wg-off-title" class="mb-0">WireGuard is off on this server</h2><div class="xsmall muted">For now, this console is reachable through an SSH tunnel or allow-listed addresses.</div></div></div>
+  <p class="small muted mb-0">New installations have it on by default. Turning it on picks the tunnel's subnet and endpoint and creates a first operator device for you.</p>
+  <p class="small mb-0">Turn it on: <code>sudo ./lumenctl wireguard enable</code></p>
+</section>
 {% endif %}
 {% if status %}
-<div class="grid grid-4">
-  <div class="card stat"><span class="stat-label">Interface</span><span class="stat-value">{{ status.interface }}</span><span class="stat-note">{{ status.up|yesno:"up,down" }} · {{ status.address }}</span></div>
-  <div class="card stat"><span class="stat-label">Listen port</span><span class="stat-value">{{ status.listen_port }}</span><span class="stat-note">UDP</span></div>
-  <div class="card stat"><span class="stat-label">Peers</span><span class="stat-value">{{ status.peers|length }}</span></div>
-  <div class="card stat"><span class="stat-label">Server key</span><span class="stat-value small mono break">{{ status.public_key|truncatechars:16 }}</span><span class="stat-note">rotated {{ status.key_created_at|default:"—" }}</span></div>
-</div><br>
-<section class="card">
-  <div class="card-header"><h2>Peers</h2></div>
-  <div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Address</th><th>Last handshake</th><th>Transfer</th><th>PSK</th><th></th></tr></thead><tbody>
-  {% for p in status.peers %}<tr><td><strong>{{ p.name|default:"(unnamed)" }}</strong><div class="xsmall muted mono">{{ p.public_key|truncatechars:20 }}</div></td><td class="mono small">{{ p.allowed_ips }}</td><td class="small">{% if p.latest_handshake %}{{ p.handshake_age_s }} s ago{% else %}never{% endif %}</td><td class="small">↓ {{ p.rx_bytes|filesizeformat }} · ↑ {{ p.tx_bytes|filesizeformat }}</td><td>{% if p.preshared_key %}<span class="badge badge-success">yes</span>{% else %}<span class="badge badge-warning">no</span>{% endif %}</td><td class="actions">{% if perms.manage_wireguard %}<form method="post" action="{% url 'ops:wg_remove' %}" data-confirm="Revoke {{ p.name }}? The device loses access immediately.">{% csrf_token %}<input type="hidden" name="public_key" value="{{ p.public_key }}"><button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button></form>{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="6"><div class="empty">No peers yet.</div></td></tr>{% endfor %}
-  </tbody></table></div>
-</section><br>
+{% with peers=status.peers psk=status.peers|count_where:"preshared_key" first=status.first_device %}
+{% if first.profile_stored %}
+<div class="alert alert-info">{% icon "info" %}<div>The installer created a profile for “{{ first.name }}”. It is stored on the server, readable by root only, at <code>{{ first.profile_path }}</code>. Import it into the WireGuard app (to show its QR code on the server: <code>sudo ./lumenctl wireguard show-profile</code>), then delete it: <code>sudo ./lumenctl wireguard forget-profile</code>.</div></div>
 {% endif %}
-{% if perms.manage_wireguard and enabled %}
-<section class="card stack">
-  <h2>Add an operator device</h2>
+<div class="wg-hero">
+  {% if status.state == "unavailable" %}
+  <section class="card wg-status stack" aria-labelledby="wg-state-title">
+    <div class="wg-state"><span class="status-dot status-degraded" aria-hidden="true"></span><div><h2 id="wg-state-title" class="mb-0">WireGuard couldn't be set up on this server</h2><div class="xsmall muted">{{ status.unavailable_reason|default:"The host can't run WireGuard right now." }}</div></div></div>
+    <p class="small muted mb-0">Nothing is lost: reach the console through an SSH tunnel for now — <code>sudo ./lumenctl admin-tunnel</code> prints the steps. After fixing the cause, run <code>sudo ./lumenctl wireguard enable</code>.</p>
+  </section>
+  {% else %}
+  <section class="card wg-status" aria-labelledby="wg-state-title">
+    <div class="wg-state"><span class="status-dot {% if status.up %}status-ok{% else %}status-failed{% endif %}" aria-hidden="true"></span><div><h2 id="wg-state-title" class="mb-0">{% if status.up %}Tunnel is up{% else %}Tunnel is down{% endif %}</h2><div class="xsmall muted">Interface <span class="mono">{{ status.interface }}</span> · {{ status.address }}</div></div></div>
+    <dl class="wg-facts">
+      {% if status.endpoint %}<div class="wg-fact wide"><dt>Devices dial</dt><dd class="mono">{{ status.endpoint }}</dd></div>{% endif %}
+      <div class="wg-fact"><dt>Listen port</dt><dd>{{ status.listen_port }}/udp</dd></div>
+      <div class="wg-fact"><dt>Operator devices</dt><dd>{{ peers|length }}</dd></div>
+      <div class="wg-fact"><dt>Preshared keys</dt><dd>{% if peers %}{{ psk }} of {{ peers|length }}{% else %}—{% endif %}</dd></div>
+      <div class="wg-fact"><dt>Server public key</dt><dd class="mono" title="Public key (not secret)">{{ status.public_key|truncatechars:14 }}</dd></div>
+    </dl>
+    <p class="xsmall subtle mb-0">{% if status.endpoint %}If your provider has its own firewall (security group), allow UDP {{ status.listen_port }} there. {% endif %}{% if status.key_created_at %}Server key created {% with t=status.key_created_at|isodate %}{{ t|date:"j M Y"|default:t }}{% endwith %}. {% endif %}Private and preshared keys are never shown here.</p>
+  </section>
+  {% endif %}
+  <section class="card wg-why" aria-labelledby="wg-why-title">
+    <h2 id="wg-why-title">How operator access works</h2>
+    <ul class="point-list">
+      <li><span class="feature-icon">{% icon "globe-lock" %}</span><h3>Off the public internet</h3><p>This console only accepts connections through this tunnel, an SSH tunnel or allow-listed addresses.</p></li>
+      <li><span class="feature-icon teal">{% icon "key-round" %}</span><h3>A preshared key per device</h3><p>Recorded tunnel traffic stays confidential even against a future quantum computer, as long as the key stays secret.</p></li>
+      <li><span class="feature-icon violet">{% icon "messages-square" %}</span><h3>Separate from chats</h3><p>Messages never use this tunnel; they're end-to-end encrypted by Matrix.</p></li>
+    </ul>
+  </section>
+</div>
+{% if status.state != "unavailable" or peers %}
+<section class="card" aria-labelledby="peers-title">
+  <div class="card-header"><h2 id="peers-title">Operator devices</h2>{% if peers %}<span class="xsmall">{{ peers|length }} device{{ peers|length|pluralize }}</span>{% endif %}</div>
+  {% if peers %}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Device</th><th>Address</th><th>Last handshake</th><th>Transfer</th><th>Preshared key</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
+  {% for p in peers %}<tr>
+    <td><div class="peer-name"><span class="icon-chip" aria-hidden="true">{% icon "laptop" %}</span><div><strong>{{ p.name|default:"(unnamed)" }}</strong>{% if first.public_key and p.public_key == first.public_key %} <span class="badge badge-info">first device (installer)</span>{% endif %}<div class="xsmall muted mono" title="Public key">{{ p.public_key|truncatechars:14 }}</div></div></div></td>
+    <td class="mono small">{{ p.allowed_ips }}</td>
+    <td class="small nowrap">{% if p.latest_handshake %}{% if p.handshake_age_s < 180 %}<span class="badge badge-success">Connected</span> {% endif %}{{ p.handshake_age_s|seconds_ago }} ago{% else %}<span class="muted">Never connected</span>{% endif %}</td>
+    <td class="small nowrap">↓ {{ p.rx_bytes|filesizeformat }} · ↑ {{ p.tx_bytes|filesizeformat }}</td>
+    <td>{% if p.preshared_key %}<span class="badge badge-success">{% icon "lock" %} On</span>{% else %}<span class="badge badge-warning">Off</span>{% endif %}</td>
+    <td class="actions">{% if perms.manage_wireguard %}<form method="post" action="{% url 'ops:wg_remove' %}" data-confirm="Revoke {{ p.name|default:'this device' }}? It loses access immediately.">{% csrf_token %}<input type="hidden" name="public_key" value="{{ p.public_key }}"><button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button></form>{% endif %}</td>
+  </tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}
+  <div class="empty">{% icon "network" %}<p class="empty-title">No operator devices yet</p><p>Add your laptop to reach this console through the tunnel. Each device gets its own address and preshared key.</p>{% if perms.manage_wireguard and enabled %}<a class="btn btn-primary" href="#add-peer">{% icon "plus" %} Add a device</a>{% endif %}</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endwith %}
+{% endif %}
+{% if perms.manage_wireguard and enabled and status and status.state != "unavailable" %}
+<section class="card stack" id="add-peer" aria-labelledby="add-title">
+  <div class="card-title"><span class="icon-chip teal">{% icon "plus" %}</span><h2 id="add-title" class="mb-0">Add an operator device</h2></div>
   <form class="form" method="post" action="{% url 'ops:wg_add' %}">{% csrf_token %}
     <div class="grid grid-2">
-      <div class="field"><label for="wg-name">Device name</label><input id="wg-name" name="name" pattern="[A-Za-z0-9._\-]{1,32}" required placeholder="alice-laptop"></div>
-      <div class="field"><label for="wg-pub">Your public key (recommended)</label><input id="wg-pub" name="public_key" placeholder="Leave empty to generate a key pair here"><span class="help">Generate keys on your device with <code>wg genkey | tee priv | wg pubkey</code> so the private key never exists on the server.</span></div>
+      <div class="field"><label for="wg-name">Device name</label><input id="wg-name" name="name" type="text" pattern="[A-Za-z0-9._\-]{1,32}" required placeholder="alice-laptop" aria-describedby="wg-name-help" autocomplete="off"><span class="help" id="wg-name-help">Letters, digits, dots, dashes and underscores, up to 32 characters.</span></div>
+      <div class="field"><label for="wg-pub">Your public key <span class="muted">(recommended)</span></label><input id="wg-pub" name="public_key" type="text" placeholder="Leave empty to generate a key pair here" aria-describedby="wg-pub-help" autocomplete="off" spellcheck="false"><span class="help" id="wg-pub-help">Generate keys on your device with <code>wg genkey | tee priv | wg pubkey</code>, so the private key never exists on the server.</span></div>
     </div>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "plus" %} Add peer</button></div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "plus" %} Add device</button><span class="xsmall subtle">Or on the server: <code>sudo ./lumenctl wireguard add-peer &lt;name&gt;</code></span></div>
   </form>
-  <p class="xsmall subtle mb-0">Each peer gets its own preshared key (post-quantum resistance for the tunnel) and a /32 address. Peers can reach only the operator console port; the firewall still applies.</p>
+  <p class="xsmall subtle mb-0">Each device gets its own preshared key and a /32 address. Devices can reach only the operator console port; the firewall still applies.</p>
 </section>
 {% endif %}
 {% endblock %}

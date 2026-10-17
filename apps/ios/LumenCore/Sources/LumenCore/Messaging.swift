@@ -138,10 +138,10 @@ public enum ConnectionBanner: Equatable, Sendable {
 
     public var message: String {
         switch self {
-        case .offline: return "You're offline. New messages can't be sent until you reconnect."
-        case .reconnecting: return "Reconnecting to the server…"
-        case .error: return "Connection problem: the server can't be reached."
-        case .connectedAgain: return "Connected again."
+        case .offline: return "You're offline. Messages can't be sent until you're back online."
+        case .reconnecting: return "Reconnecting to your server…"
+        case .error: return "Your server can't be reached right now. Lumen keeps trying."
+        case .connectedAgain: return "You're back online."
         }
     }
 
@@ -186,7 +186,7 @@ public struct IdentityWarning: Equatable, Sendable, Identifiable {
     public func message(displayName: String) -> String {
         switch kind {
         case .changed:
-            return "\(displayName)'s identity appears to have changed. This happens when they reset their encryption, or if someone is impersonating them."
+            return "\(displayName)'s identity has changed. Usually that's because they reset their encryption, but it can also mean someone is posing as them. Verify them if you're unsure."
         case .verifiedChanged:
             return "\(displayName)'s verified identity has changed. Until you verify them again, you can't be sure messages are really from them."
         }

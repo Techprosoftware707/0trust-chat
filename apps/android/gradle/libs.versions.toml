@@ -25,6 +25,9 @@ androidxTestRunner = "1.7.0"
 androidxTestRules = "1.7.0"
 espresso = "3.7.0"
 uiautomator = "2.3.0"
+# JVM screenshot tests (Robolectric native graphics + Roborazzi), run with ./gradlew :app:screenshots
+robolectric = "4.17"
+roborazzi = "1.76.0"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -63,6 +66,9 @@ androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidxT
 androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 androidx-test-espresso-intents = { module = "androidx.test.espresso:espresso-intents", version.ref = "espresso" }
 androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { module = "io.github.takahirom.roborazzi:roborazzi-compose", version.ref = "roborazzi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

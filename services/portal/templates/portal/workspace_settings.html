@@ -1,9 +1,9 @@
 {% extends "portal/base_portal.html" %}{% load lumen %}
 {% block title %}{{ ws.name }} settings{% endblock %}
 {% block main %}
-<div class="app-topbar"><div><h1>{{ ws.name }}</h1><p>Workspace policies</p></div></div>
+<div class="app-topbar"><div><p class="eyebrow"><a href="{% url 'portal:workspaces' %}">Workspaces</a></p><h1>{{ ws.name }}</h1><p>Name and policies for everyone in this workspace.</p></div></div>
 {% include "portal/_workspace_tabs.html" with tab="settings" %}
-<div class="grid grid-2">
+<div class="grid grid-2 align-start">
   <section class="card stack">
     <h2>General</h2>
     <form class="form" method="post">{% csrf_token %}
@@ -27,7 +27,7 @@
   </section>
   {% if membership.role == "owner" %}
   <section class="card stack danger-zone">
-    <h2>Delete workspace</h2>
+    <h2>{% icon "trash-2" %} Delete workspace</h2>
     <p class="muted mb-0">Removes the workspace, its memberships and invitations. Chat rooms are not affected. Cancel any paid subscription first.</p>
     <form class="form" method="post" action="{% url 'portal:workspace_delete' ws.pk %}" data-confirm="Delete {{ ws.name }}? This cannot be undone.">{% csrf_token %}
       <div class="field"><label for="confirm-name">Type <strong>{{ ws.name }}</strong> to confirm</label><input id="confirm-name" type="text" name="confirm_name" required autocomplete="off"></div>
