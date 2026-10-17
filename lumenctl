@@ -10,6 +10,8 @@
 #   sudo ./lumenctl operator-link <user>            new one-time setup/recovery link (1 h)
 #   sudo ./lumenctl federation open|closed|allowlist [server,server]
 #   sudo ./lumenctl wireguard status|enable|disable|add-peer <name> [pubkey]|remove-peer <pubkey>
+#   sudo ./lumenctl wireguard show-profile [file|name]  QR code of the installer's first device profile
+#   sudo ./lumenctl wireguard forget-profile        delete that stored profile once it is imported
 #   sudo ./lumenctl rotate <secret>                 rotate: ops-gateway|internal-api|synapse-admin|oidc-client|db-passwords|django
 #   sudo ./lumenctl reconcile-db                    re-apply database roles/passwords from secrets
 #   sudo ./lumenctl config                          print resolved configuration (no secrets)
@@ -25,7 +27,7 @@ export LUMEN_REPO_DIR="${LUMEN_REPO_DIR:-$SCRIPT_DIR}"
 source "$LUMEN_REPO_DIR/deploy/lib/common.sh"
 source "$LUMEN_REPO_DIR/deploy/lib/stack.sh"
 
-usage() { sed -n '2,18p' "$0"; }
+usage() { sed -n '2,/^$/p' "$0"; }
 cmd="${1:-}"; shift || true
 [[ -n "$cmd" && "$cmd" != -h && "$cmd" != --help ]] || { usage; exit 0; }
 require_root
@@ -114,12 +116,17 @@ case "$cmd" in
       status) agent wg.status ;;
       enable)
         source "$LUMEN_REPO_DIR/deploy/lib/host.sh"; source "$LUMEN_REPO_DIR/deploy/lib/wireguard.sh"
-        conf_set WIREGUARD_ENABLED true
         log_init lumenctl
-        wireguard_enable
+        with_lock
+        conf_set WIREGUARD_ENABLED true
+        # An explicit request: unlike the installer, say why and exit non-zero when it can't work.
+        wireguard_enable || die "WireGuard could not be enabled: $WG_REASON"
         configure_firewall
+        flock -u 9 || true
         apply_config
         has_systemd && systemctl restart lumen-agent
+        install_systemd_units >/dev/null
+        printf '\n%s\n' "$(wireguard_summary_lines)"
         ;;
       disable)
         source "$LUMEN_REPO_DIR/deploy/lib/host.sh"; source "$LUMEN_REPO_DIR/deploy/lib/wireguard.sh"
@@ -127,6 +134,37 @@ case "$cmd" in
         conf_set WIREGUARD_ENABLED false
         wireguard_disable
         apply_config
+        ;;
+      show-profile)
+        # The QR code encodes the device's private key: shown on this terminal only, never logged.
+        log_init lumenctl
+        wgdir="$LUMEN_CONFIG_DIR/wireguard"; target="${1:-first-device}"
+        first_name="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("first_device") or {}).get("name",""))' "$wgdir/server.json" 2>/dev/null || true)"
+        if [[ "$target" == first-device || ( -n "$first_name" && "$target" == "$first_name" ) ]]; then
+          file="$wgdir/first-device.conf"
+          [[ -f "$file" ]] || die "no stored first device profile ($file was deleted after import). New devices: the console's WireGuard page or: sudo ./lumenctl wireguard add-peer <name>"
+        elif [[ -f "$target" ]]; then
+          file="$(realpath "$target")"
+        else
+          die "no profile '$target': give a profile file, or 'first-device'${first_name:+ / '$first_name'} (profiles of other devices are shown once, when they are added)"
+        fi
+        grep -q '^\[Interface\]' "$file" && grep -q '^PrivateKey' "$file" || die "$file is not a WireGuard profile"
+        command -v qrencode >/dev/null 2>&1 || die "qrencode is not installed: sudo apt-get install qrencode"
+        _log "AUDIT wireguard show-profile: displayed $file as a QR code (contents not logged)"
+        logger -t lumenctl "wireguard show-profile: displayed $file as a QR code" 2>/dev/null || true
+        printf 'Profile: %s\nIn the WireGuard app: Add tunnel, then Scan from QR code. Anyone who sees this code\ncan connect as this device: clear the screen afterwards.\n\n' "$file"
+        grep -v '^[[:space:]]*#' "$file" | qrencode -t ansiutf8
+        printf '\nOnce imported, delete the server copy: sudo ./lumenctl wireguard forget-profile\n'
+        ;;
+      forget-profile)
+        log_init lumenctl
+        file="$LUMEN_CONFIG_DIR/wireguard/first-device.conf"
+        if [[ ! -e "$file" ]]; then ok "no stored device profile (already deleted)"; exit 0; fi
+        shred -u "$file" 2>/dev/null || rm -f "$file"
+        [[ ! -e "$file" ]] || die "could not delete $file"
+        _log "AUDIT wireguard forget-profile: deleted $file"
+        logger -t lumenctl "wireguard forget-profile: deleted $file" 2>/dev/null || true
+        ok "deleted $file. The device keeps working; to revoke it: the console's WireGuard page or sudo ./lumenctl wireguard remove-peer <public key>"
         ;;
       add-peer) agent wg.add_peer "$(python3 -c 'import json,sys; d={"name":sys.argv[1]}; d.update({"public_key":sys.argv[2]} if len(sys.argv)>2 and sys.argv[2] else {}); print(json.dumps(d))' "${1:?name}" "${2:-}")" ;;
       remove-peer) agent wg.remove_peer "$(python3 -c 'import json,sys; print(json.dumps({"public_key":sys.argv[1]}))' "${1:?public key}")" ;;
@@ -217,8 +255,9 @@ The operator console is not on the public internet. Reach it with either:
     # hosts file on your computer:  127.0.0.1 $ops
     open https://$ops:$port/
 
-  WireGuard (if enabled):
-    import the peer profile from the console (WireGuard page) or 'lumenctl wireguard add-peer <name>'
+  WireGuard (on by default; status: sudo ./lumenctl wireguard status):
+    the installer's first device profile (QR: sudo ./lumenctl wireguard show-profile), or a new
+    one from the console (WireGuard page) or 'sudo ./lumenctl wireguard add-peer <name>'
     # hosts file on your computer:  $(python3 -c "import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))" "$(conf_get WG_SUBNET 10.77.0.0/24)") $ops
     open https://$ops:$port/
 EOF

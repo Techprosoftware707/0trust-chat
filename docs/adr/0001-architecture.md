@@ -116,11 +116,18 @@ exchange by default (used when the client supports it). Caddy runs with host
 networking so it sees real client IPs and can bind the admin listener with an
 IP allowlist; backends are published on `127.0.0.1` only.
 
-### D9. VPN: WireGuard, optional, host-level
+### D9. VPN: WireGuard, on by default, host-level
 
 `wg-quick@wg0` on the host. Used only for private admin access and
 (optionally) private server-to-server links. Never replaces E2EE, never
-required for chat or federation. Each peer gets a preshared key (PSK) as
+required for chat or federation. On by default since 2026-10: the installer
+picks a free subnet, the endpoint and the port, brings up `wg0` and writes a
+first operator device profile (root only) so that an operator ends the
+installation with a ready-to-import profile. It is best-effort: where the host
+can't run WireGuard (no kernel support and no TUN device for `wireguard-go`,
+`wg-quick` failing, the port taken, or a `wg0` that isn't Lumen's), the
+installer records "unavailable" with the reason and the SSH tunnel remains; it
+never overwrites, starts or stops a WireGuard setup Lumen did not write. Each peer gets a preshared key (PSK) as
 recommended by the WireGuard whitepaper for post-quantum resistance of the
 symmetric layer. Management from the admin console goes through a small root
 host agent on a Unix socket with a fixed allowlist of operations — the Docker

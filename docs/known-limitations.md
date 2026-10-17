@@ -126,7 +126,22 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
     UFW behaviour was exercised inside that container.
 19. **WireGuard** was tested end-to-end with a peer in a separate network
     namespace (wireguard-go where the kernel module was unavailable), not from a
-    remote machine across the internet.
+    remote machine across the internet. The installer's automatic setup (on by
+    default) ran in the systemd test container, whose kernel has no WireGuard
+    module, so the server side used Ubuntu's `wireguard-go` package there; the
+    kernel path (`ip link add … type wireguard`) is the standard one but was not
+    exercised by these tests. The endpoint the installer writes (`WG_ENDPOINT`)
+    is a best guess: the primary domain if it resolves to the server, else the
+    public IPv4 seen by an outside service, which can be wrong behind some NATs
+    or with changing egress addresses. Check it in the summary. A provider
+    firewall (security group) in front of the server is not visible to the
+    installer; UDP 51820 must be allowed there by hand.
+
+    **WireGuard on phones**: a phone can import the first device profile from
+    the QR code (`lumenctl wireguard show-profile`), but phones can't edit a
+    hosts file, so `ops.<domain>` doesn't resolve into the tunnel there and the
+    console isn't usable from a phone without a DNS name for it that points at
+    the tunnel address. Use the console from a computer.
 20. **Backups** restore the whole server (databases, media, signing key,
     optionally config); there is no per-user or per-room restore. Off-site copy
     is rsync over SSH only (no S3 integration).

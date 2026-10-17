@@ -30,8 +30,8 @@ Name, logo, colours and domains are configuration (`BRAND_*`,
 
 On a fresh Ubuntu Server 24.04 with DNS for `example.com`, `app.`, `matrix.`,
 `rtc.` (calls) and `ops.` pointing at it ([DNS examples](docs/operations/dns.md)).
-Open TCP 80 and 443, UDP 443, and the calls ports (7882–7889/udp, 7881/tcp,
-3478/udp) in any cloud firewall in front of the server:
+Open TCP 80 and 443, UDP 443, the calls ports (7882–7889/udp, 7881/tcp,
+3478/udp) and UDP 51820 (WireGuard) in any cloud firewall in front of the server:
 
 ```bash
 git clone <your Lumen repository> lumen && cd lumen
@@ -46,10 +46,17 @@ device trusts once). See [Testing without a domain](docs/operations/admin-guide.
 The installer checks the machine, installs Docker from Docker's repository,
 generates secrets, renders and validates all configuration before using it,
 adds firewall rules without resetting existing ones (SSH stays open), enables
-automatic security updates, starts the stack, creates the first operator (one-time
-setup link, MFA mandatory), takes and test-restores the first encrypted backup,
-verifies every public endpoint and prints a summary without secrets. It is safe
-to run again.
+automatic security updates, sets up WireGuard for private access to the operator
+console (on by default: free subnet, endpoint, `wg0`, and a ready-to-import profile
+for your first device in `/etc/lumen/wireguard/first-device.conf`; QR code:
+`sudo ./lumenctl wireguard show-profile`), starts the stack, creates the first
+operator (one-time setup link, MFA mandatory), takes and test-restores the first
+encrypted backup, verifies every public endpoint and prints a summary without
+secrets. It is safe to run again. Where the host can't run WireGuard (e.g. a
+container without the kernel module and without a TUN device), the installation
+still succeeds and the console is reached through an SSH tunnel; existing
+installations turn it on with `sudo ./lumenctl wireguard enable`
+([WireGuard](docs/operations/admin-guide.md#wireguard)).
 
 Operations: `./lumenctl` (status, logs, apply config, operators, federation,
 WireGuard, secrets, `calls-selftest`), `./update.sh`, `./backup.sh`, `./restore.sh`,
@@ -69,7 +76,7 @@ Start with the [administrator guide](docs/operations/admin-guide.md).
 | web chat | static React app on matrix-js-sdk + Rust crypto (WASM) |
 | livekit | LiveKit SFU for calls (host network; forwards end-to-end encrypted media; embedded TURN) |
 | lkjwt | MatrixRTC authorization service: SFU tokens only for room members, via the homeserver |
-| optional | WireGuard (private operator access) |
+| wg0 | WireGuard on the host (on by default): private operator access to the console only, never chat or federation |
 
 Architecture decisions: [ADR 0001](docs/adr/0001-architecture.md) (platform),
 [ADR 0002](docs/adr/0002-calling.md) (calls).

@@ -1,0 +1,348 @@
+=== Run B (2026-10-17 07:06-07:19 UTC), fresh test server 172.17.0.5: install.sh --test where WireGuard can't run at first
+=== B1: before installing, a foreign /etc/wireguard/wg0.conf (no Lumen marker) and 10.77.0.5/24 on a veth (overlaps the default WG_SUBNET)
+=== command: cd /root/lumen && bash install.sh --test --test-ip 172.17.0.5 --yes
+--- checks after the install
+foreign wg0.conf unchanged: yes
+wg0 interface: absent
+wg-quick@wg0: inactive / disabled
+UFW wireguard rules: 0
+lumen.conf: WIREGUARD_ENABLED=true WG_SUBNET=10.78.0.0/24 
+Caddy console allow-list: remote_ip ip_mask {
+state: unavailable | /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched)
+healthcheck exit 1 (! wireguard: unavailable: /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched))
+lumenctl wireguard status: up=False state=unavailable reason=/etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched)
+--- installer output (complete, summary included)
+Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261017T070717Z.log
+
+==> Configuration
+    test setup: https://172-17-0-5.sslip.io (private test CA; server IP 172.17.0.5, private network)
+    ✔ configuration valid
+
+==> Preflight checks
+    ✔ operating system: Ubuntu 24.04.5 LTS
+    ✔ CPU architecture: x86_64
+    ✔ CPU cores: 4
+    ✔ systemd is running
+    ✔ memory: 16093 MB
+    ! 11 GB free on /var/lib; media uploads and backups grow over time (40 GB+ recommended)
+    ! 11 GB free on /var/backups; media uploads and backups grow over time (40 GB+ recommended)
+    ! system clock is not NTP-synchronised; two-factor codes and certificates depend on accurate time (timedatectl set-ntp true)
+    ✔ internet access to package registries
+    ✔ port 80/tcp is free
+    ✔ port 443/tcp is free
+    ✔ port 443/udp is free
+    ✔ port 8443/tcp is free
+    ✔ port 7882/udp is free
+    ✔ port 7889/udp is free
+    ✔ port 7881/tcp is free
+    ✔ port 3478/udp is free
+    ✔ port 51820/udp is free (WireGuard)
+    Docker is not installed; it will be installed from Docker's official repository
+    no active host firewall; Lumen will enable UFW (allowing SSH first)
+    ! TLS_MODE=internal: using a private test CA; browsers and other Matrix servers will NOT trust this server. Testing only.
+    4 warning(s); continuing
+
+==> Host packages and Docker
+    ✔ host packages installed: ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common ufw wireguard-tools qrencode
+    installing Docker Engine from download.docker.com
+    ✔ Docker installed (29.9.1)
+
+==> WireGuard
+    WG_SUBNET=10.78.0.0/24 (10.77.0.0/24 overlaps 10.77.0.0/24 on vlumt0 on this host)
+    ! WireGuard unavailable: /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched)
+    ! the operator console stays reachable through an SSH tunnel (see the summary); retry later with: sudo ./lumenctl wireguard enable
+
+==> Secrets and directories
+    ✔ backup encryption key created (/etc/lumen/backup/identity.txt) — copy it somewhere safe, off this server
+    ✔ secrets present in /etc/lumen/secrets (generated once, never printed)
+
+==> Rendering and validating configuration
+    validating Caddy configuration
+    ✔ Caddy configuration valid
+    validating homeserver configuration (and generating the signing key if missing)
+    ✔ homeserver configuration valid; signing key present
+    validating Compose file
+    ✔ Compose configuration valid
+    ✔ configuration activated (previous kept in /etc/lumen/rendered.prev)
+
+==> Firewall and automatic updates
+    ✔ UFW enabled (default deny incoming; SSH kept open on: 22)
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 7882-7889/udp 7881/tcp 3478/udp
+    ✔ automatic security updates enabled (no automatic reboots)
+
+==> Container images
+    ✔ images ready, pinned by digest (6 pulled, 2 already present)
+    ✔ portal image built (lumen/portal:1.0.0)
+    ✔ web chat app built
+
+==> Database
+    ✔ PostgreSQL healthy; roles and databases in place
+    ✔ portal database migrated and bootstrapped
+
+==> Services
+    ✔ synapse healthy
+    ✔ portal healthy
+    ✔ ops healthy
+    ✔ caddy running
+    ✔ calls authorization service healthy
+    ✔ LiveKit SFU running
+    ! TLS_MODE=internal: browsers must trust /etc/lumen/ca/caddy-local-root.crt (testing only)
+    ✔ internal CA bundle in place
+    ✔ homeserver service account created; token stored in /etc/lumen/secrets/synapse_admin_token
+
+==> Host agent and timers
+    ✔ systemd units installed: lumen-agent, lumen-backup.timer (03:17 daily), lumen-healthcheck.timer
+
+==> Operator account
+    ✔ operator 'operator' created; one-time setup link stored in /etc/lumen/operator-setup-link.txt (root only, valid 24 h)
+
+==> Initial encrypted backup
+    ✔ first backup created
+    ✔ backup restore verified in an isolated database
+
+==> Verifying public endpoints
+    ✔ website: https://172-17-0-5.sslip.io/healthz reports database OK
+    ✔ TLS certificate valid and trusted for 172-17-0-5.sslip.io
+    ✔ TLS certificate valid for app.172-17-0-5.sslip.io
+    ✔ TLS certificate valid for matrix.172-17-0-5.sslip.io
+    ✔ Matrix discovery: /.well-known/matrix/server → matrix.172-17-0-5.sslip.io:443
+    ✔ Matrix discovery: /.well-known/matrix/client → https://matrix.172-17-0-5.sslip.io
+    ✔ chat app: https://app.172-17-0-5.sslip.io/ serves the web client
+    ✔ chat app: config.json points at this homeserver
+    ✔ homeserver: client API responds
+    ✔ homeserver: single sign-on through the portal is offered
+    ✔ portal: OIDC discovery document
+    ✔ security: homeserver admin API is not public
+    ✔ security: operator console paths are not public
+    ✔ security: internal API is not public
+    ✔ operator console reachable on the private port (ops.172-17-0-5.sslip.io:8443 via loopback)
+    ✔ apps: discovery block (io.lumen.app) in /.well-known/matrix/client
+    ✔ test setup: http://172-17-0-5.sslip.io/lumen-test-ca.crt serves this server's test CA
+    ✔ calls: TLS certificate valid for rtc.172-17-0-5.sslip.io
+    ✔ calls: SFU signalling answers on https://rtc.172-17-0-5.sslip.io/
+    ✔ calls: homeserver advertises the SFU (MatrixRTC transports)
+    ✔ calls: SFU tokens require sign-in (anonymous request refused)
+    ✔ calls: SFU tokens only for room members (authorization service via homeserver)
+    ✔ security: SFU admin API is not public
+    ✔ calls: WebRTC media listening on udp/7882
+    ✔ calls: ICE/TCP listening on tcp/7881
+    ✔ calls: TURN answers STUN on udp/3478
+    ✔ calls: SFU forwarded real audio+video to test subscribers (self-test from this host)
+    ✔ security: PostgreSQL is not listening on a public address
+    ✔ security: Synapse is not listening on a public address
+
+──────────────── Lumen deployment summary ────────────────
+Result: SUCCESS — all endpoint checks passed
+Website & portal:   https://172-17-0-5.sslip.io
+Chat app:           https://app.172-17-0-5.sslip.io
+Homeserver:         https://matrix.172-17-0-5.sslip.io  (server name: 172-17-0-5.sslip.io)
+Operator console:   https://ops.172-17-0-5.sslip.io:8443  (private: SSH tunnel)
+TLS:                INTERNAL TEST CA — not trusted by browsers or other servers
+Federation:         closed
+Database:           healthy
+Encryption:         end-to-end encryption on by default for all new rooms (Olm/Megolm, client-side)
+Backups:            /var/backups/lumen, daily at 03:17, age-encrypted
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          unavailable — /etc/wireguard/wg0.conf exists and was not written by Lumen (left untouched)
+                    use the SSH tunnel below; retry with: sudo ./lumenctl wireguard enable
+Voice/video:        enabled — SFU wss://rtc.172-17-0-5.sslip.io, ports 7882-7889/udp (media), 7881/tcp (ICE/TCP), 3478/udp (TURN)
+Email:              not configured — email verification and reset-by-email are off
+Payments:           none
+
+TEST SETUP (no domain). In the apps, enter the server:  172-17-0-5.sslip.io
+  172-17-0-5.sslip.io and every name under it resolve to 172.17.0.5 through sslip.io (public DNS).
+  172.17.0.5 is a private address: test devices must be on the same network (or VPN).
+  Each test device must trust this server's private test CA once. TLS stays fully verified;
+  this CA has only ever signed this server's names. Compare the fingerprint before trusting it.
+    Download:  http://172-17-0-5.sslip.io/lumen-test-ca.crt     (on the server: sudo ./lumenctl test-ca)
+    SHA-256:   DE:59:26:2D:84:D4:EA:2C:CB:5F:67:26:86:EB:18:3C:B6:78:13:51:1E:A7:B6:85:1A:8A:AF:A6:2A:4D:37:53
+    Windows:   PowerShell, in the download folder:
+                 Import-Certificate -FilePath .\lumen-test-ca.crt -CertStoreLocation Cert:\CurrentUser\Root
+               (or double-click it → Install Certificate → Current User → Trusted Root Certification Authorities)
+    Android:   Settings → Security → Encryption & credentials → Install a certificate → CA certificate,
+               then use the Lumen test build (debug APK); release builds trust system CAs only.
+    Browsers:  Chrome/Edge on Windows use the Windows store above; Firefox: Settings → Certificates → Import.
+
+Operator setup:
+  1. Connect to the console from your computer, either
+     • SSH tunnel:  ssh -L 8443:127.0.0.1:8443 <you>@<this server>
+       and add to your hosts file:  127.0.0.1 ops.172-17-0-5.sslip.io
+  2. On the server:  sudo cat /etc/lumen/operator-setup-link.txt   (one-time link, 24 h)
+  3. Open the link (https://ops.172-17-0-5.sslip.io:8443/…), choose a password, then enrol two-factor authentication.
+
+Remaining manual items:
+  • this is a TEST setup: for production, install fresh on your real domain (accounts and rooms don't move over)
+  • optional: configure SMTP_* to enable email verification and password reset
+  • store /etc/lumen/backup/identity.txt offline; without it backups cannot be decrypted
+
+Log: /var/log/lumen/install-20261017T070717Z.log
+
+=== B2: foreign file moved away; wg-quick@wg0 made to fail by a systemd drop-in in the TEST server (ExecStart=/bin/false); install.sh --yes
+--- checks after the install
+wg-quick@wg0: inactive / disabled / failed-state: inactive
+state: unavailable | wg-quick could not start wg0 (see /var/log/lumen/install-20261017T071104Z.log and journalctl -u wg-quick@wg0)
+first device profile: none
+healthcheck exit 1 (! wireguard: unavailable: wg-quick could not start wg0 (see /var/log/lumen/install-20261017T071104Z.log and journalctl -u wg-quick@wg0))
+--- installer output (complete, summary included)
+Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261017T071104Z.log
+
+==> Configuration
+    using existing configuration /etc/lumen/lumen.conf
+    ✔ configuration valid
+
+==> Preflight checks
+    ✔ operating system: Ubuntu 24.04.5 LTS
+    ✔ CPU architecture: x86_64
+    ✔ CPU cores: 4
+    ✔ systemd is running
+    ✔ memory: 16093 MB
+    ! 8 GB free on /var/lib; media uploads and backups grow over time (40 GB+ recommended)
+    ! 8 GB free on /var/backups; media uploads and backups grow over time (40 GB+ recommended)
+    ! system clock is not NTP-synchronised; two-factor codes and certificates depend on accurate time (timedatectl set-ntp true)
+    ✔ internet access to package registries
+    existing Lumen installation found (version 1.0.0); re-running reconciles configuration and preserves all data
+    ✔ port 80/tcp is used by Lumen (users:(("caddy",pid=5742,fd=9)))
+    ✔ port 443/tcp is used by Lumen (users:(("caddy",pid=5742,fd=8)))
+    ✔ port 443/udp is used by Lumen (users:(("caddy",pid=5742,fd=5)))
+    ✔ port 8443/tcp is used by Lumen (users:(("caddy",pid=5742,fd=10)))
+    ✔ port 7882/udp is used by Lumen (users:(("livekit-server",pid=5795,fd=5)))
+    ✔ port 7889/udp is free
+    ✔ port 7881/tcp is used by Lumen (users:(("livekit-server",pid=5795,fd=11)))
+    ✔ port 3478/udp is used by Lumen (users:(("livekit-server",pid=5795,fd=12)))
+    ✔ port 51820/udp is free (WireGuard)
+    ✔ Docker 29.9.1
+    ✔ UFW is active; Lumen will add its rules without resetting existing ones
+    ! TLS_MODE=internal: using a private test CA; browsers and other Matrix servers will NOT trust this server. Testing only.
+    4 warning(s); continuing
+
+==> Host packages and Docker
+    ✔ host packages installed: ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common wireguard-tools qrencode
+    ✔ Docker already installed (29.9.1)
+
+==> WireGuard
+    WG_ENDPOINT=172-17-0-5.sslip.io (172-17-0-5.sslip.io resolves to this server; change it in /etc/lumen/lumen.conf if devices reach this server another way)
+    ! WireGuard unavailable: wg-quick could not start wg0 (see /var/log/lumen/install-20261017T071104Z.log and journalctl -u wg-quick@wg0)
+    ! the operator console stays reachable through an SSH tunnel (see the summary); retry later with: sudo ./lumenctl wireguard enable
+
+==> Secrets and directories
+    ✔ backup encryption key present
+    ✔ secrets present in /etc/lumen/secrets (generated once, never printed)
+
+==> Rendering and validating configuration
+    validating Caddy configuration
+    ✔ Caddy configuration valid
+    validating homeserver configuration (and generating the signing key if missing)
+    ✔ homeserver configuration valid; signing key present
+    validating Compose file
+    ✔ Compose configuration valid
+    ✔ configuration activated (previous kept in /etc/lumen/rendered.prev)
+
+==> Firewall and automatic updates
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 7882-7889/udp 7881/tcp 3478/udp
+    ✔ automatic security updates enabled (no automatic reboots)
+
+==> Container images
+    ✔ images ready, pinned by digest (0 pulled, 8 already present)
+    ✔ portal image built (lumen/portal:1.0.0)
+    ✔ web chat app built
+
+==> Database
+    ✔ PostgreSQL healthy; roles and databases in place
+    ✔ portal database migrated and bootstrapped
+
+==> Services
+    ✔ synapse healthy
+    ✔ portal healthy
+    ✔ ops healthy
+    ✔ caddy running
+    ✔ calls authorization service healthy
+    ✔ LiveKit SFU running
+    ✔ internal CA bundle in place
+    ✔ homeserver admin token valid
+
+==> Host agent and timers
+    ✔ systemd units installed: lumen-agent, lumen-backup.timer (03:17 daily), lumen-healthcheck.timer
+
+==> Operator account
+    ✔ operator 'operator' already exists (new link: sudo ./lumenctl operator-link operator)
+
+==> Initial encrypted backup
+    ✔ first backup created
+    ✔ backup restore verified in an isolated database
+
+==> Verifying public endpoints
+    ✔ website: https://172-17-0-5.sslip.io/healthz reports database OK
+    ✔ TLS certificate valid and trusted for 172-17-0-5.sslip.io
+    ✔ TLS certificate valid for app.172-17-0-5.sslip.io
+    ✔ TLS certificate valid for matrix.172-17-0-5.sslip.io
+    ✔ Matrix discovery: /.well-known/matrix/server → matrix.172-17-0-5.sslip.io:443
+    ✔ Matrix discovery: /.well-known/matrix/client → https://matrix.172-17-0-5.sslip.io
+    ✔ chat app: https://app.172-17-0-5.sslip.io/ serves the web client
+    ✔ chat app: config.json points at this homeserver
+    ✔ homeserver: client API responds
+    ✔ homeserver: single sign-on through the portal is offered
+    ✔ portal: OIDC discovery document
+    ✔ security: homeserver admin API is not public
+    ✔ security: operator console paths are not public
+    ✔ security: internal API is not public
+    ✔ operator console reachable on the private port (ops.172-17-0-5.sslip.io:8443 via loopback)
+    ✔ apps: discovery block (io.lumen.app) in /.well-known/matrix/client
+    ✔ test setup: http://172-17-0-5.sslip.io/lumen-test-ca.crt serves this server's test CA
+    ✔ calls: TLS certificate valid for rtc.172-17-0-5.sslip.io
+    ✔ calls: SFU signalling answers on https://rtc.172-17-0-5.sslip.io/
+    ✔ calls: homeserver advertises the SFU (MatrixRTC transports)
+    ✔ calls: SFU tokens require sign-in (anonymous request refused)
+    ✔ calls: SFU tokens only for room members (authorization service via homeserver)
+    ✔ security: SFU admin API is not public
+    ✔ calls: WebRTC media listening on udp/7882
+    ✔ calls: ICE/TCP listening on tcp/7881
+    ✔ calls: TURN answers STUN on udp/3478
+    ✔ calls: SFU forwarded real audio+video to test subscribers (self-test from this host)
+    ✔ security: PostgreSQL is not listening on a public address
+    ✔ security: Synapse is not listening on a public address
+
+──────────────── Lumen deployment summary ────────────────
+Result: SUCCESS — all endpoint checks passed
+Website & portal:   https://172-17-0-5.sslip.io
+Chat app:           https://app.172-17-0-5.sslip.io
+Homeserver:         https://matrix.172-17-0-5.sslip.io  (server name: 172-17-0-5.sslip.io)
+Operator console:   https://ops.172-17-0-5.sslip.io:8443  (private: SSH tunnel)
+TLS:                INTERNAL TEST CA — not trusted by browsers or other servers
+Federation:         closed
+Database:           healthy
+Encryption:         end-to-end encryption on by default for all new rooms (Olm/Megolm, client-side)
+Backups:            /var/backups/lumen, daily at 03:17, age-encrypted
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          unavailable — wg-quick could not start wg0 (see /var/log/lumen/install-20261017T071104Z.log and journalctl -u wg-quick@wg0)
+                    use the SSH tunnel below; retry with: sudo ./lumenctl wireguard enable
+Voice/video:        enabled — SFU wss://rtc.172-17-0-5.sslip.io, ports 7882-7889/udp (media), 7881/tcp (ICE/TCP), 3478/udp (TURN)
+Email:              not configured — email verification and reset-by-email are off
+Payments:           none
+
+TEST SETUP (no domain). In the apps, enter the server:  172-17-0-5.sslip.io
+  172-17-0-5.sslip.io and every name under it resolve to 172.17.0.5 through sslip.io (public DNS).
+  172.17.0.5 is a private address: test devices must be on the same network (or VPN).
+  Each test device must trust this server's private test CA once. TLS stays fully verified;
+  this CA has only ever signed this server's names. Compare the fingerprint before trusting it.
+    Download:  http://172-17-0-5.sslip.io/lumen-test-ca.crt     (on the server: sudo ./lumenctl test-ca)
+    SHA-256:   DE:59:26:2D:84:D4:EA:2C:CB:5F:67:26:86:EB:18:3C:B6:78:13:51:1E:A7:B6:85:1A:8A:AF:A6:2A:4D:37:53
+    Windows:   PowerShell, in the download folder:
+                 Import-Certificate -FilePath .\lumen-test-ca.crt -CertStoreLocation Cert:\CurrentUser\Root
+               (or double-click it → Install Certificate → Current User → Trusted Root Certification Authorities)
+    Android:   Settings → Security → Encryption & credentials → Install a certificate → CA certificate,
+               then use the Lumen test build (debug APK); release builds trust system CAs only.
+    Browsers:  Chrome/Edge on Windows use the Windows store above; Firefox: Settings → Certificates → Import.
+
+Operator setup:
+  1. Connect to the console from your computer, either
+     • SSH tunnel:  ssh -L 8443:127.0.0.1:8443 <you>@<this server>
+       and add to your hosts file:  127.0.0.1 ops.172-17-0-5.sslip.io
+  2. On the server:  sudo cat /etc/lumen/operator-setup-link.txt   (one-time link, 24 h)
+  3. Open the link (https://ops.172-17-0-5.sslip.io:8443/…), choose a password, then enrol two-factor authentication.
+
+Remaining manual items:
+  • this is a TEST setup: for production, install fresh on your real domain (accounts and rooms don't move over)
+  • optional: configure SMTP_* to enable email verification and password reset
+  • store /etc/lumen/backup/identity.txt offline; without it backups cannot be decrypted
+
+Log: /var/log/lumen/install-20261017T071104Z.log

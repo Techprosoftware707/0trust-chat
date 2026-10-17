@@ -95,8 +95,13 @@ if has_systemd; then
     systemctl is-active --quiet "$unit" && add ok "$unit" active || add warn "$unit" "$(systemctl is-active "$unit" 2>/dev/null || true)"
   done
 fi
-if truthy "$(conf_get WIREGUARD_ENABLED false)"; then
-  ip link show wg0 >/dev/null 2>&1 && add ok wireguard "wg0 up" || add fail wireguard "wg0 down"
+if wireguard_wanted; then
+  if [[ "$(state_get wireguard)" == unavailable ]]; then
+    # This host can't run WireGuard (the installer said why); the SSH tunnel is the way in.
+    add warn wireguard "unavailable: $(state_get wireguard_reason)"
+  else
+    ip link show wg0 >/dev/null 2>&1 && add ok wireguard "wg0 up" || add fail wireguard "wg0 down"
+  fi
 fi
 
 summary="healthy"; ((worst == 1)) && summary="degraded"; ((worst == 2)) && summary="failed"

@@ -14,12 +14,29 @@ Security properties
   * operations come from a fixed allow-list with strict argument validation;
   * subprocesses use argv lists (never a shell) with timeouts;
   * WireGuard private keys generated here are returned once and never stored
-    or logged; every operation is logged without secrets.
+    or logged; every operation is logged without secrets. The one exception is
+    the installer's first operator device (`wg-first-peer`, run as root from
+    the command line, not over the socket): its profile is written to a
+    root-only file (0600 in a 0700 directory) for the operator to import and
+    then delete (`lumenctl wireguard forget-profile`).
+
+Command line (root, used by the installer; never reachable from a container):
+  lumen_agent.py                      run the socket server
+  lumen_agent.py init-wireguard       server key + wg0.conf; prints the public key
+  lumen_agent.py wg-plan [--public-ip A] [--lan-ip A]
+                                      KEY=VALUE lines: a non-Lumen wg0 (FOREIGN), the
+                                      subnet to use and the endpoint devices dial
+  lumen_agent.py wg-first-peer --name N --out FILE
+                                      the first operator device, once (never a second
+                                      one, never new keys); prints no secrets
 """
 
 from __future__ import annotations
 
+import argparse
 import base64
+import contextlib
+import fcntl
 import grp
 import ipaddress
 import json
@@ -168,11 +185,49 @@ def containers() -> list[dict]:
 
 KEY_RE = re.compile(r"^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw480]=$")
 NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,32}$")
+HOST_RE = re.compile(r"^(?=.{1,253}$)([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+# First line of every wg0.conf Lumen writes. A wg0.conf without it belongs to someone else and
+# is never overwritten, started or stopped by Lumen.
+WG_MARKER = "# Managed by Lumen (lumen-agent)"
+DEFAULT_SUBNET = "10.77.0.0/24"
+# Tried in this order when WG_SUBNET overlaps a network this host already uses.
+SUBNET_CANDIDATES = ("10.77.0.0/24", "10.78.0.0/24", "10.79.0.0/24", "10.177.0.0/24", "10.199.77.0/24", "192.168.177.0/24")
 _wg_lock = threading.Lock()
 
 
+def truthy(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def wg_enabled() -> bool:
-    return conf().get("WIREGUARD_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    # On by default: the installer writes the key explicitly; absent means a hand-written lumen.conf.
+    return truthy(conf().get("WIREGUARD_ENABLED", "true") or "true")
+
+
+@contextlib.contextmanager
+def wg_locked():
+    """One writer at a time, across the socket server and the installer's command line."""
+    with _wg_lock:
+        WG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(WG_DIR, 0o700)
+        fd = os.open(WG_DIR / ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+
+
+def write_private(path: Path, text: str) -> None:
+    """Atomically write a root-only file (0600); callers keep it inside WG_DIR (0700)."""
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(text)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
 
 
 def wg_peers() -> list[dict]:
@@ -183,21 +238,49 @@ def wg_peers() -> list[dict]:
 
 
 def wg_save_peers(peers: list[dict]) -> None:
-    WG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-    tmp = WG_DIR / "peers.json.tmp"
-    tmp.write_text(json.dumps(peers, indent=2))
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, WG_DIR / "peers.json")
+    write_private(WG_DIR / "peers.json", json.dumps(peers, indent=2))
+
+
+def wg_meta() -> dict:
+    try:
+        data = json.loads((WG_DIR / "server.json").read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def wg_save_meta(meta: dict) -> None:
+    write_private(WG_DIR / "server.json", json.dumps(meta, indent=2))
+
+
+def wg_conf_is_lumen() -> bool:
+    try:
+        with WG_CONF.open() as fh:
+            head = [fh.readline() for _ in range(3)]
+    except OSError:
+        return False
+    return any(line.startswith(WG_MARKER) for line in head)
+
+
+def foreign_reason() -> str:
+    """Why this host's wg0 is not Lumen's to manage ('' when it is, or when there is none)."""
+    if WG_CONF.exists() and not wg_conf_is_lumen():
+        return f"{WG_CONF} exists and was not written by Lumen (left untouched)"
+    if not WG_CONF.exists() and interface_exists():
+        return f"a network interface {WG_IF} exists that Lumen did not create (left untouched)"
+    return ""
 
 
 def wg_write_config(peers: list[dict]) -> None:
     """Regenerate wg0.conf from the server key and peer list (mode 0600)."""
+    if WG_CONF.exists() and not wg_conf_is_lumen():
+        raise OpError(f"{WG_CONF} was not written by Lumen; refusing to overwrite it")
     c = conf()
-    net = ipaddress.ip_network(c.get("WG_SUBNET", "10.77.0.0/24"))
+    net = ipaddress.ip_network(c.get("WG_SUBNET", DEFAULT_SUBNET))
     server_ip = next(net.hosts())
     private = (WG_DIR / "server.key").read_text().strip()
     lines = [
-        "# Managed by Lumen (lumen-agent). Manual edits are overwritten.",
+        f"{WG_MARKER}. Manual edits are overwritten.",
         "[Interface]",
         f"Address = {server_ip}/{net.prefixlen}",
         f"ListenPort = {c.get('WG_PORT', '51820')}",
@@ -249,6 +332,18 @@ def server_public_key() -> str:
     return run(["wg", "pubkey"], input_text=private + "\n").stdout.strip()
 
 
+def install_state() -> dict:
+    try:
+        data = json.loads(STATE_PATH.read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def first_device_profile() -> Path:
+    return WG_DIR / "first-device.conf"
+
+
 def op_wg_status(args: dict) -> dict:
     if not wg_enabled():
         raise OpError("WireGuard is disabled on this server")
@@ -256,7 +351,7 @@ def op_wg_status(args: dict) -> dict:
     peers_meta = {p["public_key"]: p for p in wg_peers()}
     live: dict[str, dict] = {}
     listen_port = c.get("WG_PORT", "51820")
-    up = interface_exists()
+    up = interface_exists() and not foreign_reason()
     if up:
         r = run(["wg", "show", WG_IF, "dump"], timeout=10)
         lines = r.stdout.splitlines()
@@ -280,70 +375,72 @@ def op_wg_status(args: dict) -> dict:
     for pub in sorted(set(peers_meta) | set(live)):
         meta = peers_meta.get(pub, {})
         peers.append({"public_key": pub, "name": meta.get("name", ""), "allowed_ips": f"{meta.get('address', '?')}/32", **live.get(pub, {"latest_handshake": 0, "rx_bytes": 0, "tx_bytes": 0, "preshared_key": bool(meta)})})
-    net = ipaddress.ip_network(c.get("WG_SUBNET", "10.77.0.0/24"))
-    key_meta = {}
-    try:
-        key_meta = json.loads((WG_DIR / "server.json").read_text())
-    except (OSError, ValueError):
-        pass
+    net = ipaddress.ip_network(c.get("WG_SUBNET", DEFAULT_SUBNET))
+    key_meta = wg_meta()
+    state = install_state()
+    first = key_meta.get("first_device") or {}
+    profile = first_device_profile()
     return {
         "interface": WG_IF,
         "up": up,
+        # enabled | unavailable (with the installer's reason) | "" before the first install
+        "state": state.get("wireguard", ""),
+        "unavailable_reason": state.get("wireguard_reason", "") if state.get("wireguard") == "unavailable" else "",
         "address": f"{next(net.hosts())}/{net.prefixlen}",
         "listen_port": listen_port,
+        "endpoint": f"{c.get('WG_ENDPOINT', '')}:{c.get('WG_PORT', '51820')}" if c.get("WG_ENDPOINT") else "",
         "public_key": server_public_key() if (WG_DIR / "server.key").exists() else "",
         "key_created_at": key_meta.get("created_at", ""),
+        # The installer's first device; its profile file stays on the server until forgotten.
+        "first_device": {"name": first.get("name", ""), "public_key": first.get("public_key", ""),
+                         "profile_stored": profile.exists(), "profile_path": str(profile) if profile.exists() else ""} if first else {},
         "peers": peers,
     }
 
 
-def op_wg_add_peer(args: dict, actor: str) -> dict:
-    if not wg_enabled():
-        raise OpError("WireGuard is disabled on this server")
-    name = str(args.get("name", ""))
-    if not NAME_RE.match(name):
-        raise OpError("name must be 1-32 characters: letters, digits, '.', '_' or '-'")
-    client_pub = str(args.get("public_key", "") or "").strip()
-    if client_pub and not KEY_RE.match(client_pub):
-        raise OpError("public_key is not a valid WireGuard key")
-    with _wg_lock:
-        peers = wg_peers()
-        if any(p["name"] == name for p in peers):
-            raise OpError("a peer with that name already exists")
-        if client_pub and any(p["public_key"] == client_pub for p in peers):
-            raise OpError("that public key is already registered")
-        c = conf()
-        net = ipaddress.ip_network(c.get("WG_SUBNET", "10.77.0.0/24"))
-        hosts = list(net.hosts())
-        used = {p["address"] for p in peers} | {str(hosts[0])}
-        address = next((str(h) for h in hosts[1:] if str(h) not in used), None)
-        if address is None:
-            raise OpError("no free addresses left in WG_SUBNET")
-        client_priv = ""
-        if not client_pub:
-            client_priv = run(["wg", "genkey"]).stdout.strip()
-            client_pub = run(["wg", "pubkey"], input_text=client_priv + "\n").stdout.strip()
-        peer_id = base64.urlsafe_b64encode(os.urandom(9)).decode().rstrip("=")
-        psk = run(["wg", "genpsk"]).stdout.strip()
-        (WG_DIR / "psk").mkdir(mode=0o700, parents=True, exist_ok=True)
-        psk_path = WG_DIR / "psk" / f"{peer_id}.psk"
-        fd = os.open(psk_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as fh:
-            fh.write(psk + "\n")
-        peers.append(
-            {
-                "id": peer_id,
-                "name": name,
-                "public_key": client_pub,
-                "address": address,
-                "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                "created_by": actor,
-                "client_generated_key": not client_priv,
-            }
-        )
-        wg_save_peers(peers)
-        wg_write_config(peers)
-        wg_sync()
+def _wg_add_peer_locked(name: str, client_pub: str, actor: str) -> dict:
+    """Register a peer (caller holds wg_locked()). Server-generated keys unless client_pub is given."""
+    peers = wg_peers()
+    if any(p["name"] == name for p in peers):
+        raise OpError("a peer with that name already exists")
+    if client_pub and any(p["public_key"] == client_pub for p in peers):
+        raise OpError("that public key is already registered")
+    if WG_CONF.exists() and not wg_conf_is_lumen():
+        raise OpError(f"{WG_CONF} was not written by Lumen; refusing to overwrite it")
+    c = conf()
+    net = ipaddress.ip_network(c.get("WG_SUBNET", DEFAULT_SUBNET))
+    hosts = list(net.hosts())
+    used = {p["address"] for p in peers} | {str(hosts[0])}
+    address = next((str(h) for h in hosts[1:] if str(h) not in used), None)
+    if address is None:
+        raise OpError("no free addresses left in WG_SUBNET")
+    client_priv = ""
+    if not client_pub:
+        client_priv = run(["wg", "genkey"]).stdout.strip()
+        client_pub = run(["wg", "pubkey"], input_text=client_priv + "\n").stdout.strip()
+    peer_id = base64.urlsafe_b64encode(os.urandom(9)).decode().rstrip("=")
+    psk = run(["wg", "genpsk"]).stdout.strip()
+    if not KEY_RE.match(client_pub) or not KEY_RE.match(psk):
+        raise OpError("wg did not produce valid keys")
+    (WG_DIR / "psk").mkdir(mode=0o700, parents=True, exist_ok=True)
+    psk_path = WG_DIR / "psk" / f"{peer_id}.psk"
+    fd = os.open(psk_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(psk + "\n")
+    peers.append(
+        {
+            "id": peer_id,
+            "name": name,
+            "public_key": client_pub,
+            "address": address,
+            "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "created_by": actor,
+            "client_generated_key": not client_priv,
+        }
+    )
+    wg_save_peers(peers)
+    wg_write_config(peers)
+    wg_sync()
     endpoint_host = c.get("WG_ENDPOINT") or c.get("LUMEN_PRIMARY_DOMAIN", "")
     ops_domain = c.get("LUMEN_OPS_DOMAIN") or f"ops.{c.get('LUMEN_PRIMARY_DOMAIN', '')}"
     server_ip = str(next(net.hosts()))
@@ -372,13 +469,28 @@ def op_wg_add_peer(args: dict, actor: str) -> dict:
     return result
 
 
+def op_wg_add_peer(args: dict, actor: str) -> dict:
+    if not wg_enabled():
+        raise OpError("WireGuard is disabled on this server")
+    name = str(args.get("name", ""))
+    if not NAME_RE.match(name):
+        raise OpError("name must be 1-32 characters: letters, digits, '.', '_' or '-'")
+    client_pub = str(args.get("public_key", "") or "").strip()
+    if client_pub and not KEY_RE.match(client_pub):
+        raise OpError("public_key is not a valid WireGuard key")
+    with wg_locked():
+        return _wg_add_peer_locked(name, client_pub, actor)
+
+
 def op_wg_remove_peer(args: dict, actor: str) -> dict:
     if not wg_enabled():
         raise OpError("WireGuard is disabled on this server")
     pub = str(args.get("public_key", "")).strip()
     if not KEY_RE.match(pub):
         raise OpError("public_key is not a valid WireGuard key")
-    with _wg_lock:
+    with wg_locked():
+        if WG_CONF.exists() and not wg_conf_is_lumen():
+            raise OpError(f"{WG_CONF} was not written by Lumen; refusing to overwrite it")
         peers = wg_peers()
         match = [p for p in peers if p["public_key"] == pub]
         if not match:
@@ -391,6 +503,185 @@ def op_wg_remove_peer(args: dict, actor: str) -> dict:
             run(["wg", "set", WG_IF, "peer", pub, "remove"], timeout=10)
             wg_sync()
     return {"removed": match[0]["name"]}
+
+
+# --- installer helpers (command line only) ---------------------------------------
+
+
+def host_networks() -> list[tuple[ipaddress.IPv4Network, str]]:
+    """IPv4 networks this host already routes or has addresses in, with the device name."""
+    nets: list[tuple[ipaddress.IPv4Network, str]] = []
+    r = run(["ip", "-j", "-4", "route", "show", "table", "all"], timeout=10)
+    try:
+        routes = json.loads(r.stdout or "[]")
+    except ValueError:
+        routes = []
+    for route in routes:
+        dst = route.get("dst", "")
+        if not dst or dst == "default" or route.get("type") in {"broadcast", "multicast", "unreachable", "prohibit", "blackhole"}:
+            continue
+        try:
+            net = ipaddress.ip_network(dst if "/" in dst else f"{dst}/32", strict=False)
+        except ValueError:
+            continue
+        if net.version == 4 and net.prefixlen > 0:
+            nets.append((net, route.get("dev", "")))
+    r = run(["ip", "-j", "-4", "addr", "show"], timeout=10)
+    try:
+        links = json.loads(r.stdout or "[]")
+    except ValueError:
+        links = []
+    for link in links:
+        for a in link.get("addr_info", []):
+            try:
+                net = ipaddress.ip_network(f"{a['local']}/{a.get('prefixlen', 32)}", strict=False)
+            except (KeyError, ValueError):
+                continue
+            if net.version == 4:
+                nets.append((net, link.get("ifname", "")))
+    return nets
+
+
+def host_addresses() -> set[str]:
+    """Addresses assigned to this host's interfaces (any family)."""
+    out: set[str] = set()
+    r = run(["ip", "-j", "addr", "show"], timeout=10)
+    try:
+        links = json.loads(r.stdout or "[]")
+    except ValueError:
+        return out
+    for link in links:
+        for a in link.get("addr_info", []):
+            if a.get("local"):
+                out.add(a["local"])
+    return out
+
+
+def choose_subnet(current: str, in_use: list[tuple[ipaddress.IPv4Network, str]], candidates=SUBNET_CANDIDATES) -> tuple[str, str]:
+    """(subnet, note): `current` when it overlaps nothing, otherwise the first free candidate."""
+    cur = ipaddress.ip_network(current, strict=False)
+
+    def clash(net):
+        return next(((n, dev) for n, dev in in_use if net.overlaps(n)), None)
+
+    hit = clash(cur)
+    if hit is None:
+        return str(cur), ""
+    where = f"{hit[0]}" + (f" on {hit[1]}" if hit[1] else "")
+    for cand in candidates:
+        net = ipaddress.ip_network(cand)
+        if net != cur and clash(net) is None:
+            return str(net), f"{cur} overlaps {where} on this host"
+    raise OpError(f"WG_SUBNET {cur} overlaps {where} and none of {', '.join(candidates)} is free; set WG_SUBNET in lumen.conf")
+
+
+def lumen_subnet_in_use() -> str:
+    """The subnet of Lumen's existing wg0.conf ('' if there is none): never moved once in use."""
+    if not wg_conf_is_lumen():
+        return ""
+    for line in WG_CONF.read_text().splitlines():
+        k, _, v = line.partition("=")
+        if k.strip() == "Address":
+            try:
+                return str(ipaddress.ip_interface(v.split(",")[0].strip()).network)
+            except ValueError:
+                return ""
+    return ""
+
+
+def resolve(name: str) -> set[str]:
+    try:
+        return {info[4][0] for info in socket.getaddrinfo(name, None, proto=socket.IPPROTO_UDP)}
+    except (OSError, UnicodeError):
+        return set()
+
+
+def choose_endpoint(explicit: str, names: list[str], public_ip: str, lan_ip: str, local_ips: set[str], resolver=None) -> tuple[str, str]:
+    """(endpoint host, note). WG_ENDPOINT if set; else a name that resolves to this server (its
+    public address, also behind cloud NAT, or an address on one of its interfaces); else the
+    public IPv4; else the LAN address."""
+    if explicit:
+        return explicit, "WG_ENDPOINT"
+    resolver = resolver or resolve
+
+    def usable(addr: str) -> bool:
+        try:
+            a = ipaddress.ip_address(addr.split("%")[0])
+        except ValueError:
+            return False
+        return not (a.is_loopback or a.is_link_local or a.is_unspecified)
+
+    mine = {a for a in local_ips if usable(a)} | ({public_ip} if public_ip and usable(public_ip) else set())
+    for name in names:
+        if not name or not HOST_RE.match(name):
+            continue
+        addrs = {a for a in resolver(name) if usable(a)}
+        if addrs & mine:
+            return name, f"{name} resolves to this server"
+    if public_ip and usable(public_ip):
+        return public_ip, "this server's public IPv4"
+    if lan_ip and usable(lan_ip):
+        return lan_ip, "this server's LAN address; set WG_ENDPOINT if devices connect from elsewhere"
+    return "", ""
+
+
+def wg_plan(public_ip: str = "", lan_ip: str = "") -> dict[str, str]:
+    c = conf()
+    plan = {"FOREIGN": foreign_reason(), "SUBNET": "", "SUBNET_NOTE": "", "ENDPOINT": "", "ENDPOINT_NOTE": ""}
+    current = c.get("WG_SUBNET", DEFAULT_SUBNET) or DEFAULT_SUBNET
+    live = lumen_subnet_in_use()
+    if live:
+        plan["SUBNET"] = live
+        plan["SUBNET_NOTE"] = "in use by Lumen's wg0" if live != current else ""
+    elif wg_peers():
+        plan["SUBNET"] = current  # restored peers keep their addresses
+    else:
+        plan["SUBNET"], plan["SUBNET_NOTE"] = choose_subnet(current, host_networks())
+    names = [c.get("LUMEN_PRIMARY_DOMAIN", "")]
+    explicit = c.get("WG_ENDPOINT", "")
+    # Devices already have the first choice in their profiles: keep it when lumen.conf lost it
+    # (install.sh --config copies the operator's file again) instead of detecting anew.
+    kept = "" if explicit else str(wg_meta().get("endpoint", ""))
+    plan["ENDPOINT"], plan["ENDPOINT_NOTE"] = choose_endpoint(explicit or kept, names, public_ip, lan_ip, host_addresses())
+    if kept:
+        plan["ENDPOINT_NOTE"] = "kept from the first WireGuard setup; devices' profiles use it"
+    return {k: " ".join(str(v).split()) for k, v in plan.items()}
+
+
+FIRST_DEVICE_HEADER = """# Lumen Secure - WireGuard profile for the operator device "{name}", created by the installer on {date}.
+# This file contains that device's PRIVATE KEY and its preshared key: treat it like a password.
+#   1. Import it into the WireGuard app on your computer or phone
+#      (QR code for a phone: sudo ./lumenctl wireguard show-profile).
+#   2. Then delete it from the server: sudo ./lumenctl wireguard forget-profile
+#      (the device keeps working; revoke it in the console or with lumenctl wireguard remove-peer).
+# The console's name must point into the tunnel on that device: add the hosts line below to
+# /etc/hosts (Linux, macOS) or C:\\Windows\\System32\\drivers\\etc\\hosts (Windows).
+"""
+
+
+def ensure_first_device(name: str, out: Path, actor: str = "installer") -> tuple[str, dict]:
+    """Create the installer's first operator device once. Returns (created|exists|skipped, info)
+    without any key material. Re-runs never add a second device and never generate new keys."""
+    if not NAME_RE.match(name):
+        raise OpError("name must be 1-32 characters: letters, digits, '.', '_' or '-'")
+    if out.resolve().parent != WG_DIR.resolve():
+        raise OpError(f"the profile must be stored in {WG_DIR} (root only)")
+    with wg_locked():
+        meta = wg_meta()
+        if meta.get("first_device"):
+            return "exists", {k: meta["first_device"].get(k, "") for k in ("name", "address", "public_key")}
+        peers = wg_peers()
+        if peers:
+            return "skipped", {"reason": f"{len(peers)} device(s) already registered"}
+        result = _wg_add_peer_locked(name, "", actor)
+        header = FIRST_DEVICE_HEADER.format(name=name, date=datetime.now(UTC).strftime("%Y-%m-%d"))
+        write_private(out, header + result["config"])
+        record = {"name": name, "address": result["address"], "public_key": result["public_key"],
+                  "created_at": datetime.now(UTC).isoformat(timespec="seconds")}
+        meta = wg_meta()
+        meta["first_device"] = record
+        wg_save_meta(meta)
+    return "created", {k: record[k] for k in ("name", "address", "public_key")}
 
 
 # --------------------------------------------------------------------------------
@@ -573,26 +864,64 @@ class Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
 
 
 def ensure_wireguard_server_key() -> None:
+    """Server key (generated here once, never printed) and wg0.conf regenerated from it."""
     if not wg_enabled():
         return
-    WG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-    key = WG_DIR / "server.key"
-    if not key.exists():
-        private = run(["wg", "genkey"]).stdout.strip()
-        fd = os.open(key, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w") as fh:
-            fh.write(private + "\n")
-        (WG_DIR / "server.json").write_text(json.dumps({"created_at": datetime.now(UTC).isoformat(timespec="seconds")}))
-    if not WG_CONF.exists():
+    with wg_locked():
+        if WG_CONF.exists() and not wg_conf_is_lumen():
+            raise OpError(f"{WG_CONF} was not written by Lumen; refusing to overwrite it")
+        key = WG_DIR / "server.key"
+        if not key.exists():
+            private = run(["wg", "genkey"]).stdout.strip()
+            if not KEY_RE.match(private):
+                raise OpError("wg genkey failed")
+            fd = os.open(key, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w") as fh:
+                fh.write(private + "\n")
+            meta = wg_meta()
+            meta["created_at"] = datetime.now(UTC).isoformat(timespec="seconds")
+            wg_save_meta(meta)
+        endpoint = conf().get("WG_ENDPOINT", "")
+        meta = wg_meta()
+        if endpoint and meta.get("endpoint") != endpoint:
+            meta["endpoint"] = endpoint  # what device profiles are issued with (see wg_plan)
+            wg_save_meta(meta)
         wg_write_config(wg_peers())
+
+
+def cli(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="lumen_agent.py")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("init-wireguard")
+    p = sub.add_parser("wg-plan")
+    p.add_argument("--public-ip", default="")
+    p.add_argument("--lan-ip", default="")
+    p = sub.add_parser("wg-first-peer")
+    p.add_argument("--name", required=True)
+    p.add_argument("--out", required=True, type=Path)
+    a = ap.parse_args(argv)
+    try:
+        if a.cmd == "init-wireguard":
+            ensure_wireguard_server_key()
+            print(server_public_key())
+        elif a.cmd == "wg-plan":
+            for k, v in wg_plan(a.public_ip, a.lan_ip).items():
+                print(f"{k}={v}")
+        elif a.cmd == "wg-first-peer":
+            if not wg_enabled():
+                raise OpError("WireGuard is disabled on this server")
+            status, info = ensure_first_device(a.name, a.out)
+            print(status, *[str(v) for v in info.values()])
+    except OpError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    return 0
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", stream=sys.stdout)
-    if len(sys.argv) > 1 and sys.argv[1] == "init-wireguard":
-        ensure_wireguard_server_key()
-        print(server_public_key())
-        return 0
+    if len(sys.argv) > 1:
+        return cli(sys.argv[1:])
     SOCKET_DIR.mkdir(mode=0o750, parents=True, exist_ok=True)
     try:
         gid = grp.getgrgid(SOCKET_GID).gr_gid

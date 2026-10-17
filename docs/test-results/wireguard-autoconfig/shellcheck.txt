@@ -1,0 +1,5 @@
+=== shellcheck -x -S warning on the CI file set (.github/workflows/ci.yml): 33 tracked *.sh + entry points, plus the changed files
+version: 0.9.0
+result: no warnings or errors
+changed shell files: install.sh update.sh lumenctl healthcheck.sh deploy/lib/{common,configure,host,preflight,wireguard}.sh tests/installer/{lifecycle,vm}.sh tests/integration/wireguard_e2e.sh
+result: no warnings or errors
