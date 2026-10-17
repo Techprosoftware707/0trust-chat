@@ -54,6 +54,10 @@ struct UserSearchField: View {
                     }
                 }
             }
+        } footer: {
+            if results.isEmpty && !searching {
+                Text("Search your server's directory by name, or type a full Matrix ID such as @name:example.org. People on any Matrix server can be reached.")
+            }
         }
     }
 

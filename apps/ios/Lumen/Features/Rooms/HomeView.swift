@@ -99,6 +99,9 @@ struct RoomListView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var actionError: String?
 
+    /// iPhone (and narrow iPad windows): plain rows on the page background.
+    private var compact: Bool { sizeClass == .compact }
+
     private var hasBanners: Bool {
         session.banner != nil || session.authError != nil
             || session.encryption.needsVerification || session.encryption.needsRecoverySetup
@@ -136,15 +139,26 @@ struct RoomListView: View {
                     ForEach(list.invites) { invite in
                         InviteRow(summary: invite, session: session, error: $actionError)
                             .listRowSeparator(.hidden)
+                            .listRowBackground(compact ? c.bg : nil)
                     }
                 } header: {
                     Text("Invitations")
+                }
+            }
+            if list.isLoading {
+                Section {
+                    ForEach(0..<8, id: \.self) { i in
+                        SkeletonRoomRow(index: i)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(compact ? c.bg : nil)
+                    }
                 }
             }
             Section {
                 ForEach(list.joined) { room in
                     RoomRow(summary: room)
                         .tag(room.id as String?)
+                        .listRowBackground(compact ? c.bg : nil)
                         .onAppear {
                             if room.id == list.joined.last?.id { list.loadMore() }
                         }
@@ -155,13 +169,13 @@ struct RoomListView: View {
                 }
             }
         }
-        .modifier(RoomListStyleModifier(compact: sizeClass == .compact))
+        .modifier(RoomListStyleModifier(compact: compact))
         .scrollContentBackground(.hidden)
         .background(c.bg)
         .searchable(text: $list.searchText, prompt: "Search conversations")
         .overlay {
             if list.isLoading {
-                RoomListSkeleton()
+                EmptyView()
             } else if let e = list.loadError {
                 EmptyStateView(systemImage: "exclamationmark.bubble", title: "Your conversations didn't load",
                                message: "\(e) Close Lumen and open it again to retry.")
@@ -192,6 +206,10 @@ struct RoomRow: View {
     let summary: RoomSummary
     @Environment(\.lumen) private var c
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Increased while the row is selected in the iPad sidebar (accent background).
+    @Environment(\.backgroundProminence) private var prominence
+
+    private var selected: Bool { prominence == .increased }
 
     private var preview: String {
         if let last = summary.lastMessage, !last.isEmpty { return last }
@@ -226,7 +244,7 @@ struct RoomRow: View {
                 HStack(alignment: .top, spacing: LumenDimens.space2) {
                     Text(preview)
                         .font(.subheadline)
-                        .foregroundStyle(c.textMuted)
+                        .foregroundStyle(selected ? c.accentContrast.opacity(0.85) : c.textMuted)
                         .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     badge
@@ -244,12 +262,12 @@ struct RoomRow: View {
         HStack(spacing: 4) {
             Text(summary.name)
                 .font(.body.weight(summary.hasUnread ? .semibold : .medium))
-                .foregroundStyle(c.text)
+                .foregroundStyle(selected ? c.accentContrast : c.text)
                 .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
             if !summary.isEncrypted {
                 Image(systemName: "lock.open")
                     .font(.caption)
-                    .foregroundStyle(c.warning)
+                    .foregroundStyle(selected ? c.accentContrast : c.warning)
             }
         }
     }
@@ -260,7 +278,7 @@ struct RoomRow: View {
             Text(ts.shortRelative)
                 .font(.footnote.weight(summary.hasUnread ? .semibold : .regular))
                 .monospacedDigit()
-                .foregroundStyle(summary.hasUnread ? c.accent : c.textSubtle)
+                .foregroundStyle(selected ? c.accentContrast : (summary.hasUnread ? c.accent : c.textSubtle))
                 .lineLimit(1)
         }
     }
@@ -272,7 +290,7 @@ struct RoomRow: View {
         } else if summary.unreadMessages > 0 {
             countBadge(summary.unreadMessages > 99 ? "99+" : "\(summary.unreadMessages)")
         } else if summary.isMarkedUnread {
-            Circle().fill(c.accent).frame(width: 12, height: 12).padding(.top, 4)
+            Circle().fill(selected ? c.accentContrast : c.accent).frame(width: 12, height: 12).padding(.top, 4)
         }
     }
 
@@ -280,10 +298,10 @@ struct RoomRow: View {
         Text(text)
             .font(.caption.weight(.bold))
             .monospacedDigit()
-            .foregroundStyle(c.accentContrast)
+            .foregroundStyle(selected ? c.accent : c.accentContrast)
             .padding(.horizontal, 7)
             .frame(minWidth: 22, minHeight: 22)
-            .background(Capsule().fill(c.accent))
+            .background(Capsule().fill(selected ? c.accentContrast : c.accent))
     }
 
     private var accessibilityText: String {

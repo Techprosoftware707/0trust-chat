@@ -56,7 +56,7 @@ struct MessageBubbleView: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: LumenDimens.space2) {
-            if message.isOwn { Spacer(minLength: 48) }
+            if message.isOwn { Spacer(minLength: 40) }
             if showsPeople {
                 Group {
                     if showAvatar {
@@ -86,7 +86,7 @@ struct MessageBubbleView: View {
                 }
             }
             .frame(maxWidth: 560, alignment: message.isOwn ? .trailing : .leading)
-            if !message.isOwn { Spacer(minLength: 48) }
+            if !message.isOwn { Spacer(minLength: 40) }
         }
         .contextMenu { menu }
         .accessibilityElement(children: .combine)
@@ -139,7 +139,7 @@ struct MessageBubbleView: View {
                 if !reply.senderName.isEmpty {
                     Text(reply.senderName).font(.caption.weight(.semibold)).foregroundStyle(c.accent)
                 }
-                Text(reply.text).font(.caption).foregroundStyle(c.textMuted).lineLimit(2)
+                Text(Self.markdown(reply.text)).font(.caption).foregroundStyle(c.textMuted).lineLimit(2)
             }
         }
         .padding(.vertical, 6)
@@ -383,8 +383,8 @@ struct AttachmentView: View {
         let w = CGFloat(attachment.width ?? 4)
         let h = CGFloat(attachment.height ?? 3)
         let ratio = max(0.3, min(3, w / max(h, 1)))
-        let width: CGFloat = ratio >= 1 ? 280 : max(160, 340 * ratio)
-        return CGSize(width: width, height: min(340, width / ratio))
+        let width: CGFloat = ratio >= 1 ? 248 : max(150, 320 * ratio)
+        return CGSize(width: width, height: min(320, width / ratio))
     }
 
     var body: some View {
@@ -520,7 +520,7 @@ struct ComposerView: View {
                         Text(editing != nil ? "Editing message" : "Replying to \(r.senderName)")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(c.accent)
-                        Text(r.plainText ?? "Attachment")
+                        Text(MessageBubbleView.markdown(r.plainText ?? "Attachment"))
                             .font(.caption)
                             .foregroundStyle(c.textMuted)
                             .lineLimit(1)

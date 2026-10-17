@@ -68,7 +68,7 @@ enum ScreenshotDevices {
     static let iphone: [ScreenshotDevice] = [
         ScreenshotDevice(id: "iphone-se", kind: .phone, size: CGSize(width: 375, height: 667),
                          safeArea: UIEdgeInsets(top: 20, left: 0, bottom: 0, right: 0), scale: 2, dynamicType: true),
-        ScreenshotDevice(id: "iphone-16-pro", kind: .phone, size: CGSize(width: 402, height: 874), safeArea: phoneNotch, scale: 2, dynamicType: true),
+        ScreenshotDevice(id: "iphone-16-pro", kind: .phone, size: CGSize(width: 402, height: 874), safeArea: phoneNotch, scale: 2),
         ScreenshotDevice(id: "iphone-pro-max", kind: .phone, size: CGSize(width: 440, height: 956), safeArea: phoneNotch, scale: 2, appearances: [.light]),
     ]
 

@@ -57,6 +57,12 @@ enum ScreenshotCatalog {
         AnyView(SheetOver(base: HomeView(session: s), sheet: sheet.lumenTheme()))
     }
 
+    /// For sessions that need verification or recovery: HomeView would present
+    /// its own security sheet, so these sheets go over a plain background.
+    private static func overPlain<Sheet: View>(_ sheet: Sheet) -> AnyView {
+        AnyView(SheetOver(base: BrandWash().ignoresSafeArea(), sheet: sheet.lumenTheme()))
+    }
+
     // MARK: - Sign-in
 
     private static var auth: [ScreenshotScene] {
@@ -220,14 +226,14 @@ enum ScreenshotCatalog {
 
     private static var settings: [ScreenshotScene] {
         [
-            ScreenshotScene("settings", dynamicType: true, pages: 4, settle: 0.8) { ctx in
+            ScreenshotScene("settings", dynamicType: true, pages: 4, settle: 1.0) { ctx in
                 let s = session(ctx)
                 ctx.app.preferences.appLockEnabled = true
                 return overHome(s, SettingsView(session: s))
             },
-            ScreenshotScene("settings-needs-attention", .phone, pages: 2, settle: 0.8) { ctx in
+            ScreenshotScene("settings-needs-attention", .phone, pages: 2, settle: 1.0) { ctx in
                 let s = session(ctx, recovery: .disabled, verification: .unverified, hasOtherDevices: false)
-                return overHome(s, SettingsView(session: s))
+                return overPlain(SettingsView(session: s))
             },
             ScreenshotScene("settings-devices", settle: 0.8) { ctx in
                 let s = session(ctx)
@@ -265,15 +271,15 @@ enum ScreenshotCatalog {
             },
             ScreenshotScene("security-recovery-intro", .phone, settle: 0.8) { ctx in
                 let s = session(ctx, recovery: .disabled)
-                return overHome(s, SecurityOnboardingView(session: s, startIn: .setup))
+                return overPlain(SecurityOnboardingView(session: s, startIn: .setup))
             },
             ScreenshotScene("security-recovery-key", dynamicType: true, settle: 0.8) { ctx in
                 let s = session(ctx, recovery: .disabled)
-                return overHome(s, SecurityOnboardingView(session: s, startIn: .setup, previewKey: F.recoveryKey))
+                return overPlain(SecurityOnboardingView(session: s, startIn: .setup, previewKey: F.recoveryKey))
             },
             ScreenshotScene("security-enter-recovery-key", .phone, settle: 0.8) { ctx in
                 let s = session(ctx, recovery: .incomplete, verification: .unverified)
-                return overHome(s, SecurityOnboardingView(session: s, startIn: .enterKey))
+                return overPlain(SecurityOnboardingView(session: s, startIn: .enterKey))
             },
             ScreenshotScene("verification-emoji", dynamicType: true, settle: 0.8) { ctx in
                 // HomeView presents the verification sheet while a verification runs.

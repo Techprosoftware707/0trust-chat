@@ -144,29 +144,16 @@ struct ServerPickerView: View {
     private func signInSection(_ d: ServerDiscovery) -> some View {
         let signingIn: Bool = { if case .signingIn = auth.phase { return true } else { return false } }()
         VStack(alignment: .leading, spacing: LumenDimens.space3) {
-            HStack(spacing: LumenDimens.space2) {
-                Image(systemName: "lock.shield.fill")
-                    .foregroundStyle(c.success)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(d.homeserverURL.host ?? d.serverName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(c.text)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text("Secure connection")
-                        .font(.caption)
-                        .foregroundStyle(c.textMuted)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: LumenDimens.space2) {
+                    serverIdentity(d)
+                    Spacer(minLength: LumenDimens.space2)
+                    changeServerButton(disabled: signingIn)
                 }
-                Spacer(minLength: LumenDimens.space2)
-                Button("Change") {
-                    auth.reset()
-                    error = nil
-                    fieldFocused = true
+                VStack(alignment: .leading, spacing: LumenDimens.space2) {
+                    serverIdentity(d)
+                    changeServerButton(disabled: signingIn)
                 }
-                .buttonStyle(ChipButtonStyle())
-                .disabled(signingIn)
-                .accessibilityLabel("Use a different server")
             }
             .accessibilityElement(children: .contain)
 
@@ -225,6 +212,34 @@ struct ServerPickerView: View {
                 .frame(minHeight: 44)
             }
         }
+    }
+
+    private func serverIdentity(_ d: ServerDiscovery) -> some View {
+        HStack(spacing: LumenDimens.space2) {
+            Image(systemName: "lock.shield.fill")
+                .foregroundStyle(c.success)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(d.homeserverURL.host ?? d.serverName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(c.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Secure connection")
+                    .font(.caption)
+                    .foregroundStyle(c.textMuted)
+            }
+        }
+    }
+
+    private func changeServerButton(disabled: Bool) -> some View {
+        Button("Change server") {
+            auth.reset()
+            error = nil
+            fieldFocused = true
+        }
+        .buttonStyle(ChipButtonStyle())
+        .disabled(disabled)
+        .accessibilityLabel("Use a different server")
     }
 
     private func providers(_ d: ServerDiscovery) -> [LoginFlows.IdentityProvider] {

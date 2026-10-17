@@ -167,35 +167,32 @@ extension EmptyStateView where Actions == EmptyView {
     }
 }
 
-/// Placeholder rows while the room list loads.
-struct RoomListSkeleton: View {
+/// A placeholder row while the room list loads (gently pulsing unless
+/// Reduce Motion is on). The first row carries the VoiceOver label.
+struct SkeletonRoomRow: View {
+    let index: Int
     @Environment(\.lumen) private var c
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dimmed = false
-    private let widths: [CGFloat] = [150, 190, 120, 170, 140, 200, 110, 160]
+    private static let widths: [CGFloat] = [150, 190, 120, 170, 140, 200, 110, 160]
 
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(0..<widths.count, id: \.self) { i in
-                HStack(spacing: LumenDimens.space3) {
-                    Circle().fill(c.surface3).frame(width: 52, height: 52)
-                    VStack(alignment: .leading, spacing: LumenDimens.space2) {
-                        Capsule().fill(c.surface3).frame(width: widths[i], height: 12)
-                        Capsule().fill(c.surface2).frame(maxWidth: .infinity).frame(height: 10)
-                    }
-                }
-                .padding(.horizontal, LumenDimens.space5)
-                .padding(.vertical, LumenDimens.space3)
+        HStack(spacing: LumenDimens.space3) {
+            Circle().fill(c.surface3).frame(width: 52, height: 52)
+            VStack(alignment: .leading, spacing: LumenDimens.space2) {
+                Capsule().fill(c.surface3).frame(width: Self.widths[index % Self.widths.count], height: 12)
+                Capsule().fill(c.surface2).frame(maxWidth: .infinity).frame(height: 10)
             }
-            Spacer(minLength: 0)
         }
+        .padding(.vertical, 6)
         .opacity(dimmed ? 0.5 : 1)
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { dimmed = true }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true).delay(Double(index) * 0.08)) { dimmed = true }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Loading your conversations")
+        .accessibilityHidden(index > 0)
     }
 }
 
@@ -211,9 +208,9 @@ struct TypingIndicatorView: View {
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { i in
                     Circle()
-                        .fill(c.textSubtle)
-                        .frame(width: 6, height: 6)
-                        .opacity(reduceMotion ? 0.7 : (animating ? 1 : 0.3))
+                        .fill(c.textMuted)
+                        .frame(width: 7, height: 7)
+                        .opacity(reduceMotion ? 0.8 : (animating ? 1 : 0.45))
                         .animation(reduceMotion ? nil : Animation.easeInOut(duration: 0.6).repeatForever().delay(Double(i) * 0.2), value: animating)
                 }
             }

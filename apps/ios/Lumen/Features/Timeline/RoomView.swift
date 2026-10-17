@@ -230,6 +230,7 @@ struct RoomView: View {
                     } else {
                         ProgressView()
                             .padding(LumenDimens.space5)
+                            .opacity(model.rows.isEmpty ? 0 : 1)
                             .onAppear { Task { await model.paginateBackwards() } }
                             .accessibilityLabel("Loading earlier messages")
                     }
@@ -257,6 +258,14 @@ struct RoomView: View {
             .overlay {
                 if let e = model.loadError {
                     EmptyStateView(systemImage: "bubble.left.and.exclamationmark.bubble.right", title: "Messages didn't load", message: e)
+                } else if model.rows.isEmpty && !model.reachedStart {
+                    VStack(spacing: LumenDimens.space3) {
+                        ProgressView()
+                        Text("Loading messages…")
+                            .font(.subheadline)
+                            .foregroundStyle(c.textMuted)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
