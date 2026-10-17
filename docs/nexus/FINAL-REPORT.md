@@ -236,6 +236,15 @@ check because of a bug in the check script itself (a pipe closed early); the fix
 **Mock** = fake providers or a mock HTTP session; **live (local)** = the real component running
 locally.
 
+Two more checks, run by the coordinator on the final commit `abfc095`:
+- An independent full run of the portal suite on yet another new test database
+  (`POSTGRES_DB=nexus_verify`): **819 passed** in 7 minutes.
+- GitHub Actions `ci` run [39033399383](https://github.com/Techprosoftware707/0trust-chat/actions/runs/39033399383),
+  covering portal tests on PostgreSQL, the web client (typecheck, lint, unit tests, build, call widget,
+  dependency audit) and the shared checks (tokens, deploy unit tests, shellcheck, TLS-bypass and secret
+  greps): **success**. The Android, iOS and desktop workflows were not run on this branch, because Nexus
+  doesn't change those apps; they passed on the Lumen branch (docs/test-report.md).
+
 | # | Command (from the repository root unless noted) | Kind | Observed result | Evidence |
 |---|---|---|---|---|
 | 1 | `cd services/portal && POSTGRES_PORT=55433 POSTGRES_DB=nexus_final python -m pytest --create-db` (new test database: every migration from empty, Lumen's and the eight Nexus ones) | live (local PostgreSQL); integrations and Anthropic mocked | **819 passed**, 0 failed (811 before the fixes) | `portal-pytest-full.txt` |
