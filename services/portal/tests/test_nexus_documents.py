@@ -126,8 +126,26 @@ def test_key_configuration_is_validated(settings, tmp_path):
     settings.NEXUS_DOCUMENT_KEY = base64.b64encode(b"short").decode()
     with pytest.raises(ImproperlyConfigured):
         documents.master_keys()
+    settings.NEXUS_DOCUMENT_KEY = "ab" * 31  # 62 hex characters: neither 32-byte hex nor base64
+    with pytest.raises(ImproperlyConfigured):
+        documents.master_keys()
     settings.NEXUS_DOCUMENT_KEY = ""
     assert documents.master_keys() == [] and not documents.is_configured()
+
+
+def test_installer_hex_keys_and_base64_keys_both_work(settings):
+    """The installer generates the secret with ``openssl rand -hex 32``; dev uses base64."""
+    raw = bytes(range(32))
+    settings.NEXUS_DOCUMENT_KEY = f"{raw.hex()},\n{base64.b64encode(raw[::-1]).decode()}"
+    keys = documents.master_keys()
+    assert [k.key for k in keys] == [raw, raw[::-1]]
+    settings.NEXUS_DOCUMENT_KEY = raw.hex().upper()
+    assert documents.master_keys()[0].key == raw
+
+
+def test_removing_ciphertext_where_storage_is_not_mounted_is_quiet(settings):
+    settings.NEXUS_SECURE_DOCUMENTS_DIR = ""
+    documents.remove_sealed("0" * 48 + ".bin")  # no exception: the row (and its wrapped key) is gone
 
 
 @pytest.mark.parametrize("where", ["static_root", "static_dir", "branding", "parent_of_static"])

@@ -8,7 +8,8 @@ Encryption at rest, envelope style, with the existing ``cryptography`` dependenc
 * the data key is stored only wrapped (AES-256-GCM) by the master key, which comes from the
   secret file ``NEXUS_DOCUMENT_KEY_FILE`` (``NEXUS_DOCUMENT_KEY`` in the environment is accepted
   only where env secrets are allowed, i.e. development and tests). Several keys may be given
-  (comma- or newline-separated, base64); the first encrypts, all decrypt (rotation);
+  (comma- or newline-separated, each 64 hex characters or base64 of 32 bytes); the first
+  encrypts, all decrypt (rotation);
 * ciphertext files live in ``NEXUS_SECURE_DOCUMENTS_DIR`` (directory 0700, files 0600, random
   names), which must not be inside any public, static or media path: the check refuses it.
 
@@ -69,12 +70,15 @@ def _parse_keys(raw: str) -> list[MasterKey]:
     for part in re.split(r"[\s,]+", raw.strip()):
         if not part:
             continue
-        try:
-            key = base64.b64decode(part, validate=True)
-        except (ValueError, TypeError):
-            raise ImproperlyConfigured("NEXUS_DOCUMENT_KEY must be base64 (generate one with: openssl rand -base64 32)") from None
+        if re.fullmatch(r"[0-9a-fA-F]{64}", part):
+            key = bytes.fromhex(part)  # the installer's generated secrets are hex (openssl rand -hex 32)
+        else:
+            try:
+                key = base64.b64decode(part, validate=True)
+            except (ValueError, TypeError):
+                raise ImproperlyConfigured("NEXUS_DOCUMENT_KEY must be 64 hex characters or base64 (openssl rand -hex 32)") from None
         if len(key) != 32:
-            raise ImproperlyConfigured("NEXUS_DOCUMENT_KEY entries must be 32 bytes (openssl rand -base64 32)")
+            raise ImproperlyConfigured("NEXUS_DOCUMENT_KEY entries must be 32 bytes (openssl rand -hex 32 or openssl rand -base64 32)")
         keys.append(MasterKey(hashlib.sha256(b"nexus-document-key:" + key).hexdigest()[:16], key))
     return keys
 
@@ -191,9 +195,12 @@ def open_sealed(doc) -> bytes:
 
 
 def remove_sealed(storage_name: str) -> None:
+    """Deletes a ciphertext file. Where the storage isn't mounted (e.g. the operator console
+    deleting a workspace) the file stays behind, but it is unreadable: its only wrapped data
+    key was in the deleted row (crypto-shredding)."""
     try:
         _path_of(storage_name).unlink(missing_ok=True)
-    except DocumentIntegrityError:
+    except (DocumentIntegrityError, StorageNotConfigured):
         pass
 
 
