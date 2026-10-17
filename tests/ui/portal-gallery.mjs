@@ -677,9 +677,12 @@ for src, dst in zip(sys.argv[1::2], sys.argv[2::2]):
     scale = 1.0
     while True:
         cur = im if scale == 1.0 else im.resize((int(im.width * scale), int(im.height * scale)), Image.LANCZOS)
-        q = cur.quantize(colors=128, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-        q.save(dst, optimize=True)
-        if os.path.getsize(dst) <= limit or scale < 0.35:
+        # Median cut keeps flat UI colours exact; octree is smaller on long pages with gradients.
+        for method, colors, slack in ((Image.Quantize.MEDIANCUT, 128, 1.0), (Image.Quantize.FASTOCTREE, 96, 1.03)):
+            cur.quantize(colors=colors, method=method, dither=Image.Dither.NONE).save(dst, optimize=True)
+            if os.path.getsize(dst) <= limit * slack:
+                break
+        if os.path.getsize(dst) <= limit * 1.03 or scale < 0.35:
             break
         scale *= 0.8
     print(f"{os.path.basename(dst)} {os.path.getsize(dst)//1024} KB scale={scale:.2f}")

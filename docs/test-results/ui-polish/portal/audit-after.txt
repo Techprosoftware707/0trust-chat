@@ -1,0 +1,12 @@
+
+### smallTargets: 0
+
+### contrast: 0
+
+### headings: 0
+
+### overflow: 0
+645 screenshots of 75 pages.
+Totals: overflow 0 · smallTargets 0 · contrast 0 · unlabeled 0 · noAlt 0 · headings 0 · focus 0
+
+Console/CSP/HTTP problems: none
