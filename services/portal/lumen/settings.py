@@ -169,7 +169,9 @@ DATABASES = {
         "NAME": env("POSTGRES_DB", "lumen"),
         "USER": env("POSTGRES_USER", "lumen_app"),
         "PASSWORD": secret("POSTGRES_PASSWORD", required=True),
-        "CONN_MAX_AGE": 60,
+        # Persistent connections (seconds). The development servers (runserver, a thread per
+        # request) set 0, so several of them can share one PostgreSQL without running out.
+        "CONN_MAX_AGE": env_int("POSTGRES_CONN_MAX_AGE", 60),
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {"connect_timeout": 5, "application_name": f"lumen-{SURFACE}"},
     }

@@ -348,3 +348,23 @@ def test_lending_counts_in_reports_and_contact_page(org):
     assert [a["id"] for a in page["lending"]["applications"]] == [app["id"]]
     assert body(api(org, Role.MEMBER).get(url(org, f"contacts/{org['buyer'].pk}/vertical")))["data"]["lending"] is None
     assert api(org, Role.AGENT).get(url(org, "reports/lending")).status_code == 403
+
+
+def test_business_workspaces_with_deals_and_applications_can_be_deleted(org):
+    """Opportunity/LendingApplication -> Pipeline/Stage are RESTRICT, not PROTECT: a pipeline
+    or stage that still holds records can't be deleted on its own, but deleting the whole
+    workspace (owner, or the account-deletion job) cascades."""
+    from apps.workspaces.models import Workspace
+    from apps.workspaces.services import delete_workspace
+
+    app = _app(org)
+    mgr = api(org, Role.MANAGER)
+    lp = m.Pipeline.objects.get(workspace=org["ws"], kind="lending")
+    r = mgr.delete(url(org, f"pipelines/{lp.pk}"))
+    assert r.status_code == 409 and "lending applications" in body(r)["error"]["message"]
+    r = mgr.delete(url(org, f"stages/{app['stage']['id']}"))
+    assert r.status_code == 409
+    assert mgr.delete(url(org, f"pipelines/{org['pipeline'].pk}")).status_code == 409  # holds a deal
+    delete_workspace(org["people"][Role.OWNER], org["ws"].pk)
+    assert not Workspace.objects.filter(pk=org["ws"].pk).exists()
+    assert not m.LendingApplication.objects.exists() and not m.Opportunity.objects.filter(workspace_id=org["ws"].pk).exists()

@@ -344,7 +344,7 @@ def _blocked(model, qs) -> set:
             continue
         related = rel.related_model
         name = rel.field.name
-        if rel.on_delete is models.PROTECT:
+        if rel.on_delete in (models.PROTECT, models.RESTRICT):
             blocked |= set(related.objects.filter(**{f"{name}__in": pks}).values_list(name, flat=True))
         elif rel.on_delete is models.CASCADE and any(f.name == "is_demo" for f in related._meta.fields):
             blocked |= set(related.objects.filter(**{f"{name}__in": pks, "is_demo": False}).values_list(name, flat=True))

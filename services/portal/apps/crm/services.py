@@ -389,6 +389,8 @@ def update_pipeline(request, actor: Actor, p: m.Pipeline, body: dict) -> m.Pipel
 def delete_pipeline(request, actor: Actor, p: m.Pipeline) -> None:
     if m.Opportunity.objects.filter(pipeline=p).exists():
         raise Conflict("Move or delete this pipeline's opportunities first, or archive the pipeline.")
+    if m.LendingApplication.objects.filter(pipeline=p).exists():
+        raise Conflict("This pipeline holds lending applications: move or delete them first, or archive the pipeline.")
     delete_record(request, actor, p)
 
 
@@ -435,6 +437,8 @@ def update_stage(request, actor: Actor, s: m.Stage, body: dict) -> m.Stage:
 def delete_stage(request, actor: Actor, s: m.Stage) -> None:
     if m.Opportunity.objects.filter(stage=s).exists():
         raise Conflict("Move this stage's opportunities to another stage first.")
+    if m.LendingApplication.objects.filter(stage=s).exists():
+        raise Conflict("Move this stage's lending applications to another stage first.")
     if m.Stage.objects.filter(pipeline_id=s.pipeline_id).count() <= 1:
         raise Conflict("A pipeline needs at least one stage.")
     delete_record(request, actor, s)

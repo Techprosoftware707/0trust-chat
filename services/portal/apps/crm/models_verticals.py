@@ -214,8 +214,8 @@ class LendingApplication(TenantModel):
 
     reference = models.CharField(max_length=20)
     title = models.CharField(max_length=160)
-    pipeline = models.ForeignKey(Pipeline, on_delete=models.PROTECT, related_name="lending_applications")
-    stage = models.ForeignKey(Stage, on_delete=models.PROTECT, related_name="lending_applications")
+    pipeline = models.ForeignKey(Pipeline, on_delete=models.RESTRICT, related_name="lending_applications")
+    stage = models.ForeignKey(Stage, on_delete=models.RESTRICT, related_name="lending_applications")
     stage_entered_at = models.DateTimeField(default=timezone.now)
     position = models.FloatField(default=0)
     borrowers = models.ManyToManyField(Contact, through="ApplicationBorrower", blank=True, related_name="lending_applications")

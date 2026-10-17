@@ -140,12 +140,13 @@ def opportunity_property_detail(request, actor: Actor, link_id):
     return no_content()
 
 
-@re_endpoint(["GET", "PUT"])
+@re_endpoint(["GET", "PUT", "PATCH"])
 def contact_preferences(request, actor: Actor, contact_id):
     """GET: the buyer's structured preferences (or null) and matching properties of the
-    workspace. PUT: create or update them (partial updates allowed once they exist)."""
+    workspace. PUT/PATCH: create or update them (partial updates once they exist; the SPA
+    uses PATCH, which CORS allows)."""
     c = access.get_for_actor(actor, m.Contact, contact_id)
-    if request.method == "PUT":
+    if request.method in ("PUT", "PATCH"):
         access.get_for_actor(actor, m.Contact, contact_id, CHANGE)
         pref = realestate.save_preferences(request, actor, c, json_body(request))
     else:

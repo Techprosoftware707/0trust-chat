@@ -239,8 +239,8 @@ class Opportunity(TenantModel):
         LOST = "lost", "Lost"
 
     name = models.CharField(max_length=160)
-    pipeline = models.ForeignKey(Pipeline, on_delete=models.PROTECT, related_name="opportunities")
-    stage = models.ForeignKey(Stage, on_delete=models.PROTECT, related_name="opportunities")
+    pipeline = models.ForeignKey(Pipeline, on_delete=models.RESTRICT, related_name="opportunities")
+    stage = models.ForeignKey(Stage, on_delete=models.RESTRICT, related_name="opportunities")
     contacts = models.ManyToManyField(Contact, through="OpportunityContact", blank=True, related_name="opportunities")
     value = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     currency = models.CharField(max_length=3, default="USD")

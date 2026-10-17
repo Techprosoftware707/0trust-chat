@@ -28,6 +28,9 @@ export LUMEN_APP_BASE_URL="http://127.0.0.1:$NEXUS_CHAT_PORT"
 export LUMEN_MATRIX_BASE_URL=http://127.0.0.1:28108
 export MATRIX_SERVER_NAME=chatdev.test
 export POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=55433 POSTGRES_DB="$NEXUS_DEV_DB" POSTGRES_USER=lumen_app POSTGRES_PASSWORD=devpass
+# runserver opens a thread per request: without this, idle persistent connections of
+# finished threads pile up and several slots exhaust the shared server (max 100).
+export POSTGRES_CONN_MAX_AGE=0
 export OIDC_PRIVATE_KEY_FILE="$NEXUS_STATE/oidc.pem"
 export SYNAPSE_OIDC_CLIENT_SECRET=nexus-local-dev-synapse-secret
 export LUMEN_SIMPLE_STATIC=1
