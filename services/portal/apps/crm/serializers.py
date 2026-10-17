@@ -316,6 +316,7 @@ def event(ctx: Ctx, e: m.CalendarEvent) -> dict:
     return {
         "id": str(e.pk),
         "type": "crm.calendarevent",
+        "kind": e.kind,
         "title": e.title,
         "description": e.description,
         "start_at": e.start_at,

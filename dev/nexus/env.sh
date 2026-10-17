@@ -33,6 +33,11 @@ export SYNAPSE_OIDC_CLIENT_SECRET=nexus-local-dev-synapse-secret
 export LUMEN_SIMPLE_STATIC=1
 export BRAND_ASSET_URL=/static/brand/
 export NEXUS_ENVIRONMENT=test
+# Encrypted lending documents: ciphertext outside the repository's public paths, and a
+# throwaway AES-256 master key per slot, read from a secret file like in production.
+export NEXUS_SECURE_DOCUMENTS_DIR="$NEXUS_STATE/secure-documents-$NEXUS_SLOT"
+[ -f "$NEXUS_STATE/document-key-$NEXUS_SLOT" ] || (umask 077 && openssl rand -base64 32 >"$NEXUS_STATE/document-key-$NEXUS_SLOT")
+export NEXUS_DOCUMENT_KEY_FILE="$NEXUS_STATE/document-key-$NEXUS_SLOT"
 export NEXUS_DEMO_PASSWORD="${NEXUS_DEMO_PASSWORD:-nexus-demo-pass-2026}"
 # Chat SPA dev server (Vite) on 127.0.0.1:5710+N with the Nexus config (portal URLs follow the slot).
 export LUMEN_CHAT_DEV_PORT="$NEXUS_CHAT_PORT"

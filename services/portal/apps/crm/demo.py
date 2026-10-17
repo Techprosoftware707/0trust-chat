@@ -109,10 +109,7 @@ OPPORTUNITIES = [
     ("Hollis - starter home", "real_estate", 0, "375000.00", "demo-jordan", ["hollis"], 60, {}),
     ("Marlo - condo search", "real_estate", 0, "290000.00", "demo-jordan", ["marlo"], 75, {}),
     ("Mockwell - bakery building sale", "real_estate", 4, "520000.00", "demo-avery", ["emery"], -10, {}),
-    ("Fictional - refinance", "lending", 1, "320000.00", "demo-jordan", ["sky"], 25, {"loan_type": "conventional"}),
-    ("Testcase - first mortgage", "lending", 3, "410000.00", "demo-morgan", ["drew"], 12, {"loan_type": "fha"}),
-    ("Mockwell - cash-out refinance", "lending", 0, "250000.00", "demo-morgan", ["kai"], 40, {"loan_type": "conventional"}),
-    ("Hollis - pre-approval", "lending", 2, "360000.00", "demo-jordan", ["hollis"], 18, {"loan_type": "va"}),
+    # Lending work is in lending applications (demo_verticals.py), which use the lending pipeline.
     ("Placeholder Group - referral program", "general", 2, "24000.00", "demo-morgan", ["gray"], 35, {}),
     ("Sample Title - preferred vendor renewal", "general", 1, "6000.00", "demo-avery", ["lane"], 50, {}),
 ]
@@ -321,6 +318,9 @@ def seed(*, password: str | None = None, reset_passwords: bool = False, now=None
             e.attendee_contacts.set([contacts[ck]])
         created += 1
 
+    from .demo_verticals import seed_verticals
+
+    created += seed_verticals(ws, users, contacts, opps, now)
     return {"workspace": ws, "created": created, "users": created_users, "password": generated}
 
 

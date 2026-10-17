@@ -76,8 +76,15 @@ class Api:
     def patch(self, path, data=None, **extra):
         return self.client.patch(path, json.dumps(data if data is not None else {}), content_type="application/json", **self._headers(extra))
 
+    def put(self, path, data=None, **extra):
+        return self.client.put(path, json.dumps(data if data is not None else {}), content_type="application/json", **self._headers(extra))
+
     def delete(self, path, **extra):
         return self.client.delete(path, **self._headers(extra))
+
+    def raw(self, method, path, data: bytes, content_type: str, **extra):
+        """A request with a raw (non-JSON) body, e.g. a document upload."""
+        return self.client.generic(method.upper(), path, data, content_type=content_type, **self._headers(extra))
 
 
 def api_for(user, **kw) -> Api:

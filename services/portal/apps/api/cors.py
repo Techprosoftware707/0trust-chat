@@ -38,7 +38,8 @@ class ApiCorsMiddleware:
             if allowed:
                 response["Access-Control-Allow-Origin"] = origin
                 response["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE" if is_api else "POST"
-                response["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Request-Id"
+                # X-Nexus-Filename: the name of an uploaded lending document (raw-body upload).
+                response["Access-Control-Allow-Headers"] = "Authorization, Content-Type, X-Request-Id, X-Nexus-Filename"
                 response["Access-Control-Max-Age"] = "600"
             patch_vary_headers(response, ["Origin"])
             return response

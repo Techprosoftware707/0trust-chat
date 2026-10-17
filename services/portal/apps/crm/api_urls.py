@@ -2,6 +2,7 @@
 
 from django.urls import path
 
+from . import api_verticals as vv
 from . import api_views as v
 
 app_name = "crm_api"
@@ -35,4 +36,57 @@ urlpatterns = [
     path("room-links", v.room_links, name="room_links"),
     path("room-links/<uuid:link_id>", v.room_link_detail, name="room_link"),
     path("mappings", v.mappings, name="mappings"),
+    # Verticals (verticals team): real estate
+    path("properties", vv.properties, name="properties"),
+    path("properties/<uuid:property_id>", vv.property_detail, name="property"),
+    path("properties/<uuid:property_id>/contacts", vv.property_contacts, name="property_contacts"),
+    path("properties/<uuid:property_id>/viewings", vv.property_viewings, name="property_viewings"),
+    path("property-contacts/<uuid:link_id>", vv.property_contact_detail, name="property_contact"),
+    path("opportunities/<uuid:opportunity_id>/vertical", vv.opportunity_vertical, name="opportunity_vertical"),
+    path("opportunities/<uuid:opportunity_id>/properties", vv.opportunity_properties, name="opportunity_properties"),
+    path("opportunities/<uuid:opportunity_id>/contact-roles", vv.opportunity_contact_roles, name="opportunity_contact_roles"),
+    path("opportunities/<uuid:opportunity_id>/deadline-template", vv.opportunity_deadline_template, name="opportunity_deadline_template"),
+    path("opportunity-properties/<uuid:link_id>", vv.opportunity_property_detail, name="opportunity_property"),
+    path("contacts/<uuid:contact_id>/preferences", vv.contact_preferences, name="contact_preferences"),
+    path("contacts/<uuid:contact_id>/vertical", vv.contact_vertical, name="contact_vertical"),
+    path("milestones", vv.milestones, name="milestones"),
+    path("milestones/<uuid:milestone_id>", vv.milestone_detail, name="milestone"),
+    # lending
+    path("lending/applications", vv.applications, name="applications"),
+    path("lending/board", vv.lending_board, name="lending_board"),
+    path("lending/applications/<uuid:application_id>", vv.application_detail, name="application"),
+    path("lending/applications/<uuid:application_id>/move", vv.application_move, name="application_move"),
+    path("lending/applications/<uuid:application_id>/decision", vv.application_decision, name="application_decision"),
+    path("lending/applications/<uuid:application_id>/history", vv.application_history, name="application_history"),
+    path("lending/applications/<uuid:application_id>/notes", vv.application_notes, name="application_notes"),
+    path("lending/applications/<uuid:application_id>/checklist", vv.application_checklist, name="application_checklist"),
+    path("lending/applications/<uuid:application_id>/checklist/apply-template", vv.application_apply_template,
+         name="application_apply_template"),
+    path("lending/applications/<uuid:application_id>/deadline-template", vv.application_deadline_template,
+         name="application_deadline_template"),
+    path("lending/applications/<uuid:application_id>/documents", vv.application_documents, name="application_documents"),
+    path("lending/applications/<uuid:application_id>/access-log", vv.application_access_log, name="application_access_log"),
+    path("lending/notes/<uuid:note_id>", vv.application_note_detail, name="application_note"),
+    path("lending/checklist/<uuid:item_id>", vv.checklist_item_detail, name="checklist_item"),
+    path("lending/checklist/<uuid:item_id>/request", vv.checklist_item_request, name="checklist_item_request"),
+    path("lending/documents/download", vv.document_download, name="document_download"),
+    path("lending/documents/<uuid:document_id>", vv.document_detail, name="document"),
+    path("lending/documents/<uuid:document_id>/download-token", vv.document_download_token, name="document_download_token"),
+    path("lending/templates", vv.checklist_templates, name="checklist_templates"),
+    path("lending/templates/<uuid:template_id>", vv.checklist_template_detail, name="checklist_template"),
+    # meetings
+    path("meetings/upcoming", vv.upcoming_meetings, name="upcoming_meetings"),
+    path("meetings/notes", vv.meeting_notes, name="meeting_notes"),
+    path("meetings/notes/<uuid:note_id>", vv.meeting_note_detail, name="meeting_note"),
+    path("action-items", vv.action_items, name="action_items"),
+    path("action-items/<uuid:item_id>", vv.action_item_detail, name="action_item"),
+    path("action-items/<uuid:item_id>/confirm", vv.action_item_confirm, name="action_item_confirm"),
+    path("action-items/<uuid:item_id>/dismiss", vv.action_item_dismiss, name="action_item_dismiss"),
+    # reports
+    path("reports/pipeline", vv.report_pipeline, name="report_pipeline"),
+    path("reports/team-week", vv.report_team_week, name="report_team_week"),
+    path("reports/activity", vv.report_activity, name="report_activity"),
+    path("reports/tasks", vv.report_tasks, name="report_tasks"),
+    path("reports/lending", vv.report_lending, name="report_lending"),
+    path("reports/deadlines", vv.report_deadlines, name="report_deadlines"),
 ]

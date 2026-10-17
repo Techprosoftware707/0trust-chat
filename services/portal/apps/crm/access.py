@@ -66,6 +66,13 @@ class Cap(StrEnum):
     EVENTS_CREATE = "events.create"
     MAPPINGS_VIEW = "mappings.view"  # external record mappings
     MEMBERS_VIEW = "members.view"
+    # Lending (verticals): applications, checklists, secure documents. LENDING_SENSITIVE sees
+    # every application; LENDING_ACCESS alone (agents/brokers) only the ones assigned to them.
+    LENDING_ACCESS = "lending.access"
+    LENDING_SENSITIVE = "lending.sensitive"
+    LENDING_DECIDE = "lending.decide"  # record a decision (authorised staff; never automatic)
+    AUTOMATION_MANAGE = "automation.manage"  # automation rules, their history and retries
+    REPORTS_VIEW = "reports.view"  # team reports (aggregated server-side)
 
 
 _ALL = frozenset(Cap)
@@ -78,7 +85,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[Cap]] = {
         {
             Cap.RECORDS_VIEW_SCOPED, Cap.RECORDS_CREATE, Cap.RECORDS_CHANGE_OWN, Cap.RECORDS_DELETE_OWN,
             Cap.ACTIVITIES_CREATE, Cap.TASKS_CREATE, Cap.TASKS_CREATE_OWN, Cap.TAGS_CREATE, Cap.EVENTS_CREATE,
-            Cap.MEMBERS_VIEW,
+            Cap.MEMBERS_VIEW, Cap.LENDING_ACCESS,
         }
     ),
     Role.MEMBER: frozenset({Cap.RECORDS_VIEW_TEAM, Cap.TASKS_CREATE_OWN, Cap.EVENTS_CREATE, Cap.MEMBERS_VIEW}),

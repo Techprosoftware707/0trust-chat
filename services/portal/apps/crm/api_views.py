@@ -22,6 +22,7 @@ from . import access, services
 from . import models as m
 from . import serializers as s
 from .access import CHANGE, DELETE, Actor, Cap
+from .home import home_extras
 
 crm_endpoint = lambda methods: api_endpoint(methods=methods, feature="crm")  # noqa: E731
 
@@ -480,7 +481,7 @@ def activity_detail(request, actor: Actor, activity_id):
 @crm_endpoint(["GET", "POST"])
 def events(request, actor: Actor):
     """GET filters: from, to (date-times; overlapping events), contact, opportunity,
-    organizer (me|id), status."""
+    organizer (me|id), attending (me: organizer or attendee), status, kind."""
     if request.method == "POST":
         e = services.create_event(request, actor, json_body(request))
         ctx = s.Ctx(actor)
@@ -502,6 +503,12 @@ def events(request, actor: Actor):
     status = query_param(request, "status", F.choice(m.CalendarEvent.Status.values))
     if status:
         qs = qs.filter(status=status)
+    kind = query_param(request, "kind", F.choice(m.CalendarEvent.Kind.values))
+    if kind:
+        qs = qs.filter(kind=kind)
+    if query_param(request, "attending", F.choice(["me"])):
+        attending = m.CalendarEvent.attendee_users.through.objects.filter(user_id=actor.user.pk).values("calendarevent_id")
+        qs = qs.filter(Q(organizer=actor.user) | Q(pk__in=attending))
     ctx = s.Ctx(actor)
     return paginated(request, s.event_queryset(qs.order_by("start_at", "pk")), lambda e: s.event(ctx, e),
                      prepare=lambda rows: s.prepare_events(ctx, rows))
@@ -614,7 +621,8 @@ def dashboard(request, actor: Actor):
     s.prepare_contacts(ctx, overdue_follow + leads)
     recent = list(s.activity_queryset(access.for_actor(actor, m.Activity).order_by("-occurred_at", "-created_at"))[:10])
     s.prepare_activities(ctx, recent)
-    pipeline = access.for_actor(actor, m.Pipeline).filter(archived=False).order_by("-is_default", "position").first()
+    pipeline = (access.for_actor(actor, m.Pipeline).filter(archived=False).exclude(kind=m.Pipeline.Kind.LENDING)
+                .order_by("-is_default", "position").first())
     summary = None
     if pipeline:
         stages = list(pipeline.stages.order_by("position", "created_at"))
@@ -639,6 +647,8 @@ def dashboard(request, actor: Actor):
             "assigned_leads": [s.contact(ctx, c) for c in leads],
             "recent_activity": [s.activity(ctx, a) for a in recent],
             "pipeline_summary": summary,
+            # Verticals team: meetings, deadlines, lending, next steps, connected services.
+            **home_extras(actor, ctx, team=team, now=now),
         }
     )
 

@@ -408,6 +408,15 @@ class CalendarEvent(TenantModel, RelatedRef):
         CANCELED = "canceled", "Canceled"
         COMPLETED = "completed", "Completed"
 
+    class Kind(models.TextChoices):
+        MEETING = "meeting", "Meeting"
+        VIEWING = "viewing", "Viewing"
+        CALL = "call", "Call"
+        CLOSING = "closing", "Closing"
+        APPOINTMENT = "appointment", "Appointment"
+        OTHER = "other", "Other"
+
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.MEETING)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, max_length=5000)
     start_at = models.DateTimeField()
@@ -490,3 +499,24 @@ class RecordLink(TenantModel):
             models.Index(fields=["workspace", "from_type", "from_id"], name="crm_recordlink_from"),
             models.Index(fields=["workspace", "to_type", "to_id"], name="crm_recordlink_to"),
         ]
+
+
+# Vertical records (real estate, lending, secure documents) and meeting notes / action items
+# live in their own modules of this app; importing them here registers them with Django.
+from .models_meetings import ActionItem, MeetingNote  # noqa: E402,F401
+from .models_verticals import (  # noqa: E402,F401
+    ApplicationBorrower,
+    ApplicationNote,
+    ChecklistTemplate,
+    ClientPreference,
+    DocumentAccessLog,
+    DocumentChecklistItem,
+    DocumentDownloadGrant,
+    LendingApplication,
+    LendingStageHistory,
+    Milestone,
+    OpportunityProperty,
+    Property,
+    PropertyContact,
+    SecureDocument,
+)

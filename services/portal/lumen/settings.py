@@ -373,6 +373,22 @@ NEXUS_MCP_CIMD_CACHE_SECONDS = env_int("NEXUS_MCP_CIMD_CACHE_SECONDS", 3600)
 # Connector refresh tokens rotate on every use; this is how long an unused one stays valid.
 NEXUS_MCP_REFRESH_TOKEN_SECONDS = env_int("NEXUS_MCP_REFRESH_TOKEN_SECONDS", 14 * 24 * 3600)
 
+# --- Nexus verticals: lending documents, deadlines, automation (docs/nexus/CONFIG.md) ---------
+# Encrypted lending documents: ciphertext directory (never under a public/static/media path;
+# empty = uploads are refused with "not set up") and the AES-256 master key(s), base64, from
+# the secret file NEXUS_DOCUMENT_KEY_FILE (first key encrypts, all decrypt: rotation).
+NEXUS_SECURE_DOCUMENTS_DIR = env("NEXUS_SECURE_DOCUMENTS_DIR", "")
+NEXUS_DOCUMENT_KEY = secret("NEXUS_DOCUMENT_KEY") if SURFACE in {"public", "worker", "test"} else ""
+NEXUS_DOCUMENT_MAX_BYTES = env_int("NEXUS_DOCUMENT_MAX_MB", 15) * 1024 * 1024
+NEXUS_DOCUMENT_TOKEN_SECONDS = env_int("NEXUS_DOCUMENT_TOKEN_SECONDS", 60)
+# Deal and application deadlines due within this many days are highlighted as "due soon".
+NEXUS_DEADLINE_SOON_DAYS = env_int("NEXUS_DEADLINE_SOON_DAYS", 3)
+# Automation: loop depth limit, workspace-wide hourly cap, reminder lead time, retention.
+NEXUS_AUTOMATION_MAX_DEPTH = env_int("NEXUS_AUTOMATION_MAX_DEPTH", 3)
+NEXUS_AUTOMATION_MAX_RUNS_PER_HOUR = env_int("NEXUS_AUTOMATION_MAX_RUNS_PER_HOUR", 300)
+NEXUS_AUTOMATION_REMINDER_MINUTES = env_int("NEXUS_AUTOMATION_REMINDER_MINUTES", 60)
+NEXUS_AUTOMATION_RETENTION_DAYS = env_int("NEXUS_AUTOMATION_RETENTION_DAYS", 90)
+
 # --- Sessions, cookies, CSRF ------------------------------------------------------------
 _cookie_prefix = "" if INSECURE_DEV else "__Host-"
 SESSION_ENGINE = "django.contrib.sessions.backends.db"

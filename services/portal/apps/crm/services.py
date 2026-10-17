@@ -182,7 +182,17 @@ def create_contact(request, actor: Actor, body: dict) -> m.Contact:
     c.assignees.set(access.resolve_members(actor, data["assignee_ids"], field_name="assignee_ids"))
     c.tags.set(access.resolve(actor, m.Tag, data["tag_ids"], field_name="tag_ids"))
     access.audit_write(request, actor, "create", c, fields=[k for k in body])
+    _emit_contact_created(actor, c)
     return c
+
+
+def _emit_contact_created(actor: Actor, c: m.Contact) -> None:
+    from apps.automation import engine
+
+    payload = {"contact": engine.contact_facts(c)}
+    engine.emit(actor.workspace_id, "contact.created", subject=c, dedup_key=str(c.pk), payload=payload, actor=actor.user)
+    if c.kind == m.Contact.Kind.LEAD:
+        engine.emit(actor.workspace_id, "lead.created", subject=c, dedup_key=str(c.pk), payload=payload, actor=actor.user)
 
 
 def update_contact(request, actor: Actor, c: m.Contact, body: dict) -> m.Contact:
@@ -305,8 +315,12 @@ DEFAULT_PIPELINES = {
                                         ("Negotiation", 75, False, False), ("Won", 100, True, False), ("Lost", 0, False, True)]),
     m.Pipeline.Kind.REAL_ESTATE: ("Real estate", [("New lead", 10, False, False), ("Showing", 30, False, False), ("Offer", 55, False, False),
                                                   ("Under contract", 80, False, False), ("Closed", 100, True, False), ("Lost", 0, False, True)]),
-    m.Pipeline.Kind.LENDING: ("Lending", [("Application", 10, False, False), ("Processing", 30, False, False), ("Underwriting", 55, False, False),
-                                          ("Approved", 80, False, False), ("Funded", 100, True, False), ("Declined", 0, False, True)]),
+    # Lending applications move through these stages. None of them is a decision: a decision
+    # is recorded separately, by authorised staff only (apps.crm.lending.record_decision).
+    m.Pipeline.Kind.LENDING: ("Lending", [("Lead", 5, False, False), ("Initial Contact", 15, False, False),
+                                          ("Information Requested", 30, False, False), ("Documents Pending", 45, False, False),
+                                          ("In Review", 60, False, False), ("Decision Pending", 75, False, False),
+                                          ("Completed", 100, True, False)]),
 }
 PROFILE_PIPELINE = {
     m.BusinessProfile.GENERAL: m.Pipeline.Kind.GENERAL,
@@ -566,11 +580,15 @@ def move_opportunity(request, actor: Actor, o: m.Opportunity, body: dict, *, aud
     if previous.pk != target.pk:
         m.StageHistory.objects.create(workspace=actor.workspace, opportunity=o, from_stage=previous, to_stage=target,
                                       from_name=previous.name, to_name=target.name, created_by=actor.user)
-        m.Activity.objects.create(
+        history = m.Activity.objects.create(
             workspace=actor.workspace, opportunity=o, kind=m.Activity.Kind.STAGE_CHANGE, source=m.Activity.Source.SYSTEM,
             actor=actor.user, created_by=actor.user, summary=f"Moved from {previous.name} to {target.name}",
             metadata={"from_stage_id": str(previous.pk), "to_stage_id": str(target.pk)},
         )
+        from apps.automation import engine
+
+        engine.emit(actor.workspace_id, "opportunity.stage_changed", subject=o, dedup_key=f"{o.pk}:{history.pk}",
+                    payload=engine.stage_change_facts(o, previous, target), actor=actor.user)
     if audit_it:
         access.audit_write(request, actor, "move", o, fields=["stage", "position"])
     return o
@@ -647,6 +665,35 @@ def create_task(request, actor: Actor, body: dict) -> m.Task:
     t.save()
     _task_event(actor, t, f"Task created: {t.title}")
     access.audit_write(request, actor, "create", t, fields=list(body))
+    return t
+
+
+def record_automation_task(actor: Actor, *, title: str, assignee=None, due_at=None, priority: str = m.Priority.NORMAL,
+                           contact=None, opportunity=None, related=None, description: str = "",
+                           visibility: str = m.Visibility.TEAM) -> m.Task:
+    """Server-side helper for automation rules: a task with ``source="automation"``, created
+    with the permissions of ``actor`` (the person who owns the rule). Related records must be
+    visible to that person; the write is audited like any other."""
+    if not (actor.can(Cap.TASKS_CREATE) or actor.can(Cap.TASKS_CREATE_OWN)):
+        raise PermissionDenied("The rule's owner can't create tasks.")
+    assignee = assignee or actor.user
+    if assignee != actor.user and not (actor.can(Cap.TASKS_CREATE) or actor.can(Cap.RECORDS_CHANGE_ALL)):
+        raise PermissionDenied("The rule's owner can only create tasks for themselves.")
+    if not access.members(actor).filter(user=assignee, user__is_active=True).exists():
+        raise PermissionDenied("The assignee is not a member of this workspace.")
+    for model, obj in ((m.Contact, contact), (m.Opportunity, opportunity)):
+        if obj is not None and not access.for_actor(actor, model).filter(pk=obj.pk).exists():
+            raise PermissionDenied("The rule's owner can't see the related record.")
+    t = m.Task(workspace=actor.workspace, created_by=actor.user, title=title[:200], description=description[:5000], assignee=assignee,
+               due_at=due_at, priority=priority, contact=contact, opportunity=opportunity, source=m.Task.Source.AUTOMATION,
+               visibility=visibility)
+    if related is not None:
+        if not access.for_actor(actor, type(related)).filter(pk=related.pk).exists():
+            raise PermissionDenied("The rule's owner can't see the related record.")
+        t.related_type, t.related_id = related._meta.label_lower, related.pk
+    t.save()
+    _task_event(actor, t, f"Task created by an automation: {t.title}")
+    access.audit_write(None, actor, "create", t, fields=["title", "assignee", "due_at", "priority", "source"], extra={"via": "automation"})
     return t
 
 
@@ -758,6 +805,7 @@ def record_external_activity(workspace, *, provider: str, kind: str, summary: st
 # --- calendar events ----------------------------------------------------------------------------
 
 EVENT_SPEC = {
+    "kind": F.choice(m.CalendarEvent.Kind.values, default=m.CalendarEvent.Kind.MEETING),
     "title": F.string(max_length=200, required=True, blank=False),
     "description": F.string(max_length=5000, multiline=True),
     "start_at": F.datetime(required=True),
@@ -794,7 +842,7 @@ def _organizer(actor: Actor, data: dict, body: dict, current=None):
 def create_event(request, actor: Actor, body: dict) -> m.CalendarEvent:
     access.require(actor, Cap.EVENTS_CREATE)
     data = validate(body, EVENT_SPEC)
-    e = m.CalendarEvent(workspace=actor.workspace, created_by=actor.user, title=data["title"], description=data["description"],
+    e = m.CalendarEvent(workspace=actor.workspace, created_by=actor.user, kind=data["kind"], title=data["title"], description=data["description"],
                         start_at=data["start_at"], end_at=data["end_at"], all_day=data["all_day"], location=data["location"],
                         matrix_room_id=data["matrix_room_id"], status=data["status"], visibility=data["visibility"])
     e.organizer = _organizer(actor, data, body)
@@ -813,9 +861,10 @@ def update_event(request, actor: Actor, e: m.CalendarEvent, body: dict) -> m.Cal
     spec = dict(EVENT_SPEC)
     spec["title"] = F.string(max_length=200, blank=False)
     spec["start_at"], spec["end_at"] = F.datetime(), F.datetime()
+    spec["kind"] = F.choice(m.CalendarEvent.Kind.values)
     data = validate(body, spec, partial=True)
     changed: list[str] = []
-    _set(e, data, ["title", "description", "start_at", "end_at", "all_day", "location", "matrix_room_id", "status", "visibility"], changed)
+    _set(e, data, ["kind", "title", "description", "start_at", "end_at", "all_day", "location", "matrix_room_id", "status", "visibility"], changed)
     if "organizer_id" in data:
         e.organizer = _organizer(actor, data, body, e.organizer)
         changed.append("organizer")
