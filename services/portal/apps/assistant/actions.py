@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -43,19 +44,32 @@ from apps.core.audit import audit
 from .models import PendingAction
 from .registry import ToolContext, ToolError
 
+log = logging.getLogger("nexus.assistant")
+
 
 @dataclass(frozen=True)
 class Executor:
     name: str
     # (request, actor, payload) -> list of (type_label, id) written
     run: Callable[[Any, Any, dict], list[tuple[str, str]]]
+    # External executors call a provider (e.g. create a Gmail draft). They are never dry-run
+    # (that would reach the provider); ``check`` validates the payload and the person's
+    # rights without side effects instead, and the provider call runs outside any
+    # transaction, after the proposal was claimed (so it can never run twice).
+    external: bool = False
+    check: Callable[[Any, Any, dict], None] | None = None
+    # Shown after a successful confirmation, e.g. "Review and send it in Nexus."
+    done_message: str = ""
 
 
 _EXECUTORS: dict[str, Executor] = {}
 
 
-def register_executor(name: str, run: Callable[[Any, Any, dict], list[tuple[str, str]]]) -> None:
-    _EXECUTORS[name] = Executor(name, run)
+def register_executor(name: str, run: Callable[[Any, Any, dict], list[tuple[str, str]]], *, external: bool = False,
+                      check: Callable[[Any, Any, dict], None] | None = None, done_message: str = "") -> None:
+    if external and check is None:
+        raise ValueError("an external executor needs a check() for prepare time")
+    _EXECUTORS[name] = Executor(name, run, external, check, done_message)
 
 
 def executor(name: str) -> Executor:
@@ -88,9 +102,13 @@ def _limit(actor, kind: str) -> None:
 
 
 def dry_run(request, actor, action: str, payload: dict) -> list[tuple[str, str]]:
-    """Runs the write and rolls it back. Raises the same errors the real write would."""
+    """Runs the write and rolls it back. Raises the same errors the real write would.
+    External executors are only checked (their provider is never called at prepare time)."""
     ex = executor(action)
     refs: list[tuple[str, str]] = []
+    if ex.external:
+        ex.check(request, actor, payload)
+        return refs
     try:
         with transaction.atomic():
             refs = ex.run(request, actor, payload)
@@ -117,6 +135,15 @@ def prepare(ctx: ToolContext, action: str, payload: dict, preview: dict) -> dict
           metadata={"workspace": str(actor.workspace_id), "action": action, "channel": ctx.channel, "fields": sorted(payload)})
     ctx.pending_ids.append(str(row.pk))
     return serialize(row)
+
+
+def _result(refs: list[tuple[str, str]], ex: Executor) -> dict:
+    from .registry import record_url
+
+    out: dict = {"records": [{"type": t, "id": i, "url": record_url(t, i)} for t, i in refs]}
+    if ex.done_message:
+        out["message"] = ex.done_message
+    return out
 
 
 def serialize(row: PendingAction) -> dict:
@@ -200,22 +227,54 @@ def confirm(request, actor, action_id, *, channel: str, client_id: str = "") -> 
         elif row.payload_hash != payload_hash(row.action, row.payload, actor.workspace_id, actor.user.pk, channel):
             _fail(row, "payload_mismatch", now)
             failure = ConfirmFailed(Conflict("This proposal can't be confirmed. Prepare it again."), row)
+        elif executor(row.action).external:
+            # Claim it (single use) and commit before the provider is called.
+            row.status, row.decided_at, row.result = PendingAction.Status.CONFIRMED, now, {"state": "running"}
+            row.save(update_fields=["status", "decided_at", "result", "updated_at"])
         else:
+            ex = executor(row.action)
             try:
                 with transaction.atomic():
-                    refs = executor(row.action).run(request, actor, row.payload)
+                    refs = ex.run(request, actor, row.payload)
             except (ApiError, ValidationFailed, PermissionDenied, Http404) as exc:
-                err = _as_api_error(exc)
-                _fail(row, err.code, now)
-                audit(request, "assistant.pendingaction.fail", target=row, actor=actor.user,
-                      metadata={"workspace": str(actor.workspace_id), "action": row.action, "channel": channel, "error": err.code})
-                failure = ConfirmFailed(err, row)
+                failure = ConfirmFailed(_failed(request, actor, row, exc, now, channel), row)
             else:
                 row.status, row.decided_at = PendingAction.Status.CONFIRMED, now
-                row.result = {"records": [{"type": t, "id": i} for t, i in refs]}
+                row.result = _result(refs, ex)
                 row.save(update_fields=["status", "decided_at", "result", "updated_at"])
                 audit(request, "assistant.pendingaction.confirm", target=row, actor=actor.user,
                       metadata={"workspace": str(actor.workspace_id), "action": row.action, "channel": channel})
     if failure is not None:
         raise failure
+    if row.result.get("state") == "running":
+        return _run_external(request, actor, row, channel)
+    return row
+
+
+def _failed(request, actor, row: PendingAction, exc: Exception, now, channel: str) -> ApiError:
+    err = _as_api_error(exc)
+    _fail(row, err.code, now)
+    audit(request, "assistant.pendingaction.fail", target=row, actor=actor.user,
+          metadata={"workspace": str(actor.workspace_id), "action": row.action, "channel": channel, "error": err.code})
+    return err
+
+
+def _run_external(request, actor, row: PendingAction, channel: str) -> PendingAction:
+    """The provider call of a claimed external proposal, outside any transaction (the
+    provider's own token refresh commits independently of this request)."""
+    ex = executor(row.action)
+    try:
+        refs = ex.run(request, actor, row.payload)
+    except Exception as exc:  # noqa: BLE001 - the claimed row must never stay "running"
+        if not isinstance(exc, (ApiError, ValidationFailed, PermissionDenied, Http404)):
+            log.exception("external action %s failed", row.action)
+            exc = ApiError("The connected service didn't complete this. Nothing was sent.", code="provider_failed", status=502)
+        with transaction.atomic():
+            err = _failed(request, actor, row, exc, timezone.now(), channel)
+        raise ConfirmFailed(err, row) from None
+    with transaction.atomic():
+        row.result = _result(refs, ex)
+        row.save(update_fields=["result", "updated_at"])
+        audit(request, "assistant.pendingaction.confirm", target=row, actor=actor.user,
+              metadata={"workspace": str(actor.workspace_id), "action": row.action, "channel": channel})
     return row

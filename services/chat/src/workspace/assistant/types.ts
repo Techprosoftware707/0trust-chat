@@ -43,7 +43,7 @@ export interface PendingAction {
   status: ActionStatus;
   preview: ActionPreview;
   expires_at: string;
-  result?: { records?: { type: string; id: string }[] };
+  result?: { records?: { type: string; id: string; url?: string }[]; message?: string };
 }
 
 export interface ProviderInfo {

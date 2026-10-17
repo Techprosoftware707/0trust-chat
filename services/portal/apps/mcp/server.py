@@ -23,6 +23,7 @@ import base64
 import json
 import logging
 import re
+from contextlib import nullcontext
 
 from django.conf import settings
 from django.db import transaction
@@ -174,7 +175,7 @@ def call_tool(session: Session, params: dict, version: str) -> dict:
                       allow_sensitive=allow_sensitive(actor))
     started = timezone.now()
     try:
-        with transaction.atomic():
+        with transaction.atomic() if tool.atomic else nullcontext():
             result = run_tool(tool, ctx, args)
     except ToolError as exc:
         log_interaction(actor, channel=Channel.MCP, provider="mcp", client_id=session.token.client_id, tool_names=[tool.name],

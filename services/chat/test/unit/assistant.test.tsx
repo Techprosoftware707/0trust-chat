@@ -185,6 +185,25 @@ describe("answer card", () => {
     expect(done).toContain("Done");
   });
 
+  it("shows what happened after confirming, with a link to review a draft", () => {
+    const html = renderToStaticMarkup(
+      <AnswerCard
+        answer={answer({
+          actions: [
+            action({
+              action: "create_email_reply_draft",
+              status: "confirmed",
+              result: { message: "Nothing was sent. Review and send it in Nexus.", records: [{ type: "integrations.inboxitem", id: "t1", url: "http://127.0.0.1:5713/#/inbox/t1" }] },
+            }),
+          ],
+        })}
+        onActionChange={() => undefined}
+      />,
+    );
+    expect(html).toContain("Review and send it in Nexus.");
+    expect(html).toContain('href="#/inbox/t1"');
+  });
+
   it("confirms through the API when the person clicks Confirm", async () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     post.mockResolvedValue(action({ status: "confirmed" }));

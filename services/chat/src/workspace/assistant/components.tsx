@@ -145,6 +145,19 @@ function ActionCard({ action, onChange }: { action: PendingAction; onChange: (a:
         </dl>
       ) : null}
       {p.note ? <p className="xsmall muted">{p.note}</p> : null}
+      {action.status === "confirmed" && action.result?.message ? (
+        <p className="small ai-action-done" role="status">
+          {action.result.message}{" "}
+          {(action.result.records ?? [])
+            .filter((r) => r.url)
+            .slice(0, 3)
+            .map((r) => (
+              <a key={`${r.type}:${r.id}`} href={sourceHref({ type: r.type, id: r.id, label: "", url: r.url! })}>
+                Open in Nexus
+              </a>
+            ))}
+        </p>
+      ) : null}
       {open ? (
         <div className="cluster ai-action-buttons">
           <button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => void decide("confirm")}>

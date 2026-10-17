@@ -17,7 +17,7 @@ from typing import Any
 
 from .models import AISettings
 
-UNTRUSTED_TEXT_KEYS = ("summary", "body", "text", "subject", "snippet", "preview", "title", "from", "content")
+UNTRUSTED_TEXT_KEYS = ("summary", "body", "text", "subject", "snippet", "preview", "title", "from", "content", "participants", "author")
 
 _SECRET_PATTERNS = [
     re.compile(r"sk-ant-[A-Za-z0-9_\-]{8,}"),

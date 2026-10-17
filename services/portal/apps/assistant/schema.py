@@ -92,6 +92,11 @@ class P:
         return cls(F.list(F.uuid(), max_items=max_items), schema)
 
     @classmethod
+    def email_list(cls, description: str, *, max_items: int = 10) -> P:
+        schema = {"type": "array", "items": {"type": "string", "format": "email"}, "maxItems": max_items, "description": description}
+        return cls(F.list(F.email(), max_items=max_items), schema)
+
+    @classmethod
     def object(cls, description: str, properties: dict[str, P], *, required: bool = False) -> P:
         """A nested object with its own validated properties (used for field updates)."""
         inner = Args(**properties)

@@ -514,7 +514,8 @@ def test_ai_tools_never_see_other_workspace_rows(world):
         try:
             out = run_tool(tool, ctx, args)
         except ToolError as exc:
-            assert exc.code in ("not_found", "validation_error"), (tool.name, exc.code)
+            # not_connected: tools on connected services when this person connected none.
+            assert exc.code in ("not_found", "validation_error", "not_connected"), (tool.name, exc.code)
             continue
         text = json.dumps(out.data)
         assert not any(i in text for i in b_ids) and "Uniquename" not in text.replace('"Uniquename"', ""), tool.name

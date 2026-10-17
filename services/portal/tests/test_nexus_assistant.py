@@ -313,7 +313,7 @@ def test_dev_chat_by_name_and_next_meeting(org):
     d = body(chat(org, "owner", "Summarise Pat Example"))["data"]
     assert [c["name"] for c in d["tool_calls"]] == ["search_contacts", "get_contact_summary"]
     d = body(chat(org, "owner", "Prepare me for my next meeting"))["data"]
-    assert [c["name"] for c in d["tool_calls"]] == ["upcoming_appointments", "get_contact_summary"]
+    assert [c["name"] for c in d["tool_calls"]] == ["upcoming_appointments", "get_contact_summary", "meeting_action_items"]
     assert any("Viewing with Pat" in line for f in d["facts"] for line in f["lines"])
 
 

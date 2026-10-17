@@ -407,6 +407,8 @@ body[data-env-banner] .incoming-calls { top: calc(var(--env-banner-h) + var(--sp
 .ai-changes thead th { color: var(--text-muted); font-weight: 600; font-size: var(--text-xs); }
 .ai-fields .ai-field { display: contents; }
 .ai-action-buttons { align-items: center; gap: var(--space-2); }
+.ai-action-done { margin: 0; }
+.ai-action-done a { margin-left: var(--space-1); }
 .ai-composer { position: sticky; bottom: 0; display: grid; gap: var(--space-2); padding: var(--space-3); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
 .ai-composer-row { display: flex; gap: var(--space-2); align-items: flex-end; }
 .ai-composer textarea { flex: 1; min-width: 0; resize: vertical; min-height: 2.6rem; max-height: 12rem; }

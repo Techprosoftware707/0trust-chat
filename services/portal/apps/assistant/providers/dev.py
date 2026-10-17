@@ -35,7 +35,10 @@ HELP = (
     "• “Find contact <name>” / “Search notes for <words>”\n"
     "• “Remind me to <something> tomorrow” or “Add a note: <text>” (prepared for your confirmation)\n"
     "• Real estate and lending: “Approaching deadlines”, “Deals waiting on documents”, “Applications missing documents”, "
-    "“Properties matching this client”, “Draft a viewing confirmation”, “Last meeting's action items”"
+    "“Properties matching this client”, “Draft a viewing confirmation”, “Last meeting's action items”\n"
+    "• Connected services: “Search my email for <words>”, “Summarise the email thread about <words>”, “What's in my inbox?”, "
+    "“Slack messages about <words>”, “HighLevel contacts named <name>”, “Draft a reply to the email about <words>: <your text>” "
+    "(saved as a draft only after you confirm; you send it yourself in Nexus)"
 )
 
 _FILLER = {"summarise", "summarize", "summary", "of", "about", "contact", "the", "please", "tell", "me", "who", "is", "a", "an",
@@ -68,6 +71,19 @@ def intent(q: str, ctx: dict) -> str:
         return "create_task"
     if has("add a note", "note:", "save a note", "log a note"):
         return "create_note"
+    if has("draft a reply", "draft reply", "reply to the email", "reply to the thread", "write a reply"):
+        return "email_reply"
+    if has("email thread", "mail thread") or (has("summar", "read") and has("the email", "this email", "that email")):
+        return "email_thread"
+    if has("slack"):
+        return "slack"
+    if has("highlevel", "gohighlevel", "ghl"):
+        return "highlevel"
+    if has("inbox", "unread"):
+        return "inbox"
+    if has("search my email", "search email", "search my mail", "find email", "find the email", "emails about", "emails from",
+           "email about", "email from", "my email", "my emails", "mailbox"):
+        return "email_search"
     if has("next meeting", "prepare me", "prep me", "next appointment"):
         return "next_meeting"
     if has("waiting on document", "missing document", "document checklist", "outstanding document", "missing docs"):
@@ -136,6 +152,38 @@ def _task_title(q: str) -> tuple[str, dt.datetime | None]:
             title = title[: m2.start()] + title[m2.end():]
     title = title.strip(" :,-") or "Follow up"
     return title[:1].upper() + title[1:200], due
+
+
+_EMAIL_LEAD = re.compile(
+    r"(?i)^.*?(search (?:my )?e?mails? for|search (?:my )?e?mail(?:box)?|find (?:the )?e?mails?(?: about| from)?|e?mails? about|"
+    r"e?mails? from|e?mail threads? (?:about|from|with)|e?mail threads?|(?:the|this|that) e?mail (?:about|from|with)|"
+    r"draft (?:a )?reply to (?:the )?e?mail (?:about|from|with)|reply to (?:the )?(?:e?mail|thread) (?:about|from|with)|"
+    r"draft (?:a )?reply to|reply to (?:the )?(?:e?mail|thread)|in my e?mail|my e?mails?|mailbox)\s*")
+
+
+def _email_query(q: str) -> str:
+    """Gmail search words from the request ("emails from Harper" -> "from:Harper")."""
+    text = q.split(":", 1)[0] if re.search(r"(?i)\breply\b", q) else q
+    m = _EMAIL_LEAD.search(text)
+    lead = (m.group(1) if m else "").lower()
+    rest = (text[m.end():] if m else text).strip(" ?.!")
+    rest = re.sub(r"(?i)^(the|a|an|about|for)\s+", "", rest)
+    if lead.endswith("from") and rest and " " not in rest:
+        return f"from:{rest}"[:200]
+    return rest[:200]
+
+
+def _reply_text(q: str) -> str:
+    m = re.search(r":\s*(.+)$", q, re.S)
+    return m.group(1).strip() if m else ""
+
+
+def _after(q: str, *leads: str) -> str:
+    for lead in leads:
+        m = re.search(lead, q, re.I)
+        if m:
+            return q[m.end():].strip(" ?.!")[:100]
+    return ""
 
 
 def _note_text(q: str) -> str:
@@ -243,6 +291,35 @@ class DevProvider:
                     return "There is no upcoming viewing to confirm."
                 return want("draft_viewing_confirmation", {"event_id": rows[0]["id"]})
             return "Here is a draft built from the appointment. It hasn't been sent: copy it and send it yourself."
+        if kind in ("email_thread", "email_reply"):
+            if "search_email" not in available:
+                return "Email isn't connected for this workspace (connect Gmail under Integrations)."
+            if not done:
+                if ctx.get("item_id"):
+                    first = {"id": ctx["item_id"]}
+                else:
+                    query = _email_query(q)
+                    if not query:
+                        return "Which email? Write “… the email about <words>”."
+                    return want("search_email", {"query": query, "limit": 5})
+            else:
+                first = None
+            if done and last[0] == "search_email":
+                rows = last[1].get("threads", [])
+                if not rows:
+                    return "No email thread in your mailbox matches that."
+                first = rows[0]
+            if first is not None:
+                if kind == "email_thread":
+                    return want("get_email_thread", {"item_id": first["id"]})
+                text = _reply_text(q)
+                if not text:
+                    return "In development mode I can't write the reply. Write “Draft a reply to the email about <words>: <your text>”."
+                return want("prepare_email_reply_draft", {"item_id": first["id"], "body": text})
+            if last[0] == "prepare_email_reply_draft":
+                return ("I prepared a reply draft. Review it below and press Confirm to save it as a draft in Gmail; nothing is sent. "
+                        "You review and send it in Nexus.")
+            return "Here is the email thread. In development mode there is no AI-written summary: the messages are listed as they are."
         if done:
             if last[0].startswith("prepare_"):
                 return "I prepared this change. Review it below and press Confirm to apply it, or Cancel."
@@ -268,6 +345,29 @@ class DevProvider:
                 if name in available:
                     return [_call(name, {})]
             return "Lending document checklists aren't turned on for this workspace, so there's nothing to list."
+        if kind == "email_search":
+            if "search_email" not in available:
+                if "search_activities" in available:
+                    return want("search_activities", {"query": _email_query(q)[:100], **({"contact_id": ctx["contact_id"]} if ctx.get("contact_id") else {})})
+                return "Email isn't connected for this workspace."
+            query = _email_query(q)
+            if not query:
+                return "What should I look for? Write “Search my email for <words>”."
+            return want("search_email", {"query": query, "limit": 10})
+        if kind == "inbox":
+            src = next((x for x in ("gmail", "slack", "gohighlevel") if x in q.lower()), "all")
+            return want("list_inbox", {"unread_only": "all" not in q.lower().split(), "source": src})
+        if kind == "slack":
+            query = _after(q, r"slack messages? (about|on|with|mentioning)\s+", r"in slack (about|on)\s+", r"slack (about|for)\s+")
+            channel = _after(q, r"(in|on) #")
+            return want("search_slack_messages", {"query": "" if channel else query, "channel": channel.split()[0] if channel else ""})
+        if kind == "highlevel":
+            if "opportunit" in q.lower():
+                return want("list_highlevel_opportunities", {"query": _after(q, r"opportunit(y|ies) (named|called|about|for)\s+")})
+            query = _after(q, r"contacts? (named|called|for|matching)\s+", r"(search|find) (in )?(go)?highlevel (for )?\s*", r"ghl (for )?\s*")
+            if not query:
+                return "Who should I look for in HighLevel? Write “HighLevel contacts named <name>”."
+            return want("search_highlevel_contacts", {"query": query})
         if kind == "deadlines":
             return want("approaching_deadlines", {"days": _days(q.lower(), 14)})
         if kind == "last_meeting":

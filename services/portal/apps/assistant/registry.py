@@ -128,6 +128,10 @@ class Tool:
     idempotent: bool = True
     open_world: bool = False
     sensitive: bool = False
+    # False for tools that call an external provider (Gmail, Slack, HighLevel) or manage
+    # their own transactions: they must not run inside a wrapping transaction (a rotated
+    # provider token must never be rolled back, and no lock is held during network calls).
+    atomic: bool = True
 
     @property
     def scope(self) -> str:

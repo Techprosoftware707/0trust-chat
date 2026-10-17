@@ -99,7 +99,7 @@ def action_detail(request, actor, action_id):
     return _action_response(row)
 
 
-@api_endpoint(methods=["POST"], feature="assistant")
+@api_endpoint(methods=["POST"], feature="assistant", atomic=False)  # confirm() manages its transactions (external drafts)
 def action_confirm(request, actor, action_id):
     try:
         row = actions.confirm(request, actor, action_id, channel=Channel.ASSISTANT)
