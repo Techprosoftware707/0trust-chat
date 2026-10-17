@@ -142,6 +142,16 @@ BILLING_PROVIDER=none
 #NEXUS_GHL_APP_ID=                          # optional: lets "Disconnect" uninstall the HighLevel app
 #NEXUS_INTEGRATIONS_MOCK=false              # true = local fake providers; refused when NEXUS_ENVIRONMENT=production
 
+# --- Nexus AI assistant and Claude connector (docs/nexus/CLAUDE-CONNECTOR.md) --------------------
+# In-app assistant: AI_PROVIDER=anthropic needs AI_MODEL (a current Claude model ID; there is no
+# default on purpose) and the API key as a secret: sudo ./lumenctl set-secret ai_api_key.
+# Empty AI_PROVIDER = no model in production, development mode (no model, labelled) otherwise.
+# Connecting Claude as a connector (NEXUS_MCP_ENABLED) does NOT give the app a model.
+#AI_PROVIDER=anthropic
+#AI_MODEL=                                  # e.g. a current Claude model ID from the Anthropic docs
+#NEXUS_MCP_ENABLED=false                    # true = Claude connector at https://<LUMEN_PRIMARY_DOMAIN>/mcp
+#NEXUS_MCP_EXTRA_REDIRECT_URIS=             # extra https OAuth callbacks allowed for registration (comma-separated)
+
 # --- Branding ----------------------------------------------------------------------------
 BRAND_NAME=Lumen Secure
 BRAND_SHORT_NAME=Lumen

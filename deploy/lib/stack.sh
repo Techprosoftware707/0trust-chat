@@ -50,6 +50,8 @@ ensure_secrets() {
   ensure_optional_secret nexus_slack_client_secret
   ensure_optional_secret nexus_slack_signing_secret
   ensure_optional_secret nexus_ghl_client_secret
+  # Nexus AI assistant: Anthropic API key for AI_PROVIDER=anthropic (empty = no model).
+  ensure_optional_secret ai_api_key
   ensure_optional_secret synapse_admin_token
   # OIDC signing key for the portal identity provider.
   if [[ ! -s "$LUMEN_SECRETS_DIR/oidc_private_key.pem" ]]; then

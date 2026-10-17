@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import sys
+import urllib.parse
 from pathlib import Path
 
 # ----------------------------------------------------------------------------
@@ -113,6 +114,14 @@ DEFAULTS: dict[str, str] = {
     "NEXUS_GHL_CLIENT_ID": "",
     "NEXUS_GHL_APP_ID": "",
     "NEXUS_INTEGRATIONS_MOCK": "false",  # local fake providers: test/development installs only
+    # Nexus AI assistant and Claude connector (docs/nexus/CLAUDE-CONNECTOR.md, docs/nexus/CONFIG.md).
+    # AI_PROVIDER: empty = the portal default (dev outside production, none in production);
+    # anthropic needs AI_MODEL (a current Claude model ID, no default on purpose) and the secret
+    # file ai_api_key (lumenctl set-secret ai_api_key). The connector gives the app no model.
+    "AI_PROVIDER": "",
+    "AI_MODEL": "",
+    "NEXUS_MCP_ENABLED": "false",  # the Claude (MCP) connector at https://<primary domain>/mcp
+    "NEXUS_MCP_EXTRA_REDIRECT_URIS": "",  # admin allow-list of extra https OAuth callbacks (comma-separated)
     "BRAND_LEGAL_NAME": "",
     "BRAND_JURISDICTION": "",
     "SUPPORT_EMAIL": "",
@@ -137,7 +146,7 @@ DEFAULTS: dict[str, str] = {
 }
 
 BOOL_KEYS = {"PRESENCE_ENABLED", "CALLS_ENABLED", "CALLS_ALLOW_PRIVATE_NODE_IP", "WIREGUARD_ENABLED", "PUBLIC_STATUS_PAGE",
-             "PUSH_ENABLED", "PUSH_APNS_SANDBOX", "NEXUS_INTEGRATIONS_MOCK"}
+             "PUSH_ENABLED", "PUSH_APNS_SANDBOX", "NEXUS_INTEGRATIONS_MOCK", "NEXUS_MCP_ENABLED"}
 DOMAIN_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -240,6 +249,19 @@ def validate(cfg: dict[str, str]) -> None:
         errors.append("NEXUS_ENVIRONMENT must be production, test or development")
     if cfg["NEXUS_INTEGRATIONS_MOCK"].lower() in {"true", "yes", "1", "on"} and cfg["NEXUS_ENVIRONMENT"] == "production":
         errors.append("NEXUS_INTEGRATIONS_MOCK (fake providers) is only allowed with NEXUS_ENVIRONMENT=test or development")
+    provider = cfg["AI_PROVIDER"].strip().lower()
+    if provider not in {"", "none", "dev", "anthropic"}:
+        errors.append("AI_PROVIDER must be none, dev or anthropic (or empty for the default)")
+    if provider == "dev" and cfg["NEXUS_ENVIRONMENT"] == "production":
+        errors.append("AI_PROVIDER=dev (development mode, no model) is only allowed with NEXUS_ENVIRONMENT=test or development")
+    if provider == "anthropic" and not cfg["AI_MODEL"]:
+        errors.append("AI_PROVIDER=anthropic needs AI_MODEL: set it to a current Claude model ID")
+    if cfg["AI_MODEL"] and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,99}", cfg["AI_MODEL"]):
+        errors.append("AI_MODEL contains characters a model ID can't have")
+    for uri in split_list(cfg["NEXUS_MCP_EXTRA_REDIRECT_URIS"]):
+        u = urllib.parse.urlsplit(uri)
+        if u.scheme != "https" or not u.hostname or u.query or u.fragment or u.username or u.password:
+            errors.append(f"NEXUS_MCP_EXTRA_REDIRECT_URIS entry {uri!r} must be an https URL without query, fragment or credentials")
     for k in ("NEXUS_GOOGLE_CLIENT_ID", "NEXUS_SLACK_CLIENT_ID", "NEXUS_GHL_CLIENT_ID", "NEXUS_GHL_APP_ID"):
         if cfg[k] and not re.fullmatch(r"[A-Za-z0-9._-]{1,200}", cfg[k]):
             errors.append(f"{k} contains characters a client ID can't have")
@@ -757,6 +779,17 @@ def app_links_handlers(cfg) -> list[str]:
     return lines
 
 
+def mcp_routes(cfg) -> list[str]:
+    """The Claude connector lives on the primary (portal) site: /mcp and its RFC 9728
+    metadata. When it is off, the edge answers 404 itself (the portal does too)."""
+    if truthy(cfg["NEXUS_MCP_ENABLED"]):
+        return ["\t\t# Claude connector (MCP): /mcp and /.well-known/oauth-protected-resource[/mcp] go to the portal."]
+    return [
+        "\t\t@mcp_off path /mcp /mcp/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*",
+        "\t\trespond @mcp_off 404",
+    ]
+
+
 def render_caddy(cfg, out: Path) -> None:
     p, app, mx, ops = cfg["LUMEN_PRIMARY_DOMAIN"], cfg["LUMEN_APP_DOMAIN"], cfg["LUMEN_MATRIX_DOMAIN"], cfg["LUMEN_OPS_DOMAIN"]
     rtc = cfg["LUMEN_RTC_DOMAIN"]
@@ -857,6 +890,7 @@ def render_caddy(cfg, out: Path) -> None:
         "\troute {",
         "\t\t@private path /ops /ops/* /internal /internal/*",
         "\t\trespond @private 404",
+        *mcp_routes(cfg),
         matrix_wellknown.rstrip("\n").replace("\n\t", "\n\t\t").replace("\thandle", "\t\thandle", 1),
         brand.rstrip("\n").replace("\n\t", "\n\t\t").replace("\thandle_path", "\t\thandle_path", 1),
         f"\t\treverse_proxy unix/{sock}/portal.sock {{",
@@ -1243,7 +1277,7 @@ def render_app_env(cfg, out: Path) -> None:
         "BRAND_LEGAL_NAME", "BRAND_JURISDICTION", "SUPPORT_EMAIL", "SECURITY_EMAIL", "PRIVACY_EMAIL",
         "PUBLIC_STATUS_PAGE", "SYNAPSE_OIDC_CLIENT_ID", "LOG_LEVEL", "TLS_MODE", "APP_URL_SCHEME",
         "NEXUS_ENVIRONMENT", "NEXUS_GOOGLE_CLIENT_ID", "NEXUS_SLACK_CLIENT_ID", "NEXUS_GHL_CLIENT_ID", "NEXUS_GHL_APP_ID",
-        "NEXUS_INTEGRATIONS_MOCK",
+        "NEXUS_INTEGRATIONS_MOCK", "AI_PROVIDER", "AI_MODEL", "NEXUS_MCP_ENABLED", "NEXUS_MCP_EXTRA_REDIRECT_URIS",
     ]
     text = "# Generated by Lumen. Non-secret application settings.\n"
     text += "".join(f"{k}={cfg[k]}\n" for k in keys)

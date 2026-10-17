@@ -240,5 +240,43 @@ class TestNexusIntegrations(unittest.TestCase):
         rendered("NEXUS_ENVIRONMENT=test\nNEXUS_INTEGRATIONS_MOCK=true\n")
 
 
+class TestNexusAi(unittest.TestCase):
+    """Nexus AI assistant and Claude connector: settings reach app.env, the key never does,
+    the connector is closed at the edge unless enabled, invalid settings are refused."""
+
+    def test_defaults_connector_off_at_the_edge(self):
+        out = rendered()
+        env = (out / "app.env").read_text()
+        self.assertIn("NEXUS_MCP_ENABLED=false\n", env)
+        self.assertIn("AI_PROVIDER=\n", env)
+        self.assertIn("AI_MODEL=\n", env)
+        caddy = (out / "caddy" / "Caddyfile").read_text()
+        self.assertIn("@mcp_off path /mcp /mcp/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*", caddy)
+        self.assertIn("respond @mcp_off 404", caddy)
+
+    def test_enabled_connector_and_anthropic_provider(self):
+        out = rendered("NEXUS_MCP_ENABLED=true\nAI_PROVIDER=anthropic\nAI_MODEL=example-model-id\n"
+                       "NEXUS_MCP_EXTRA_REDIRECT_URIS=https://client.example.com/oauth/callback\n")
+        env = (out / "app.env").read_text()
+        self.assertIn("NEXUS_MCP_ENABLED=true\n", env)
+        self.assertIn("AI_PROVIDER=anthropic\nAI_MODEL=example-model-id\n", env)
+        self.assertIn("NEXUS_MCP_EXTRA_REDIRECT_URIS=https://client.example.com/oauth/callback\n", env)
+        self.assertNotIn("AI_API_KEY", env)
+        caddy = (out / "caddy" / "Caddyfile").read_text()
+        self.assertNotIn("@mcp_off", caddy)
+        compose = (REPO / "docker-compose.yml").read_text()
+        self.assertIn("AI_API_KEY_FILE: /run/secrets/ai_api_key", compose)
+
+    def test_invalid_ai_settings_are_refused(self):
+        self.assertIn("AI_PROVIDER must be", config_error("AI_PROVIDER=openai\n"))
+        self.assertIn("needs AI_MODEL", config_error("AI_PROVIDER=anthropic\n"))
+        self.assertIn("AI_PROVIDER=dev", config_error("NEXUS_ENVIRONMENT=production\nAI_PROVIDER=dev\n"))
+        self.assertIn("AI_MODEL contains", config_error("AI_MODEL=bad model;rm\n"))
+        self.assertIn("NEXUS_MCP_EXTRA_REDIRECT_URIS", config_error("NEXUS_MCP_EXTRA_REDIRECT_URIS=http://insecure.example.com/cb\n"))
+        self.assertIn("NEXUS_MCP_EXTRA_REDIRECT_URIS", config_error("NEXUS_MCP_EXTRA_REDIRECT_URIS=https://x.example.com/cb?a=1\n"))
+        self.assertIn("NEXUS_MCP_ENABLED must be", config_error("NEXUS_MCP_ENABLED=maybe\n"))
+        rendered("NEXUS_ENVIRONMENT=production\nAI_PROVIDER=none\n")
+
+
 if __name__ == "__main__":
     unittest.main()

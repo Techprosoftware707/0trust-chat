@@ -162,6 +162,7 @@ services:
       NEXUS_SLACK_CLIENT_SECRET_FILE: /run/secrets/nexus_slack_client_secret
       NEXUS_SLACK_SIGNING_SECRET_FILE: /run/secrets/nexus_slack_signing_secret
       NEXUS_GHL_CLIENT_SECRET_FILE: /run/secrets/nexus_ghl_client_secret
+      AI_API_KEY_FILE: /run/secrets/ai_api_key
     secrets:
       - django_secret_key
       - postgres_app_password
@@ -175,6 +176,7 @@ services:
       - nexus_slack_client_secret
       - nexus_slack_signing_secret
       - nexus_ghl_client_secret
+      - ai_api_key
     volumes:
       - ${LUMEN_SOCKET_DIR}:/sockets
     networks:
@@ -465,3 +467,5 @@ secrets:
     file: ${LUMEN_SECRETS_DIR}/nexus_slack_signing_secret
   nexus_ghl_client_secret:
     file: ${LUMEN_SECRETS_DIR}/nexus_ghl_client_secret
+  ai_api_key:
+    file: ${LUMEN_SECRETS_DIR}/ai_api_key
