@@ -185,7 +185,7 @@ await test("navigation lists every area; coming-soon areas say so", async () => 
   for (const l of ["Home", "Inbox", "Chat", "Calls & Meetings", "Contacts", "CRM", "Pipelines", "Tasks", "Calendar", "AI Assistant", "Reports", "Integrations", "Settings"]) {
     assert.ok(labels.includes(l), `missing nav entry ${l}`);
   }
-  for (const id of ["inbox", "calls", "calendar", "assistant", "reports", "integrations"]) {
+  for (const id of ["inbox", "calls", "calendar", "reports", "integrations"]) {
     await go(app, `#/${id}`);
     await app.getByText("Coming in this test build").waitFor();
   }

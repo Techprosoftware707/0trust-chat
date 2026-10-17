@@ -63,7 +63,7 @@ export function AiSettingsCard() {
   };
   return (
     <section className="ws-card" aria-labelledby="set-ai">
-      <header className="ws-card-header">
+      <header className="ws-card-header ai-card-header">
         <h2 id="set-ai">
           <Sparkles aria-hidden="true" className="inline-icon" /> AI and connectors
         </h2>

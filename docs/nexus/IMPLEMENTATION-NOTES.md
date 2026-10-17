@@ -164,3 +164,57 @@ screenshots in `screenshots/foundation/` were refreshed (all that changed visibl
 up the operator tunnel and creates a first device profile (`WG_ENDPOINT` is new; see the Lumen
 docs). It is for server administration only; chat stays protected by Matrix end-to-end
 encryption, and the local Nexus test environment does not run it.
+
+## Team B3: AI assistant and Claude connector
+
+What was built is described in [CLAUDE-CONNECTOR.md](CLAUDE-CONNECTOR.md) and the settings in
+[CONFIG.md](CONFIG.md#ai-assistant-and-claude-connector-team-b3). Decisions and findings:
+
+* **No new dependencies.** The Anthropic provider uses raw HTTPS with `requests` (already a
+  dependency), not the `anthropic` SDK. The official MCP SDK (`mcp` 2.3.0 and 1.30.0, approved
+  by main as dev-only conformance clients) lived in throwaway venvs in the scratchpad. Their
+  `pip freeze` is in `docs/nexus/evidence/b3/`. Evidence lives in `docs/nexus/evidence/`
+  because `test-results/` is ignored by the repository's `.gitignore`.
+* **`@api_endpoint(atomic=False)`** (shared change in `apps/api/decorators.py`). The chat view
+  must not hold one request transaction around model calls that take seconds, because the
+  audit chain takes `pg_advisory_xact_lock`. Each tool runs in its own short transaction
+  instead. Tools that call an external provider (`Tool.atomic=False`) and `confirm` manage
+  their own transactions, so a provider's rotated token is never rolled back.
+* **`iss` on every authorization response** (RFC 9207, `apps/oidc/views.py`), including the
+  SPA's `nexus-web` flow. `tests/test_nexus_auth.py` expects it.
+* **allauth gaps worked around** (`apps/mcp/oauth.py`, `apps/oidc/adapter.py`):
+  * DCR without `token_endpoint_auth_method` defaulted to `client_secret_basic`; it is
+    normalised to `none` (public).
+  * `localhost` loopback redirects didn't match any port; `clientkit.is_loopback` is patched in
+    `McpConfig.ready()` so `localhost` counts like `127.0.0.1` (Claude Code uses both).
+  * `prompt=none` (silent authorization) would issue a code without the consent screen; for
+    MCP clients it now answers `consent_required`, so every connection is approved explicitly.
+  * allauth's own CIMD support (2 KB limit, no SSRF protection) is not used. `apps/mcp/cimd.py`
+    fetches documents itself: pinned to the vetted public IP, no redirects, size and time
+    limits.
+  * Refresh-token reuse can't be detected from allauth's table, because the old token is
+    deleted on rotation. Hashes of rotated tokens are kept (`RotatedRefreshToken`) until they
+    would have expired, and presenting one revokes the connection.
+  * Validation errors at the token endpoint became 500s; the wrapper answers `invalid_request`.
+* **A connection is bound to one workspace at consent** (`McpGrant`). The consent screen asks
+  when the person belongs to several, so a token can never be used in another workspace.
+* **Consent CSP**: `form-action` is extended with the redirect origin on the consent page.
+  Browsers otherwise block the redirect that follows the form POST.
+* **"Save to record"** is a panel in the room's CRM sidebar with a picker of this device's
+  decrypted text messages, not a selection mode in Lumen's timeline. That would have meant
+  editing shared Lumen chat components.
+* **SPA routes assumed for other teams' records**: `#/properties/<id>` and `#/lending/<id>`
+  (verticals) and `#/inbox/<id>` (integrations). They are registered with `register_link` in
+  `apps/crm/ai_tools_verticals.py` and `apps/integrations/ai_tools.py`, so they are easy to
+  change.
+* **AI-suggested next steps** (`suggest_next_step`) use `meetings.propose_action_item(source="ai_suggestion")`,
+  as main asked. The proposed action item is itself the proposal a person confirms in Nexus;
+  there is no extra PendingAction.
+* **Integrations**: drafts only. `prepare_email_reply_draft` is two-phase. Confirming creates
+  the Gmail draft; sending stays in B2's UI flow. There are no tools for Slack posts or
+  HighLevel writes: B2's confirmation token would reach the model, and there is no UI to
+  confirm an AI-prepared external action.
+* **Dev environment**: `dev/nexus/setup.sh` on slot 3 reported failed Matrix shared-secret
+  registrations for the demo people. Those accounts already existed on the homeserver and
+  signing in worked. During the SDK conformance run the shared `nexus-pg` hit its 100-connection
+  limit (other slots' runservers held idle connections); main is adding `POSTGRES_CONN_MAX_AGE`.

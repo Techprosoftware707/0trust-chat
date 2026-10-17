@@ -65,17 +65,17 @@ export function ProviderBadge({ status }: { status: AssistantStatus | null }) {
   const p = status.provider;
   if (!p.configured) {
     return (
-      <span className="badge badge-warning" title={p.problem}>
+      <span className="badge badge-warning ai-provider-badge" title={p.problem}>
         <CircleAlert aria-hidden="true" /> No AI provider
       </span>
     );
   }
   return p.is_model ? (
-    <span className="badge badge-accent" title={p.model ? `Model: ${p.model}` : undefined}>
+    <span className="badge badge-accent ai-provider-badge" title={p.model ? `Model: ${p.model}` : undefined}>
       <Sparkles aria-hidden="true" /> {p.label}
     </span>
   ) : (
-    <span className="badge badge-info">
+    <span className="badge badge-info ai-provider-badge">
       <FlaskConical aria-hidden="true" /> Development mode: no AI model connected
     </span>
   );

@@ -245,6 +245,7 @@ actor = access.actor_for(ctx.user, workspace_id, token=ctx)
 | Background jobs | `apps/<app>/jobs.py`: `JOBS = [(name, seconds, fn)]` | the worker (`lumen_worker`) |
 | Feature flags | `apps/<app>/features.py` | `GET /workspaces/<id>` → `features` |
 | Access policies | `access.register(...)` in your `AppConfig.ready()` | `for_actor`, references |
+| AI tools | `apps/<app>/ai_tools.py`: `TOOLS = [Tool(...)]` (see `apps/assistant/registry.py`) | the in-app assistant and the Claude connector ([CLAUDE-CONNECTOR.md](CLAUDE-CONNECTOR.md)) |
 | A navigation area | `services/chat/src/workspace/areas/<id>.tsx` exporting `area = defineArea({...})` | auto-discovered (`import.meta.glob`) |
 | A panel next to a conversation | the same kind of file exporting `roomPanel = defineRoomPanel({...})` | a button in the room header |
 

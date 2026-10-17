@@ -152,6 +152,25 @@ Screenshots (light/dark, 1440px desktop and 390px phone) land in
 `docs/nexus/screenshots/foundation/`. The smoke fails on console errors, horizontal overflow
 or a missing environment banner.
 
+### AI assistant and Claude connector (team B3)
+
+Run the portal with the connector on (`NEXUS_MCP_ENABLED=1 bash dev/nexus/run-portal.sh`) and
+let the demo workspace allow it (Settings → AI and connectors → "Members may connect Claude",
+as Avery). Then:
+
+```sh
+. dev/nexus/env.sh && NEXUS_PORTAL_URL=http://127.0.0.1:$NEXUS_PORTAL_PORT NEXUS_APP_URL=http://127.0.0.1:$NEXUS_CHAT_PORT \
+  node tests/nexus/assistant.smoke.mjs        # 8 checks, screenshots in docs/nexus/screenshots/b3/
+# Protocol conformance with the official MCP SDK (dev-only, in a throwaway venv; skips with exit 77 without it):
+python3 -m venv /tmp/mcp-sdk && /tmp/mcp-sdk/bin/pip install mcp==2.3.0
+. dev/nexus/env.sh && /tmp/mcp-sdk/bin/python -I tests/nexus/mcp_sdk_conformance.py --server http://127.0.0.1:$NEXUS_PORTAL_PORT
+```
+
+The in-app assistant uses the development provider here (no model, labelled). For the
+Anthropic API set `AI_PROVIDER=anthropic`, `AI_MODEL=<a current Claude model ID>` and
+`AI_API_KEY` (allowed as a plain variable only in local development) before starting the portal.
+See [CLAUDE-CONNECTOR.md](CLAUDE-CONNECTOR.md).
+
 ### Brand contrast (WCAG 2.2 AA)
 
 ```sh

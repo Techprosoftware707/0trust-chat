@@ -408,6 +408,8 @@ body[data-env-banner] .incoming-calls { top: calc(var(--env-banner-h) + var(--sp
 .ai-fields .ai-field { display: contents; }
 .ai-action-buttons { align-items: center; gap: var(--space-2); }
 .ai-action-done { margin: 0; }
+.ai-provider-badge { white-space: normal; max-width: 100%; min-width: 0; }
+.ai-card-header { flex-wrap: wrap; align-items: center; }
 .ai-action-done a { margin-left: var(--space-1); }
 .ai-composer { position: sticky; bottom: 0; display: grid; gap: var(--space-2); padding: var(--space-3); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
 .ai-composer-row { display: flex; gap: var(--space-2); align-items: flex-end; }
