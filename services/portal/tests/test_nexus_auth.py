@@ -283,3 +283,29 @@ def test_unknown_api_paths_and_methods_use_the_error_format():
     r = api.post("/api/v1/me", {})
     assert r.status_code == 405 and body(r)["error"]["code"] == "method_not_allowed" and "GET" in r["Allow"]
     assert Client().get("/api/v2/me").status_code == 404
+
+
+def test_prompt_none_without_portal_session_answers_login_required():
+    """Silent sign-in (the SPA's automatic attempt) must never strand people on a login page
+    and never error: it gets login_required at the registered redirect URI."""
+    _, challenge = pkce()
+    r = authorize(Client(), challenge, prompt="none")
+    assert r.status_code == 302
+    loc = urlparse(r["Location"])
+    assert f"{loc.scheme}://{loc.netloc}{loc.path}" == REDIRECT
+    assert parse_qs(loc.query) == {"error": ["login_required"], "state": ["st-1"]}
+    # Unregistered redirect URIs and unknown clients get an error page, not a redirect.
+    r = authorize(Client(), challenge, prompt="none", redirect_uri="https://evil.example/cb")
+    assert r.status_code == 400 and "Location" not in r
+    r = authorize(Client(), challenge, prompt="none", client_id="nope")
+    assert r.status_code == 400 and "Location" not in r
+
+
+def test_prompt_none_with_portal_session_issues_a_code():
+    u = make_user()
+    c = Client(); c.force_login(u)
+    verifier, challenge = pkce()
+    r = authorize(c, challenge, prompt="none")
+    assert r.status_code == 302 and "code=" in r["Location"], r.content[:300]
+    code = parse_qs(urlparse(r["Location"]).query)["code"][0]
+    assert exchange(code, verifier).status_code == 200
