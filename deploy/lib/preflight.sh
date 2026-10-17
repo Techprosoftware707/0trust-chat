@@ -57,13 +57,21 @@ check_memory() {
   if ((mem_mb < 3800 && swap_mb == 0)); then pf_warn "no swap configured; consider adding 2 GB of swap on small servers"; fi
 }
 
+# A first installation needs room for the container images (about 3 GB) and the data. On a
+# re-run (configuration change, resumed or repeated install) that space is already used by Lumen
+# itself, so only headroom for changed images is required.
 check_disk() {
-  local target free_gb
+  local target free_gb need=10
+  if [[ -f "$LUMEN_STATE_FILE" || -d "$(conf_get LUMEN_DATA_DIR /var/lib/lumen)/postgres/pgdata" ]]; then need=3; fi
   for target in /var/lib /var/backups; do
     mkdir -p "$target" 2>/dev/null || true
     free_gb=$(($(df -Pk "$target" | awk 'NR==2 {print $4}') / 1024 / 1024))
-    if ((free_gb < 10)); then
-      pf_error "only ${free_gb} GB free on $target. Lumen needs at least 10 GB (40 GB+ recommended for media and backups)."
+    if ((free_gb < need)); then
+      if ((need == 10)); then
+        pf_error "only ${free_gb} GB free on $target. Lumen needs at least 10 GB (40 GB+ recommended for media and backups)."
+      else
+        pf_error "only ${free_gb} GB free on $target. Re-running the installer on an existing installation needs at least 3 GB free (for updated images); free some space first."
+      fi
     elif ((free_gb < 25)); then
       pf_warn "${free_gb} GB free on $target; media uploads and backups grow over time (40 GB+ recommended)"
     else

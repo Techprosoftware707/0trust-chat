@@ -67,7 +67,11 @@ crash_recovers() { # service
 for svc in synapse portal ops postgres; do
   check "$svc killed with SIGKILL comes back healthy on its own" crash_recovers "$svc"
 done
-check "healthy after the crashes" healthy
+# Right after PostgreSQL comes back, each of the homeserver's pooled database connections fails
+# one transaction (HTTP 500) and is then replaced (Synapse's cp_reconnect); measured: about 15 s
+# with light traffic. Required: healthy again on its own, with no operator action, within 2 min.
+settles() { local t0=$SECONDS; until healthy; do ((SECONDS - t0 < 120)) || return 1; sleep 10; done; echo "healthy $((SECONDS - t0)) s after the last crash"; }
+check "healthy again on its own within 2 min of the crashes" settles
 check "data intact after the crashes (marker A)" user_exists lcmarker-a
 
 echo "--- health and diagnostics"

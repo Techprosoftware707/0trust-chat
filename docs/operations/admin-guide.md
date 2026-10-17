@@ -17,7 +17,9 @@ DNS knowledge. Disaster recovery has its own guide:
 | Time | NTP synchronised (`timedatectl`) | — |
 
 The installer checks all of these (preflight) and refuses to continue on hard
-failures (wrong OS, ports taken by another program, no internet). It never
+failures (wrong OS, ports taken by another program, no internet, less than 10 GB
+free for a first installation). Re-running it on an existing installation needs only
+3 GB free, because the images and data already count as used space. It never
 replaces an existing reverse proxy, resets a firewall or stops unrelated services.
 
 ## 2. Install
