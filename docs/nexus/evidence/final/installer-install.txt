@@ -1,4 +1,4 @@
-Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261017T112806Z.log
+Lumen Secure installer 1.0.0 — log: /var/log/lumen/install-20261017T123056Z.log
 
 ==> Configuration
     using configuration from /root/lumen-it.conf
@@ -146,4 +146,4 @@ Remaining manual items:
   • optional: configure SMTP_* to enable email verification and password reset
   • store /etc/lumen/backup/identity.txt offline; without it backups cannot be decrypted
 
-Log: /var/log/lumen/install-20261017T112806Z.log
+Log: /var/log/lumen/install-20261017T123056Z.log

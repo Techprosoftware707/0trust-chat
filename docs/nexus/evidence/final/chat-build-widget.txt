@@ -1,6 +1,6 @@
 $ cd /home/user/nexus/services/chat
 $ npm run --if-present build:widget 2>&1 | tail -10
-# started 2026-10-17T11:25:49Z at d88749b
+# started 2026-10-17T12:24:01Z at 4c6ec21
 dist-widget/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
 dist-widget/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
 dist-widget/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
@@ -8,7 +8,7 @@ dist-widget/licenses/third-party.md                                    72.33 kB
 dist-widget/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
 dist-widget/assets/widget-CsmBZU9N.css                                105.58 kB
 dist-widget/assets/_lumen-widget-no-rust-crypto-CYotQddD.js             0.12 kB
-dist-widget/assets/widget-ULe1vAK1.js                               2,103.86 kB
+dist-widget/assets/widget-qg5y4LEi.js                               2,105.66 kB
 
-✓ built in 4.20s
-# finished 2026-10-17T11:26:06Z exit=0
+✓ built in 2.93s
+# finished 2026-10-17T12:24:17Z exit=0

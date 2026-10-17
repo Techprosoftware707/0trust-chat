@@ -1,11 +1,11 @@
 $ cd /home/user/nexus
 $ bash dev/nexus/setup.sh --fresh 2>&1 | tail -40 && . dev/nexus/env.sh && cd services/portal && $NEXUS_VENV/bin/python manage.py showmigrations workspaces crm automation integrations assistant mcp
-# started 2026-10-17T11:34:29Z at dda1a5d
+# started 2026-10-17T12:24:58Z at 4c6ec21
 plans: created ['free', 'pro', 'business', 'enterprise']
 oidc client: created (lumen-synapse -> http://127.0.0.1:28108/_synapse/client/oidc/callback)
 oauth client: created (nexus-web, public, PKCE -> http://127.0.0.1:5710/oauth/callback)
 bootstrap complete
-demo workspace: Harborview Realty & Lending (demo) (f9ae0fbe-821c-43cd-94ca-efb644bc654a)
+demo workspace: Harborview Realty & Lending (demo) (66b52597-6521-4737-9ce6-1d9172285187)
 business records: 124 created
 demo accounts created: demo-avery, demo-morgan, demo-riley, demo-jordan, demo-casey, demo-sam
 accounts: demo-avery (owner), demo-morgan (manager), demo-riley (agent), demo-jordan (agent), demo-casey (member), demo-sam (readonly)
@@ -35,4 +35,4 @@ assistant
  [X] 0001_initial
 mcp
  [X] 0001_initial
-# finished 2026-10-17T11:34:57Z exit=0
+# finished 2026-10-17T12:25:29Z exit=0

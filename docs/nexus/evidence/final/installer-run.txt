@@ -1,5 +1,6 @@
-$ bash scratchpad/qa/vm-nexus.sh   # fresh test server via tests/installer/vm.sh, install.sh, then vm-checks.sh inside it
-### branch test/unified-business-workspace at d88749b; working tree: 1 changed/untracked paths
+$ bash scratchpad/qa/vm-nexus.sh   # (scripts/vm-nexus.sh) fresh test server via tests/installer/vm.sh, install.sh, then scripts/vm-checks.sh inside it
+# code at 4c6ec21; the 34 uncommitted paths in the copied tree were docs and evidence only (git status: no code changes)
+### branch test/unified-business-workspace at 4c6ec21; working tree: 34 changed/untracked paths
 ### free disk before:   12G
 VM lumen-it ready (systemd: running)
 ### config (lumen-it-current.conf with the test server's IP and the two Nexus keys):
@@ -32,39 +33,33 @@ install exit 0
     ✔ portal database migrated and bootstrapped
 Result: SUCCESS — all endpoint checks passed
 ### free disk after the install:  8.3G
-checks exit 1
+checks exit 0
+### 6. /mcp without a token
+HTTP/2 401 
 www-authenticate: Bearer resource_metadata="https://lumen-it.test/.well-known/oauth-protected-resource/mcp", scope="mcp:read mcp:write"
 PASS /mcp answers 401 with WWW-Authenticate resource_metadata
 ### 7. a synthetic owner and business workspace (token not printed)
-PASS synthetic workspace a200bcb5-8168-4eac-b125-e0fbcead6071 and a nexus-web access token created
+PASS synthetic workspace 59a14892-30c4-417d-a145-50931eab1d73 and a nexus-web access token created
 /api/v1/me with the token: nexus-qa-owner
 PASS /api/v1/me answers 200 with a nexus-web token
 PASS the SPA's nexus-web token is refused at /mcp (separate audiences)
 ### 8. integrations without credentials
-  File "<string>", line 3
-    print(f"{p[\"label\"]:12} configured={p[\"configured\"]!s:5} oauth_configured={p[\"oauth_configured\"]!s:5} methods={p[\"methods\"]} mock={p[\"mock\"]} can_connect={p[\"can_connect\"]} env_set={[e[\"name\"] for e in p[\"setup\"][\"env\"] if e[\"set\"]]}")
-                ^
-SyntaxError: unexpected character after line continuation character
-curl: (23) Failure writing output to destination
+Gmail        configured=False oauth_configured=False methods=[] mock=False can_connect=False settings present=['NEXUS_INTEGRATIONS_KEY']
+GoHighLevel  configured=True  oauth_configured=False methods=['private_token'] mock=False can_connect=True settings present=['NEXUS_INTEGRATIONS_KEY']
+Slack        configured=False oauth_configured=False methods=[] mock=False can_connect=False settings present=['NEXUS_INTEGRATIONS_KEY']
 PASS integrations: no provider OAuth client configured (Gmail, Slack not configured; HighLevel only offers a private integration token); mock mode off
 Home connected services: Gmail -> not_configured / Not set up on this server
 Home connected services: GoHighLevel -> not_connected / Not connected
 Home connected services: Slack -> not_configured / Not set up on this server
 ### 9. secure document storage (deploy-wiring patch NOT applied: expected 503)
-PASS lending application created through the API (58ea1361-3190-4c85-9647-526590e1d067)
+PASS lending application created through the API (2fad82f8-0dfc-43ad-b2d8-f62f3349b5fe)
 HTTP/2 503 
-{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "53ab3d97c87943938e2d04370da91c38"}}
-{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "53ab3d97c87943938e2d04370da91c38"}}
+{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "12ad83aa35184e68af83fd39e631d1b1"}}
+{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "12ad83aa35184e68af83fd39e631d1b1"}}
 PASS document upload answers 503 not_configured
 
-RESULT: 15 passed, 1 failed
-vm-nexus exit 0
-
-# the first vm-checks.sh run (installer-nexus-checks-run1.txt) had 1 FAIL and a Python error caused by the check script itself
-# (grep -q closing a pipe under pipefail; f-string quoting). Fixed script re-run on the same server: installer-nexus-checks.txt, 16/16 PASS.
+RESULT: 16 passed, 0 failed
 
 $ docker rm -f lumen-it && docker volume rm lumen-it-docker lumen-it-containerd
-lumen-it
-lumen-it-docker
-lumen-it-containerd
-# test server and its volumes removed; free disk back to 12G
+12:35:26 test server removed: 0 containers, 0 volumes left; free   12G
+# test server and its volumes removed afterwards

@@ -372,3 +372,34 @@ findings:
   * vitest 5's file cache (`services/chat/node_modules/.vitest-cache`) kept an old
     `import.meta.glob` expansion of `registry.ts`, so areas added by B1 were missing until the
     cache was cleared (DEVELOPMENT.md, Troubleshooting).
+
+## Final integration
+
+The integrated branch was verified end to end on a fresh state. Results, commands and the
+pending decisions are in [FINAL-REPORT.md](FINAL-REPORT.md); outputs in `evidence/final/`.
+
+* **Fresh state, twice.** Every check ran on the untouched branch (`d88749b`; evidence in commits
+  `dda1a5d` and `df7019c`) and again after the fixes: a new test database, `setup.sh --fresh` on
+  slot 0 (which also resets the dev homeserver), and a new installer test server.
+* **Upgrade from the base Lumen schema on a real database**, besides `test_nexus_migrations.py`:
+  rows written by `eefa6ab`'s own code survived this branch's `migrate` unchanged, and the roles
+  read correctly (FINAL-REPORT section 6).
+* **Three integration defects**, found by the brief's key flow (`tests/nexus/journey.smoke.mjs`)
+  and fixed in `4c6ec21` with tests (`tests/test_nexus_final_integration.py`, `workspace.test.tsx`,
+  `inbox-merge.test.ts`):
+  1. Meetings and their notes never reached the record's timeline. Team-visible ones now keep one
+     system entry each, in step with the event or note and attributed to its author. Private
+     and attendee-only ones never get one. The rule is enforced where entries are written, so
+     `access.py` is unchanged.
+  2. B2's HighLevel import API had no screen. The inbox offers "Add <name> to Nexus". The import
+     notes itself on the timeline (untrusted, no human actor, `last_activity_at` untouched) and
+     flags mock-provider contacts `is_demo`.
+  3. Home said "No follow-up set" next to a lead whose automation had just created its
+     follow-up task. Assigned leads now carry their earliest visible open task ("Next: … · due …").
+* **One existing assertion changed with the behaviour**: in `test_nexus_crm.py`, the contact
+  summary's latest timeline entry is now the meeting scheduled after the email.
+* **Left as designed**: an imported contact belongs to the importer, as when created by hand. So
+  the seeded "New lead" rule, which assigns unowned leads only, doesn't reassign it; the journey
+  has the manager untick "Only when it has no owner yet". "What follow-ups are overdue?" keeps the
+  foundation's meaning (contacts whose follow-up date has passed, like Home's card). Overdue
+  tasks have their own question.

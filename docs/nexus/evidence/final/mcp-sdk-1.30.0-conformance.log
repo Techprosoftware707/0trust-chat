@@ -1,6 +1,6 @@
 $ cd /home/user/nexus
 $ . dev/nexus/env.sh && /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/mcp-sdk-1/bin/python -I tests/nexus/mcp_sdk_conformance.py --server http://127.0.0.1:$NEXUS_PORTAL_PORT --username demo-riley --out docs/nexus/evidence/final
-# started 2026-10-17T11:39:20Z at dda1a5d
+# started 2026-10-17T12:28:42Z at 4c6ec21
 PASS  401 without a token, with resource_metadata in WWW-Authenticate - HTTP 401
 PASS  RFC 9728 metadata names the /mcp resource and the issuer - {"resource": "http://127.0.0.1:8710/mcp", "authorization_servers": ["http://127.0.0.1:8710"], "scopes_supported": ["mcp:read", "mcp:write"], "bearer_methods_supported": ["header"], "resource_name": "N
 PASS  [1.x] OAuth: DCR + PKCE S256 + resource, through the SDK (localhost loopback redirect)
@@ -19,5 +19,5 @@ PASS  [1.x 2025-11-25] a second confirm is refused (single use)
 
 PASS: 15 passed, 0 failed (mcp 1.30.0)
 evidence: docs/nexus/evidence/final/mcp-sdk-1.30.0-conformance.json
-# finished 2026-10-17T11:39:23Z exit=0
-# afterwards: rm -rf scratchpad/qa/mcp-sdk-1 scratchpad/qa/mcp-sdk-2 (both throwaway SDK venvs deleted)
+# finished 2026-10-17T12:28:45Z exit=0
+# afterwards: rm -rf scratchpad/qa/mcp-sdk-1 scratchpad/qa/mcp-sdk-2 (both throwaway SDK venvs deleted: 0 left)

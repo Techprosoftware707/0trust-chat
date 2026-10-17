@@ -20,7 +20,7 @@ this build has been tested against the live services. See [What is tested](#what
 | Auth | OAuth 2.0 web-server flow, offline access, **PKCE S256** + client secret | Marketplace app OAuth (Sub-Account token) **or** a Private Integration Token | OAuth v2 (bot token), client secret |
 | Scopes | `gmail.readonly`, `gmail.compose` | see §4 | `channels:read`, `channels:history`, `chat:write`, `users:read` (+ `groups:read`, `groups:history` only on admin opt-in) |
 | Sync | thread/message metadata + snippets; incremental through `history.list` | pipelines, opportunities, conversations (+ missed calls), tags, custom fields | Events API for selected channels; one back-fill page per newly selected channel |
-| On demand | message bodies (sanitized), attachments (proxied), live search with Gmail `q` | contact search, contact detail with tasks and appointments, conversation messages | permalinks |
+| On demand | message bodies (sanitized), attachments (proxied), live search with Gmail `q` | contact search, contact detail with tasks and appointments, conversation messages; **Add to Nexus** (import a contact from the inbox) | permalinks |
 | Writes (always after confirmation) | send a reviewed reply draft | create/update a contact; start a workflow (production only, admin opt-in) | post to a selected channel (thread replies) |
 | Not supported | push notifications (Pub/Sub) — polling instead | replying to conversations (link out) | private channels without opt-in, DMs, Enterprise Grid org installs |
 
@@ -248,6 +248,10 @@ ended in the last 7 days and are still "scheduled"). Merge rules live in
   notification type) per person;
 * linked records (contact, deal, task, or any registered record type) open in a side panel
   without leaving the inbox; suggestions by email/phone are never applied automatically;
+* a HighLevel conversation or missed call whose contact isn't in Nexus yet offers **Add <name> to
+  Nexus**: it creates the contact from HighLevel's name, email and phone (`ghl/contacts/<id>/import`),
+  links the item, and notes "Imported from HighLevel" on the contact's timeline. Lead automations
+  run on it like on any new lead. Nothing changes in HighLevel;
 * replies: Gmail through a draft and the confirmation dialog; Slack thread replies through
   the confirmation dialog; HighLevel replies are not supported here (link out to HighLevel);
 * `#/inbox/<inbox_item_id>` opens an item (links from the AI assistant); **Ask AI** on an item
@@ -302,7 +306,10 @@ fake providers through the transport seam; no network):
   bound to row and key; key rotation and re-encryption (`nexus_integrations_rekey`).
 
 **Mock-based browser smoke** (`tests/nexus/integrations.smoke.mjs`, slot servers in mock mode,
-screenshots in `docs/nexus/screenshots/b2/`). **SPA unit tests**:
+screenshots in `docs/nexus/screenshots/b2/`). The final integration's journey
+(`tests/nexus/journey.smoke.mjs`, mock mode) adds a HighLevel lead from the inbox, links an email
+to it and has the assistant save a Gmail reply draft (nothing sent); `tests/test_nexus_final_integration.py`
+covers the import with the lead automation and the timeline entry. **SPA unit tests**:
 `services/chat/test/unit/inbox-merge.test.ts`.
 
 **Not tested live** (no credentials): every request against Google, Slack and HighLevel;

@@ -1,0 +1,17 @@
+$ cd /home/user/nexus
+$ . dev/nexus/env.sh && node tests/nexus/journey.smoke.mjs
+# started 2026-10-17T12:36:09Z at ec0e5b0
+PASS 1. a manager routes new leads to an agent (seeded automation, edited in the app)
+PASS 2. a new lead arrives from HighLevel (mock) and is added from the inbox; the automation assigns it
+PASS 2b. the new owner is told and sees the lead with its follow-up task
+PASS 3. a team member links an encrypted conversation to the contact (only the room ID is stored)
+PASS 4. a meeting with the contact is scheduled, with its encrypted meeting room
+PASS 5. meeting notes and a proposed next step, confirmed by a person into a task
+PASS 6. the assistant (development provider) answers "What follow-ups are overdue?" with sources
+PASS 7. an email reply is prepared by the assistant and confirmed as a Gmail draft (mock); nothing is sent
+PASS 8. the contact's timeline shows all of it
+PASS 8b. Home shows the lead's next action and its due date
+PASS phone width, dark: Home and the contact page
+
+11 passed, 0 failed (mock-based: local fake providers, development AI provider)
+# finished 2026-10-17T12:36:48Z exit=0

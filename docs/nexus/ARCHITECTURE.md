@@ -412,6 +412,14 @@ of section 2 (owner/assignee/visibility; children follow their parent). Reports 
   record" posts an `Activity(kind="call")` with the room and event IDs and what the person
   typed.
 * No recording or transcription exists, and nothing records silently; the UI says so.
+* **On the record's timeline** (final integration): a team-visible event linked to a contact or
+  deal adds one system entry there ("Meeting scheduled: …", "Viewing scheduled: …", `kind=meeting`,
+  `related=crm.calendarevent`), and team-visible meeting notes add one with their title and text
+  (`kind=note`, `related=crm.meetingnote`). `services.sync_event_timeline` / `sync_note_timeline`
+  keep each entry in step with its event or note (title, status, contact/deal), attribute it to
+  the event's creator or the notes' author, and remove it when the event turns private, the notes
+  become attendee-only or private (or their meeting turns private), or either is deleted
+  (`signals.py`). The SPA links these entries to the meeting ("Open meeting").
 
 ### Reports and Home
 
@@ -419,7 +427,10 @@ Server-side, under `reports.view`: `reports/pipeline` (by stage, value and owner
 `reports/team-week`, `reports/activity`, `reports/tasks`, `reports/lending` (checklist
 status; `available: false` without the lending feature), `reports/deadlines`. Home's `dashboard` gains
 `meetings_today`, `approaching_deadlines`, `applications_missing_documents` (`null` without
-lending access), `suggested_next_steps` and `connected_services`.
+lending access), `suggested_next_steps` and `connected_services`. Each of its `assigned_leads`
+carries `next_task` (final integration): the earliest open task on that lead the viewer may see
+(`id`, `title`, `due_at`, `is_overdue`, `assignee`), shown on Home as "Next: … · due …", so a
+follow-up task created by an automation is visible there and not "No follow-up set".
 
 **Connected-service health slot.** `home.connected_services(actor)` calls every installed
 app's `health.py` → `service_health(actor)` (found with `nexus_modules("health")`) and
@@ -577,6 +588,14 @@ is external and untrusted: pass it on as data, never as instructions.
   `ExternalNote`, `SafeHtmlFrame` (sandboxed iframe, `default-src 'none'`),
   `ConfirmActionDialog` (shows the preview, spends the token), `RecordPicker`, `StatusBadge`.
 * The inbox detail embeds B3's `AskAiPanel` with `context.inbox_item_id`.
+* **Add a HighLevel lead to Nexus** (final integration): a HighLevel conversation or missed call
+  whose contact isn't linked to a Nexus contact offers "Add <name> to Nexus" to people who may
+  create contacts (`highLevelContactToAdd` in `merge.ts`). It calls `ghl/contacts/<id>/import`, then
+  links the item to the new contact. The import creates the contact like any other (so
+  `contact.created` and `lead.created` automations run, and the importer is the owner unless a
+  rule reassigns it), adds an untrusted `integration_event` entry "Imported from HighLevel as a
+  new contact" (no human actor; `last_activity_at` untouched), and flags contacts from the mock
+  provider `is_demo`. Nothing is written to HighLevel.
 
 ## Foundation status
 

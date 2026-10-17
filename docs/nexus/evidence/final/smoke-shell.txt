@@ -1,6 +1,6 @@
 $ cd /home/user/nexus
 $ . dev/nexus/env.sh && node tests/nexus/shell.smoke.mjs --no-shots
-# started 2026-10-17T11:35:29Z at dda1a5d
+# started 2026-10-17T12:25:31Z at 4c6ec21
 PASS portal is branded and shows the test environment
 PASS chat sign-in, then the workspace connects silently (code + PKCE)
 PASS Home dashboard shows real data
@@ -19,4 +19,4 @@ PASS phone width (dark): bottom bar, More sheet, list -> detail
 PASS workspace pages show a connect state when the API session ends
 
 16 passed, 0 failed
-# finished 2026-10-17T11:36:13Z exit=0
+# finished 2026-10-17T12:26:16Z exit=0

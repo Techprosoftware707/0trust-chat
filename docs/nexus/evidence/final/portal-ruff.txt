@@ -1,5 +1,5 @@
 $ cd /home/user/nexus/services/portal
 $ /home/user/nexus-venv/bin/ruff check --isolated --line-length 160 --select E,F,W,I apps/api apps/crm apps/integrations apps/assistant apps/mcp apps/automation apps/core/extensions.py tests/nexus_helpers.py tests/test_nexus_*.py ../../tests/nexus/brand_contrast.py
-# started 2026-10-17T11:26:24Z at d88749b
+# started 2026-10-17T12:24:35Z at 4c6ec21
 All checks passed!
-# finished 2026-10-17T11:26:24Z exit=0
+# finished 2026-10-17T12:24:35Z exit=0

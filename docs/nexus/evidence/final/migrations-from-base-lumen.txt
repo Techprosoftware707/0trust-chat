@@ -1,9 +1,10 @@
 $ cd /home/user/nexus
 $ bash /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/base-migrate.sh
-# started 2026-10-17T11:23:41Z at d88749b
+# started 2026-10-17T12:24:35Z at 4c6ec21
 ### base code: git archive eefa6ab services/portal (no worktree, no branch touched)
 eefa6ab = eefa6ab Design tokens: light-mode accent, subtle text and status colours meet WCAG AA as text [skip ci]
 ### fresh database nexus_basemig
+NOTICE:  database "nexus_basemig" does not exist, skipping
 DROP DATABASE
 CREATE DATABASE
 ### 1. eefa6ab's migrate (base Lumen schema)
@@ -24,8 +25,8 @@ user|base-admin|base-admin@example.com|t
 user|base-member|base-member@example.com|t
 user|base-owner|base-owner@example.com|t
 user|base-solo|base-solo@example.com|t
-workspace|399dac01-5aca-41aa-8a0c-b68827155d07|Base Workspace One|base-one|t|f
-workspace|4298a210-e9e0-4344-becd-ee048114fd6e|Base Workspace Two|base-two|f|t
+workspace|c2ce07dc-b851-4bb4-9115-e6f983d70102|Base Workspace One|base-one|t|f
+workspace|a2549bda-7b73-4f5e-b7b3-1fd9a18ed4eb|Base Workspace Two|base-two|f|t
 membership|base-one|base-admin|admin
 membership|base-one|base-member|member
 membership|base-one|base-owner|owner
@@ -34,7 +35,7 @@ membership|base-two|base-solo|owner
 invitation|base-one|invitee.admin@example.com|admin|<token_hash>|f
 invitation|base-one|invitee.member@example.com|member|<token_hash>|f
 invitation|base-two|revoked@example.com|member|<token_hash>|t
-### 3. this branch's migrate on the same database (d88749b)
+### 3. this branch's migrate on the same database (4c6ec21)
   Applying workspaces.0002_nexus_roles... OK
   Applying assistant.0001_initial... OK
   Applying automation.0001_initial... OK
@@ -65,4 +66,4 @@ System check identified no issues (0 silenced).
 ### cleanup
 DROP DATABASE
 done
-# finished 2026-10-17T11:24:02Z exit=0
+# finished 2026-10-17T12:24:58Z exit=0

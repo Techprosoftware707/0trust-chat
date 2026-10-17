@@ -34,11 +34,11 @@ PASS migrate --check: every migration applied
 lumen-caddy-1  Up About a minute
 lumen-livekit-1  Up About a minute
 lumen-lkjwt-1  Up About a minute (healthy)
-lumen-ops-1  Up About a minute (healthy)
+lumen-ops-1  Up 34 seconds (healthy)
 lumen-portal-1  Up About a minute (healthy)
-lumen-postgres-1  Up 2 minutes (healthy)
-lumen-synapse-1  Up About a minute (healthy)
-lumen-worker-1  Up About a minute (healthy)
+lumen-postgres-1  Up About a minute (healthy)
+lumen-synapse-1  Up 53 seconds (healthy)
+lumen-worker-1  Up 34 seconds (healthy)
 x-nexus-environment: test
 PASS portal answers with X-Nexus-Environment: test
 Test environment
@@ -49,7 +49,7 @@ cache-control: no-store
 content-type: application/json
 www-authenticate: Bearer realm="nexus-api"
 x-nexus-environment: test
-{"error": {"code": "unauthenticated", "message": "A bearer access token is required.", "request_id": "0699e9d0ea804102a32765af709f05c9"}}
+{"error": {"code": "unauthenticated", "message": "A bearer access token is required.", "request_id": "ca612b64a2874de49d8d7f4e7ff09ee1"}}
 PASS /api/v1/me answers 401 without a token
 ### 5. OAuth metadata for the Claude connector
 {
@@ -126,7 +126,7 @@ HTTP/2 401
 www-authenticate: Bearer resource_metadata="https://lumen-it.test/.well-known/oauth-protected-resource/mcp", scope="mcp:read mcp:write"
 PASS /mcp answers 401 with WWW-Authenticate resource_metadata
 ### 7. a synthetic owner and business workspace (token not printed)
-PASS synthetic workspace a200bcb5-8168-4eac-b125-e0fbcead6071 and a nexus-web access token created
+PASS synthetic workspace 59a14892-30c4-417d-a145-50931eab1d73 and a nexus-web access token created
 /api/v1/me with the token: nexus-qa-owner
 PASS /api/v1/me answers 200 with a nexus-web token
 PASS the SPA's nexus-web token is refused at /mcp (separate audiences)
@@ -139,10 +139,10 @@ Home connected services: Gmail -> not_configured / Not set up on this server
 Home connected services: GoHighLevel -> not_connected / Not connected
 Home connected services: Slack -> not_configured / Not set up on this server
 ### 9. secure document storage (deploy-wiring patch NOT applied: expected 503)
-PASS lending application created through the API (7f7ee3c5-48f9-4495-b32a-63279ac585ee)
+PASS lending application created through the API (2fad82f8-0dfc-43ad-b2d8-f62f3349b5fe)
 HTTP/2 503 
-{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "f2d42f1626794d8bbb7f6d6096fed31a"}}
-{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "f2d42f1626794d8bbb7f6d6096fed31a"}}
+{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "12ad83aa35184e68af83fd39e631d1b1"}}
+{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "12ad83aa35184e68af83fd39e631d1b1"}}
 PASS document upload answers 503 not_configured
 
 RESULT: 16 passed, 0 failed

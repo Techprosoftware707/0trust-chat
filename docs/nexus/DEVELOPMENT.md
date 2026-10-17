@@ -233,6 +233,26 @@ The smoke removes the slot's mock connections first, then connects all three pro
 syncs, and walks the inbox, an email reply sent through the confirmation dialog, a Slack
 reply, record linking, an agent's view, dark mode and phone width.
 
+### End-to-end journey (final integration)
+
+The brief's key flow in one browser run, on synthetic data, mock-based (fake providers, the
+development AI provider). Needs the slot's portal and chat dev servers in mock mode (`env.sh`
+default); it deletes and reseeds the slot's demo workspace first unless `--keep-data`:
+
+```sh
+. dev/nexus/env.sh && node tests/nexus/journey.smoke.mjs            # 11 checks, screenshots in docs/nexus/screenshots/final/
+. dev/nexus/env.sh && node tests/nexus/journey.smoke.mjs --no-shots
+```
+
+A manager routes new leads to an agent (the seeded automation); the owner connects HighLevel
+(mock) and adds the lead "Pat Mockperson" from the inbox; the automation assigns it and creates
+a follow-up task; the agent links an encrypted conversation, schedules a meeting with a meeting
+room, writes notes and confirms a next step into a task, asks the assistant "What follow-ups are
+overdue?", connects Gmail (mock), links an email and confirms an AI-prepared reply as a Gmail
+**draft** (checked: nothing sent). Pat's timeline then shows all of it, and Home shows the next
+action with its due date. Its server-side counterpart is
+`services/portal/tests/test_nexus_final_integration.py`.
+
 ### Brand contrast (WCAG 2.2 AA)
 
 ```sh

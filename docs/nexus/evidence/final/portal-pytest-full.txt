@@ -1,52 +1,17 @@
 $ cd /home/user/nexus/services/portal
-$ POSTGRES_PORT=55433 POSTGRES_DB=nexus_final /home/user/nexus-venv/bin/python -m pytest --create-db 2>&1 | tail -60
-# started 2026-10-17T11:17:29Z at d88749b
+$ POSTGRES_PORT=55433 POSTGRES_DB=nexus_final /home/user/nexus-venv/bin/python -m pytest --create-db -p no:warnings 2>&1 | tail -40
+# started 2026-10-17T12:16:12Z at 4c6ec21
 ........................................................................ [  8%]
 ........................................................................ [ 17%]
 ........................................................................ [ 26%]
 ........................................................................ [ 35%]
-........................................................................ [ 44%]
-........................................................................ [ 53%]
-........................................................................ [ 62%]
-........................................................................ [ 71%]
+........................................................................ [ 43%]
+........................................................................ [ 52%]
+........................................................................ [ 61%]
+........................................................................ [ 70%]
 ........................................................................ [ 79%]
-........................................................................ [ 88%]
-........................................................................ [ 97%]
-...................                                                      [100%]
-=============================== warnings summary ===============================
-../../../nexus-venv/lib/python3.13/site-packages/pytest_django/plugin.py:394
-  /home/user/nexus-venv/lib/python3.13/site-packages/pytest_django/plugin.py:394: RemovedInDjango2028Warning: The EMAIL_BACKEND setting is deprecated. Migrate to MAILERS before Django 2028.
-    dj_settings.DATABASES  # noqa: B018
-
-tests/test_accounts.py: 14 warnings
-tests/test_billing.py: 69 warnings
-tests/test_nexus_assistant.py: 19 warnings
-tests/test_nexus_assistant_integrations.py: 11 warnings
-tests/test_nexus_assistant_verticals.py: 1 warning
-tests/test_nexus_auth.py: 27 warnings
-tests/test_nexus_automation.py: 15 warnings
-tests/test_nexus_crm.py: 14 warnings
-tests/test_nexus_documents.py: 18 warnings
-tests/test_nexus_integrations_gmail.py: 16 warnings
-tests/test_nexus_integrations_http.py: 4 warnings
-tests/test_nexus_integrations_inbox.py: 8 warnings
-tests/test_nexus_integrations_isolation.py: 38 warnings
-tests/test_nexus_integrations_oauth.py: 28 warnings
-tests/test_nexus_integrations_secrets.py: 3 warnings
-tests/test_nexus_integrations_slack_ghl.py: 19 warnings
-tests/test_nexus_integrations_webhooks.py: 18 warnings
-tests/test_nexus_isolation.py: 230 warnings
-tests/test_nexus_mcp.py: 32 warnings
-tests/test_nexus_meetings_reports.py: 13 warnings
-tests/test_nexus_roles.py: 68 warnings
-tests/test_nexus_verticals.py: 21 warnings
-tests/test_oidc.py: 10 warnings
-tests/test_ops_security.py: 43 warnings
-tests/test_ui_pages.py: 20 warnings
-tests/test_workspaces.py: 9 warnings
-  /home/user/nexus-venv/lib/python3.13/site-packages/django/core/handlers/base.py:63: UserWarning: No directory at: /home/user/nexus/services/portal/staticfiles/
-    mw_instance = middleware(adapted_handler)
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-811 passed, 769 warnings in 404.50s (0:06:44)
-# finished 2026-10-17T11:24:15Z exit=0
+........................................................................ [ 87%]
+........................................................................ [ 96%]
+...........................                                              [100%]
+819 passed in 423.16s (0:07:03)
+# finished 2026-10-17T12:23:16Z exit=0

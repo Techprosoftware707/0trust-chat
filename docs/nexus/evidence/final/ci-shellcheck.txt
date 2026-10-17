@@ -1,9 +1,10 @@
 $ cd /home/user/nexus
 $ cat /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/ci-shellcheck.sh; echo ---; bash /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/ci-shellcheck.sh
-# started 2026-10-17T11:26:06Z at d88749b
+# started 2026-10-17T12:24:17Z at 4c6ec21
+#!/usr/bin/env bash
 # Copied from .github/workflows/ci.yml "shellcheck"
 git ls-files -z '*.sh' lumenctl install.sh update.sh backup.sh restore.sh healthcheck.sh diagnose.sh uninstall.sh \
   | xargs -0 shellcheck -x -S warning && echo "shellcheck -x -S warning: clean ($(git ls-files '*.sh' | wc -l) .sh files + top-level scripts)"
 ---
-shellcheck -x -S warning: clean (37 .sh files + top-level scripts)
-# finished 2026-10-17T11:26:24Z exit=0
+shellcheck -x -S warning: clean (45 .sh files + top-level scripts)
+# finished 2026-10-17T12:24:35Z exit=0

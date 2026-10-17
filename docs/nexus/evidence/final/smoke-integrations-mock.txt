@@ -1,6 +1,6 @@
 $ cd /home/user/nexus
 $ . dev/nexus/env.sh && echo NEXUS_INTEGRATIONS_MOCK=$NEXUS_INTEGRATIONS_MOCK && node tests/nexus/integrations.smoke.mjs --no-shots
-# started 2026-10-17T11:37:37Z at dda1a5d
+# started 2026-10-17T12:27:28Z at 4c6ec21
 NEXUS_INTEGRATIONS_MOCK=1
 85 objects imported automatically (use -v 2 for details).
 
@@ -18,4 +18,4 @@ PASS inbox and integrations at phone-light
 PASS inbox and integrations at phone-dark
 
 11 passed, 0 failed (mock-based: local fake providers only)
-# finished 2026-10-17T11:38:11Z exit=0
+# finished 2026-10-17T12:28:02Z exit=0

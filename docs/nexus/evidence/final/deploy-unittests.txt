@@ -1,11 +1,11 @@
 $ cd /home/user/nexus
 $ python3 -m unittest discover -s tests/deploy -v 2>&1 | tail -15
-# started 2026-10-17T11:26:06Z at d88749b
+# started 2026-10-17T12:24:17Z at 4c6ec21
 ok
-test_app_links_only_when_configured (test_render_apps.TestSsoAndAppLinks.test_app_links_only_when_configured) ... rendered configuration into /tmp/lumen-render-tufsef8w/out
-rendered configuration into /tmp/lumen-render-ngp488jy/out
+test_app_links_only_when_configured (test_render_apps.TestSsoAndAppLinks.test_app_links_only_when_configured) ... rendered configuration into /tmp/lumen-render-7g50ntl7/out
+rendered configuration into /tmp/lumen-render-o_4v2cnq/out
 ok
-test_app_scheme_is_whitelisted_for_sso (test_render_apps.TestSsoAndAppLinks.test_app_scheme_is_whitelisted_for_sso) ... rendered configuration into /tmp/lumen-render-evurrlqx/out
+test_app_scheme_is_whitelisted_for_sso (test_render_apps.TestSsoAndAppLinks.test_app_scheme_is_whitelisted_for_sso) ... rendered configuration into /tmp/lumen-render-h8kcj4u6/out
 ok
 test_bad_identifiers_rejected (test_render_apps.TestSsoAndAppLinks.test_bad_identifiers_rejected) ... ok
 test_base_values_not_media_overrides (test_tokens.TestTokens.test_base_values_not_media_overrides) ... ok
@@ -13,7 +13,7 @@ test_generated_files_are_current (test_tokens.TestTokens.test_generated_files_ar
 test_themes_differ_and_use_brand_palette (test_tokens.TestTokens.test_themes_differ_and_use_brand_palette) ... ok
 
 ----------------------------------------------------------------------
-Ran 61 tests in 0.375s
+Ran 61 tests in 0.255s
 
 OK
-# finished 2026-10-17T11:26:06Z exit=0
+# finished 2026-10-17T12:24:17Z exit=0

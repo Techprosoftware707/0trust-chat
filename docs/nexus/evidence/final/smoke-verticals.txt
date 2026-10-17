@@ -1,6 +1,6 @@
 $ cd /home/user/nexus
 $ . dev/nexus/env.sh && node tests/nexus/verticals.smoke.mjs --no-shots
-# started 2026-10-17T11:36:19Z at dda1a5d
+# started 2026-10-17T12:26:16Z at 4c6ec21
 PASS Home shows meetings, deadlines and applications missing documents
 PASS Properties: list, detail with people and deals, schedule a viewing
 PASS Deal page: people with roles, properties, milestones with approaching deadlines
@@ -16,4 +16,4 @@ PASS phone width (light): Home, lending application, calendar, properties
 PASS phone width (dark): Home, lending application, calendar, properties
 
 13 passed, 0 failed
-# finished 2026-10-17T11:37:30Z exit=0
+# finished 2026-10-17T12:27:28Z exit=0

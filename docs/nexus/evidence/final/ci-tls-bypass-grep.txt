@@ -1,6 +1,7 @@
 $ cd /home/user/nexus
 $ cat /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/ci-tls.sh; echo ---; bash /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/ci-tls.sh
-# started 2026-10-17T11:26:24Z at d88749b
+# started 2026-10-17T12:24:35Z at 4c6ec21
+#!/usr/bin/env bash
 # Copied from .github/workflows/ci.yml "No TLS-verification bypass in any client"
 pattern='\.disableSslVerification\(|appendSwitch\(\s*["'"'"']ignore-certificate-errors|ignoreHTTPSErrors:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*[:=]\s*["'"'"']?0|rejectUnauthorized:\s*false|setCertificateVerifyProc|handler\.proceed\(|checkServerTrusted\([^)]*\)\s*\{\s*\}|URLCredential\(trust:|usesCleartextTraffic="true"|NSAllowsArbitraryLoads</key>\s*<true'
 if git grep -nP "$pattern" -- apps services/chat ':!**/*.md'; then
@@ -9,4 +10,4 @@ fi
 echo "no TLS-verification bypass found (git grep -nP over apps services/chat)"
 ---
 no TLS-verification bypass found (git grep -nP over apps services/chat)
-# finished 2026-10-17T11:26:24Z exit=0
+# finished 2026-10-17T12:24:35Z exit=0
