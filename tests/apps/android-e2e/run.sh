@@ -170,10 +170,13 @@ fi
 section "Phase c: sign-out"
 if run_phase c_signOutEndsTheSession -e LUMEN_E2E_SIGN_OUT true; then
   pass "phase c: sign-out invalidated the token and deleted the local data"
-  devices="$(sql "SELECT count(*) FROM devices WHERE user_id = '$A_ID'" 2>/dev/null)"
+  # Synapse also keeps the user's cross-signing keys in the devices table, as hidden rows
+  # (they share the device-ID namespace); those belong to the account, not to this device.
+  devices="$(sql "SELECT count(*) FROM devices WHERE user_id = '$A_ID' AND NOT hidden" 2>/dev/null)"
+  keys="$(sql "SELECT count(*) FROM devices WHERE user_id = '$A_ID' AND hidden" 2>/dev/null)"
   tokens="$(sql "SELECT count(*) FROM access_tokens WHERE user_id = '$A_ID'" 2>/dev/null)"
   if [[ "$devices" == 0 && "$tokens" == 0 ]]; then
-    pass "server database: no device and no access token left for $A_ID"
+    pass "server database: no device and no access token left for $A_ID (account's cross-signing keys kept: $keys)"
   else
     fail "server database: $A_ID still has devices=$devices access_tokens=$tokens"
   fi
