@@ -143,7 +143,7 @@ npm run build       # tsc + vite build
 Needs the environment set up and both dev servers running (sections 2 and 3):
 
 ```sh
-. dev/nexus/env.sh && node tests/nexus/shell.smoke.mjs            # resets + reseeds demo data, then 15 checks, screenshots
+. dev/nexus/env.sh && node tests/nexus/shell.smoke.mjs            # resets + reseeds demo data, then 16 checks, screenshots
 . dev/nexus/env.sh && node tests/nexus/shell.smoke.mjs --no-shots # same without screenshots
 . dev/nexus/env.sh && node tests/nexus/shell.smoke.mjs --keep-data
 ```
