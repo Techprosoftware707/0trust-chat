@@ -80,7 +80,8 @@ class AgentTestCase(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="lumen-agent-"))
         self.host = FakeHost()
         self.iface = False
-        self._saved = {k: getattr(agent, k) for k in ("CONF_PATH", "STATE_PATH", "WG_DIR", "WG_CONF", "WG_IF", "run", "interface_exists")}
+        self._saved = {k: getattr(agent, k) for k in ("CONF_PATH", "STATE_PATH", "WG_DIR", "WG_CONF", "WG_IF", "run", "interface_exists",
+                                                      "tunnel_dns_ready", "HOST_RESOLV", "RESOLVED_UPSTREAM")}
         agent.CONF_PATH = self.tmp / "lumen.conf"
         agent.STATE_PATH = self.tmp / "state.json"
         agent.WG_DIR = self.tmp / "etc-lumen" / "wireguard"
@@ -88,6 +89,11 @@ class AgentTestCase(unittest.TestCase):
         agent.WG_IF = "lumen-unit-test-none"
         agent.run = self.host.run
         agent.interface_exists = lambda: self.iface
+        # The tunnel DNS probe sends a real query: replaced (answering unless a test says otherwise).
+        self.dns_answers = True
+        agent.tunnel_dns_ready = lambda c=None, timeout=1.0: self.dns_answers
+        agent.HOST_RESOLV = self.tmp / "etc-resolv.conf"
+        agent.RESOLVED_UPSTREAM = self.tmp / "run-systemd-resolve-resolv.conf"
         self.write_conf("")
 
     def tearDown(self):
@@ -309,6 +315,310 @@ class FirstDevice(AgentTestCase):
         self.assertIn("[secret]", "\n".join(logs.output))
 
 
+def profile_sections(text: str) -> dict[str, dict[str, list[str]]]:
+    """[Interface]/[Peer] key -> values of a WireGuard profile (comments ignored)."""
+    out: dict[str, dict[str, list[str]]] = {}
+    section = ""
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("["):
+            section = line.strip("[]")
+            out.setdefault(section, {})
+            continue
+        k, _, v = line.partition("=")
+        out.setdefault(section, {}).setdefault(k.strip(), []).append(v.strip())
+    return out
+
+
+class DeviceProfiles(AgentTestCase):
+    """What a device profile tells the device: DNS through the tunnel, split tunnel unchanged."""
+
+    def setUp(self):
+        super().setUp()
+        agent.ensure_wireguard_server_key()
+
+    def test_profile_sets_the_tunnel_dns_and_keeps_the_split_tunnel(self):
+        result = agent.op_wg_add_peer({"name": "alice-phone"}, "alice")
+        s = profile_sections(result["config"])
+        self.assertEqual(s["Interface"]["DNS"], ["10.77.0.1"])  # in [Interface], once
+        self.assertEqual(s["Interface"]["Address"], ["10.77.0.2/32"])
+        self.assertNotIn("DNS", s["Peer"])
+        # Only the server's tunnel address goes into the tunnel: not the endpoint, not everything.
+        self.assertEqual(s["Peer"]["AllowedIPs"], ["10.77.0.1/32"])
+        self.assertEqual(s["Peer"]["Endpoint"], ["example.com:51820"])
+        self.assertEqual(result["dns"], "10.77.0.1")
+        self.assertEqual(result["allowed_ips"], "10.77.0.1/32")
+        text = result["config"]
+        self.assertIn("no hosts-file edit needed", text)
+        self.assertIn("sends ALL its", text)  # says plainly that every lookup goes to the server
+        self.assertIn('Delete the DNS line and add "10.77.0.1 ops.example.com" to the hosts file', text)
+        self.assertIn("Console: https://ops.example.com:8443/", text)
+        self.assertNotIn("Add to /etc/hosts", text)
+        self.assertEqual(agent.wg_peers()[0]["profile_dns"], "10.77.0.1")
+        self.assertEqual(agent.devices_without_dns(agent.wg_peers()), [])
+
+    def test_dns_follows_the_subnet_and_the_console_name(self):
+        self.write_conf("WG_SUBNET=10.78.0.0/24\nLUMEN_OPS_DOMAIN=console.example.net\nLUMEN_OPS_PORT=9443\n")
+        agent.ensure_wireguard_server_key()
+        text = agent.op_wg_add_peer({"name": "laptop"}, "alice")["config"]
+        s = profile_sections(text)
+        self.assertEqual(s["Interface"]["DNS"], ["10.78.0.1"])
+        self.assertEqual(s["Peer"]["AllowedIPs"], ["10.78.0.1/32"])
+        self.assertIn("answers console.example.net with 10.78.0.1", text)
+        self.assertIn("https://console.example.net:9443/", text)
+
+    def test_no_dns_line_while_the_forwarder_does_not_answer(self):
+        # A DNS server that doesn't answer would leave the device without name resolution.
+        self.dns_answers = False
+        result = agent.op_wg_add_peer({"name": "laptop"}, "alice")
+        s = profile_sections(result["config"])
+        self.assertNotIn("DNS", s["Interface"])
+        self.assertEqual(s["Peer"]["AllowedIPs"], ["10.77.0.1/32"])
+        self.assertEqual(result["dns"], "")
+        self.assertIn('add "10.77.0.1 ops.example.com" to', result["config"])
+        self.assertIn("C:\\Windows\\System32\\drivers\\etc\\hosts", result["config"])
+        self.assertEqual(agent.devices_without_dns(agent.wg_peers()), ["laptop"])
+
+    def test_first_device_header_needs_no_hosts_file(self):
+        profile = agent.WG_DIR / "first-device.conf"
+        agent.ensure_first_device("alice-device", profile)
+        text = profile.read_text()
+        header = text.split("# Lumen operator access", 1)[0]
+        self.assertIn("Import it into the WireGuard app on your phone or computer", header)
+        self.assertIn("sudo ./lumenctl wireguard show-profile", header)
+        self.assertIn("sudo ./lumenctl wireguard forget-profile", header)
+        self.assertNotIn("hosts", header)  # the old hosts-file step is gone from the steps
+        self.assertEqual(profile_sections(text)["Interface"]["DNS"], ["10.77.0.1"])
+        self.assertIn("no hosts-file edit needed", text)
+        self.assertIn('"10.77.0.1 ops.example.com"', text)  # the hosts line only as the fallback
+
+    def test_first_device_without_tunnel_dns_explains_the_hosts_line(self):
+        self.dns_answers = False
+        profile = agent.WG_DIR / "first-device.conf"
+        agent.ensure_first_device("alice-device", profile)
+        text = profile.read_text()
+        self.assertNotIn("DNS", profile_sections(text)["Interface"])
+        self.assertIn("/etc/hosts (Linux, macOS)", text)
+
+    def test_client_generated_key_gets_the_rest_of_the_configuration(self):
+        pub = b64key(b"device-made-key")
+        with self.assertLogs("lumen-agent", level="INFO") as logs:
+            resp = agent.handle_request(json.dumps({"op": "wg.add_peer", "args": {"name": "desk", "public_key": pub}, "actor": "alice"}).encode(), 10001)
+        result = resp["result"]
+        self.assertNotIn("config", result)  # no private key exists on the server
+        s = profile_sections(result["client_config"])
+        self.assertEqual(s["Interface"]["DNS"], ["10.77.0.1"])
+        self.assertEqual(s["Interface"]["PrivateKey"], ["<the private key you generated on the device>"])
+        self.assertEqual(s["Peer"]["PresharedKey"], [result["psk"]])
+        self.assertEqual(s["Peer"]["AllowedIPs"], ["10.77.0.1/32"])
+        logged = "\n".join(logs.output)
+        self.assertNotIn(result["psk"], logged)
+        self.assertNotIn("PresharedKey", logged)  # the configuration text is never logged
+        self.assertIsNone(agent.wg_peers()[0]["profile_dns"])
+        self.assertEqual(agent.devices_without_dns(agent.wg_peers()), [])  # its owner writes the profile
+
+    def test_devices_from_before_tunnel_dns_are_reported(self):
+        agent.op_wg_add_peer({"name": "new-phone"}, "alice")
+        peers = agent.wg_peers()
+        legacy = dict(peers[0], name="old-laptop", public_key=b64key(b"old"), address="10.77.0.9", id="legacy1")
+        legacy.pop("profile_dns")  # peers.json written by a version without tunnel DNS
+        (agent.WG_DIR / "psk" / "legacy1.psk").write_text(b64key(b"psk") + "\n")
+        agent.wg_save_peers(peers + [legacy])
+        self.assertEqual(agent.devices_without_dns(agent.wg_peers()), ["old-laptop"])
+        agent.STATE_PATH.write_text(json.dumps({"wireguard": "enabled", "wireguard_dns": "enabled"}))
+        st = agent.op_wg_status({})
+        self.assertEqual(st["devices_without_dns"], ["old-laptop"])
+        flags = {p["name"]: p["dns_in_profile"] for p in st["peers"]}
+        self.assertEqual(flags, {"new-phone": True, "old-laptop": False})
+        self.assertEqual(st["dns"]["server"], "10.77.0.1")
+        self.assertEqual(st["dns"]["name"], "ops.example.com")
+        self.assertEqual(st["dns"]["state"], "enabled")
+
+    def test_add_device_stores_a_root_only_profile(self):
+        info = agent.add_stored_device("alice-phone")
+        path = agent.WG_DIR / "profiles" / "alice-phone.conf"
+        self.assertEqual(info["profile"], str(path))
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
+        text = path.read_text()
+        self.assertIn("sudo ./lumenctl wireguard show-profile alice-phone", text)
+        self.assertIn("sudo ./lumenctl wireguard forget-profile alice-phone", text)
+        self.assertEqual(profile_sections(text)["Interface"]["DNS"], ["10.77.0.1"])
+        self.assertEqual(info["dns"], "10.77.0.1")
+        private = profile_sections(text)["Interface"]["PrivateKey"][0]
+        self.assertNotIn(private, json.dumps(info))
+        self.assertNotIn(private, agent.WG_CONF.read_text())
+        with self.assertRaises(agent.OpError):
+            agent.add_stored_device("alice-phone")  # never replaced, never a second key pair
+        self.assertEqual(path.read_text(), text)
+        agent.STATE_PATH.write_text(json.dumps({"wireguard": "enabled"}))
+        self.assertEqual(agent.op_wg_status({})["stored_profiles"], ["alice-phone"])
+
+    def test_add_device_rejects_bad_names(self):
+        for bad in ("..", ".", "../etc", "a/b", "x" * 33, ""):
+            with self.assertRaises(agent.OpError, msg=bad):
+                agent.add_stored_device(bad)
+        self.assertEqual(agent.wg_peers(), [])
+
+    def test_add_device_command_line_prints_no_key_material(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = agent.cli(["wg-add-device", "--name", "lab-phone"])
+        self.assertEqual(rc, 0)
+        printed = out.getvalue()
+        self.assertTrue(printed.startswith("created lab-phone 10.77.0.2 "), printed)
+        self.assertIn(" 10.77.0.1 ", printed)  # the DNS server in the profile
+        for line in (agent.WG_DIR / "profiles" / "lab-phone.conf").read_text().splitlines():
+            if line.startswith(("PrivateKey", "PresharedKey")):
+                self.assertNotIn(line.split(" = ", 1)[1], printed)
+
+
+class TunnelDnsForwarder(AgentTestCase):
+    """The forwarder's configuration: tunnel address only, the console's name, the upstream."""
+
+    def lines(self, text: str) -> list[str]:
+        return [line for line in text.splitlines() if line and not line.startswith("#")]
+
+    def test_listens_on_the_tunnel_address_only(self):
+        agent.HOST_RESOLV.write_text("nameserver 192.0.2.53\n")
+        cfg = self.lines(agent.dns_config())
+        listen = [line for line in cfg if line.startswith("listen-address=")]
+        self.assertEqual(listen, ["listen-address=10.77.0.1"])
+        self.assertIn("bind-interfaces", cfg)  # binds that address, not the wildcard
+        self.assertIn("port=53", cfg)
+        for opt in ("interface=", "except-interface=", "bind-dynamic", "dhcp-range", "auth-server", "conf-dir", "addn-hosts", "log-queries"):
+            self.assertFalse([line for line in cfg if line.startswith(opt)], opt)
+        self.assertIn("no-hosts", cfg)
+        self.assertIn("resolv-file=" + str(agent.HOST_RESOLV), cfg)
+
+    def test_answers_the_console_name_with_the_tunnel_address(self):
+        cfg = self.lines(agent.dns_config())
+        self.assertIn("address=/ops.example.com/10.77.0.1", cfg)
+        # dnsmasq >= 2.86 would forward AAAA/HTTPS for that name upstream (and return the public
+        # IPv6 address): local= keeps every other type an empty local answer.
+        self.assertIn("local=/ops.example.com/", cfg)
+        self.write_conf("WG_SUBNET=10.199.77.0/24\nLUMEN_OPS_DOMAIN=ops.mylumen.duckdns.org\n")
+        cfg = self.lines(agent.dns_config())
+        self.assertIn("listen-address=10.199.77.1", cfg)
+        self.assertIn("address=/ops.mylumen.duckdns.org/10.199.77.1", cfg)
+        self.assertIn("local=/ops.mylumen.duckdns.org/", cfg)
+
+    def test_a_console_name_that_could_inject_options_is_refused(self):
+        for bad in ("ops.example.com/#/203.0.113.1", "ops.example.com listen-address=0.0.0.0", "-ops.example.com"):
+            self.write_conf(f"LUMEN_OPS_DOMAIN={bad}\n")
+            with self.assertRaises(agent.OpError, msg=bad):
+                agent.dns_config()
+
+    def test_written_root_only_and_only_when_changed(self):
+        agent.ensure_wireguard_server_key()
+        first = agent.write_dns_config()
+        path = agent.WG_DIR / "dnsmasq.conf"
+        self.assertEqual(first["CHANGED"], "1")
+        self.assertEqual((first["LISTEN"], first["NAME"], first["CONF"]), ("10.77.0.1", "ops.example.com", str(path)))
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        self.assertTrue(path.read_text().startswith(agent.WG_MARKER))
+        self.assertEqual(agent.write_dns_config()["CHANGED"], "0")  # re-runs restart nothing
+        self.write_conf("LUMEN_OPS_DOMAIN=console.example.com\n")
+        self.assertEqual(agent.write_dns_config()["CHANGED"], "1")
+
+    def test_not_written_when_wireguard_is_off(self):
+        self.write_conf("WIREGUARD_ENABLED=false\n")
+        with self.assertRaises(agent.OpError):
+            agent.write_dns_config()
+        self.assertFalse((agent.WG_DIR / "dnsmasq.conf").exists())
+
+    def test_cli_prints_the_facts(self):
+        agent.ensure_wireguard_server_key()
+        agent.HOST_RESOLV.write_text("nameserver 192.0.2.53\n")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(agent.cli(["wg-dns-setup"]), 0)
+        facts = dict(line.split("=", 1) for line in out.getvalue().splitlines())
+        self.assertEqual(facts["LISTEN"], "10.77.0.1")
+        self.assertEqual(facts["UPSTREAMS"], "192.0.2.53")
+        self.assertEqual(facts["CHANGED"], "1")
+
+
+class DnsUpstream(AgentTestCase):
+    """Which resolv file the forwarder follows (dnsmasq re-reads it when it changes)."""
+
+    STUB = "# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n"
+
+    def choose(self):
+        return agent.choose_dns_upstream("10.77.0.1")
+
+    def test_systemd_resolved_uses_the_real_upstream_servers(self):
+        agent.HOST_RESOLV.write_text(self.STUB)
+        agent.RESOLVED_UPSTREAM.write_text("# managed by systemd-resolved\nnameserver 10.0.0.2\nnameserver 2001:db8::53\nsearch internal\n")
+        path, servers, note = self.choose()
+        self.assertEqual(path, agent.RESOLVED_UPSTREAM)
+        self.assertEqual(servers, ["10.0.0.2", "2001:db8::53"])
+        self.assertIn("systemd-resolved", note)
+        self.assertIn(f"resolv-file={agent.RESOLVED_UPSTREAM}", agent.dns_config())
+
+    def test_plain_resolv_conf(self):
+        agent.HOST_RESOLV.write_text("nameserver 192.0.2.53\nnameserver 198.51.100.53\noptions timeout:2\n")
+        agent.RESOLVED_UPSTREAM.write_text("nameserver 10.0.0.2\n")  # stale: resolved isn't in use
+        self.assertEqual(self.choose()[:2], (agent.HOST_RESOLV, ["192.0.2.53", "198.51.100.53"]))
+
+    def test_resolved_without_upstream_falls_back_to_its_stub(self):
+        agent.HOST_RESOLV.write_text(self.STUB)
+        path, servers, note = self.choose()  # /run/systemd/resolve/resolv.conf missing
+        self.assertEqual((path, servers), (agent.HOST_RESOLV, ["127.0.0.53"]))
+        self.assertIn("stub", note)
+        agent.RESOLVED_UPSTREAM.write_text("# no servers yet\n")
+        self.assertEqual(self.choose()[0], agent.HOST_RESOLV)
+
+    def test_never_forwards_to_itself(self):
+        agent.HOST_RESOLV.write_text("nameserver 10.77.0.1\nnameserver 192.0.2.53\n")
+        self.assertEqual(self.choose()[1], ["192.0.2.53"])
+        agent.HOST_RESOLV.write_text("nameserver 10.77.0.1\n")
+        agent.RESOLVED_UPSTREAM.write_text("nameserver 10.77.0.1\nnameserver 127.0.0.53\nnameserver 0.0.0.0\n")
+        path, servers, note = self.choose()
+        self.assertEqual(servers, [])
+        self.assertIn("no upstream", note)
+
+    def test_odd_lines_and_scoped_addresses(self):
+        agent.HOST_RESOLV.write_text("nameserver\nnameserver not-an-ip\n#nameserver 1.1.1.1\nnameserver fe80::1%eth0\n domain x\n")
+        self.assertEqual(self.choose()[1], ["fe80::1%eth0"])
+
+
+class DnsWire(unittest.TestCase):
+    """The small DNS client the agent uses to check the forwarder."""
+
+    @staticmethod
+    def reply(qid=b"\x12\x34", rcode=0, answers=()):
+        q = agent._dns_name("ops.example.com") + b"\x00\x01\x00\x01"
+        body = b""
+        for rtype, rdata in answers:
+            body += b"\xc0\x0c" + rtype.to_bytes(2, "big") + b"\x00\x01" + (60).to_bytes(4, "big") + len(rdata).to_bytes(2, "big") + rdata
+        flags = bytes([0x81, 0x80 | rcode])
+        return qid + flags + b"\x00\x01" + len(answers).to_bytes(2, "big") + b"\x00\x00\x00\x00" + q + body
+
+    def test_parses_a_and_aaaa_answers(self):
+        data = self.reply(answers=[(1, bytes([10, 77, 0, 1])), (28, ipaddress.ip_address("2001:db8::1").packed), (5, b"\x00")])
+        self.assertEqual(agent.parse_dns_response(data, b"\x12\x34"), (0, ["10.77.0.1", "2001:db8::1"]))
+
+    def test_empty_answer_and_rcode(self):
+        self.assertEqual(agent.parse_dns_response(self.reply(), b"\x12\x34"), (0, []))
+        self.assertEqual(agent.parse_dns_response(self.reply(rcode=3), b"\x12\x34"), (3, []))
+
+    def test_rejects_other_ids_and_truncated_replies(self):
+        with self.assertRaises(OSError):
+            agent.parse_dns_response(self.reply(), b"\x00\x00")
+        with self.assertRaises(OSError):
+            agent.parse_dns_response(self.reply(answers=[(1, bytes([10, 77, 0, 1]))])[:-3], b"\x12\x34")
+        with self.assertRaises(OSError):
+            agent.parse_dns_response(b"\x12\x34", b"\x12\x34")
+
+    def test_name_encoding(self):
+        self.assertEqual(agent._dns_name("ops.example.com."), b"\x03ops\x07example\x03com\x00")
+        with self.assertRaises(ValueError):
+            agent._dns_name("a..b")
+
+
 class ForeignWireGuard(AgentTestCase):
     FOREIGN = "[Interface]\nAddress = 10.77.0.1/24\nListenPort = 51820\nPrivateKey = someone-elses-key\n"
 
@@ -332,12 +642,16 @@ class ForeignWireGuard(AgentTestCase):
     def test_never_overwritten(self):
         for attempt in (lambda: agent.wg_write_config([]), agent.ensure_wireguard_server_key,
                         lambda: agent.ensure_first_device("alice-device", agent.WG_DIR / "first-device.conf"),
-                        lambda: agent.op_wg_add_peer({"name": "laptop"}, "alice")):
+                        lambda: agent.op_wg_add_peer({"name": "laptop"}, "alice"),
+                        lambda: agent.add_stored_device("laptop"), agent.write_dns_config):
             with self.assertRaises(agent.OpError):
                 attempt()
             self.assertEqual(agent.WG_CONF.read_text(), self.FOREIGN)
         self.assertEqual(agent.wg_peers(), [])
         self.assertFalse((agent.WG_DIR / "first-device.conf").exists())
+        # No DNS forwarder for someone else's WireGuard either.
+        self.assertFalse((agent.WG_DIR / "dnsmasq.conf").exists())
+        self.assertFalse((agent.WG_DIR / "profiles").exists())
 
     def test_console_gets_a_clear_error(self):
         resp = agent.handle_request(json.dumps({"op": "wg.add_peer", "args": {"name": "laptop"}, "actor": "alice"}).encode(), 10001)

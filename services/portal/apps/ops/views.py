@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import json
 import secrets
+import time
 from datetime import timedelta
 
 from allauth.account.models import EmailAddress
@@ -656,10 +657,18 @@ def wireguard(request):
         import qrcode
         import qrcode.image.svg
 
-        img = qrcode.make(new_peer["config"], image_factory=qrcode.image.svg.SvgPathImage, box_size=8)
+        # The QR code carries the profile without its comment lines (smaller, easier for a phone to
+        # scan); the downloaded file keeps them.
+        qr_text = "\n".join(line for line in new_peer["config"].splitlines() if not line.lstrip().startswith("#"))
+        img = qrcode.make(qr_text, image_factory=qrcode.image.svg.SvgPathImage, box_size=8)
         buf = io.BytesIO()
         img.save(buf)
         qr_svg = buf.getvalue().decode()
+        # The page has just consumed the one-time value; keep one download of this profile, from
+        # this page, for 10 minutes. Any other visit to the page drops it.
+        request.session["lumen_wg_download"] = {"name": new_peer["name"], "config": new_peer["config"], "until": time.time() + 600}
+    else:
+        request.session.pop("lumen_wg_download", None)
     return render(
         request,
         "ops/wireguard.html",
@@ -680,18 +689,19 @@ def wireguard_add_peer(request):
     if error:
         messages.error(request, f"Could not add peer: {error}")
         return redirect("ops:wireguard")
-    # The private key (if generated) lives only in this one-time session value.
-    request.session["lumen_wg_new_peer"] = {"name": name, "config": result.get("config", ""), "public_key": result.get("public_key", ""), "address": result.get("address", "")}
+    # The private key (if generated) and the preshared key live only in this one-time session value.
+    # client_config: for a device's own key, the rest of its configuration (preshared key, DNS).
+    request.session["lumen_wg_new_peer"] = {"name": name, "config": result.get("config", ""), "public_key": result.get("public_key", ""), "address": result.get("address", ""),
+                                            "dns": result.get("dns", ""), "client_config": result.get("client_config", "")}
     messages.success(request, f"Peer {name} added.")
     return redirect("ops:wireguard")
 
 
 @ops_view("manage_wireguard")
 def wireguard_download(request):
-    peer = request.session.get("lumen_wg_new_peer")
-    if not peer or not peer.get("config"):
+    peer = request.session.pop("lumen_wg_download", None)
+    if not peer or not peer.get("config") or peer.get("until", 0) < time.time():
         raise Http404()
-    request.session.pop("lumen_wg_new_peer", None)
     resp = HttpResponse(peer["config"], content_type="text/plain")
     resp["Content-Disposition"] = f'attachment; filename="lumen-{peer["name"][:30] or "peer"}.conf"'
     resp["Cache-Control"] = "no-store"

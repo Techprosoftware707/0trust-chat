@@ -142,4 +142,9 @@ if ! wireguard_wanted; then
   printf 'WireGuard is off; turn it on with: sudo ./lumenctl wireguard enable\n'
 elif ! wireguard_active; then
   printf 'WireGuard unavailable on this host: %s (the SSH tunnel still works: sudo ./lumenctl admin-tunnel)\n' "$(state_get wireguard_reason)"
+elif wireguard_dns_active; then
+  printf 'WireGuard: DNS in the tunnel on %s; device profiles set DNS = %s, so the console'"'"'s name needs no hosts file.\n' "$(wg_server_ip)" "$(wg_server_ip)"
+  wireguard_dns_hint '  '
+else
+  printf 'WireGuard: DNS in the tunnel unavailable (%s); devices keep using the hosts-file line.\n' "$(state_get wireguard_dns_reason)"
 fi

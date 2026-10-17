@@ -37,7 +37,7 @@ ${C_BOLD}This will remove Lumen for $domain:${C_RESET}
   • stop and remove all Lumen containers and networks
   • remove systemd units (lumen-agent, backup and health timers) and the docker drop-in
   • remove Lumen's firewall rules (ufw) — SSH rules are kept
-  • stop WireGuard wg0 if Lumen enabled it
+  • stop WireGuard wg0 if Lumen enabled it, and its DNS forwarder (lumen-wg-dns)
 EOF
 if ((PURGE)); then
   cat <<EOF
@@ -85,7 +85,7 @@ ok "containers and networks removed"
 
 if has_systemd; then
   step "Removing systemd units"
-  for u in lumen-agent.service lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer; do
+  for u in lumen-agent.service lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer lumen-wg-dns.service; do
     systemctl disable --now "$u" >/dev/null 2>&1 || true
   done
   rm -f /etc/systemd/system/lumen-*.service /etc/systemd/system/lumen-*.timer /etc/systemd/system/docker.service.d/lumen.conf
@@ -98,8 +98,14 @@ rm -rf /usr/local/lib/lumen /run/lumen-agent
 if [[ "$(state_get wireguard)" == enabled ]]; then
   step "WireGuard"
   if has_systemd; then systemctl disable --now wg-quick@wg0 >/dev/null 2>&1 || true; else wg-quick down wg0 >/dev/null 2>&1 || true; fi
+  # Without systemd the tunnel DNS forwarder is a daemon with a pid file (deploy/lib/wireguard.sh).
+  if ! has_systemd && [[ -s /run/lumen-wg-dns.pid ]]; then
+    dnspid="$(cat /run/lumen-wg-dns.pid)"
+    [[ "$(cat "/proc/$dnspid/comm" 2>/dev/null)" == dnsmasq ]] && kill "$dnspid" 2>/dev/null || true
+    rm -f /run/lumen-wg-dns.pid
+  fi
   ((PURGE)) && rm -f /etc/wireguard/wg0.conf
-  ok "wg0 stopped$( ((PURGE)) && echo " and its configuration removed")"
+  ok "wg0 and its DNS forwarder stopped$( ((PURGE)) && echo ", wg0's configuration removed")"
 fi
 
 if command -v ufw >/dev/null 2>&1; then

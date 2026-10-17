@@ -38,7 +38,9 @@ log_init() {
   mkdir -p "$LUMEN_LOG_DIR"
   chmod 750 "$LUMEN_LOG_DIR"
   _log_file="$LUMEN_LOG_DIR/${name}-$(date -u +%Y%m%dT%H%M%SZ).log"
-  : >"$_log_file"
+  # Append, never truncate: two runs started in the same second share the file (an audit line
+  # of the first must not be wiped by the second).
+  : >>"$_log_file"
   chmod 640 "$_log_file"
   ln -sfn "$_log_file" "$LUMEN_LOG_DIR/${name}-latest.log"
 }
@@ -116,6 +118,10 @@ calls_enabled() { truthy "$(conf_get CALLS_ENABLED true)"; }
 # wanted AND brought up by Lumen (state "enabled"); "unavailable" when this host can't run it.
 wireguard_wanted() { local v; v="$(conf_get WIREGUARD_ENABLED)"; [[ -z "$v" ]] || truthy "$v"; }
 wireguard_active() { wireguard_wanted && [[ "$(state_get wireguard)" == enabled ]]; }
+# The server's own address in the tunnel (first host of WG_SUBNET): the console and the tunnel DNS.
+wg_server_ip() { python3 -c 'import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))' "$(conf_get WG_SUBNET 10.77.0.0/24)"; }
+# wireguard_dns_active — the DNS forwarder on the tunnel address was set up and answered.
+wireguard_dns_active() { wireguard_active && [[ "$(state_get wireguard_dns)" == enabled ]]; }
 rtc_domain() { conf_get LUMEN_RTC_DOMAIN "rtc.$(conf_get LUMEN_PRIMARY_DOMAIN)"; }
 push_enabled() { truthy "$(conf_get PUSH_ENABLED false)"; }
 # push_active — push is enabled AND at least one platform has its credential. render.py writes

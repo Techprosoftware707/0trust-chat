@@ -20,6 +20,12 @@ Security properties
     root-only file (0600 in a 0700 directory) for the operator to import and
     then delete (`lumenctl wireguard forget-profile`).
 
+  * DNS inside the tunnel: a dnsmasq forwarder (lumen-wg-dns.service) listens on
+    the server's tunnel address only. It answers the console's name with that
+    address and forwards everything else to this host's upstream resolvers, so
+    devices whose profile says `DNS = <tunnel address>` reach the console by name
+    without a hosts-file edit. It never listens on any other address.
+
 Command line (root, used by the installer; never reachable from a container):
   lumen_agent.py                      run the socket server
   lumen_agent.py init-wireguard       server key + wg0.conf; prints the public key
@@ -29,6 +35,16 @@ Command line (root, used by the installer; never reachable from a container):
   lumen_agent.py wg-first-peer --name N --out FILE
                                       the first operator device, once (never a second
                                       one, never new keys); prints no secrets
+  lumen_agent.py wg-add-device --name N
+                                      a new device whose profile is stored root-only in
+                                      WG_DIR/profiles/N.conf (lumenctl show-profile N
+                                      shows it as a QR code); prints no secrets
+  lumen_agent.py wg-dns-setup         write the tunnel DNS forwarder's configuration;
+                                      KEY=VALUE lines (CHANGED, LISTEN, NAME, UPSTREAMS...)
+  lumen_agent.py wg-dns-check [--wait S]
+                                      exit 0 when the forwarder answers the console's
+                                      name with the tunnel address
+  lumen_agent.py wg-dns-info          KEY=VALUE lines for summaries and the health check
 """
 
 from __future__ import annotations
@@ -42,6 +58,7 @@ import ipaddress
 import json
 import logging
 import os
+import pwd
 import re
 import shutil
 import signal
@@ -344,6 +361,248 @@ def first_device_profile() -> Path:
     return WG_DIR / "first-device.conf"
 
 
+def stored_profiles_dir() -> Path:
+    """Profiles of devices added with `lumenctl wireguard add-device` (root only, 0600 in 0700)."""
+    return WG_DIR / "profiles"
+
+
+def tunnel_ip(c: dict | None = None) -> str:
+    """The server's own address in the tunnel (the first host of WG_SUBNET)."""
+    c = conf() if c is None else c
+    return str(next(ipaddress.ip_network(c.get("WG_SUBNET", DEFAULT_SUBNET) or DEFAULT_SUBNET).hosts()))
+
+
+def ops_domain(c: dict | None = None) -> str:
+    c = conf() if c is None else c
+    return c.get("LUMEN_OPS_DOMAIN") or f"ops.{c.get('LUMEN_PRIMARY_DOMAIN', '')}"
+
+
+# --------------------------------------------------------------------------------
+# DNS inside the tunnel (split DNS)
+# --------------------------------------------------------------------------------
+# The console's name resolves publicly to the server's public address, from which the console
+# refuses connections. A device whose profile says `DNS = <tunnel address>` asks a small
+# forwarder (dnsmasq, lumen-wg-dns.service) on that address instead: it answers the console's
+# name with the tunnel address and forwards every other query to this host's own upstream
+# resolvers. It listens on the tunnel address only, so it is never an open resolver.
+
+HOST_RESOLV = Path("/etc/resolv.conf")
+# systemd-resolved's list of the real upstream servers; /etc/resolv.conf then names only its
+# local stub (127.0.0.53), which the forwarder does not use while real servers are known.
+RESOLVED_UPSTREAM = Path("/run/systemd/resolve/resolv.conf")
+RESOLVED_STUBS = {"127.0.0.53", "127.0.0.54"}
+
+
+def dns_conf_path() -> Path:
+    return WG_DIR / "dnsmasq.conf"
+
+
+def resolv_nameservers(path: Path) -> list[str]:
+    """The `nameserver` addresses of a resolv.conf-style file ([] if it can't be read)."""
+    try:
+        text = path.read_text()
+    except OSError:
+        return []
+    out = []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] == "nameserver":
+            try:
+                ipaddress.ip_address(parts[1].split("%")[0])
+            except ValueError:
+                continue
+            out.append(parts[1])
+    return out
+
+
+def choose_dns_upstream(tunnel: str, host_resolv: Path | None = None, resolved: Path | None = None) -> tuple[Path, list[str], str]:
+    """(resolv file the forwarder reads, the upstream servers in it, note).
+
+    With systemd-resolved, /etc/resolv.conf names only its local stub: the forwarder reads
+    resolved's own upstream list instead. Otherwise /etc/resolv.conf. dnsmasq re-reads the
+    chosen file whenever it changes (DHCP), and never forwards to the tunnel address itself."""
+    host_resolv = host_resolv or HOST_RESOLV
+    resolved = resolved or RESOLVED_UPSTREAM
+
+    def usable(servers: list[str]) -> list[str]:
+        out = []
+        for s in servers:
+            a = ipaddress.ip_address(s.split("%")[0])
+            if str(a) != tunnel and not a.is_unspecified:
+                out.append(s)
+        return out
+
+    host = usable(resolv_nameservers(host_resolv))
+    if not host or any(s in RESOLVED_STUBS for s in host):
+        real = [s for s in usable(resolv_nameservers(resolved)) if s not in RESOLVED_STUBS]
+        if real:
+            return resolved, real, "systemd-resolved's upstream servers"
+    if host:
+        if all(s in RESOLVED_STUBS for s in host):
+            return host_resolv, host, "systemd-resolved's local stub (it lists no upstream server)"
+        return host_resolv, host, "this host's resolvers"
+    return host_resolv, [], "no upstream DNS server found; only the console's name is answered until one is configured"
+
+
+def dns_user() -> tuple[str, str]:
+    """The unprivileged user dnsmasq switches to after binding port 53."""
+    for name in ("dnsmasq", "nobody"):
+        try:
+            pw = pwd.getpwnam(name)
+        except KeyError:
+            continue
+        try:
+            return name, grp.getgrgid(pw.pw_gid).gr_name
+        except KeyError:
+            return name, "nogroup"
+    return "nobody", "nogroup"
+
+
+def dns_config(c: dict | None = None, upstream: tuple[Path, list[str], str] | None = None) -> str:
+    """dnsmasq configuration for the tunnel DNS forwarder (only this file is read)."""
+    c = conf() if c is None else c
+    server, name = tunnel_ip(c), ops_domain(c)
+    if not HOST_RE.match(name):
+        raise OpError(f"the console's name {name!r} is not a valid host name (LUMEN_OPS_DOMAIN)")
+    resolv, servers, note = upstream or choose_dns_upstream(server)
+    user, group = dns_user()
+    return "\n".join([
+        f"{WG_MARKER}. Manual edits are overwritten.",
+        "# DNS for WireGuard devices (split DNS): the console's name resolves to the tunnel address,",
+        "# every other name is forwarded to this host's upstream resolvers. Queries are not logged.",
+        "# Listens on the tunnel address only (never on a public interface): not an open resolver.",
+        f"listen-address={server}",
+        "bind-interfaces",
+        "port=53",
+        "# Nothing else is read: not /etc/dnsmasq.conf, not /etc/hosts. No dhcp-range: no DHCP.",
+        "no-hosts",
+        f"# Upstream: {note} ({' '.join(servers) or 'none'} when this file was written).",
+        f"resolv-file={resolv}",
+        "# The console: its A record is answered here, every other type (AAAA, HTTPS, ...) gets an",
+        "# empty answer, so a device never learns the public address of this name.",
+        f"local=/{name}/",
+        f"address=/{name}/{server}",
+        "domain-needed",
+        "bogus-priv",
+        "cache-size=1000",
+        "edns-packet-max=1232",
+        f"user={user}",
+        f"group={group}",
+        "",
+    ])
+
+
+def write_dns_config() -> dict[str, str]:
+    """Write the forwarder's configuration (only when it changed). Returns KEY=VALUE facts."""
+    if not wg_enabled():
+        raise OpError("WireGuard is disabled on this server")
+    reason = foreign_reason()
+    if reason:
+        raise OpError(reason)
+    c = conf()
+    server = tunnel_ip(c)
+    upstream = choose_dns_upstream(server)
+    text = dns_config(c, upstream)
+    path = dns_conf_path()
+    with wg_locked():
+        try:
+            old = path.read_text()
+        except OSError:
+            old = None
+        if old != text:
+            write_private(path, text)
+    return {"CONF": str(path), "CHANGED": "1" if old != text else "0", "LISTEN": server, "NAME": ops_domain(c),
+            "UPSTREAM_FILE": str(upstream[0]), "UPSTREAMS": " ".join(upstream[1]) or "none", "UPSTREAM_NOTE": upstream[2]}
+
+
+def _dns_name(name: str) -> bytes:
+    out = b""
+    for label in name.rstrip(".").split("."):
+        raw = label.encode("idna")
+        if not raw or len(raw) > 63:
+            raise ValueError(f"invalid DNS name {name!r}")
+        out += bytes([len(raw)]) + raw
+    return out + b"\x00"
+
+
+def _dns_skip_name(data: bytes, i: int) -> int:
+    while True:
+        n = data[i]
+        if n & 0xC0 == 0xC0:
+            return i + 2
+        if n == 0:
+            return i + 1
+        i += n + 1
+
+
+def parse_dns_response(data: bytes, qid: bytes | None = None) -> tuple[int, list[str]]:
+    """(rcode, the A/AAAA addresses in the answer section) of a DNS response."""
+    try:
+        if len(data) < 12 or (qid is not None and data[:2] != qid) or not data[2] & 0x80:
+            raise OSError("not a reply to this query")
+        qdcount, ancount = struct.unpack(">HH", data[4:8])
+        i = 12
+        for _ in range(qdcount):
+            i = _dns_skip_name(data, i) + 4
+        addrs = []
+        for _ in range(ancount):
+            i = _dns_skip_name(data, i)
+            rtype, _cls, _ttl, rdlen = struct.unpack(">HHIH", data[i:i + 10])
+            i += 10
+            rdata = data[i:i + rdlen]
+            i += rdlen
+            if len(rdata) != rdlen:
+                raise IndexError
+            if rtype == 1 and rdlen == 4:
+                addrs.append(socket.inet_ntop(socket.AF_INET, rdata))
+            elif rtype == 28 and rdlen == 16:
+                addrs.append(socket.inet_ntop(socket.AF_INET6, rdata))
+        return data[3] & 0x0F, addrs
+    except (IndexError, struct.error) as exc:
+        raise OSError("truncated DNS reply") from exc
+
+
+def dns_query(server: str, name: str, qtype: int = 1, *, timeout: float = 1.0, tcp: bool = False) -> tuple[int, list[str]]:
+    """One DNS query to server:53 (UDP, or TCP) -> (rcode, addresses). OSError if no reply."""
+    qid = os.urandom(2)
+    msg = qid + b"\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00" + _dns_name(name) + struct.pack(">HH", qtype, 1)
+    family = socket.AF_INET6 if ":" in server else socket.AF_INET
+    if tcp:
+        with socket.create_connection((server, 53), timeout=timeout) as s:
+            s.sendall(struct.pack(">H", len(msg)) + msg)
+            buf = b""
+            while len(buf) < 2 or len(buf) < 2 + struct.unpack(">H", buf[:2])[0]:
+                chunk = s.recv(4096)
+                if not chunk:
+                    raise OSError("connection closed")
+                buf += chunk
+            return parse_dns_response(buf[2:], qid)
+    with socket.socket(family, socket.SOCK_DGRAM) as s:
+        s.settimeout(timeout)
+        s.connect((server, 53))
+        s.send(msg)
+        return parse_dns_response(s.recv(4096), qid)
+
+
+def tunnel_dns_ready(c: dict | None = None, timeout: float = 1.0) -> bool:
+    """True when the forwarder on the tunnel address answers the console's name with that address.
+    Device profiles get a DNS line only then: a DNS server that doesn't answer would leave the
+    device without any name resolution while the tunnel is up."""
+    c = conf() if c is None else c
+    server = tunnel_ip(c)
+    try:
+        rcode, addrs = dns_query(server, ops_domain(c), 1, timeout=timeout)
+    except (OSError, ValueError):
+        return False
+    return rcode == 0 and server in addrs
+
+
+def devices_without_dns(peers: list[dict]) -> list[str]:
+    """Devices whose profile was issued without the DNS line (before tunnel DNS existed, or while
+    it was unavailable). Client-generated keys (no profile issued here) are not listed."""
+    return [p.get("name", "") for p in peers if p.get("profile_dns", "") == ""]
+
+
 def op_wg_status(args: dict) -> dict:
     if not wg_enabled():
         raise OpError("WireGuard is disabled on this server")
@@ -374,12 +633,17 @@ def op_wg_status(args: dict) -> dict:
     peers = []
     for pub in sorted(set(peers_meta) | set(live)):
         meta = peers_meta.get(pub, {})
-        peers.append({"public_key": pub, "name": meta.get("name", ""), "allowed_ips": f"{meta.get('address', '?')}/32", **live.get(pub, {"latest_handshake": 0, "rx_bytes": 0, "tx_bytes": 0, "preshared_key": bool(meta)})})
+        # True: the profile issued here sets DNS; False: issued without it; None: the device's own key.
+        dns_in_profile = None if not meta or meta.get("profile_dns", "") is None else bool(meta.get("profile_dns"))
+        peers.append({"public_key": pub, "name": meta.get("name", ""), "allowed_ips": f"{meta.get('address', '?')}/32", "dns_in_profile": dns_in_profile,
+                      **live.get(pub, {"latest_handshake": 0, "rx_bytes": 0, "tx_bytes": 0, "preshared_key": bool(meta)})})
     net = ipaddress.ip_network(c.get("WG_SUBNET", DEFAULT_SUBNET))
     key_meta = wg_meta()
     state = install_state()
     first = key_meta.get("first_device") or {}
     profile = first_device_profile()
+    dns_state = state.get("wireguard_dns", "")
+    stored = sorted(p.stem for p in stored_profiles_dir().glob("*.conf")) if stored_profiles_dir().is_dir() else []
     return {
         "interface": WG_IF,
         "up": up,
@@ -394,8 +658,53 @@ def op_wg_status(args: dict) -> dict:
         # The installer's first device; its profile file stays on the server until forgotten.
         "first_device": {"name": first.get("name", ""), "public_key": first.get("public_key", ""),
                          "profile_stored": profile.exists(), "profile_path": str(profile) if profile.exists() else ""} if first else {},
+        # DNS inside the tunnel: profiles say `DNS = server`; the forwarder answers `name` with it.
+        "dns": {"server": tunnel_ip(c), "name": ops_domain(c), "state": dns_state,
+                "unavailable_reason": state.get("wireguard_dns_reason", "") if dns_state == "unavailable" else "",
+                "answering": bool(up and tunnel_dns_ready(c, timeout=0.5))},
+        "devices_without_dns": devices_without_dns(wg_peers()),
+        # Profiles of `lumenctl wireguard add-device` still stored on the server (names only).
+        "stored_profiles": stored,
         "peers": peers,
     }
+
+
+def device_profile(*, name: str, private_key: str, address: str, server_public_key: str, psk: str, endpoint: str,
+                   server_ip: str, ops: str, ops_port: str, dns: str) -> str:
+    """A device's WireGuard profile. Split tunnel: only the server's tunnel address is routed into
+    the tunnel (never the endpoint, which would break the handshake). With `dns`, the device asks
+    the server's tunnel DNS, which points the console's name into the tunnel."""
+    lines = [
+        f"# Lumen operator access for {name}. Contains a PRIVATE KEY - keep it secret.",
+        f"# Console: https://{ops}:{ops_port}/ (while this tunnel is connected)",
+    ]
+    if dns:
+        lines += [
+            f"# DNS = {dns}: no hosts-file edit needed. While the tunnel is up, this device sends ALL its",
+            f"#   DNS lookups through the tunnel to your Lumen server, which answers {ops} with {server_ip}",
+            "#   and forwards every other lookup to its own resolvers (Lumen does not log them).",
+            f'#   Prefer a hosts file? Delete the DNS line and add "{server_ip} {ops}" to the hosts file.',
+        ]
+    else:
+        lines += [
+            f'# The console\'s name must lead into the tunnel on this device: add "{server_ip} {ops}" to',
+            "#   /etc/hosts (Linux, macOS) or C:\\Windows\\System32\\drivers\\etc\\hosts (Windows).",
+            "#   (This server's DNS in the tunnel did not answer when this profile was made.)",
+        ]
+    lines += ["[Interface]", f"PrivateKey = {private_key}", f"Address = {address}/32"]
+    if dns:
+        lines.append(f"DNS = {dns}")
+    lines += [
+        "",
+        "[Peer]",
+        f"PublicKey = {server_public_key}",
+        f"PresharedKey = {psk}",
+        f"Endpoint = {endpoint}",
+        f"AllowedIPs = {server_ip}/32",
+        "PersistentKeepalive = 25",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def _wg_add_peer_locked(name: str, client_pub: str, actor: str) -> dict:
@@ -422,6 +731,8 @@ def _wg_add_peer_locked(name: str, client_pub: str, actor: str) -> dict:
     psk = run(["wg", "genpsk"]).stdout.strip()
     if not KEY_RE.match(client_pub) or not KEY_RE.match(psk):
         raise OpError("wg did not produce valid keys")
+    server_ip = str(hosts[0])
+    dns = server_ip if tunnel_dns_ready(c) else ""
     (WG_DIR / "psk").mkdir(mode=0o700, parents=True, exist_ok=True)
     psk_path = WG_DIR / "psk" / f"{peer_id}.psk"
     fd = os.open(psk_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -436,36 +747,25 @@ def _wg_add_peer_locked(name: str, client_pub: str, actor: str) -> dict:
             "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "created_by": actor,
             "client_generated_key": not client_priv,
+            # The DNS line of the profile issued here ("" = none); None: the device made its own key.
+            "profile_dns": dns if client_priv else None,
         }
     )
     wg_save_peers(peers)
     wg_write_config(peers)
     wg_sync()
     endpoint_host = c.get("WG_ENDPOINT") or c.get("LUMEN_PRIMARY_DOMAIN", "")
-    ops_domain = c.get("LUMEN_OPS_DOMAIN") or f"ops.{c.get('LUMEN_PRIMARY_DOMAIN', '')}"
-    server_ip = str(next(net.hosts()))
-    result = {"public_key": client_pub, "address": address, "server_public_key": server_public_key(), "endpoint": f"{endpoint_host}:{c.get('WG_PORT', '51820')}"}
+    result = {"public_key": client_pub, "address": address, "server_public_key": server_public_key(),
+              "endpoint": f"{endpoint_host}:{c.get('WG_PORT', '51820')}", "allowed_ips": f"{server_ip}/32", "dns": dns}
+    profile = {"name": name, "address": address, "server_public_key": result["server_public_key"], "psk": psk,
+               "endpoint": result["endpoint"], "server_ip": server_ip, "ops": ops_domain(c),
+               "ops_port": c.get("LUMEN_OPS_PORT", "8443"), "dns": dns}
     if client_priv:
-        result["config"] = "\n".join(
-            [
-                f"# Lumen operator access for {name}. Contains a PRIVATE KEY - keep it secret.",
-                f"# Add to /etc/hosts on this device:  {server_ip} {ops_domain}",
-                f"# Console: https://{ops_domain}:{c.get('LUMEN_OPS_PORT', '8443')}/",
-                "[Interface]",
-                f"PrivateKey = {client_priv}",
-                f"Address = {address}/32",
-                "",
-                "[Peer]",
-                f"PublicKey = {result['server_public_key']}",
-                f"PresharedKey = {psk}",
-                f"Endpoint = {result['endpoint']}",
-                f"AllowedIPs = {server_ip}/32",
-                "PersistentKeepalive = 25",
-                "",
-            ]
-        )
+        result["config"] = device_profile(private_key=client_priv, **profile)
     else:
         result["psk"] = psk  # needed by the client; shown once
+        # The rest of the device's configuration, for the operator to complete with its own key.
+        result["client_config"] = device_profile(private_key="<the private key you generated on the device>", **profile)
     return result
 
 
@@ -650,13 +950,37 @@ def wg_plan(public_ip: str = "", lan_ip: str = "") -> dict[str, str]:
 
 FIRST_DEVICE_HEADER = """# Lumen Secure - WireGuard profile for the operator device "{name}", created by the installer on {date}.
 # This file contains that device's PRIVATE KEY and its preshared key: treat it like a password.
-#   1. Import it into the WireGuard app on your computer or phone
+#   1. Import it into the WireGuard app on your phone or computer
 #      (QR code for a phone: sudo ./lumenctl wireguard show-profile).
 #   2. Then delete it from the server: sudo ./lumenctl wireguard forget-profile
 #      (the device keeps working; revoke it in the console or with lumenctl wireguard remove-peer).
-# The console's name must point into the tunnel on that device: add the hosts line below to
-# /etc/hosts (Linux, macOS) or C:\\Windows\\System32\\drivers\\etc\\hosts (Windows).
 """
+
+DEVICE_HEADER = """# Lumen Secure - WireGuard profile for the operator device "{name}", added on {date} (lumenctl wireguard add-device).
+# This file contains that device's PRIVATE KEY and its preshared key: treat it like a password.
+#   1. Import it into the WireGuard app (QR code for a phone: sudo ./lumenctl wireguard show-profile {name}).
+#   2. Then delete it from the server: sudo ./lumenctl wireguard forget-profile {name}
+#      (the device keeps working; revoke it in the console or with lumenctl wireguard remove-peer).
+"""
+
+
+def add_stored_device(name: str, actor: str = "lumenctl") -> dict:
+    """A new device with server-generated keys whose profile is stored root-only (0600 in 0700)
+    in stored_profiles_dir(), like the installer's first device. Returns no key material."""
+    if not wg_enabled():
+        raise OpError("WireGuard is disabled on this server")
+    if not NAME_RE.match(name) or name.strip(".") == "":
+        raise OpError("name must be 1-32 characters: letters, digits, '.', '_' or '-'")
+    out = stored_profiles_dir() / f"{name}.conf"
+    with wg_locked():
+        if out.exists():
+            raise OpError(f"a stored profile named {name} already exists ({out})")
+        result = _wg_add_peer_locked(name, "", actor)
+        stored_profiles_dir().mkdir(mode=0o700, exist_ok=True)
+        os.chmod(stored_profiles_dir(), 0o700)
+        write_private(out, DEVICE_HEADER.format(name=name, date=datetime.now(UTC).strftime("%Y-%m-%d")) + result["config"])
+    return {"name": name, "address": result["address"], "public_key": result["public_key"],
+            "dns": result["dns"] or "none", "profile": str(out)}
 
 
 def ensure_first_device(name: str, out: Path, actor: str = "installer") -> tuple[str, dict]:
@@ -841,7 +1165,7 @@ def handle_request(raw: bytes, peer_uid: int) -> dict:
     except Exception as exc:  # noqa: BLE001
         log.exception("op=%s actor=%s failed", op, actor)
         return {"id": rid, "ok": False, "error": f"internal error ({type(exc).__name__})"}
-    safe = {k: ("[secret]" if k in {"config", "psk"} else v) for k, v in result.items()} if isinstance(result, dict) else {}
+    safe = {k: ("[secret]" if k in {"config", "psk", "client_config"} else v) for k, v in result.items()} if isinstance(result, dict) else {}
     log.info("op=%s actor=%s uid=%s result=ok %s", op, actor, peer_uid, json.dumps(safe)[:300] if op.startswith("wg.add") else "")
     return {"id": rid, "ok": True, "result": result}
 
@@ -899,6 +1223,12 @@ def cli(argv: list[str]) -> int:
     p = sub.add_parser("wg-first-peer")
     p.add_argument("--name", required=True)
     p.add_argument("--out", required=True, type=Path)
+    p = sub.add_parser("wg-add-device")
+    p.add_argument("--name", required=True)
+    sub.add_parser("wg-dns-setup")
+    p = sub.add_parser("wg-dns-check")
+    p.add_argument("--wait", type=float, default=0.0, help="keep trying for this many seconds")
+    sub.add_parser("wg-dns-info")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "init-wireguard":
@@ -912,6 +1242,29 @@ def cli(argv: list[str]) -> int:
                 raise OpError("WireGuard is disabled on this server")
             status, info = ensure_first_device(a.name, a.out)
             print(status, *[str(v) for v in info.values()])
+        elif a.cmd == "wg-add-device":
+            info = add_stored_device(a.name)
+            print("created", *[str(v) for v in info.values()])
+        elif a.cmd == "wg-dns-setup":
+            for k, v in write_dns_config().items():
+                print(f"{k}={' '.join(str(v).split())}")
+        elif a.cmd == "wg-dns-check":
+            c = conf()
+            deadline = time.monotonic() + a.wait
+            while not tunnel_dns_ready(c):
+                if time.monotonic() >= deadline:
+                    raise OpError(f"no answer for {ops_domain(c)} from the tunnel DNS on {tunnel_ip(c)}:53")
+                time.sleep(0.5)
+            print(f"ok {ops_domain(c)} -> {tunnel_ip(c)} (tunnel DNS on {tunnel_ip(c)}:53)")
+        elif a.cmd == "wg-dns-info":
+            c = conf()
+            state = install_state()
+            info = {"SERVER": tunnel_ip(c), "NAME": ops_domain(c), "STATE": state.get("wireguard_dns", ""),
+                    "REASON": state.get("wireguard_dns_reason", ""),
+                    "ANSWERING": "1" if interface_exists() and tunnel_dns_ready(c) else "0",
+                    "WITHOUT_DNS": ",".join(devices_without_dns(wg_peers()))}
+            for k, v in info.items():
+                print(f"{k}={' '.join(str(v).split())}")
     except OpError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

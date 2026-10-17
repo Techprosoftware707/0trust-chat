@@ -8,8 +8,11 @@
   <div class="card-title"><span class="icon-chip teal">{% icon "check-circle-2" %}</span><h2 id="new-peer-title" class="mb-0">“{{ new_peer.name }}” can now connect</h2></div>
   {% if new_peer.config %}
   <div class="alert alert-warning">{% icon "triangle-alert" %}<div>This profile contains the device's <strong>private key</strong> and its preshared key. It is shown only now and isn't stored on the server. Scan the QR code with the WireGuard app or download the file, then close this page.</div></div>
+  {% if new_peer.dns %}<p class="small mb-0">This profile sets <code>DNS = {{ new_peer.dns }}</code>: while the tunnel is connected, the device sends its DNS lookups through the tunnel to this server, which answers the console's name with {{ new_peer.dns }} and forwards every other lookup. No hosts-file edit is needed. To use a hosts file instead, delete the DNS line before importing.</p>
+  {% else %}<p class="small mb-0">DNS in the tunnel isn't answering, so this profile has no DNS line: on the device, add the hosts-file line <code>{{ status.dns.server }} {{ status.dns.name }}</code>.</p>{% endif %}
   <div class="grid grid-2 align-start"><div class="qr">{{ qr_svg|safe }}</div><div class="stack-sm"><pre class="small">{{ new_peer.config }}</pre><a class="btn btn-primary" href="{% url 'ops:wg_download' %}">{% icon "download" %} Download .conf</a></div></div>
-  {% else %}<p class="muted mb-0">Registered your public key <span class="mono">{{ new_peer.public_key }}</span> with address {{ new_peer.address }}. Add the server's details and the preshared key to your own configuration.</p>{% endif %}
+  {% else %}<p class="muted mb-0">Registered your public key <span class="mono">{{ new_peer.public_key }}</span> with address {{ new_peer.address }}.</p>
+  {% if new_peer.client_config %}<p class="small mb-0">Complete the device's configuration with these values, using the private key you generated on it. The preshared key is shown only now.</p><pre class="small">{{ new_peer.client_config }}</pre>{% endif %}{% endif %}
 </section>
 {% endif %}
 {% if not enabled %}
@@ -21,6 +24,9 @@
 {% endif %}
 {% if status %}
 {% with peers=status.peers psk=status.peers|count_where:"preshared_key" first=status.first_device %}
+{% if status.stored_profiles %}
+<div class="alert alert-info">{% icon "info" %}<div>Profiles stored on the server, readable by root only (added with <code>lumenctl wireguard add-device</code>): {{ status.stored_profiles|join:", " }}. Show one as a QR code: <code>sudo ./lumenctl wireguard show-profile &lt;name&gt;</code>; once imported, delete it: <code>sudo ./lumenctl wireguard forget-profile &lt;name&gt;</code>.</div></div>
+{% endif %}
 {% if first.profile_stored %}
 <div class="alert alert-info">{% icon "info" %}<div>The installer created a profile for “{{ first.name }}”. It is stored on the server, readable by root only, at <code>{{ first.profile_path }}</code>. Import it into the WireGuard app (to show its QR code on the server: <code>sudo ./lumenctl wireguard show-profile</code>), then delete it: <code>sudo ./lumenctl wireguard forget-profile</code>.</div></div>
 {% endif %}
@@ -35,12 +41,15 @@
     <div class="wg-state"><span class="status-dot {% if status.up %}status-ok{% else %}status-failed{% endif %}" aria-hidden="true"></span><div><h2 id="wg-state-title" class="mb-0">{% if status.up %}Tunnel is up{% else %}Tunnel is down{% endif %}</h2><div class="xsmall muted">Interface <span class="mono">{{ status.interface }}</span> · {{ status.address }}</div></div></div>
     <dl class="wg-facts">
       {% if status.endpoint %}<div class="wg-fact wide"><dt>Devices dial</dt><dd class="mono">{{ status.endpoint }}</dd></div>{% endif %}
+      {% if status.dns %}<div class="wg-fact wide"><dt>DNS for devices</dt><dd>{% if status.dns.answering %}<span class="mono">{{ status.dns.server }}</span> <span class="xsmall muted">{{ status.dns.name }} → {{ status.dns.server }}</span>{% else %}<span class="muted">unavailable</span>{% endif %}</dd></div>{% endif %}
       <div class="wg-fact"><dt>Listen port</dt><dd>{{ status.listen_port }}/udp</dd></div>
       <div class="wg-fact"><dt>Operator devices</dt><dd>{{ peers|length }}</dd></div>
       <div class="wg-fact"><dt>Preshared keys</dt><dd>{% if peers %}{{ psk }} of {{ peers|length }}{% else %}—{% endif %}</dd></div>
       <div class="wg-fact"><dt>Server public key</dt><dd class="mono" title="Public key (not secret)">{{ status.public_key|truncatechars:14 }}</dd></div>
     </dl>
     <p class="xsmall subtle mb-0">{% if status.endpoint %}If your provider has its own firewall (security group), allow UDP {{ status.listen_port }} there. {% endif %}{% if status.key_created_at %}Server key created {% with t=status.key_created_at|isodate %}{{ t|date:"j M Y"|default:t }}{% endwith %}. {% endif %}Private and preshared keys are never shown here.</p>
+    {% if status.dns.answering %}<p class="xsmall subtle mb-0">Profiles set <code>DNS = {{ status.dns.server }}</code>: this server answers the console's name with its tunnel address and forwards every other lookup to its own resolvers, so no device needs a hosts-file edit. While connected, a device's DNS lookups go to this server (Lumen doesn't log them).</p>
+    {% elif status.dns %}<p class="xsmall subtle mb-0">DNS in the tunnel {% if status.dns.unavailable_reason %}is unavailable: {{ status.dns.unavailable_reason }}{% else %}isn't answering{% endif %}. New profiles carry no DNS line; on each device add the hosts-file line <code>{{ status.dns.server }} {{ status.dns.name }}</code>. After fixing the cause: <code>sudo ./lumenctl wireguard enable</code>.</p>{% endif %}
   </section>
   {% endif %}
   <section class="card wg-why" aria-labelledby="wg-why-title">
@@ -55,10 +64,11 @@
 {% if status.state != "unavailable" or peers %}
 <section class="card" aria-labelledby="peers-title">
   <div class="card-header"><h2 id="peers-title">Operator devices</h2>{% if peers %}<span class="xsmall">{{ peers|length }} device{{ peers|length|pluralize }}</span>{% endif %}</div>
+  {% if status.devices_without_dns and status.dns.answering %}<div class="alert alert-info">{% icon "info" %}<div>Profiles issued without the DNS line: {{ status.devices_without_dns|join:", " }}. On each of these devices, edit the tunnel in the WireGuard app and set <strong>DNS servers</strong> to <code>{{ status.dns.server }}</code> (Android, iOS: tap the tunnel, then the edit button; Windows, macOS, Linux: add <code>DNS = {{ status.dns.server }}</code> under [Interface]). Or give the device a new profile (add it again, or <code>sudo ./lumenctl wireguard add-device &lt;name&gt;</code> for a QR code) and revoke the old one.</div></div>{% endif %}
   {% if peers %}
   <div class="table-wrap"><table class="table"><thead><tr><th>Device</th><th>Address</th><th>Last handshake</th><th>Transfer</th><th>Preshared key</th><th><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
   {% for p in peers %}<tr>
-    <td><div class="peer-name"><span class="icon-chip" aria-hidden="true">{% icon "laptop" %}</span><div><strong>{{ p.name|default:"(unnamed)" }}</strong>{% if first.public_key and p.public_key == first.public_key %} <span class="badge badge-info">first device (installer)</span>{% endif %}<div class="xsmall muted mono" title="Public key">{{ p.public_key|truncatechars:14 }}</div></div></div></td>
+    <td><div class="peer-name"><span class="icon-chip" aria-hidden="true">{% icon "laptop" %}</span><div><strong>{{ p.name|default:"(unnamed)" }}</strong>{% if first.public_key and p.public_key == first.public_key %} <span class="badge badge-info">first device (installer)</span>{% endif %}<div class="xsmall muted mono" title="Public key">{{ p.public_key|truncatechars:14 }}</div>{% if p.dns_in_profile == False %}<div class="xsmall muted">profile without the DNS line</div>{% endif %}</div></div></td>
     <td class="mono small">{{ p.allowed_ips }}</td>
     <td class="small nowrap">{% if p.latest_handshake %}{% if p.handshake_age_s < 180 %}<span class="badge badge-success">Connected</span> {% endif %}{{ p.handshake_age_s|seconds_ago }} ago{% else %}<span class="muted">Never connected</span>{% endif %}</td>
     <td class="small nowrap">↓ {{ p.rx_bytes|filesizeformat }} · ↑ {{ p.tx_bytes|filesizeformat }}</td>
@@ -81,9 +91,9 @@
       <div class="field"><label for="wg-name">Device name</label><input id="wg-name" name="name" type="text" pattern="[A-Za-z0-9._\-]{1,32}" required placeholder="alice-laptop" aria-describedby="wg-name-help" autocomplete="off"><span class="help" id="wg-name-help">Letters, digits, dots, dashes and underscores, up to 32 characters.</span></div>
       <div class="field"><label for="wg-pub">Your public key <span class="muted">(recommended)</span></label><input id="wg-pub" name="public_key" type="text" placeholder="Leave empty to generate a key pair here" aria-describedby="wg-pub-help" autocomplete="off" spellcheck="false"><span class="help" id="wg-pub-help">Generate keys on your device with <code>wg genkey | tee priv | wg pubkey</code>, so the private key never exists on the server.</span></div>
     </div>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "plus" %} Add device</button><span class="xsmall subtle">Or on the server: <code>sudo ./lumenctl wireguard add-peer &lt;name&gt;</code></span></div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{% icon "plus" %} Add device</button><span class="xsmall subtle">Or on the server, with a QR code for a phone: <code>sudo ./lumenctl wireguard add-device &lt;name&gt;</code></span></div>
   </form>
-  <p class="xsmall subtle mb-0">Each device gets its own preshared key and a /32 address. Devices can reach only the operator console port; the firewall still applies.</p>
+  <p class="xsmall subtle mb-0">Each device gets its own preshared key and a /32 address{% if status.dns.answering %}, and its profile sets <code>DNS = {{ status.dns.server }}</code>{% endif %}. Devices can reach only the operator console{% if status.dns.answering %} and the tunnel DNS{% endif %}; the firewall still applies.</p>
 </section>
 {% endif %}
 {% endblock %}

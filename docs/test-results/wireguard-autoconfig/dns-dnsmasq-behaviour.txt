@@ -1,0 +1,28 @@
+=== dnsmasq-base on Ubuntu 24.04 in a throwaway container: why the forwarder's configuration has local=/<console name>/ next to address=/<console name>/<tunnel ip>
+=== (google.com stands in for a console name that has public AAAA/HTTPS records; this sandbox's upstream resolver returned NODATA for those, a real one returns the public addresses)
+dnsmasq: Dnsmasq version 2.91  Copyright (c) 2000-2025 Simon Kelley
+--- address= only (dnsmasq >= 2.86 forwards the other types upstream): address=/google.com/10.77.0.1
+  google.com type 1 (1=A 28=AAAA 65=HTTPS): rcode=0 answers=['10.77.0.1']
+  google.com type 28 (1=A 28=AAAA 65=HTTPS): rcode=0 answers=[]
+  google.com type 65 (1=A 28=AAAA 65=HTTPS): rcode=0 answers=[]
+  query log:
+    query[A] google.com from 10.77.0.1
+    config google.com is 10.77.0.1
+    query[AAAA] google.com from 10.77.0.1
+    forwarded google.com to 8.8.8.8
+    forwarded google.com to 8.8.4.4
+    reply google.com is NODATA-IPv6
+    query[HTTPS] google.com from 10.77.0.1
+    forwarded google.com to 8.8.4.4
+    reply google.com is NODATA
+--- address= plus local= (what Lumen writes): local=/google.com/ address=/google.com/10.77.0.1
+  google.com type 1 (1=A 28=AAAA 65=HTTPS): rcode=0 answers=['10.77.0.1']
+  google.com type 28 (1=A 28=AAAA 65=HTTPS): rcode=0 answers=[]
+  google.com type 65 (1=A 28=AAAA 65=HTTPS): rcode=0 answers=[]
+  query log:
+    query[A] google.com from 10.77.0.1
+    config google.com is 10.77.0.1
+    query[AAAA] google.com from 10.77.0.1
+    config google.com is NODATA-IPv6
+    query[HTTPS] google.com from 10.77.0.1
+    config google.com is NODATA

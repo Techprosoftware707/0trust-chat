@@ -178,6 +178,89 @@ class TestConsoleWireGuard:
         html = self._get(monkeypatch, admin, _status(peers=[]))
         assert "No operator devices yet" in html and 'href="#add-peer"' in html
 
+    def test_states_the_dns_server_in_the_profiles(self, monkeypatch, admin, settings):
+        settings.WIREGUARD_ENABLED = True
+        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True}
+        html = self._get(monkeypatch, admin, _status(dns=dns, devices_without_dns=[]))
+        assert "DNS for devices" in html and "DNS = 10.77.0.1" in html
+        assert "no device needs a hosts-file edit" in html
+        assert "Profiles issued without the DNS line" not in html
+
+    def test_dns_unavailable_falls_back_to_the_hosts_line(self, monkeypatch, admin, settings):
+        settings.WIREGUARD_ENABLED = True
+        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "unavailable", "answering": False,
+               "unavailable_reason": "port 53 on 10.77.0.1 is already served by named (left untouched)"}
+        html = self._get(monkeypatch, admin, _status(dns=dns))
+        assert "already served by named" in html
+        assert "10.77.0.1 ops.example.com" in html  # the hosts-file line
+        assert "sudo ./lumenctl wireguard enable" in html
+
+    def test_devices_without_the_dns_line_get_the_manual_fix(self, monkeypatch, admin, settings):
+        settings.WIREGUARD_ENABLED = True
+        dns = {"server": "10.77.0.1", "name": "ops.example.com", "state": "enabled", "unavailable_reason": "", "answering": True}
+        peers = _status()["peers"]
+        peers[0] = dict(peers[0], dns_in_profile=False)
+        html = self._get(monkeypatch, admin, _status(dns=dns, devices_without_dns=["operator-laptop"], peers=peers))
+        assert "Profiles issued without the DNS line: operator-laptop" in html
+        assert "<strong>DNS servers</strong>" in html and "<code>10.77.0.1</code>" in html  # the app's field
+        assert "sudo ./lumenctl wireguard add-device" in html
+        assert html.count("profile without the DNS line") == 1
+
+    def test_stored_add_device_profiles_are_listed(self, monkeypatch, admin, settings):
+        settings.WIREGUARD_ENABLED = True
+        html = self._get(monkeypatch, admin, _status(stored_profiles=["alice-phone"]))
+        assert "alice-phone" in html and "sudo ./lumenctl wireguard forget-profile &lt;name&gt;" in html
+
+    CONFIG = ("# Lumen operator access for phone. Contains a PRIVATE KEY - keep it secret.\n# DNS = 10.77.0.1: no hosts-file edit needed.\n"
+              "[Interface]\nPrivateKey = PRIVKEYabcdefghijklmnopqrstuvwxyz0123456789A=\nAddress = 10.77.0.3/32\nDNS = 10.77.0.1\n\n"
+              "[Peer]\nPublicKey = SERVERPUBLICKEYabcdefghijklmnopqrstuvwxyz0=\nPresharedKey = PSKabcdefghijklmnopqrstuvwxyz0123456789ABCD=\n"
+              "Endpoint = vpn.example.com:51820\nAllowedIPs = 10.77.0.1/32\nPersistentKeepalive = 25\n")
+
+    def test_add_device_flow_qr_and_download_carry_the_dns_line(self, monkeypatch, admin, settings):
+        from apps.ops import agent
+
+        from .factories import mark_recent_auth
+
+        settings.WIREGUARD_ENABLED = True
+        qr_inputs = []
+        import qrcode
+
+        real_make = qrcode.make
+        monkeypatch.setattr(qrcode, "make", lambda data, **kw: (qr_inputs.append(data), real_make(data, **kw))[1])
+        result = {"public_key": OTHER_KEY, "address": "10.77.0.3", "dns": "10.77.0.1", "config": self.CONFIG}
+        monkeypatch.setattr(agent, "safe_call", lambda op, *a, **kw: (result, "") if op == "wg.add_peer" else (_status(), ""))
+        c = ops_client(admin)
+        mark_recent_auth(c)
+        r = c.post("/ops/wireguard/peers/add/", {"name": "phone"})
+        assert r.status_code == 302
+        html = c.get("/ops/wireguard/").content.decode()
+        assert "This profile sets" in html and "DNS = 10.77.0.1" in html
+        assert "DNS = 10.77.0.1" in qr_inputs[0] and "AllowedIPs = 10.77.0.1/32" in qr_inputs[0]
+        assert "#" not in qr_inputs[0]  # comments stay in the file, not in the QR code
+        d = c.get("/ops/wireguard/peers/download/")
+        assert d.status_code == 200 and d["Cache-Control"] == "no-store"
+        assert "DNS = 10.77.0.1" in d.content.decode() and d.content.decode().startswith("# Lumen operator access")
+        assert c.get("/ops/wireguard/peers/download/").status_code == 404  # once only
+        assert "PRIVKEY" not in c.get("/ops/wireguard/").content.decode()  # gone from the page too
+
+    def test_add_device_with_its_own_key_shows_the_rest_once(self, monkeypatch, admin, settings):
+        from apps.ops import agent
+
+        from .factories import mark_recent_auth
+
+        settings.WIREGUARD_ENABLED = True
+        client_config = self.CONFIG.replace("PRIVKEYabcdefghijklmnopqrstuvwxyz0123456789A=", "<the private key you generated on the device>")
+        result = {"public_key": OTHER_KEY, "address": "10.77.0.3", "dns": "10.77.0.1", "psk": "PSKabcdefghijklmnopqrstuvwxyz0123456789ABCD=", "client_config": client_config}
+        monkeypatch.setattr(agent, "safe_call", lambda op, *a, **kw: (result, "") if op == "wg.add_peer" else (_status(), ""))
+        c = ops_client(admin)
+        mark_recent_auth(c)
+        assert c.post("/ops/wireguard/peers/add/", {"name": "desk", "public_key": OTHER_KEY}).status_code == 302
+        html = c.get("/ops/wireguard/").content.decode()
+        assert "PresharedKey = PSKabcdefghijklmnopqrstuvwxyz0123456789ABCD=" in html and "DNS = 10.77.0.1" in html
+        assert "&lt;the private key you generated on the device&gt;" in html
+        assert "PSKabcdef" not in c.get("/ops/wireguard/").content.decode()  # shown once
+        assert c.get("/ops/wireguard/peers/download/").status_code == 404  # no private key: nothing to download
+
 
 class TestFilters:
     def test_filters(self):

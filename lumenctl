@@ -10,8 +10,9 @@
 #   sudo ./lumenctl operator-link <user>            new one-time setup/recovery link (1 h)
 #   sudo ./lumenctl federation open|closed|allowlist [server,server]
 #   sudo ./lumenctl wireguard status|enable|disable|add-peer <name> [pubkey]|remove-peer <pubkey>
-#   sudo ./lumenctl wireguard show-profile [file|name]  QR code of the installer's first device profile
-#   sudo ./lumenctl wireguard forget-profile        delete that stored profile once it is imported
+#   sudo ./lumenctl wireguard add-device <name>     new device (e.g. a phone); its profile is stored root-only
+#   sudo ./lumenctl wireguard show-profile [name|file]  QR code of a stored profile (default: the first device)
+#   sudo ./lumenctl wireguard forget-profile [name] delete a stored profile once it is imported
 #   sudo ./lumenctl rotate <secret>                 rotate: ops-gateway|internal-api|synapse-admin|oidc-client|db-passwords|django
 #   sudo ./lumenctl reconcile-db                    re-apply database roles/passwords from secrets
 #   sudo ./lumenctl config                          print resolved configuration (no secrets)
@@ -142,11 +143,13 @@ case "$cmd" in
         first_name="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("first_device") or {}).get("name",""))' "$wgdir/server.json" 2>/dev/null || true)"
         if [[ "$target" == first-device || ( -n "$first_name" && "$target" == "$first_name" ) ]]; then
           file="$wgdir/first-device.conf"
-          [[ -f "$file" ]] || die "no stored first device profile ($file was deleted after import). New devices: the console's WireGuard page or: sudo ./lumenctl wireguard add-peer <name>"
+          [[ -f "$file" ]] || die "no stored first device profile ($file was deleted after import). New devices: sudo ./lumenctl wireguard add-device <name>, or the console's WireGuard page"
+        elif [[ "$target" =~ ^[A-Za-z0-9._-]{1,32}$ && -f "$wgdir/profiles/$target.conf" ]]; then
+          file="$wgdir/profiles/$target.conf"   # stored by add-device
         elif [[ -f "$target" ]]; then
           file="$(realpath "$target")"
         else
-          die "no profile '$target': give a profile file, or 'first-device'${first_name:+ / '$first_name'} (profiles of other devices are shown once, when they are added)"
+          die "no profile '$target': give a device added with add-device, 'first-device'${first_name:+ / '$first_name'}, or a profile file (devices added in the console are shown once, when they are added)"
         fi
         grep -q '^\[Interface\]' "$file" && grep -q '^PrivateKey' "$file" || die "$file is not a WireGuard profile"
         command -v qrencode >/dev/null 2>&1 || die "qrencode is not installed: sudo apt-get install qrencode"
@@ -154,17 +157,48 @@ case "$cmd" in
         logger -t lumenctl "wireguard show-profile: displayed $file as a QR code" 2>/dev/null || true
         printf 'Profile: %s\nIn the WireGuard app: Add tunnel, then Scan from QR code. Anyone who sees this code\ncan connect as this device: clear the screen afterwards.\n\n' "$file"
         grep -v '^[[:space:]]*#' "$file" | qrencode -t ansiutf8
-        printf '\nOnce imported, delete the server copy: sudo ./lumenctl wireguard forget-profile\n'
+        printf '\nOnce imported, delete the server copy: sudo ./lumenctl wireguard forget-profile%s\n' \
+          "$( [[ "$file" == "$wgdir/profiles/"* ]] && printf ' %s' "$(basename "$file" .conf)")"
         ;;
       forget-profile)
         log_init lumenctl
-        file="$LUMEN_CONFIG_DIR/wireguard/first-device.conf"
-        if [[ ! -e "$file" ]]; then ok "no stored device profile (already deleted)"; exit 0; fi
+        wgdir="$LUMEN_CONFIG_DIR/wireguard"; target="${1:-first-device}"
+        first_name="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("first_device") or {}).get("name",""))' "$wgdir/server.json" 2>/dev/null || true)"
+        if [[ "$target" == first-device || ( -n "$first_name" && "$target" == "$first_name" ) ]]; then
+          file="$wgdir/first-device.conf"
+        elif [[ "$target" =~ ^[A-Za-z0-9._-]{1,32}$ ]]; then
+          file="$wgdir/profiles/$target.conf"
+        else
+          die "invalid device name '$target'"
+        fi
+        if [[ ! -e "$file" ]]; then ok "no stored profile for '$target' (already deleted)"; exit 0; fi
         shred -u "$file" 2>/dev/null || rm -f "$file"
         [[ ! -e "$file" ]] || die "could not delete $file"
         _log "AUDIT wireguard forget-profile: deleted $file"
         logger -t lumenctl "wireguard forget-profile: deleted $file" 2>/dev/null || true
         ok "deleted $file. The device keeps working; to revoke it: the console's WireGuard page or sudo ./lumenctl wireguard remove-peer <public key>"
+        ;;
+      add-device)
+        # A new device with server-generated keys, its profile stored root-only like the first
+        # device's (for a phone: then show-profile <name> shows the QR code). No key is printed.
+        source "$LUMEN_REPO_DIR/deploy/lib/host.sh"; source "$LUMEN_REPO_DIR/deploy/lib/wireguard.sh"
+        log_init lumenctl
+        name="${1:?device name, e.g. alice-phone}"
+        [[ "$name" =~ ^[A-Za-z0-9._-]{1,32}$ ]] || die "the name must be 1-32 characters: letters, digits, '.', '_' or '-'"
+        wireguard_active || die "WireGuard is not running on this server (sudo ./lumenctl wireguard status; turn it on: sudo ./lumenctl wireguard enable)"
+        out="$(_wg_agent wg-add-device --name "$name" 2>>"$_log_file")" || die "could not add '$name': $(tail -n1 "$_log_file" | sed 's/^error: //')"
+        read -r _ dname daddr dpub ddns dfile <<<"$out"
+        _log "AUDIT wireguard add-device: $dname $daddr $dpub, profile stored at $dfile (contents not logged)"
+        logger -t lumenctl "wireguard add-device: $dname $daddr, profile stored at $dfile" 2>/dev/null || true
+        ok "device '$dname' added ($daddr); its profile is stored root-only: $dfile"
+        if [[ "$ddns" != none ]]; then
+          info "the profile sets DNS = $ddns: the console's name leads into the tunnel on the device (no hosts file)"
+        else
+          warn "DNS in the tunnel is not answering: the profile has no DNS line; on the device add the hosts-file line $(wg_server_ip) $(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)")"
+        fi
+        printf '\nNext:\n  phone:     sudo ./lumenctl wireguard show-profile %s   (scan the QR code in the WireGuard app)\n' "$dname"
+        printf '  computer:  ssh <you>@<this server> sudo cat %s > lumen-%s.conf   (import it in the WireGuard app)\n' "$dfile" "$dname"
+        printf '  then:      sudo ./lumenctl wireguard forget-profile %s\n' "$dname"
         ;;
       add-peer) agent wg.add_peer "$(python3 -c 'import json,sys; d={"name":sys.argv[1]}; d.update({"public_key":sys.argv[2]} if len(sys.argv)>2 and sys.argv[2] else {}); print(json.dumps(d))' "${1:?name}" "${2:-}")" ;;
       remove-peer) agent wg.remove_peer "$(python3 -c 'import json,sys; print(json.dumps({"public_key":sys.argv[1]}))' "${1:?public key}")" ;;
@@ -257,8 +291,8 @@ The operator console is not on the public internet. Reach it with either:
 
   WireGuard (on by default; status: sudo ./lumenctl wireguard status):
     the installer's first device profile (QR: sudo ./lumenctl wireguard show-profile), or a new
-    one from the console (WireGuard page) or 'sudo ./lumenctl wireguard add-peer <name>'
-    # hosts file on your computer:  $(python3 -c "import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))" "$(conf_get WG_SUBNET 10.77.0.0/24)") $ops
+    one: 'sudo ./lumenctl wireguard add-device <name>' (then show-profile <name>) or the console
+    $(if wireguard_dns_active; then echo "# profiles set DNS = $(wg_server_ip): the name leads into the tunnel, no hosts file"; else echo "# hosts file on your device:  $(wg_server_ip) $ops"; fi)
     open https://$ops:$port/
 EOF
     ;;

@@ -9,6 +9,12 @@ WG_CONF_FILE=/etc/wireguard/wg0.conf
 WG_FIRST_PROFILE="$LUMEN_CONFIG_DIR/wireguard/first-device.conf"
 WG_REASON=""   # set when WireGuard is unavailable on this host
 WG_HOW=""      # kernel | userspace (wireguard-go)
+# DNS inside the tunnel: dnsmasq (Ubuntu's dnsmasq-base: a binary, no system service) on the
+# tunnel address only. It answers the console's name with that address and forwards the rest.
+WG_DNS_UNIT=lumen-wg-dns.service
+WG_DNS_CONF="$LUMEN_CONFIG_DIR/wireguard/dnsmasq.conf"
+WG_DNS_PIDFILE=/run/lumen-wg-dns.pid   # without systemd only
+WG_DNS_REASON=""
 
 _wg_agent() {
   LUMEN_CONF="$LUMEN_CONF" LUMEN_STATE="$LUMEN_STATE_FILE" LUMEN_WG_DIR="$LUMEN_CONFIG_DIR/wireguard" \
@@ -83,8 +89,117 @@ _wg_up() {
   ip link show wg0 >/dev/null 2>&1
 }
 
+# _wg_dns_pid — the forwarder's main process ('' when it isn't running).
+_wg_dns_pid() {
+  local pid=""
+  if has_systemd; then
+    pid="$(systemctl show -p MainPID --value "$WG_DNS_UNIT" 2>/dev/null || true)"
+  elif [[ -s "$WG_DNS_PIDFILE" ]]; then
+    pid="$(cat "$WG_DNS_PIDFILE" 2>/dev/null || true)"
+  fi
+  if [[ "$pid" =~ ^[1-9][0-9]*$ ]] && [[ "$(cat "/proc/$pid/comm" 2>/dev/null)" == dnsmasq ]]; then printf '%s' "$pid"; fi
+  return 0
+}
+
+# _wg_dns_port_taken ADDR — another program (not Lumen's forwarder) would receive DNS queries for
+# ADDR:53 (bound to ADDR or to a wildcard address): prints its name and returns 0.
+_wg_dns_port_taken() {
+  local addr="$1" ours line local_addr users
+  ours="$(_wg_dns_pid)"
+  while read -r line; do
+    [[ -n "$line" ]] || continue
+    local_addr="$(awk '{print $4}' <<<"$line")"
+    case "$local_addr" in "$addr:53" | "0.0.0.0:53" | "*:53" | "[::]:53") ;; *) continue ;; esac
+    users="$(grep -o 'users:(.*' <<<"$line" || true)"
+    [[ -n "$ours" && "$users" == *"pid=$ours,"* ]] && continue
+    users="$(grep -oE '"[^"]+"' <<<"$users" | head -n1 | tr -d '"')"
+    printf '%s' "${users:-another program}"
+    return 0
+  done < <(ss -Hlnup 'sport = :53' 2>/dev/null; ss -Hlntp 'sport = :53' 2>/dev/null)
+  return 1
+}
+
+# _wg_dns_install_unit — install lumen-wg-dns.service; returns 0 when the unit file changed.
+_wg_dns_install_unit() {
+  local dst="/etc/systemd/system/$WG_DNS_UNIT" tmp
+  tmp="$(mktemp)"
+  sed -e "s|@LUMEN_REPO_DIR@|$LUMEN_REPO_DIR|g" -e "s|@LUMEN_CONFIG_DIR@|$LUMEN_CONFIG_DIR|g" \
+    "$LUMEN_REPO_DIR/deploy/systemd/$WG_DNS_UNIT" >"$tmp"
+  if cmp -s "$tmp" "$dst"; then rm -f "$tmp"; return 1; fi
+  install -m 0644 "$tmp" "$dst"; rm -f "$tmp"
+  run systemctl daemon-reload
+  return 0
+}
+
+# _wg_dns_stop — stop Lumen's forwarder (never any other DNS server).
+_wg_dns_stop() {
+  local pid
+  if has_systemd; then
+    [[ -e "/etc/systemd/system/$WG_DNS_UNIT" ]] && { systemctl disable --now "$WG_DNS_UNIT" >/dev/null 2>&1 || true; }
+  else
+    pid="$(_wg_dns_pid)"
+    [[ -n "$pid" ]] && { kill "$pid" 2>/dev/null || true; }
+    rm -f "$WG_DNS_PIDFILE"
+  fi
+  return 0
+}
+
+_wg_dns_unavailable() { # reason — record and explain; the caller returns 1
+  WG_DNS_REASON="$1"
+  _wg_dns_stop
+  state_set wireguard_dns unavailable
+  state_set wireguard_dns_reason "$1"
+  warn "DNS in the tunnel unavailable: $1"
+  warn "new device profiles get no DNS line; on each device the hosts-file line $(wg_server_ip) $(conf_get LUMEN_OPS_DOMAIN "ops.$(conf_get LUMEN_PRIMARY_DOMAIN)") points the console's name into the tunnel"
+}
+
+# _wg_dns_up — DNS inside the tunnel, idempotently: dnsmasq-base, its configuration, the service
+# on the tunnel address only, then a real query. Only after Lumen's wg0 is up. Never fails
+# WireGuard: without it, profiles get no DNS line and the hosts-file line works as before.
+_wg_dns_up() {
+  WG_DNS_REASON=""
+  local out k v listen="" name="" changed=0 upstreams="" upnote="" owner pid
+  if ! command -v dnsmasq >/dev/null 2>&1; then
+    { DEBIAN_FRONTEND=noninteractive run apt-get install -y -q --no-install-recommends dnsmasq-base \
+      || { run apt-get update -q && DEBIAN_FRONTEND=noninteractive run apt-get install -y -q --no-install-recommends dnsmasq-base; }; } \
+      || { _wg_dns_unavailable "could not install dnsmasq-base (apt-get failed; see $_log_file)"; return 1; }
+  fi
+  if ! out="$(_wg_agent wg-dns-setup 2>>"$_log_file")"; then
+    _wg_dns_unavailable "could not write $WG_DNS_CONF: $(tail -n1 "$_log_file" | sed 's/^error: //')"; return 1
+  fi
+  while IFS='=' read -r k v; do
+    case "$k" in
+      LISTEN) listen="$v" ;; NAME) name="$v" ;; CHANGED) changed="$v" ;; UPSTREAMS) upstreams="$v" ;; UPSTREAM_NOTE) upnote="$v" ;;
+    esac
+  done <<<"$out"
+  if owner="$(_wg_dns_port_taken "$listen")"; then
+    _wg_dns_unavailable "port 53 on $listen is already served by $owner (left untouched)"; return 1
+  fi
+  if has_systemd; then
+    _wg_dns_install_unit && changed=1
+    systemctl is-enabled --quiet "$WG_DNS_UNIT" 2>/dev/null || run systemctl enable "$WG_DNS_UNIT" || warn "could not enable $WG_DNS_UNIT at boot"
+    if [[ "$changed" == 1 ]] || ! systemctl is-active --quiet "$WG_DNS_UNIT"; then
+      run systemctl restart "$WG_DNS_UNIT" || { _wg_dns_unavailable "$WG_DNS_UNIT did not start (journalctl -u $WG_DNS_UNIT)"; return 1; }
+    fi
+  else
+    # No systemd (as wg-quick without its unit): a daemon with a pid file, not started at boot.
+    pid="$(_wg_dns_pid)"
+    if [[ -n "$pid" && "$changed" == 1 ]]; then kill "$pid" 2>/dev/null || true; sleep 1; pid=""; fi
+    if [[ -z "$pid" ]]; then
+      run dnsmasq --conf-file="$WG_DNS_CONF" --pid-file="$WG_DNS_PIDFILE" || { _wg_dns_unavailable "dnsmasq did not start (see $_log_file)"; return 1; }
+    fi
+  fi
+  if ! _wg_agent wg-dns-check --wait 15 >>"$_log_file" 2>&1; then
+    _wg_dns_unavailable "the forwarder on $listen:53 did not answer (see $_log_file$(has_systemd && echo " and journalctl -u $WG_DNS_UNIT"))"; return 1
+  fi
+  state_set wireguard_dns enabled
+  state_set wireguard_dns_reason ""
+  ok "DNS in the tunnel on $listen:53 (wg0 only): $name -> $listen, other names forwarded to $upstreams ($upnote)"
+}
+
 # wireguard_enable — bring up private operator access, idempotently:
-#   a free subnet, the endpoint devices dial, the server key, wg0, and (once) a first device.
+#   a free subnet, the endpoint devices dial, the server key, wg0, DNS inside the tunnel, and
+#   (once) a first device.
 # Returns 1 after recording state "unavailable" and explaining why when this host can't run
 # WireGuard; it never overwrites, starts or stops a WireGuard setup that Lumen did not create.
 # Firewall rules come from configure_firewall (run it afterwards).
@@ -140,7 +255,11 @@ wireguard_enable() {
   state_set wireguard_reason ""
   ok "WireGuard up on wg0 ($(conf_get WG_SUBNET 10.77.0.0/24), UDP $port${WG_HOW:+, $WG_HOW}); devices dial $(conf_get WG_ENDPOINT "<WG_ENDPOINT>"):$port"
 
-  # 4. The first operator device: once. Re-runs never add another or generate new keys.
+  # 4. DNS inside the tunnel, before the first device: its profile gets the DNS line only when
+  #    the forwarder answers. Firewall rules (53 on wg0 only) come from configure_firewall.
+  _wg_dns_up || true
+
+  # 5. The first operator device: once. Re-runs never add another or generate new keys.
   local opuser name out
   opuser="$(conf_get OPERATOR_USERNAME operator)"; name="${opuser:0:25}-device"
   if out="$(_wg_agent wg-first-peer --name "$name" --out "$WG_FIRST_PROFILE" 2>>"$_log_file")"; then
@@ -150,7 +269,7 @@ wireguard_enable() {
       *) ok "devices already registered; no first device added" ;;
     esac
   else
-    warn "could not create the first device profile (see $_log_file); add one with: sudo ./lumenctl wireguard add-peer <name>"
+    warn "could not create the first device profile (see $_log_file); add one with: sudo ./lumenctl wireguard add-device <name>"
   fi
   return 0
 }
@@ -160,13 +279,26 @@ wireguard_disable() {
     ok "WireGuard off in Lumen; the existing non-Lumen $WG_CONF_FILE and its wg0 were left untouched"
     return 0
   fi
+  _wg_dns_stop
   if has_systemd; then
     systemctl disable --now wg-quick@wg0.service >/dev/null 2>&1 || true
   else
     wg-quick down wg0 >/dev/null 2>&1 || true
   fi
   state_set wireguard "disabled"
-  ok "WireGuard stopped (keys kept in $LUMEN_CONFIG_DIR/wireguard; delete them to revoke everything)"
+  state_set wireguard_dns "disabled"
+  ok "WireGuard stopped, with its DNS in the tunnel (keys kept in $LUMEN_CONFIG_DIR/wireguard; delete them to revoke everything)"
+}
+
+# wireguard_dns_hint PREFIX — for devices whose profiles predate DNS in the tunnel: the two ways to
+# give them the DNS line (nothing printed when every profile has it).
+wireguard_dns_hint() {
+  local without srv
+  without="$(_wg_agent wg-dns-info 2>/dev/null | sed -n 's/^WITHOUT_DNS=//p')"
+  [[ -n "$without" ]] || return 0
+  srv="$(wg_server_ip)"
+  printf '%sprofiles without the DNS line: %s. Add it in the WireGuard app (edit the tunnel, DNS servers: %s)\n' "$1" "${without//,/, }" "$srv"
+  printf '%sor give the device a new profile: sudo ./lumenctl wireguard add-device <name>, then show-profile <name>\n' "$1"
 }
 
 # wireguard_summary_lines — the WireGuard part of the install summary (paths only, never keys).
@@ -177,13 +309,19 @@ wireguard_summary_lines() {
   if ! wireguard_wanted; then
     printf 'WireGuard:          off; turn it on with: sudo ./lumenctl wireguard enable\n'
   elif wireguard_active; then
-    srv="$(python3 -c 'import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))' "$subnet")"
+    srv="$(wg_server_ip)"
     if [[ -f "$WG_FIRST_PROFILE" ]]; then
       printf 'WireGuard:          on (wg0, %s, UDP %s); first device profile: %s — show as QR: sudo ./lumenctl wireguard show-profile\n' "$subnet" "$port" "$WG_FIRST_PROFILE"
     else
-      printf 'WireGuard:          on (wg0, %s, UDP %s); add devices in the console (WireGuard page) or: sudo ./lumenctl wireguard add-peer <name>\n' "$subnet" "$port"
+      printf 'WireGuard:          on (wg0, %s, UDP %s); add a device (QR): sudo ./lumenctl wireguard add-device <name>, or in the console (WireGuard page)\n' "$subnet" "$port"
     fi
-    printf '                    console via WireGuard: https://%s:%s/  (hosts file on the device: %s %s)\n' "$ops" "$opsport" "$srv" "$ops"
+    if wireguard_dns_active; then
+      printf '                    console via WireGuard: https://%s:%s/  (profiles set DNS = %s, which points the name into the tunnel: no hosts file)\n' "$ops" "$opsport" "$srv"
+      wireguard_dns_hint '                    '
+    else
+      printf '                    console via WireGuard: https://%s:%s/  (hosts file on the device: %s %s%s)\n' "$ops" "$opsport" "$srv" "$ops" \
+        "$( [[ -n "$(state_get wireguard_dns_reason)" ]] && echo "; DNS in the tunnel unavailable: $(state_get wireguard_dns_reason)")"
+    fi
     printf '                    devices dial %s:%s. If your provider has its own firewall (security group), allow UDP %s there.\n' "$(conf_get WG_ENDPOINT "<WG_ENDPOINT>")" "$port" "$port"
   else
     printf 'WireGuard:          unavailable — %s\n' "$(state_get wireguard_reason)"

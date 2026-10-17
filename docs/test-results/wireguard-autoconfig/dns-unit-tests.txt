@@ -1,0 +1,97 @@
+=== python3 -m unittest discover -s tests/deploy -p 'test_[hr]*.py' -v   (2026-10-17T22:17:05Z, Python 3.13.16)
+    tests/deploy/test_host_agent.py (DNS inside the tunnel: DeviceProfiles, TunnelDnsForwarder, DnsUpstream, DnsWire, ForeignWireGuard) + tests/deploy/test_render_apps.py
+test_console_allow_list_includes_the_subnet_by_default (test_host_agent.Defaults.test_console_allow_list_includes_the_subnet_by_default) ... rendered configuration into /tmp/lumen-agent-v4obmae2/out
+ok
+test_endpoint_validation (test_host_agent.Defaults.test_endpoint_validation) ... ok
+test_explicit_off_is_respected (test_host_agent.Defaults.test_explicit_off_is_respected) ... ok
+test_on_when_the_key_is_absent (test_host_agent.Defaults.test_on_when_the_key_is_absent) ... ok
+test_add_device_command_line_prints_no_key_material (test_host_agent.DeviceProfiles.test_add_device_command_line_prints_no_key_material) ... ok
+test_add_device_rejects_bad_names (test_host_agent.DeviceProfiles.test_add_device_rejects_bad_names) ... ok
+test_add_device_stores_a_root_only_profile (test_host_agent.DeviceProfiles.test_add_device_stores_a_root_only_profile) ... ok
+test_client_generated_key_gets_the_rest_of_the_configuration (test_host_agent.DeviceProfiles.test_client_generated_key_gets_the_rest_of_the_configuration) ... ok
+test_devices_from_before_tunnel_dns_are_reported (test_host_agent.DeviceProfiles.test_devices_from_before_tunnel_dns_are_reported) ... ok
+test_dns_follows_the_subnet_and_the_console_name (test_host_agent.DeviceProfiles.test_dns_follows_the_subnet_and_the_console_name) ... ok
+test_first_device_header_needs_no_hosts_file (test_host_agent.DeviceProfiles.test_first_device_header_needs_no_hosts_file) ... ok
+test_first_device_without_tunnel_dns_explains_the_hosts_line (test_host_agent.DeviceProfiles.test_first_device_without_tunnel_dns_explains_the_hosts_line) ... ok
+test_no_dns_line_while_the_forwarder_does_not_answer (test_host_agent.DeviceProfiles.test_no_dns_line_while_the_forwarder_does_not_answer) ... ok
+test_profile_sets_the_tunnel_dns_and_keeps_the_split_tunnel (test_host_agent.DeviceProfiles.test_profile_sets_the_tunnel_dns_and_keeps_the_split_tunnel) ... ok
+test_never_forwards_to_itself (test_host_agent.DnsUpstream.test_never_forwards_to_itself) ... ok
+test_odd_lines_and_scoped_addresses (test_host_agent.DnsUpstream.test_odd_lines_and_scoped_addresses) ... ok
+test_plain_resolv_conf (test_host_agent.DnsUpstream.test_plain_resolv_conf) ... ok
+test_resolved_without_upstream_falls_back_to_its_stub (test_host_agent.DnsUpstream.test_resolved_without_upstream_falls_back_to_its_stub) ... ok
+test_systemd_resolved_uses_the_real_upstream_servers (test_host_agent.DnsUpstream.test_systemd_resolved_uses_the_real_upstream_servers) ... ok
+test_empty_answer_and_rcode (test_host_agent.DnsWire.test_empty_answer_and_rcode) ... ok
+test_name_encoding (test_host_agent.DnsWire.test_name_encoding) ... ok
+test_parses_a_and_aaaa_answers (test_host_agent.DnsWire.test_parses_a_and_aaaa_answers) ... ok
+test_rejects_other_ids_and_truncated_replies (test_host_agent.DnsWire.test_rejects_other_ids_and_truncated_replies) ... ok
+test_explicit_wins (test_host_agent.EndpointChoice.test_explicit_wins) ... ok
+test_lan_address_last (test_host_agent.EndpointChoice.test_lan_address_last) ... ok
+test_loopback_hosts_entry_is_not_an_endpoint (test_host_agent.EndpointChoice.test_loopback_hosts_entry_is_not_an_endpoint) ... ok
+test_name_pointing_elsewhere_falls_back_to_public_ip (test_host_agent.EndpointChoice.test_name_pointing_elsewhere_falls_back_to_public_ip) ... ok
+test_name_resolving_to_an_interface_address (test_host_agent.EndpointChoice.test_name_resolving_to_an_interface_address) ... ok
+test_name_resolving_to_public_ip_behind_nat (test_host_agent.EndpointChoice.test_name_resolving_to_public_ip_behind_nat) ... ok
+test_nothing_known (test_host_agent.EndpointChoice.test_nothing_known) ... ok
+test_plan_keeps_the_first_endpoint (test_host_agent.EndpointChoice.test_plan_keeps_the_first_endpoint) ... ok
+test_plan_uses_the_primary_domain (test_host_agent.EndpointChoice.test_plan_uses_the_primary_domain) ... ok
+test_add_peer_response_is_redacted_in_the_log (test_host_agent.FirstDevice.test_add_peer_response_is_redacted_in_the_log) ... ok
+test_command_line_prints_no_key_material (test_host_agent.FirstDevice.test_command_line_prints_no_key_material) ... ok
+test_created_once_with_root_only_profile (test_host_agent.FirstDevice.test_created_once_with_root_only_profile) ... ok
+test_not_recreated_after_forget_or_revoke (test_host_agent.FirstDevice.test_not_recreated_after_forget_or_revoke) ... ok
+test_profile_only_inside_the_wireguard_directory (test_host_agent.FirstDevice.test_profile_only_inside_the_wireguard_directory) ... ok
+test_reruns_add_nothing_and_rotate_nothing (test_host_agent.FirstDevice.test_reruns_add_nothing_and_rotate_nothing) ... ok
+test_skipped_when_devices_exist_already (test_host_agent.FirstDevice.test_skipped_when_devices_exist_already) ... ok
+test_status_reports_the_stored_profile (test_host_agent.FirstDevice.test_status_reports_the_stored_profile) ... ok
+test_console_gets_a_clear_error (test_host_agent.ForeignWireGuard.test_console_gets_a_clear_error) ... ok
+test_console_subnet_avoids_the_foreign_vpn (test_host_agent.ForeignWireGuard.test_console_subnet_avoids_the_foreign_vpn) ... ok
+test_detected (test_host_agent.ForeignWireGuard.test_detected) ... ok
+test_interface_without_lumen_config (test_host_agent.ForeignWireGuard.test_interface_without_lumen_config) ... ok
+test_lumens_own_file_is_fine (test_host_agent.ForeignWireGuard.test_lumens_own_file_is_fine) ... ok
+test_never_overwritten (test_host_agent.ForeignWireGuard.test_never_overwritten) ... ok
+test_default_kept_when_free (test_host_agent.SubnetChoice.test_default_kept_when_free) ... ok
+test_explicit_subnet_moved_only_when_it_overlaps (test_host_agent.SubnetChoice.test_explicit_subnet_moved_only_when_it_overlaps) ... ok
+test_first_free_candidate_on_overlap (test_host_agent.SubnetChoice.test_first_free_candidate_on_overlap) ... ok
+test_host_networks_reads_routes_and_addresses (test_host_agent.SubnetChoice.test_host_networks_reads_routes_and_addresses) ... ok
+test_no_free_candidate_is_an_error (test_host_agent.SubnetChoice.test_no_free_candidate_is_an_error) ... ok
+test_plan_keeps_the_subnet_of_restored_peers (test_host_agent.SubnetChoice.test_plan_keeps_the_subnet_of_restored_peers) ... ok
+test_plan_never_moves_lumens_live_subnet (test_host_agent.SubnetChoice.test_plan_never_moves_lumens_live_subnet) ... ok
+test_plan_picks_a_free_subnet_on_a_new_host (test_host_agent.SubnetChoice.test_plan_picks_a_free_subnet_on_a_new_host) ... ok
+test_skips_every_overlapping_candidate (test_host_agent.SubnetChoice.test_skips_every_overlapping_candidate) ... ok
+test_a_console_name_that_could_inject_options_is_refused (test_host_agent.TunnelDnsForwarder.test_a_console_name_that_could_inject_options_is_refused) ... ok
+test_answers_the_console_name_with_the_tunnel_address (test_host_agent.TunnelDnsForwarder.test_answers_the_console_name_with_the_tunnel_address) ... ok
+test_cli_prints_the_facts (test_host_agent.TunnelDnsForwarder.test_cli_prints_the_facts) ... ok
+test_listens_on_the_tunnel_address_only (test_host_agent.TunnelDnsForwarder.test_listens_on_the_tunnel_address_only) ... ok
+test_not_written_when_wireguard_is_off (test_host_agent.TunnelDnsForwarder.test_not_written_when_wireguard_is_off) ... ok
+test_written_root_only_and_only_when_changed (test_host_agent.TunnelDnsForwarder.test_written_root_only_and_only_when_changed) ... ok
+test_call_widget_is_served_where_wellknown_points (test_render_apps.TestDiscovery.test_call_widget_is_served_where_wellknown_points) ... rendered configuration into /tmp/lumen-render-bwnz2nek/out
+ok
+test_calls_off_hides_widget (test_render_apps.TestDiscovery.test_calls_off_hides_widget) ... rendered configuration into /tmp/lumen-render-jmp9_5_q/out
+ok
+test_closed_registration_hides_signup (test_render_apps.TestDiscovery.test_closed_registration_hides_signup) ... rendered configuration into /tmp/lumen-render-459459s5/out
+ok
+test_wellknown_contains_no_secret_like_values (test_render_apps.TestDiscovery.test_wellknown_contains_no_secret_like_values) ... rendered configuration into /tmp/lumen-render-q_g1yd3x/out
+ok
+test_wellknown_has_homeserver_and_lumen_block (test_render_apps.TestDiscovery.test_wellknown_has_homeserver_and_lumen_block) ... rendered configuration into /tmp/lumen-render-hq_3x0z_/out
+ok
+test_no_ca_download_with_public_certificates_or_outside_test_setups (test_render_apps.TestNoDomainTestSetup.test_no_ca_download_with_public_certificates_or_outside_test_setups) ... rendered configuration into /tmp/lumen-render-_lmqtw0y/out
+ok
+test_test_ca_offered_over_http_only_the_root_certificate (test_render_apps.TestNoDomainTestSetup.test_test_ca_offered_over_http_only_the_root_certificate) ... rendered configuration into /tmp/lumen-render-5_zky3l6/out
+ok
+test_platform_without_its_credential_is_left_out (test_render_apps.TestPush.test_platform_without_its_credential_is_left_out) ... rendered configuration into /tmp/lumen-render-z9u9o7re/out
+ok
+test_push_disabled_route_is_404 (test_render_apps.TestPush.test_push_disabled_route_is_404) ... rendered configuration into /tmp/lumen-render-hm58la8e/out
+ok
+test_push_enabled_route_only_from_private_ranges (test_render_apps.TestPush.test_push_enabled_route_only_from_private_ranges) ... rendered configuration into /tmp/lumen-render-wih3oe97/out
+ok
+test_push_needs_a_platform (test_render_apps.TestPush.test_push_needs_a_platform) ... ok
+test_push_never_includes_content (test_render_apps.TestPush.test_push_never_includes_content) ... rendered configuration into /tmp/lumen-render-1rfkdot2/out
+ok
+test_app_links_only_when_configured (test_render_apps.TestSsoAndAppLinks.test_app_links_only_when_configured) ... rendered configuration into /tmp/lumen-render-u2aiqujr/out
+ok
+test_app_scheme_is_whitelisted_for_sso (test_render_apps.TestSsoAndAppLinks.test_app_scheme_is_whitelisted_for_sso) ... rendered configuration into /tmp/lumen-render-_9j4y5oo/out
+ok
+test_bad_identifiers_rejected (test_render_apps.TestSsoAndAppLinks.test_bad_identifiers_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 76 tests in 0.237s
+
+OK

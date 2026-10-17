@@ -274,11 +274,11 @@ if wireguard_active && [[ -f "$WG_FIRST_PROFILE" ]]; then
   cat <<EOF
      • WireGuard: copy the profile:  ssh <you>@<this server> sudo cat $WG_FIRST_PROFILE > lumen-wg.conf
        import lumen-wg.conf into the WireGuard app and connect (phone: sudo ./lumenctl wireguard show-profile),
-       add to your hosts file:  $(python3 -c 'import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))' "$(conf_get WG_SUBNET 10.77.0.0/24)") $ops_host
+$(if wireguard_dns_active; then echo "       no hosts file needed: the profile sets DNS = $(wg_server_ip), which leads $ops_host into the tunnel,"; else echo "       add to your hosts file:  $(wg_server_ip) $ops_host"; fi)
        then delete the server copy:  sudo ./lumenctl wireguard forget-profile
 EOF
 elif wireguard_active; then
-  printf '     • WireGuard: a device profile from the console or: sudo ./lumenctl wireguard add-peer <name>\n'
+  printf '     • WireGuard: a device profile: sudo ./lumenctl wireguard add-device <name> (QR: show-profile <name>), or the console\n'
 fi
 cat <<EOF
      • SSH tunnel:  ssh -L $ops_port:127.0.0.1:$ops_port <you>@<this server>

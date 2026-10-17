@@ -149,7 +149,8 @@ WireGuard subnet or `ADMIN_ALLOWED_CIDRS`; the firewall does not open 8443.
 Two ways in:
 
 - **WireGuard** (on by default). The installer ends with a ready-to-import
-  profile for your first device; see [WireGuard](#wireguard) below.
+  profile for your first device (computer or phone; the console's name works
+  through the tunnel's own DNS); see [WireGuard](#wireguard) below.
 - **SSH tunnel** (always works, also where WireGuard can't run):
 
   ```bash
@@ -185,6 +186,16 @@ up by itself, and running it again changes nothing that already works:
 - **Keys.** The server key is generated on the server and never printed. Each
   device gets its own key pair and its own preshared key (see
   [post-quantum.md](../security/post-quantum.md)).
+- **DNS inside the tunnel.** A small DNS forwarder (dnsmasq from Ubuntu's
+  `dnsmasq-base`, run by `lumen-wg-dns.service`) listens on the server's tunnel
+  address only (`10.77.0.1:53`, UDP and TCP). It answers the console's name
+  (`LUMEN_OPS_DOMAIN`) with that address and forwards every other query to the
+  server's own resolvers (with systemd-resolved, the servers it lists in
+  `/run/systemd/resolve/resolv.conf`, not its 127.0.0.53 stub; otherwise
+  `/etc/resolv.conf`). It never listens on a public interface, so it is not an
+  open resolver; UFW allows port 53 only on `wg0`. Device profiles set
+  `DNS = 10.77.0.1`, so the console's name leads into the tunnel on every
+  device, phones included, with no hosts-file edit.
 - **First device.** If no device exists yet, the installer creates one named
   `<OPERATOR_USERNAME>-device` and writes its profile to
   `/etc/lumen/wireguard/first-device.conf` (root only: 0600 in a 0700
@@ -195,7 +206,7 @@ The summary shows the subnet, the port, the endpoint and the profile:
 
 ```
 WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
-                    console via WireGuard: https://ops.example.com:8443/  (hosts file on the device: 10.77.0.1 ops.example.com)
+                    console via WireGuard: https://ops.example.com:8443/  (profiles set DNS = 10.77.0.1, which points the name into the tunnel: no hosts file)
                     devices dial example.com:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
 ```
 
@@ -203,19 +214,39 @@ WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); first device profile: /et
 preshared key: treat it like a password.
 
 ```bash
-# a computer: copy it over SSH, then import lumen-wg.conf into the WireGuard app
-ssh you@server sudo cat /etc/lumen/wireguard/first-device.conf > lumen-wg.conf
 # a phone: show it as a QR code in your terminal, scan it in the WireGuard app
 sudo ./lumenctl wireguard show-profile
+# a computer: copy it over SSH, then import lumen-wg.conf into the WireGuard app
+ssh you@server sudo cat /etc/lumen/wireguard/first-device.conf > lumen-wg.conf
 ```
 
-Then, on that device, point the console's name into the tunnel with one hosts
-file line (the profile's comments show it): `10.77.0.1 ops.example.com` in
-`/etc/hosts` (Linux, macOS) or `C:\Windows\System32\drivers\etc\hosts`
-(Windows). Connect and open `https://ops.example.com:8443/`. A phone imports
-the profile from the QR code and connects, but phones can't edit a hosts file,
-so the console's name doesn't lead into the tunnel there (see
-[known limitations](../known-limitations.md)): use the console from a computer.
+Connect and open `https://ops.example.com:8443/`.
+
+**What the DNS line does on the device.** While the tunnel is connected, the
+device sends **all** its DNS lookups through the tunnel to your Lumen server,
+not only the console's name: the server answers the console's name with
+`10.77.0.1` and asks its own resolvers for everything else. Web pages and apps
+still connect directly (only `10.77.0.1` goes through the tunnel), but your
+server sees which names the device looks up while connected; Lumen's forwarder
+doesn't log them. When the tunnel is off, the device uses its usual DNS again.
+If you'd rather not, delete the `DNS = 10.77.0.1` line before importing (or
+clear "DNS servers" in the app) and add a hosts-file line instead:
+`10.77.0.1 ops.example.com` in `/etc/hosts` (Linux, macOS) or
+`C:\Windows\System32\drivers\etc\hosts` (Windows). Phones can't do that.
+
+How the official WireGuard apps apply it (from their source code; tested here
+only with a Linux client in a network namespace):
+
+| Client | With `DNS = 10.77.0.1` |
+|---|---|
+| Android | The app gives the VPN that DNS server; Android then sends all lookups to it while connected. **Private DNS** (Settings → Network & internet) must be *Automatic* (the default) or *Off*: with a provider hostname set, Android ignores the tunnel's DNS server. |
+| iOS, macOS (App Store app) | All lookups go to the tunnel's DNS server first (the app sets it as the resolver for every domain). |
+| Windows | The app sets the DNS server on the tunnel adapter. If `Resolve-DnsName ops.example.com` doesn't return `10.77.0.1`, use the hosts-file line. |
+| Linux (`wg-quick`) | Needs `resolvconf`. Ubuntu 24.04 has it (`/usr/sbin/resolvconf` from the `systemd-resolved` package, a link to `resolvectl`); on other systems install `systemd-resolved` or `openresolv`, or `wg-quick up` fails. NetworkManager (`nmcli connection import type wireguard file lumen-wg.conf`) uses the server only for the domains you route to it: `nmcli connection modify lumen-wg ipv4.dns-search '~ops.example.com'`. |
+
+A browser with its own "secure DNS" set to a fixed provider (Chrome, Firefox,
+Edge) asks that provider instead, gets the public address and can't open the
+console: set it to the default (automatic) or use the hosts-file line.
 
 **Delete the server copy** once the device is set up:
 
@@ -228,11 +259,39 @@ profile itself never is) in `/var/log/lumen/lumenctl-*.log` and the system
 journal (`journalctl -t lumenctl`). The stored profile is also part of the
 encrypted backups until you delete it.
 
-**More devices.** Add each one in the console (WireGuard page, shown once as a
-QR code and a file) or with `sudo ./lumenctl wireguard add-peer laptop`.
-Revoke a device on the same page or with `sudo ./lumenctl wireguard
-remove-peer <public key>`. `sudo ./lumenctl wireguard status` shows the
-devices, their last handshake and whether they use a preshared key.
+**More devices.** For a phone, from the server's terminal:
+
+```bash
+sudo ./lumenctl wireguard add-device alice-phone     # new keys; profile stored root-only
+sudo ./lumenctl wireguard show-profile alice-phone   # QR code: WireGuard app → + → Scan from QR code
+sudo ./lumenctl wireguard forget-profile alice-phone # once imported
+```
+
+`add-device` writes the profile to `/etc/lumen/wireguard/profiles/<name>.conf`
+(0600 in a 0700 directory) and prints no key. Or add a device in the console
+(WireGuard page: shown once as a QR code and a file), or with `sudo ./lumenctl
+wireguard add-peer laptop` (prints the profile as JSON). `sudo ./lumenctl
+wireguard status` shows the devices, their public keys, last handshake and
+whether they use a preshared key. Revoke a device on the console's page or
+with its public key:
+
+```bash
+sudo ./lumenctl wireguard status | python3 -c 'import json,sys; [print(p["name"], p["public_key"]) for p in json.load(sys.stdin)["peers"]]'
+sudo ./lumenctl wireguard remove-peer <public key>
+```
+
+**Devices added before DNS in the tunnel** (by a Lumen version without it)
+have profiles without the DNS line. `update.sh` sets up the forwarder
+and changes no key and no device; its summary lists those devices. For each,
+either:
+
+- add the DNS server by hand: in the WireGuard app on **Android** or **iOS**
+  tap the tunnel, tap the edit (pencil) button or **Edit**, enter `10.77.0.1`
+  in **DNS servers** (Interface section), save, and reconnect. On Windows,
+  macOS or Linux, edit the tunnel and add `DNS = 10.77.0.1` under
+  `[Interface]`;
+- or give the device a new profile (`add-device`, above), import it, then
+  revoke the old entry with `remove-peer`.
 
 **When the server can't run WireGuard**, the installation still succeeds. The
 installer says why, `sudo ./lumenctl wireguard status` and the health check
@@ -264,11 +323,19 @@ sudo ./lumenctl wireguard enable
 ```
 
 It sets `WIREGUARD_ENABLED=true`, chooses the subnet and endpoint, starts
-`wg0`, opens UDP 51820 in UFW, allows the subnet for the console, creates the
-first device profile and prints where it is. Remember the provider firewall.
+`wg0` and the DNS forwarder on the tunnel address (installing `dnsmasq-base`
+if needed), opens UDP 51820 in UFW (and port 53 on `wg0` only), allows the
+subnet for the console, creates the first device profile and prints where it
+is. Run again, it changes nothing that works. Remember the provider firewall.
 
-**Turn it off**: `sudo ./lumenctl wireguard disable` (stops `wg0`; keys and
-devices are kept until you delete `/etc/lumen/wireguard`).
+**When DNS in the tunnel can't run** (`dnsmasq-base` can't be installed,
+another DNS server already listens on port 53 of all addresses or of the
+tunnel address, or the forwarder doesn't answer), WireGuard still works: the
+installer says why, the health check warns, new profiles get no DNS line and
+their comments give the hosts-file line instead.
+
+**Turn it off**: `sudo ./lumenctl wireguard disable` (stops `wg0` and its DNS
+forwarder; keys and devices are kept until you delete `/etc/lumen/wireguard`).
 
 **First operator.** The installer creates the account named by
 `OPERATOR_USERNAME` with no password and stores a one-time setup link in

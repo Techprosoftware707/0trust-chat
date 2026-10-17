@@ -11,7 +11,8 @@ install_packages() {
   run apt-get update -q || die "apt-get update failed (check DNS / mirror access). See $_log_file"
   local pkgs=(ca-certificates curl gnupg jq age openssl python3 rsync iproute2 util-linux unattended-upgrades update-notifier-common)
   command -v ufw >/dev/null 2>&1 || { [[ "$(conf_get FIREWALL_MANAGE auto)" != no ]] && pkgs+=(ufw); }
-  wireguard_wanted && pkgs+=(wireguard-tools qrencode)
+  # dnsmasq-base: the DNS forwarder inside the tunnel (a binary only: no system dnsmasq service).
+  wireguard_wanted && pkgs+=(wireguard-tools qrencode dnsmasq-base)
   apt_install "${pkgs[@]}"
   ok "host packages installed: ${pkgs[*]}"
 }
@@ -120,6 +121,19 @@ configure_firewall() {
     wg_if=wg0
     run ufw allow in on "$wg_if" to any port "$ops_port" proto tcp comment 'lumen: operator console via wireguard' && added+=("$ops_port/tcp on $wg_if")
   fi
+  # DNS inside the tunnel: only on wg0 and only to the tunnel address (the forwarder listens
+  # nowhere else), once it runs. Otherwise Lumen's own rules for it are closed again.
+  local wg_dns_ip
+  if wireguard_dns_active; then
+    wg_dns_ip="$(wg_server_ip)"
+    run ufw allow in on wg0 to "$wg_dns_ip" port 53 proto udp comment 'lumen: wireguard dns' && added+=("53/udp on wg0 to $wg_dns_ip")
+    run ufw allow in on wg0 to "$wg_dns_ip" port 53 proto tcp comment 'lumen: wireguard dns' && added+=("53/tcp on wg0 to $wg_dns_ip")
+  else
+    local dnsrule
+    while read -r dnsrule; do
+      [[ -n "$dnsrule" ]] && yes | ufw delete "$dnsrule" >/dev/null 2>&1 || true
+    done < <(ufw status numbered 2>/dev/null | grep "# lumen: wireguard dns" | sed -E 's/^\[ *([0-9]+)\].*/\1/' | sort -rn)
+  fi
   local cidr
   for cidr in $(conf_get ADMIN_ALLOWED_CIDRS | tr ',' ' '); do
     run ufw allow from "$cidr" to any port "$ops_port" proto tcp comment 'lumen: operator console allow-list' && added+=("$ops_port/tcp from $cidr")
@@ -161,13 +175,22 @@ install_systemd_units() {
     warn "systemd not available: skipping lumen-agent, backup and health timers"
     return
   fi
-  local repo="$LUMEN_REPO_DIR"
+  local repo="$LUMEN_REPO_DIR" agent_changed=0
   install -d -m 0755 /usr/local/lib/lumen
+  # A running agent keeps its old code: restart it below when the code or its unit changed
+  # (an update would otherwise leave the console issuing profiles the old way until a reboot).
+  cmp -s "$repo/deploy/host-agent/lumen_agent.py" /usr/local/lib/lumen/lumen_agent.py || agent_changed=1
   install -m 0755 "$repo/deploy/host-agent/lumen_agent.py" /usr/local/lib/lumen/lumen_agent.py
-  local unit
+  local unit dst
   for unit in "$repo"/deploy/systemd/*.service "$repo"/deploy/systemd/*.timer; do
-    sed -e "s|@LUMEN_REPO_DIR@|$repo|g" "$unit" >"/etc/systemd/system/$(basename "$unit")"
-    chmod 0644 "/etc/systemd/system/$(basename "$unit")"
+    # The tunnel DNS unit is installed by deploy/lib/wireguard.sh, only once wg0 is up.
+    [[ "$(basename "$unit")" == lumen-wg-dns.service ]] && continue
+    dst="/etc/systemd/system/$(basename "$unit")"
+    if [[ "$(basename "$unit")" == lumen-agent.service ]] && ! sed -e "s|@LUMEN_REPO_DIR@|$repo|g" "$unit" | cmp -s - "$dst"; then
+      agent_changed=1
+    fi
+    sed -e "s|@LUMEN_REPO_DIR@|$repo|g" "$unit" >"$dst"
+    chmod 0644 "$dst"
   done
   local backup_time; backup_time="$(conf_get BACKUP_SCHEDULE 03:17)"
   install -d -m 0755 /etc/systemd/system/lumen-backup.timer.d
@@ -182,7 +205,12 @@ EOF
     printf '[Unit]\nAfter=wg-quick@wg0.service\nWants=wg-quick@wg0.service\n' >>/etc/systemd/system/docker.service.d/lumen.conf
   fi
   run systemctl daemon-reload
+  local agent_was_running=0
+  systemctl is-active --quiet lumen-agent.service && agent_was_running=1
   run systemctl enable --now lumen-agent.service || die "lumen-agent failed to start; see journalctl -u lumen-agent"
+  if ((agent_changed && agent_was_running)); then
+    run systemctl restart lumen-agent.service || die "lumen-agent failed to restart; see journalctl -u lumen-agent"
+  fi
   run systemctl enable --now lumen-backup.timer lumen-healthcheck.timer lumen-backup-verify.timer
   # lumen-rtc-cert.timer (TURN/TLS certificate copy) existed in earlier versions only.
   if [[ -e /etc/systemd/system/lumen-rtc-cert.timer ]]; then

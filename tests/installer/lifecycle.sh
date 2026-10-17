@@ -12,7 +12,10 @@
 # after every lifecycle step. With WireGuard on (the default) it checks wg0, the
 # installer's first device profile (file modes, a real tunnel from another network
 # namespace, show-profile, forget-profile), that no re-install, update or restore
-# adds a device or changes a key, and that no WireGuard key reaches any log.
+# adds a device or changes a key, and that no WireGuard key reaches any log; and DNS
+# inside the tunnel (lumen-wg-dns on the tunnel address only, UFW 53 on wg0 only, the
+# console's name resolved through the tunnel with no hosts entry, add-device profiles)
+# after every step, also when the first device's profile predates the DNS line.
 # Prints PASS/FAIL lines; exit status = number of failures.
 set -uo pipefail
 CONF="${1:?usage: lifecycle.sh /path/to/lumen.conf}"
@@ -42,6 +45,23 @@ wg_endpoint() { grep -E '^WG_ENDPOINT=' /etc/lumen/lumen.conf | tail -n1 | cut -
 wg_peer_count() { python3 -c "import json; print(len(json.load(open('$WGD/peers.json'))))" 2>/dev/null || echo 0; }
 wg_up() { ip link show wg0 >/dev/null 2>&1 && [[ "$(./lumenctl wireguard status 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["up"])')" == True ]]; }
 mode_of() { stat -c '%a %U:%G' "$1"; }
+wg_srv() { python3 -c "import ipaddress,sys; print(next(ipaddress.ip_network(sys.argv[1]).hosts()))" "$(grep -E '^WG_SUBNET=' /etc/lumen/lumen.conf | tail -n1 | cut -d= -f2 || echo 10.77.0.0/24)"; }
+# DNS inside the tunnel: the unit runs with wg0 (enabled through its .wants), the state says so,
+# and a real query on the tunnel address gets the console's name answered with that address.
+wg_dns_ok() {
+  systemctl is-active --quiet lumen-wg-dns.service && systemctl is-enabled --quiet lumen-wg-dns.service \
+    && [[ -L /etc/systemd/system/wg-quick@wg0.service.wants/lumen-wg-dns.service ]] \
+    && [[ "$(python3 -c "import json; print(json.load(open('/etc/lumen/state.json')).get('wireguard_dns',''))")" == enabled ]] \
+    && LUMEN_CONF=/etc/lumen/lumen.conf LUMEN_STATE=/etc/lumen/state.json python3 deploy/host-agent/lumen_agent.py wg-dns-check --wait 15
+}
+# UFW: exactly Lumen's two DNS rules, both on wg0 to the tunnel address; no other rule for port 53.
+wg_dns_ufw_ok() {
+  local st; st="$(ufw status)"
+  [[ "$(grep -cF '# lumen: wireguard dns' <<<"$st")" == 2 ]] \
+    && grep -F '# lumen: wireguard dns' <<<"$st" | grep -qE "^$(wg_srv) 53/udp on wg0 +ALLOW" \
+    && grep -F '# lumen: wireguard dns' <<<"$st" | grep -qE "^$(wg_srv) 53/tcp on wg0 +ALLOW" \
+    && ! grep -E '(^|[ :])53(/(udp|tcp))?( |$)' <<<"$st" | grep -vqF '# lumen: wireguard dns'
+}
 # Key values to look for in logs, kept in a root-only file and never printed.
 KEYS=/root/.lifecycle-wg-keys; : >"$KEYS"; chmod 600 "$KEYS"
 collect_wg_keys() {
@@ -75,8 +95,35 @@ if wg_on; then
   # The re-install copied $CONF (without WG_ENDPOINT) over lumen.conf again: the endpoint in
   # the devices' profiles must be kept, not detected anew.
   [[ -n "$e0" && "$(wg_endpoint)" == "$e0" ]] && ok "WG_ENDPOINT kept across the --config re-install ($e0)" || bad "WG_ENDPOINT kept across the --config re-install" "$e0 -> $(wg_endpoint)"
-  check "the generated profile works from another network namespace: console only through the tunnel" bash tests/integration/wireguard_e2e.sh --profile "$PROFILE"
-  check "a device added later works and can be revoked" bash tests/integration/wireguard_e2e.sh
+  check "DNS in the tunnel: lumen-wg-dns active, started with wg0, answers the console's name" wg_dns_ok
+  check "UFW: 53/udp and 53/tcp allowed only on wg0, to the tunnel address" wg_dns_ufw_ok
+  if grep -q '^DNS = ' "$PROFILE"; then echo "INFO first device profile sets $(grep '^DNS = ' "$PROFILE")"; else echo "INFO first device profile has no DNS line (made before DNS in the tunnel; kept as it was)"; fi
+  check "the generated profile works from another network namespace: console only through the tunnel, by name with no hosts entry" bash tests/integration/wireguard_e2e.sh --profile "$PROFILE"
+  check "a device added later works (by name, through the tunnel DNS) and can be revoked" bash tests/integration/wireguard_e2e.sh
+  # A phone profile from the command line: stored root-only, shown as a QR code, then forgotten.
+  APROF=$WGD/profiles/lc-phone.conf
+  ./lumenctl wireguard add-device lc-phone >/root/add-device.out 2>&1; rc=$?
+  { grep -hE '^(PrivateKey|PresharedKey)' "$APROF" | sed -E 's/^[A-Za-z]+ *= *//'; cat $WGD/psk/*.psk; } 2>/dev/null | grep -E '^[A-Za-z0-9+/]{43}=$' >>"$KEYS" || true
+  if ((rc == 0)) && [[ "$(mode_of "$APROF")" == "600 root:root" && "$(mode_of $WGD/profiles)" == "700 root:root" ]] \
+    && grep -qx "DNS = $(wg_srv)" "$APROF" && grep -qx "AllowedIPs = $(wg_srv)/32" "$APROF" && ! grep -qF -f "$KEYS" /root/add-device.out; then
+    ok "add-device stores a root-only profile (0600 in 0700) with DNS = $(wg_srv), split tunnel kept; prints no key"
+  else
+    bad "add-device stores a root-only profile with the DNS line" "exit $rc"
+  fi
+  ./lumenctl wireguard show-profile lc-phone >/root/show-profile.out 2>&1; rc=$?
+  if ((rc == 0)) && grep -q "$APROF" /root/show-profile.out && grep -q '█' /root/show-profile.out && ! grep -qF -f "$KEYS" /root/show-profile.out \
+    && grep -q 'forget-profile lc-phone' /root/show-profile.out; then
+    ok "show-profile lc-phone prints the path and a QR code, no key as text"
+  else
+    bad "show-profile lc-phone prints the path and a QR code" "exit $rc"
+  fi
+  rm -f /root/show-profile.out /root/add-device.out
+  check "the add-device profile works by name through the tunnel DNS" bash tests/integration/wireguard_e2e.sh --profile "$APROF"
+  check "forget-profile lc-phone deletes it" ./lumenctl wireguard forget-profile lc-phone
+  lcpub="$(python3 -c "import json; print([p['public_key'] for p in json.load(open('$WGD/peers.json')) if p['name']=='lc-phone'][0])" 2>/dev/null)"
+  check "remove-peer revokes lc-phone" ./lumenctl wireguard remove-peer "$lcpub"
+  [[ ! -e "$APROF" && "$(wg_peer_count)" == 1 ]] && ok "lc-phone gone again: no stored profile, 1 peer" || bad "lc-phone gone again" "$(wg_peer_count) peers"
+  [[ "$(wg_keys_hash)" == "$w0" ]] && ok "the first device's keys and the registry are as before" || bad "the first device's keys and the registry are as before"
   ./lumenctl wireguard show-profile >/root/show-profile.out 2>&1; rc=$?
   if ((rc == 0)) && grep -q "$PROFILE" /root/show-profile.out && grep -q '█' /root/show-profile.out && ! grep -qF -f "$KEYS" /root/show-profile.out; then
     ok "show-profile prints the path and a QR code, no key as text"
@@ -155,16 +202,21 @@ check "healthy after restore" healthy
 calls_on && check "calls: media flows after restore" media_ok
 if wg_on; then
   check "WireGuard: wg0 up after restore" wg_up
+  check "WireGuard: DNS in the tunnel answers after restore" wg_dns_ok
   [[ "$(wg_keys_hash)" == "$w1" && ! -e $PROFILE ]] && ok "WireGuard: restore changed no key and re-created no profile" || bad "WireGuard: restore changed no key and re-created no profile"
 fi
 
 echo "--- update"
-check "update.sh --no-pull succeeds" ./update.sh --no-pull --yes
+check "update.sh --no-pull succeeds" bash -c './update.sh --no-pull --yes >/root/update.out 2>&1'
 check "healthy after update" healthy
 check "data kept across update (marker A)" user_exists lcmarker-a
 calls_on && check "calls: media flows after update" media_ok
 if wg_on; then
   check "WireGuard: wg0 up after update" wg_up
+  check "WireGuard: DNS in the tunnel answers after update" wg_dns_ok
+  check "WireGuard: UFW DNS rules unchanged by update (wg0 only)" wg_dns_ufw_ok
+  grep -q "^WireGuard: DNS in the tunnel on $(wg_srv)" /root/update.out && ok "update summary names DNS in the tunnel" || bad "update summary names DNS in the tunnel"
+  check "WireGuard: a device added after the update (the console's path, through the agent) gets the DNS line and works by name" bash tests/integration/wireguard_e2e.sh
   [[ "$(wg_keys_hash)" == "$w1" && "$(wg_peer_count)" == 1 && ! -e $PROFILE ]] && ok "WireGuard: update added no device, changed no key, re-created no profile" || bad "WireGuard: update added no device, changed no key"
 fi
 
@@ -192,12 +244,22 @@ running="$(docker ps --filter label=com.docker.compose.project=lumen -q | wc -l)
 [[ -s /var/lib/lumen/synapse/signing.key && -d /var/lib/lumen/postgres ]] && ok "data directories kept" || bad "data directories kept"
 ls /var/backups/lumen/*.tar.age >/dev/null 2>&1 && ok "backups kept" || bad "backups kept"
 systemctl is-active --quiet lumen-agent && bad "host agent removed" || ok "host agent removed"
+if wg_on; then
+  if systemctl is-active --quiet lumen-wg-dns.service || [[ -e /etc/systemd/system/lumen-wg-dns.service ]] || ss -Hlnu 'sport = :53' | grep -qF "$(wg_srv):53" \
+    || ufw status | grep -qF 'lumen: wireguard dns'; then
+    bad "uninstall stopped the tunnel DNS (unit removed, nothing on $(wg_srv):53, its UFW rules gone)"
+  else
+    ok "uninstall stopped the tunnel DNS (unit removed, nothing on $(wg_srv):53, its UFW rules gone)"
+  fi
+fi
 check "re-install on kept data succeeds" bash install.sh --config "$CONF" --yes
 check "kept data is live again (marker A)" user_exists lcmarker-a
 [[ "$(signing_hash)" == "$k0" ]] && ok "same server identity after re-install" || bad "same server identity after re-install"
 calls_on && check "calls: media flows after uninstall + re-install" media_ok
 if wg_on; then
   check "WireGuard: wg0 up again after uninstall + re-install" wg_up
+  check "WireGuard: DNS in the tunnel answers again after uninstall + re-install" wg_dns_ok
+  check "WireGuard: UFW DNS rules back, wg0 only" wg_dns_ufw_ok
   [[ "$(wg_keys_hash)" == "$w1" && "$(wg_peer_count)" == 1 && ! -e $PROFILE ]] && ok "WireGuard: same keys and devices after uninstall + re-install, no new profile" || bad "WireGuard: same keys and devices after uninstall + re-install"
   [[ "$(wg_endpoint)" == "$e0" ]] && ok "WireGuard: WG_ENDPOINT unchanged through every re-install, restore and update" || bad "WireGuard: WG_ENDPOINT unchanged" "$e0 -> $(wg_endpoint)"
 fi

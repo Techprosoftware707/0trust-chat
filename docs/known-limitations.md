@@ -137,11 +137,23 @@ verified. Updated 2026-10-15. Test evidence for everything else is in
     firewall (security group) in front of the server is not visible to the
     installer; UDP 51820 must be allowed there by hand.
 
-    **WireGuard on phones**: a phone can import the first device profile from
-    the QR code (`lumenctl wireguard show-profile`), but phones can't edit a
-    hosts file, so `ops.<domain>` doesn't resolve into the tunnel there and the
-    console isn't usable from a phone without a DNS name for it that points at
-    the tunnel address. Use the console from a computer.
+    **DNS inside the tunnel** (how phones reach the console by name): device
+    profiles set `DNS = <tunnel address>` and a forwarder on that address
+    answers the console's name. It was tested with a Linux peer in a network
+    namespace (resolver = the profile's DNS server, no hosts entry), not with
+    the Android, iOS, Windows or macOS apps on real devices; how those apply
+    the DNS line is documented from their source code
+    ([admin guide](operations/admin-guide.md#wireguard)). On a device whose
+    Android Private DNS is set to a provider hostname, or whose browser uses
+    its own secure DNS with a fixed provider, the console's name still
+    resolves publicly and the console doesn't load: the hosts-file line (or
+    the setting) is the way out. The test servers had no systemd-resolved, so
+    there the forwarder followed `/etc/resolv.conf`; the systemd-resolved
+    choice (`/run/systemd/resolve/resolv.conf`) is covered by unit tests.
+    While a device is connected, the server sees its DNS lookups (not logged
+    by Lumen); without the DNS line a device needs the hosts-file line,
+    which phones can't add. Profiles issued before this feature have no DNS
+    line: add the DNS server in the app, or issue a new profile.
 20. **Backups** restore the whole server (databases, media, signing key,
     optionally config); there is no per-user or per-room restore. Off-site copy
     is rsync over SSH only (no S3 integration).

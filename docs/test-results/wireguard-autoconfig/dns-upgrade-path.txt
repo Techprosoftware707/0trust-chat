@@ -1,0 +1,205 @@
+=== DNS inside the tunnel: the upgrade path, 2026-10-17 22:09-22:16 UTC, in a fresh systemd test server (tests/installer/vm.sh, wireguard-go)
+=== Phase A: the pushed tip a1749bb installed with WireGuard on by default (what the operator's server runs): a first device without the DNS line.
+=== Phase B: the new code copied over /opt/lumen (as git pull would), then update.sh --no-pull --yes, then the checks (harness: phaseB-in.sh, key values kept
+===          in a root-only file inside the test server, never printed). The public egress IPv4 the installer detected is replaced by <egress-IPv4>.
+
+### old tree a1749bb  2026-10-17T22:09:36Z
+VM lumen-it ready (systemd: running)
+### install a1749bb (test server 172.17.0.3)  2026-10-17T22:09:43Z
+install exit 0  2026-10-17T22:13:16Z
+Result: SUCCESS — all endpoint checks passed
+
+--- phase A install summary, WireGuard part
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
+                    console via WireGuard: https://ops.lumen-it.test:8443/  (hosts file on the device: 10.77.0.1 ops.lumen-it.test)
+                    devices dial <egress-IPv4>:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+     • WireGuard: copy the profile:  ssh <you>@<this server> sudo cat /etc/lumen/wireguard/first-device.conf > lumen-wg.conf
+       import lumen-wg.conf into the WireGuard app and connect (phone: sudo ./lumenctl wireguard show-profile),
+       add to your hosts file:  10.77.0.1 ops.lumen-it.test
+       then delete the server copy:  sudo ./lumenctl wireguard forget-profile
+       and add to your hosts file:  127.0.0.1 ops.lumen-it.test
+
+=== Phase B
+### before (a1749bb as installed)  2026-10-17T22:13:38Z
+state: wireguard=enabled peers=itadmin-device
+PASS first device profile without a DNS line (as on the user's server)
+old code: lumenctl wireguard add-device phone -> exit 1 : ERROR: unknown wireguard command add-device
+before: nothing listens on udp 53
+### new code into /opt/lumen: working tree on a1749bb + uncommitted changes
+### update.sh --no-pull --yes  2026-10-17T22:14:01Z
+update exit 0  2026-10-17T22:15:13Z
+### after  2026-10-17T22:15:13Z
+PASS update changed no WireGuard key (server key, preshared keys, registry)
+PASS first device profile left exactly as it was (still no DNS line)
+PASS wg0.conf unchanged
+PASS devices unchanged (itadmin-device)
+PASS lumen-agent restarted with the new code
+PASS lumen-wg-dns active, enabled with wg-quick@wg0
+INFO dnsmasq: Dnsmasq version 2.91  Copyright (c) 2000-2025 Simon Kelley; state wireguard_dns=enabled
+INFO all sockets on port 53:
+       UNCONN 10.77.0.1:53 users:(("dnsmasq",pid=11449,fd=4))
+       LISTEN 10.77.0.1:53 users:(("dnsmasq",pid=11449,fd=5))
+PASS the forwarder listens on 10.77.0.1:53 only (udp+tcp); nothing else on port 53
+INFO UFW rules for port 53:
+       10.77.0.1 53/udp on wg0    ALLOW       Anywhere                   # lumen: wireguard dns
+       10.77.0.1 53/tcp on wg0    ALLOW       Anywhere                   # lumen: wireguard dns
+PASS UFW: 53/udp and 53/tcp only on wg0, to 10.77.0.1
+INFO healthcheck:     ✔ wireguard: wg0 up
+INFO healthcheck:     ✔ wireguard-dns: ops.lumen-it.test -> 10.77.0.1 on 10.77.0.1:53 (tunnel only)
+PASS healthcheck passes (exit 1)
+--- e2e with the first device's old profile (no DNS line: DNS server set by hand, as documented)
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS split tunnel: the profile routes only 10.77.0.1/32 into the tunnel
+INFO the profile has no DNS line (issued before DNS in the tunnel): DNS server 10.77.0.1 set by hand, as the admin guide says for existing devices
+PASS DNS in the tunnel is enabled on this server
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+--- DNS inside the tunnel (the peer has no hosts entry for ops.lumen-it.test)
+PASS the peer has no hosts entry for ops.lumen-it.test and uses 10.77.0.1 as its DNS server
+INFO ops.lumen-it.test on the peer: 10.77.0.1
+PASS ops.lumen-it.test resolves through the tunnel DNS to 10.77.0.1
+PASS the same answer over TCP
+PASS no IPv6 (AAAA) or HTTPS record for ops.lumen-it.test: empty answers, so nothing can bypass the tunnel
+INFO https://ops.lumen-it.test:8443/ by name from the peer: HTTP code, remote address, TLS verify result = 200 10.77.0.1 0
+PASS the console loads by name through the tunnel, with a certificate valid for ops.lumen-it.test
+INFO example.com: through the tunnel DNS 104.20.23.154,172.66.147.243; from the upstream 8.8.8.8 (read from /etc/resolv.conf) directly 104.20.23.154,172.66.147.243
+PASS other names are forwarded to the server's upstream resolver (example.com)
+PASS no DNS answer on the server's non-tunnel address 192.168.78.1 (from the peer)
+INFO asked 8 other addresses of this server (127.0.0.1 and every interface address) for ops.lumen-it.test: none answered with 10.77.0.1
+PASS the forwarder answers on no other address of this server
+INFO forwarder (pid 11449) sockets: udp 10.77.0.1:53 tcp 10.77.0.1:53
+PASS its only sockets are 10.77.0.1:53 (udp and tcp)
+wireguard e2e: 17 passed, 0 failed
+PASS e2e: old profile + DNS server set by hand: console by name through the tunnel
+--- e2e with a device added through the host agent (the console's path)
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS split tunnel: the profile routes only 10.77.0.1/32 into the tunnel
+PASS the profile sets DNS = 10.77.0.1 (the server's tunnel address)
+PASS DNS in the tunnel is enabled on this server
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+--- DNS inside the tunnel (the peer has no hosts entry for ops.lumen-it.test)
+PASS the peer has no hosts entry for ops.lumen-it.test and uses 10.77.0.1 as its DNS server
+INFO ops.lumen-it.test on the peer: 10.77.0.1
+PASS ops.lumen-it.test resolves through the tunnel DNS to 10.77.0.1
+PASS the same answer over TCP
+PASS no IPv6 (AAAA) or HTTPS record for ops.lumen-it.test: empty answers, so nothing can bypass the tunnel
+INFO https://ops.lumen-it.test:8443/ by name from the peer: HTTP code, remote address, TLS verify result = 200 10.77.0.1 0
+PASS the console loads by name through the tunnel, with a certificate valid for ops.lumen-it.test
+INFO example.com: through the tunnel DNS 104.20.23.154,172.66.147.243; from the upstream 8.8.8.8 (read from /etc/resolv.conf) directly 104.20.23.154,172.66.147.243
+PASS other names are forwarded to the server's upstream resolver (example.com)
+PASS no DNS answer on the server's non-tunnel address 192.168.78.1 (from the peer)
+INFO asked 8 other addresses of this server (127.0.0.1 and every interface address) for ops.lumen-it.test: none answered with 10.77.0.1
+PASS the forwarder answers on no other address of this server
+INFO forwarder (pid 11449) sockets: udp 10.77.0.1:53 tcp 10.77.0.1:53
+PASS its only sockets are 10.77.0.1:53 (udp and tcp)
+PASS access revoked after removing the peer
+PASS the tunnel DNS is unreachable for the revoked peer
+PASS peer removed from wg0.conf
+wireguard e2e: 21 passed, 0 failed
+PASS e2e: a device added through the agent gets the DNS line and works by name
+--- lumenctl wireguard add-device phone
+    ✔ device 'phone' added (10.77.0.3); its profile is stored root-only: /etc/lumen/wireguard/profiles/phone.conf
+    the profile sets DNS = 10.77.0.1: the console's name leads into the tunnel on the device (no hosts file)
+
+Next:
+  phone:     sudo ./lumenctl wireguard show-profile phone   (scan the QR code in the WireGuard app)
+  computer:  ssh <you>@<this server> sudo cat /etc/lumen/wireguard/profiles/phone.conf > lumen-phone.conf   (import it in the WireGuard app)
+  then:      sudo ./lumenctl wireguard forget-profile phone
+PASS add-device phone: profile stored 0600 root:root in a 0700 directory
+PASS phone profile: DNS = 10.77.0.1, AllowedIPs = 10.77.0.1/32 (split tunnel)
+INFO phone profile without key lines:
+       # Lumen Secure - WireGuard profile for the operator device "phone", added on 2026-10-17 (lumenctl wireguard add-device).
+       # This file contains that device's PRIVATE KEY and its preshared key: treat it like a password.
+       #   1. Import it into the WireGuard app (QR code for a phone: sudo ./lumenctl wireguard show-profile phone).
+       #   2. Then delete it from the server: sudo ./lumenctl wireguard forget-profile phone
+       #      (the device keeps working; revoke it in the console or with lumenctl wireguard remove-peer).
+       # Lumen operator access for phone. Contains a PRIVATE KEY - keep it secret.
+       # Console: https://ops.lumen-it.test:8443/ (while this tunnel is connected)
+       # DNS = 10.77.0.1: no hosts-file edit needed. While the tunnel is up, this device sends ALL its
+       #   DNS lookups through the tunnel to your Lumen server, which answers ops.lumen-it.test with 10.77.0.1
+       #   and forwards every other lookup to its own resolvers (Lumen does not log them).
+       #   Prefer a hosts file? Delete the DNS line and add "10.77.0.1 ops.lumen-it.test" to the hosts file.
+       [Interface]
+       Address = 10.77.0.3/32
+       DNS = 10.77.0.1
+       
+       [Peer]
+       PublicKey = 5dKrVm9CVKIvY1RvPzAIuJ9EVlrHIUcdDjt4lrZCrhE=
+       Endpoint = <egress-IPv4>:51820
+       AllowedIPs = 10.77.0.1/32
+       PersistentKeepalive = 25
+PASS show-profile phone prints the path and a QR code (exit 0)
+INFO show-profile phone, text lines (QR rows omitted):
+       Profile: /etc/lumen/wireguard/profiles/phone.conf
+       In the WireGuard app: Add tunnel, then Scan from QR code. Anyone who sees this code
+       can connect as this device: clear the screen afterwards.
+       
+       
+       Once imported, delete the server copy: sudo ./lumenctl wireguard forget-profile phone
+--- e2e with the phone profile
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS split tunnel: the profile routes only 10.77.0.1/32 into the tunnel
+PASS the profile sets DNS = 10.77.0.1 (the server's tunnel address)
+PASS DNS in the tunnel is enabled on this server
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+--- DNS inside the tunnel (the peer has no hosts entry for ops.lumen-it.test)
+PASS the peer has no hosts entry for ops.lumen-it.test and uses 10.77.0.1 as its DNS server
+INFO ops.lumen-it.test on the peer: 10.77.0.1
+PASS ops.lumen-it.test resolves through the tunnel DNS to 10.77.0.1
+PASS the same answer over TCP
+PASS no IPv6 (AAAA) or HTTPS record for ops.lumen-it.test: empty answers, so nothing can bypass the tunnel
+INFO https://ops.lumen-it.test:8443/ by name from the peer: HTTP code, remote address, TLS verify result = 200 10.77.0.1 0
+PASS the console loads by name through the tunnel, with a certificate valid for ops.lumen-it.test
+INFO example.com: through the tunnel DNS 104.20.23.154,172.66.147.243; from the upstream 8.8.8.8 (read from /etc/resolv.conf) directly 104.20.23.154,172.66.147.243
+PASS other names are forwarded to the server's upstream resolver (example.com)
+PASS no DNS answer on the server's non-tunnel address 192.168.78.1 (from the peer)
+INFO asked 8 other addresses of this server (127.0.0.1 and every interface address) for ops.lumen-it.test: none answered with 10.77.0.1
+PASS the forwarder answers on no other address of this server
+INFO forwarder (pid 11449) sockets: udp 10.77.0.1:53 tcp 10.77.0.1:53
+PASS its only sockets are 10.77.0.1:53 (udp and tcp)
+wireguard e2e: 18 passed, 0 failed
+PASS e2e: the phone profile works by name through the tunnel DNS, no hosts entry
+--- removing a device by name (here: phone, to leave the server as it was for the lifecycle test)
+INFO lumenctl wireguard status, names and public keys (public keys are not secret):
+       itadmin-device L4ReNkqaeAT0F4hEBQnFEB6MPolTcE7pvZoTRnGxoCs=
+       phone ip6KhqISAgnzg4mpBqds6+yIvBJTwIngPUiQ84dIJWc=
+INFO remove-peer: {"removed":"phone"}
+    ✔ deleted /etc/lumen/wireguard/profiles/phone.conf. The device keeps working; to revoke it: the console's WireGuard page or sudo ./lumenctl wireguard remove-peer <public key>
+PASS remove-peer + forget-profile: phone revoked, its profile deleted, devices as before
+PASS first device's keys and the registry unchanged after adding and removing phone
+--- key material in logs and outputs (5 key values: server, preshared, first device and phone private keys)
+PASS no WireGuard key in /var/log/lumen, the journal, the update summary or any command output
+FAIL add-device audit log
+phase B: 18 passed, 1 failed
+phaseB-in exit 1
+
+--- update.sh output: WireGuard step and final lines
+==> WireGuard
+    ✔ WireGuard up on wg0 (10.77.0.0/24, UDP 51820, already running); devices dial <egress-IPv4>:51820
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (this host's resolvers)
+    ✔ first device 'itadmin-device' already registered (keys unchanged); profile still stored: /etc/lumen/wireguard/first-device.conf
+
+==> Validating new configuration
+Update complete: Lumen 1.0.0 is running and all endpoint checks passed.
+WireGuard: DNS in the tunnel on 10.77.0.1; device profiles set DNS = 10.77.0.1, so the console's name needs no hosts file.
+  profiles without the DNS line: itadmin-device. Add it in the WireGuard app (edit the tunnel, DNS servers: 10.77.0.1)
+  or give the device a new profile: sudo ./lumenctl wireguard add-device <name>, then show-profile <name>
+
+--- the one FAIL above: add-device's audit line was wiped by show-profile started in the same second (log_init truncated a log file named by the second;
+    the journal kept it). Fixed in deploy/lib/common.sh (log_init appends). Re-check on the same server with the fixed common.sh:
+    add-device phone2 && show-profile phone2 in the same second -> exit 0; both AUDIT lines in /var/log/lumen/lumenctl-20261017T221627Z.log:
+    AUDIT wireguard add-device: phone2 10.77.0.3 <public key>, profile stored at /etc/lumen/wireguard/profiles/phone2.conf (contents not logged)
+    AUDIT wireguard show-profile: displayed /etc/lumen/wireguard/profiles/phone2.conf as a QR code (contents not logged)
+    then forget-profile phone2, remove-peer <its public key>: {"removed": "phone2"}; devices: ['itadmin-device']
