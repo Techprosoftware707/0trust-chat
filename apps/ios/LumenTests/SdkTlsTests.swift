@@ -1,4 +1,5 @@
 import Foundation
+import LumenCore
 import MatrixRustSDK
 import XCTest
 
