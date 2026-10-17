@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Copied from .github/workflows/ci.yml "No TLS-verification bypass in any client"
+pattern='\.disableSslVerification\(|appendSwitch\(\s*["'"'"']ignore-certificate-errors|ignoreHTTPSErrors:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*[:=]\s*["'"'"']?0|rejectUnauthorized:\s*false|setCertificateVerifyProc|handler\.proceed\(|checkServerTrusted\([^)]*\)\s*\{\s*\}|URLCredential\(trust:|usesCleartextTraffic="true"|NSAllowsArbitraryLoads</key>\s*<true'
+if git grep -nP "$pattern" -- apps services/chat ':!**/*.md'; then
+  echo "::error::TLS validation bypass found"; exit 1
+fi
+echo "no TLS-verification bypass found (git grep -nP over apps services/chat)"

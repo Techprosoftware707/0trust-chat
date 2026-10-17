@@ -1,0 +1,23 @@
+$ cd /home/user/nexus/services/chat
+$ find node_modules/.vitest-cache -maxdepth 1 -type f -delete && echo 'vitest cache cleared' && npm test 2>&1 | tail -40
+# started 2026-10-17T11:25:06Z at d88749b
+vitest cache cleared
+
+> lumen-chat@1.0.0 test
+> vitest run
+
+
+ RUN  v5.0.4 /home/user/nexus/services/chat
+
+Not implemented: navigation to another Document
+
+ Test Files  13 passed (13)
+      Tests  169 passed (169)
+   Start at  11:25:06
+   Duration  7.91s (environment 55%, transform 25%, import 15%, tests 3%, setup 2%)
+
+Environment  jsdom was created 13 times · 11.12s total, 55% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+# finished 2026-10-17T11:25:14Z exit=0

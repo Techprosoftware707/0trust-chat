@@ -1,0 +1,149 @@
+### 1. images built from this branch
+caddy:<none>  93.1MB
+ghcr.io/element-hq/lk-jwt-service:<none>  35MB
+ghcr.io/element-hq/synapse:<none>  474MB
+livekit/livekit-cli:<none>  176MB
+livekit/livekit-server:<none>  140MB
+lumen/portal:1.0.0  384MB
+matrixdotorg/sygnal:<none>  259MB
+node:<none>  337MB
+postgres:<none>  424MB
+python:<none>  178MB
+PASS portal image lumen/portal:1.0.0 exists
+PASS chat app (built by the installer) served at https://app.lumen-it.test/ (200)
+config.json: environment = test | workspace block keys = ['api_url', 'client_id']
+PASS chat config.json carries environment=test and the workspace block
+### 2. migrations
+workspaces
+ [X] 0001_initial
+ [X] 0002_nexus_roles
+crm
+ [X] 0001_initial
+ [X] 0002_verticals_meetings_event_kind
+ [X] 0003_pipeline_stage_restrict
+automation
+ [X] 0001_initial
+integrations
+ [X] 0001_initial
+assistant
+ [X] 0001_initial
+mcp
+ [X] 0001_initial
+PASS migrate --check: every migration applied
+### 3. services
+lumen-caddy-1  Up About a minute
+lumen-livekit-1  Up About a minute
+lumen-lkjwt-1  Up 57 seconds (healthy)
+lumen-ops-1  Up 34 seconds (healthy)
+lumen-portal-1  Up About a minute (healthy)
+lumen-postgres-1  Up About a minute (healthy)
+lumen-synapse-1  Up 48 seconds (healthy)
+lumen-worker-1  Up 34 seconds (healthy)
+x-nexus-environment: test
+PASS portal answers with X-Nexus-Environment: test
+FAIL no banner
+### 4. /api/v1/me without a token
+HTTP/2 401 
+cache-control: no-store
+content-type: application/json
+www-authenticate: Bearer realm="nexus-api"
+x-nexus-environment: test
+{"error": {"code": "unauthenticated", "message": "A bearer access token is required.", "request_id": "a490c70a37f141c6a546fdee42467a78"}}
+PASS /api/v1/me answers 401 without a token
+### 5. OAuth metadata for the Claude connector
+{
+    "resource": "https://lumen-it.test/mcp",
+    "authorization_servers": [
+        "https://lumen-it.test"
+    ],
+    "scopes_supported": [
+        "mcp:read",
+        "mcp:write"
+    ],
+    "bearer_methods_supported": [
+        "header"
+    ],
+    "resource_name": "Nexus Office AI workspace"
+}
+PASS RFC 9728 protected-resource metadata: resource https://lumen-it.test/mcp, authorization server, MCP scopes
+{
+    "authorization_endpoint": "https://lumen-it.test/identity/o/authorize",
+    "code_challenge_methods_supported": [
+        "S256"
+    ],
+    "device_authorization_endpoint": "https://lumen-it.test/identity/o/api/device/code",
+    "end_session_endpoint": "https://lumen-it.test/identity/o/logout",
+    "id_token_signing_alg_values_supported": [
+        "RS256"
+    ],
+    "issuer": "https://lumen-it.test",
+    "jwks_uri": "https://lumen-it.test/.well-known/jwks.json",
+    "revocation_endpoint": "https://lumen-it.test/identity/o/api/revoke",
+    "token_endpoint": "https://lumen-it.test/identity/o/api/token",
+    "token_endpoint_auth_methods_supported": [
+        "client_secret_post",
+        "none"
+    ],
+    "userinfo_endpoint": "https://lumen-it.test/identity/o/api/userinfo",
+    "subject_types_supported": [
+        "public"
+    ],
+    "scopes_supported": [
+        "openid",
+        "profile",
+        "email",
+        "mcp:read",
+        "mcp:write"
+    ],
+    "grant_types_supported": [
+        "authorization_code",
+        "client_credentials",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:device_code"
+    ],
+    "response_types_supported": [
+        "code",
+        "code id_token",
+        "code id_token token",
+        "code token",
+        "id_token",
+        "id_token token",
+        "none",
+        "token"
+    ],
+    "authorization_response_iss_parameter_supported": true,
+    "revocation_endpoint_auth_methods_supported": [
+        "client_secret_post",
+        "none"
+    ],
+    "registration_endpoint": "https://lumen-it.test/identity/o/api/register",
+    "client_id_metadata_document_supported": true
+}
+PASS RFC 8414 authorization-server metadata: issuer, S256 only, DCR endpoint, public clients, MCP scopes, iss
+### 6. /mcp without a token
+HTTP/2 401 
+www-authenticate: Bearer resource_metadata="https://lumen-it.test/.well-known/oauth-protected-resource/mcp", scope="mcp:read mcp:write"
+PASS /mcp answers 401 with WWW-Authenticate resource_metadata
+### 7. a synthetic owner and business workspace (token not printed)
+PASS synthetic workspace a200bcb5-8168-4eac-b125-e0fbcead6071 and a nexus-web access token created
+/api/v1/me with the token: nexus-qa-owner
+PASS /api/v1/me answers 200 with a nexus-web token
+PASS the SPA's nexus-web token is refused at /mcp (separate audiences)
+### 8. integrations without credentials
+  File "<string>", line 3
+    print(f"{p[\"label\"]:12} configured={p[\"configured\"]!s:5} oauth_configured={p[\"oauth_configured\"]!s:5} methods={p[\"methods\"]} mock={p[\"mock\"]} can_connect={p[\"can_connect\"]} env_set={[e[\"name\"] for e in p[\"setup\"][\"env\"] if e[\"set\"]]}")
+                ^
+SyntaxError: unexpected character after line continuation character
+curl: (23) Failure writing output to destination
+PASS integrations: no provider OAuth client configured (Gmail, Slack not configured; HighLevel only offers a private integration token); mock mode off
+Home connected services: Gmail -> not_configured / Not set up on this server
+Home connected services: GoHighLevel -> not_connected / Not connected
+Home connected services: Slack -> not_configured / Not set up on this server
+### 9. secure document storage (deploy-wiring patch NOT applied: expected 503)
+PASS lending application created through the API (58ea1361-3190-4c85-9647-526590e1d067)
+HTTP/2 503 
+{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "53ab3d97c87943938e2d04370da91c38"}}
+{"error": {"code": "not_configured", "message": "Secure document storage isn't set up on this server yet. Ask an administrator.", "request_id": "53ab3d97c87943938e2d04370da91c38"}}
+PASS document upload answers 503 not_configured
+
+RESULT: 15 passed, 1 failed

@@ -1,0 +1,68 @@
+$ cd /home/user/nexus
+$ bash /tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/qa/base-migrate.sh
+# started 2026-10-17T11:23:41Z at d88749b
+### base code: git archive eefa6ab services/portal (no worktree, no branch touched)
+eefa6ab = eefa6ab Design tokens: light-mode accent, subtle text and status colours meet WCAG AA as text [skip ci]
+### fresh database nexus_basemig
+DROP DATABASE
+CREATE DATABASE
+### 1. eefa6ab's migrate (base Lumen schema)
+  Applying mfa.0003_authenticator_type_uniq... OK
+  Applying sessions.0001_initial... OK
+  Applying usersessions.0001_initial... OK
+workspaces
+ [X] 0001_initial
+billing
+ [X] 0001_initial
+lumen_bootstrap (base) ok
+### 2. existing rows written by eefa6ab's code
+34 objects imported automatically (use -v 2 for details).
+
+base plans: ['free', 'pro', 'business', 'enterprise'] | operator value on free max_members=4242
+rows before the upgrade: 14
+user|base-admin|base-admin@example.com|t
+user|base-member|base-member@example.com|t
+user|base-owner|base-owner@example.com|t
+user|base-solo|base-solo@example.com|t
+workspace|399dac01-5aca-41aa-8a0c-b68827155d07|Base Workspace One|base-one|t|f
+workspace|4298a210-e9e0-4344-becd-ee048114fd6e|Base Workspace Two|base-two|f|t
+membership|base-one|base-admin|admin
+membership|base-one|base-member|member
+membership|base-one|base-owner|owner
+membership|base-two|base-member|admin
+membership|base-two|base-solo|owner
+invitation|base-one|invitee.admin@example.com|admin|<token_hash>|f
+invitation|base-one|invitee.member@example.com|member|<token_hash>|f
+invitation|base-two|revoked@example.com|member|<token_hash>|t
+### 3. this branch's migrate on the same database (d88749b)
+  Applying workspaces.0002_nexus_roles... OK
+  Applying assistant.0001_initial... OK
+  Applying automation.0001_initial... OK
+  Applying crm.0001_initial... OK
+  Applying crm.0002_verticals_meetings_event_kind... OK
+  Applying crm.0003_pipeline_stage_restrict... OK
+  Applying integrations.0001_initial... OK
+  Applying mcp.0001_initial... OK
+migrate --check: nothing left to apply
+lumen_bootstrap (branch) ok
+### 4. the same rows after the upgrade
+IDENTICAL: every existing user, workspace, membership and invitation row survived unchanged
+### 5. roles map correctly in this branch's code
+85 objects imported automatically (use -v 2 for details).
+
+base-one  base-admin   stored=admin   label=Admin        view_level=all   configure=True  org_settings=True  records_create=True 
+base-one  base-member  stored=member  label=Team member  view_level=team  configure=False org_settings=False records_create=False
+base-one  base-owner   stored=owner   label=Owner        view_level=all   configure=True  org_settings=True  records_create=True 
+base-two  base-member  stored=admin   label=Admin        view_level=all   configure=True  org_settings=True  records_create=True 
+base-two  base-solo    stored=owner   label=Owner        view_level=all   configure=True  org_settings=True  records_create=True 
+invitation invitee.admin@example.com    stored=admin   label=Admin        state=pending
+invitation invitee.member@example.com   stored=member  label=Team member  state=pending
+invitation revoked@example.com          stored=member  label=Team member  state=revoked
+business profiles after upgrade (none until an owner opts in): {'base-one': [], 'base-two': []}
+plan free after the branch bootstrap: max_members = 4242 | new keys: {'crm_enabled': True, 'crm_max_contacts': 250, 'vertical_profiles': False}
+ROLE MAPPING OK
+System check identified no issues (0 silenced).
+### cleanup
+DROP DATABASE
+done
+# finished 2026-10-17T11:24:02Z exit=0

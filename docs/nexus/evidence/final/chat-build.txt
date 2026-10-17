@@ -1,0 +1,27 @@
+$ cd /home/user/nexus/services/chat
+$ npm run build 2>&1 | tail -25
+# started 2026-10-17T11:25:34Z at d88749b
+
+> lumen-chat@1.0.0 build
+> tsc -p tsconfig.json --noEmit && vite build
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2321 modules transformed.
+rendering chunks...
+dist/index.html                                                  0.93 kB
+dist/assets/logo-D10IxYcy.svg                                    0.97 kB
+dist/licenses/LICENSE-Inter.txt                                  4.47 kB
+dist/licenses/LICENSE-JetBrainsMono.txt                          4.52 kB
+dist/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
+dist/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
+dist/licenses/third-party.md                                    92.72 kB
+dist/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
+dist/assets/matrix_sdk_crypto_wasm_bg-DQQaknxI.wasm          7,805.48 kB
+dist/assets/index-BQiNZHNM.css                                 138.61 kB
+dist/assets/rust-crypto-DA-FvQvd.js                            226.02 kB
+dist/assets/index-Bsle6Eci.js                                2,322.16 kB
+
+✓ built in 2.79s
+# finished 2026-10-17T11:25:49Z exit=0
