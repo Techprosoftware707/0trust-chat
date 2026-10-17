@@ -64,11 +64,22 @@ jobs:
           else
             echo "::notice::no ANDROID_KEYSTORE_BASE64 secret: release APK/AAB are UNSIGNED"
           fi
+      - name: Test-build signing key (optional)
+        env:
+          TEST_KEYSTORE_B64: ${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$TEST_KEYSTORE_B64" ]; then
+            echo "$TEST_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/lumen-test.p12"
+            echo "LUMEN_ANDROID_TEST_KEYSTORE_PATH=$RUNNER_TEMP/lumen-test.p12" >> "$GITHUB_ENV"
+          else
+            echo "::notice::no ANDROID_TEST_KEYSTORE_BASE64 secret: debug APKs are signed with this run's own debug key, so an installed test build must be uninstalled before installing one from another run"
+          fi
       - name: Debug and release builds
         env:
           LUMEN_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           LUMEN_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           LUMEN_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
           ORG_GRADLE_PROJECT_lumen.defaultServer: ${{ vars.LUMEN_DEFAULT_SERVER }}
           ORG_GRADLE_PROJECT_lumen.fcm.projectId: ${{ vars.LUMEN_FCM_PROJECT_ID }}
           ORG_GRADLE_PROJECT_lumen.fcm.appId: ${{ vars.LUMEN_FCM_APP_ID }}
@@ -84,6 +95,9 @@ jobs:
           find app/build/outputs/apk/release app/build/outputs/bundle/release -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} "$RUNNER_TEMP/out/" \;
           ls -la "$RUNNER_TEMP/out"
           cd "$RUNNER_TEMP/out" && sha256sum * | tee SHA256SUMS-android.txt
+          # Which key signed the test build (the same fingerprint on every run once the
+          # ANDROID_TEST_KEYSTORE_* secrets are set).
+          "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --print-certs *arm64-v8a-debug.apk | grep -E 'SHA-256' | tee test-signing-certificate.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lumen-android

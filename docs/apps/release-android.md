@@ -163,7 +163,27 @@ On the phone, first install the server's test CA as a **CA certificate**
 through `debug-overrides` in `app/src/debug/res/xml/network_security_config.xml`.
 Certificates are still verified. Release builds trust only the system's CAs.
 Chrome, which shows the sign-in page, uses the same device-installed CA. Then
-enter the server name the installer printed, e.g. `203-0-113-5.sslip.io`.
+enter the server name the installer printed, e.g. `203-0-113-5.sslip.io`. With
+`--test-host` (a DuckDNS or deSEC name and Let's Encrypt), skip the CA.
+
+**One test signing key for every build.** Gradle signs debug builds with a key it
+generates on each machine, so each CI run produces test APKs with a different
+key, and Android refuses to install one over another ("App not installed"; the
+old test app must be uninstalled first). To keep one key:
+
+```bash
+bash apps/android/tools/make-test-signing-key.sh     # needs only openssl; writes ~/lumen-test-key
+```
+
+Store the two values it writes as repository secrets
+`ANDROID_TEST_KEYSTORE_BASE64` and `ANDROID_TEST_KEYSTORE_PASSWORD` (GitHub →
+Settings → Secrets and variables → Actions), and keep `lumen-test.p12` as a
+private backup. From the next CI run on, test builds are signed with it, and
+`test-signing-certificate.txt` in the `lumen-android` artifact shows the same
+fingerprint every time. An installed test app from before has to be uninstalled
+once. The key is never in the repository (`*.p12` is git-ignored) and is for
+test builds only; release builds use the upload key (section 2). Locally:
+`LUMEN_ANDROID_TEST_KEYSTORE_PATH` and `LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD`.
 
 ## 8. Not verified (needs devices, accounts or a live server)
 

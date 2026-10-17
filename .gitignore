@@ -16,6 +16,9 @@ lumen.conf
 !lumen.conf.example
 *.pem
 *.key
+*.p12
+*.jks
+*.keystore
 !deploy/**/*.example
 # Test artefacts
 tests/**/output/

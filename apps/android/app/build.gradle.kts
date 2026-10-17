@@ -39,6 +39,15 @@ val keyAlias: String? = System.getenv("LUMEN_ANDROID_KEY_ALIAS")
 val keyPassword: String? = System.getenv("LUMEN_ANDROID_KEY_PASSWORD")
 val releaseSigningAvailable = keystorePath != null && keystorePassword != null && keyAlias != null && keyPassword != null
 
+// ---- Test-build signing from the environment only (absent → Gradle's per-machine debug key) ---
+// One fixed key for debug (test) builds, so a newer test APK installs over an older one: Android
+// refuses to update an app signed with a different key ("App not installed"), and Gradle's debug
+// key is generated anew on every machine, i.e. on every CI run. A PKCS#12 file whose key password
+// is the store password, alias "lumen-test" (apps/android/tools/make-test-signing-key.sh).
+val testKeystorePath: String? = System.getenv("LUMEN_ANDROID_TEST_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+val testKeystorePassword: String? = System.getenv("LUMEN_ANDROID_TEST_KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() }
+val testSigningAvailable = testKeystorePath != null && testKeystorePassword != null
+
 android {
     namespace = "io.lumen.secure"
     compileSdk = 36
@@ -77,12 +86,23 @@ android {
                 enableV3Signing = true
             }
         }
+        if (testSigningAvailable) {
+            create("test") {
+                storeFile = file(testKeystorePath!!)
+                storePassword = testKeystorePassword
+                keyAlias = "lumen-test"
+                keyPassword = testKeystorePassword
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
     }
 
     buildTypes {
         debug {
             // Plain http is accepted only for loopback hosts, and only in debug builds.
             buildConfigField("boolean", "ALLOW_LOOPBACK_HTTP", "true")
+            if (testSigningAvailable) signingConfig = signingConfigs.getByName("test")
         }
         release {
             buildConfigField("boolean", "ALLOW_LOOPBACK_HTTP", "false")
