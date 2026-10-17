@@ -1,0 +1,18 @@
+PASS  401 without a token, with resource_metadata in WWW-Authenticate - HTTP 401
+PASS  RFC 9728 metadata names the /mcp resource and the issuer - {"resource": "http://127.0.0.1:8713/mcp", "authorization_servers": ["http://127.0.0.1:8713"], "scopes_supported": ["mcp:read", "mcp:write"], "bearer_methods_supported": ["header"], "resource_name": "N
+PASS  [1.x] OAuth: DCR + PKCE S256 + resource, through the SDK (localhost loopback redirect)
+PASS  [1.x] initialize negotiates 2025-11-25 - 2025-11-25
+PASS  [1.x] ping
+PASS  [1.x 2025-11-25] tools/list returns the Nexus tools - 38 tools
+PASS  [1.x 2025-11-25] every tool has annotations and an object input schema
+PASS  [1.x 2025-11-25] write tools are not read-only, confirm_action is destructive
+PASS  [1.x 2025-11-25] tools/call get_workspace_context - Agent / Broker
+PASS  [1.x 2025-11-25] search results carry record links
+PASS  [1.x 2025-11-25] invalid arguments give a tool error (isError), not a crash
+PASS  [1.x 2025-11-25] an unknown tool is refused - McpError
+PASS  [1.x 2025-11-25] prepare_create_task only proposes
+PASS  [1.x 2025-11-25] confirm_action executes it once
+PASS  [1.x 2025-11-25] a second confirm is refused (single use)
+
+PASS: 15 passed, 0 failed (mcp 1.30.0)
+evidence: docs/nexus/evidence/b3/mcp-sdk-1.30.0-conformance.json

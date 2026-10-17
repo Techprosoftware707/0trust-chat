@@ -1,0 +1,88 @@
+{
+  "sdk": "mcp 1.30.0",
+  "python": "3.13.16",
+  "server": "http://127.0.0.1:8713",
+  "user": "demo-riley",
+  "started": "2026-10-17T10:16:42+00:00",
+  "passed": 15,
+  "failed": 0,
+  "result": "PASS",
+  "checks": [
+    {
+      "check": "401 without a token, with resource_metadata in WWW-Authenticate",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "check": "RFC 9728 metadata names the /mcp resource and the issuer",
+      "ok": true,
+      "detail": "{\"resource\": \"http://127.0.0.1:8713/mcp\", \"authorization_servers\": [\"http://127.0.0.1:8713\"], \"scopes_supported\": [\"mcp:read\", \"mcp:write\"], \"bearer_methods_supported\": [\"header\"], \"resource_name\": \"N"
+    },
+    {
+      "check": "[1.x] OAuth: DCR + PKCE S256 + resource, through the SDK (localhost loopback redirect)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x] initialize negotiates 2025-11-25",
+      "ok": true,
+      "detail": "2025-11-25"
+    },
+    {
+      "check": "[1.x] ping",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] tools/list returns the Nexus tools",
+      "ok": true,
+      "detail": "38 tools"
+    },
+    {
+      "check": "[1.x 2025-11-25] every tool has annotations and an object input schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] write tools are not read-only, confirm_action is destructive",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] tools/call get_workspace_context",
+      "ok": true,
+      "detail": "Agent / Broker"
+    },
+    {
+      "check": "[1.x 2025-11-25] search results carry record links",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] invalid arguments give a tool error (isError), not a crash",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] an unknown tool is refused",
+      "ok": true,
+      "detail": "McpError"
+    },
+    {
+      "check": "[1.x 2025-11-25] prepare_create_task only proposes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] confirm_action executes it once",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[1.x 2025-11-25] a second confirm is refused (single use)",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "not_covered": "A connection from Claude itself (needs public HTTPS reachable from Anthropic's egress 160.79.104.0/21)."
+}
