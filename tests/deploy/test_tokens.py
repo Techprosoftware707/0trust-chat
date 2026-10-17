@@ -19,8 +19,8 @@ class TestTokens(unittest.TestCase):
         t = gen_tokens.collect()
         light, dark = t["themes"]["light"], t["themes"]["dark"]
         self.assertNotEqual(light["bg"], dark["bg"])
-        self.assertEqual(dark["bg"], t["palette"]["lm-midnight-950"])
-        self.assertEqual(light["accent"], t["palette"]["lm-cyan-600"])
+        self.assertEqual(dark["bg"], t["palette"]["lm-midnight-925"])
+        self.assertEqual(light["accent"], t["palette"]["lm-cyan-700"])
 
     def test_generated_files_are_current(self):
         self.assertEqual(gen_tokens.main.__name__, "main")
