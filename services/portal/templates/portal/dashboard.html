@@ -3,7 +3,7 @@
 {% block main %}
 <div class="app-topbar">
   <div><h1>Welcome{% if user.display_name %}, {{ user.display_name }}{% endif %}</h1><p>Your chat address is <span class="mono">{{ user.matrix_id }}</span></p></div>
-  <a class="btn btn-primary" href="{{ lumen.app_url }}">{% icon "messages-square" %} Open chat</a>
+  <div class="cluster"><a class="btn" href="{{ lumen.app_url }}">{% icon "messages-square" %} Open chat</a><a class="btn btn-primary" href="{{ lumen.app_url }}/#/home">{% icon "layout-dashboard" %} Open workspace</a></div>
 </div>
 
 {% if notifications %}
@@ -25,7 +25,7 @@
     <div class="card-header"><h2>Workspaces</h2><a class="btn btn-sm" href="{% url 'portal:workspaces' %}">{% icon "plus" %} New</a></div>
     {% if workspaces %}
     <ul class="list-plain list-rows">
-      {% for w in workspaces %}<li><div><a href="{% url 'portal:workspace' w.membership.workspace.pk %}"><strong>{{ w.membership.workspace.name }}</strong></a><div class="xsmall muted">{{ w.membership.get_role_display }} · {{ w.plan.name }} plan</div></div><div class="stat-note nowrap">{{ w.seats }} / {{ w.limit }} seats<div class="meter{% if w.seats >= w.limit %} full{% endif %}" aria-hidden="true"><span class="w-{{ w.seats|percent_of:w.limit }}"></span></div></div></li>{% endfor %}
+      {% for w in workspaces %}<li><div><a href="{% url 'portal:workspace' w.membership.workspace.pk %}"><strong>{{ w.membership.workspace.name }}</strong></a><div class="xsmall muted">{{ w.membership.get_role_display }} · {{ w.plan.name }} plan{% if w.business %} · <span class="badge badge-accent">Business</span>{% endif %}</div></div><div class="stat-note nowrap">{{ w.seats }} / {{ w.limit }} seats<div class="meter{% if w.seats >= w.limit %} full{% endif %}" aria-hidden="true"><span class="w-{{ w.seats|percent_of:w.limit }}"></span></div></div></li>{% endfor %}
     </ul>
     {% else %}
     <div class="empty">{% icon "building-2" %}<p>You're not in a workspace yet. Create one to invite your team, or keep chatting on your own — the Free plan applies.</p><a class="btn btn-primary" href="{% url 'portal:workspaces' %}">Create a workspace</a></div>

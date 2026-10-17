@@ -15,7 +15,7 @@
       {% include "includes/theme_toggle.html" %}
       {% if user.is_authenticated %}
         <a class="btn btn-ghost hide-mobile" href="{% url 'portal:dashboard' %}">Dashboard</a>
-        <a class="btn btn-primary" href="{{ lumen.app_url }}">Open chat</a>
+        <a class="btn btn-primary" href="{{ lumen.app_url }}">Open workspace</a>
       {% else %}
         <a class="btn btn-ghost hide-mobile" href="{% url 'account_login' %}">Sign in</a>
         {% if lumen.registration_mode == "open" %}<a class="btn btn-primary" href="{% url 'account_signup' %}">Get started</a>{% endif %}

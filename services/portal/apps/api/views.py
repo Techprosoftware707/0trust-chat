@@ -36,6 +36,8 @@ def _workspace(actor: access.Actor) -> dict:
         "role_label": Role(actor.role).label,
         "plan": {"code": plan.code, "name": plan.name},
         "features": actor.features,
+        # all | scoped (own, assigned, collaborating + shared) | team (shared only)
+        "view_level": actor.view_level,
         "capabilities": access.capability_summary(actor),
         "settings": _org(org_settings(ws)),
     }

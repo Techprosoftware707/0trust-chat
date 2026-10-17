@@ -13,6 +13,18 @@
       <div class="form-actions"><button class="btn btn-primary" type="submit">Save settings</button></div>
     </form>
   </section>
+  <section class="card stack" aria-labelledby="biz-title">
+    <h2 id="biz-title">Business workspace</h2>
+    <p class="muted mb-0">Turn on contacts, pipelines, tasks and the timeline in the {{ brand.short_name }} app. Pick the profiles your team works in.{% if features.crm %} <span class="badge badge-success">On</span>{% else %} <span class="badge badge-plain">Off</span>{% endif %}</p>
+    <form class="form" method="post" action="{% url 'portal:workspace_business' ws.pk %}">{% csrf_token %}
+      <fieldset class="stack-sm"><legend class="label">Business profiles</legend>
+        {% for value, label, on in profiles %}<label class="checkbox" for="bp-{{ value }}"><input id="bp-{{ value }}" type="checkbox" name="business_profiles" value="{{ value }}" {% if on %}checked{% endif %} {% if value != "general" and not plan.entitlements.vertical_profiles and not on %}disabled{% endif %}> <span><strong>{{ label }}</strong>{% if value != "general" and not plan.entitlements.vertical_profiles %} <span class="badge badge-info">{{ plan.name }} plan doesn't include this</span>{% endif %}</span></label>{% endfor %}
+      </fieldset>
+      <div class="field"><label for="biz-cur">Default currency</label><input id="biz-cur" type="text" name="default_currency" value="{{ org.default_currency }}" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off"></div>
+      <label class="checkbox" for="biz-str"><input id="biz-str" type="checkbox" name="save_to_record_enabled" {% if org.save_to_record_enabled %}checked{% endif %}> <span><strong>Allow “Save to record” from chat</strong> — people may copy text they select in an end-to-end encrypted conversation into a record note. The copy is no longer end-to-end encrypted. Off by default.</span></label>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Save business settings</button></div>
+    </form>
+  </section>
   {% if membership.role == "owner" %}
   <section class="card stack danger-zone">
     <h2>Delete workspace</h2>

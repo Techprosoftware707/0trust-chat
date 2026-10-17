@@ -19,6 +19,7 @@ urlpatterns = [
     path("workspaces/<str:workspace_id>/members/<int:member_id>/remove/", views.workspace_member_remove, name="workspace_member_remove"),
     path("workspaces/<str:workspace_id>/members/<int:member_id>/transfer/", views.workspace_transfer, name="workspace_transfer"),
     path("workspaces/<str:workspace_id>/settings/", views.workspace_settings, name="workspace_settings"),
+    path("workspaces/<str:workspace_id>/business/", views.workspace_business, name="workspace_business"),
     path("workspaces/<str:workspace_id>/delete/", views.workspace_delete, name="workspace_delete"),
     path("workspaces/<str:workspace_id>/billing/", views.workspace_billing, name="workspace_billing"),
     path("workspaces/<str:workspace_id>/billing/checkout/", views.workspace_checkout, name="workspace_checkout"),

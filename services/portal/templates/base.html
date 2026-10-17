@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ brand.name }}{% endblock %}{% if not request.path == "/" %} · {{ brand.name }}{% endif %}</title>
+  <title>{% if lumen.environment_label %}[{{ lumen.environment_label }}] {% endif %}{% block title %}{{ brand.name }}{% endblock %}{% if not request.path == "/" %} · {{ brand.name }}{% endif %}</title>
   <meta name="description" content="{% block meta_description %}{{ brand.tagline }}{% endblock %}">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#0a1630">
+  <meta name="theme-color" content="#0a1430">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <link rel="icon" href="{{ lumen.brand_asset_url }}favicon.svg" type="image/svg+xml">
   <script src="{% static 'lumen/js/theme.js' %}"></script>
@@ -18,6 +18,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main">Skip to content</a>
+  {% if lumen.environment_label %}<div class="env-banner" role="note" aria-label="Environment">{% icon "flag" %} <strong>{{ lumen.environment_label }} environment</strong> · synthetic demo data <span class="env-banner-note">Don't enter real customer information.</span></div>{% endif %}
   {% if lumen.maintenance %}<div class="banner" role="status">{% icon "construction" %} {{ lumen.maintenance_message|default:"Scheduled maintenance is in progress. New sign-ups are paused." }}</div>{% endif %}
   {% if lumen.announcement %}<div class="banner" role="status">{{ lumen.announcement }}</div>{% endif %}
   {% block body %}{% endblock %}

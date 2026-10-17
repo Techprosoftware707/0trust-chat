@@ -6,6 +6,7 @@
     {% include "includes/brand.html" %}
     <nav>
       <a href="{% url 'portal:dashboard' %}" {% nav_current '/portal/dashboard' %}>{% icon "layout-dashboard" %} Overview</a>
+      <a href="{{ lumen.app_url }}/#/home">{% icon "layout-dashboard" %} Open workspace {% icon "external-link" "xsmall" %}</a>
       <a href="{{ lumen.app_url }}" >{% icon "messages-square" %} Open chat {% icon "external-link" "xsmall" %}</a>
       <div class="nav-label">Workspaces</div>
       <a href="{% url 'portal:workspaces' %}" {% nav_current '/portal/workspaces' %}>{% icon "building-2" %} Workspaces</a>

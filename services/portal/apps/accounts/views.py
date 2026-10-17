@@ -22,6 +22,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
+from apps.api.features import workspace_features
 from apps.billing import services as billing
 from apps.billing.models import ENTITLEMENT_LABELS
 from apps.billing.providers import BillingUnavailable, get_provider
@@ -151,6 +152,7 @@ def dashboard(request):
                 "plan": plan,
                 "seats": ws_services.seats_used(m.workspace),
                 "limit": plan.entitlement("max_members"),
+                "business": workspace_features(m.workspace).get("crm", False),
             }
         )
     ent = billing.user_entitlements(user)
@@ -481,7 +483,51 @@ def workspace_settings(request, workspace_id):
             audit(request, "workspace.settings", target=ws, metadata={"require_mfa": ws.require_mfa, "allow_member_invites": ws.allow_member_invites})
             messages.success(request, "Workspace settings saved.")
         return redirect("portal:workspace_settings", workspace_id)
-    return render(request, "portal/workspace_settings.html", {"membership": membership, "ws": membership.workspace, "plan": plan})
+    from apps.crm.models import BusinessProfile
+    from apps.crm.services import org_settings
+
+    org = org_settings(membership.workspace)
+    return render(
+        request,
+        "portal/workspace_settings.html",
+        {
+            "membership": membership,
+            "ws": membership.workspace,
+            "plan": plan,
+            "org": org,
+            "profiles": [(p.value, p.label, p.value in (org.business_profiles or [])) for p in BusinessProfile],
+            "features": workspace_features(membership.workspace),
+        },
+    )
+
+
+@login_required
+@require_POST
+def workspace_business(request, workspace_id):
+    """Business workspace settings (Nexus): profiles and the save-to-record policy. The
+    same rules as PATCH /api/v1/workspaces/<id>/settings (apps.crm.services)."""
+    from apps.api.errors import ApiError
+    from apps.crm.access import Actor
+    from apps.crm.services import update_org_settings
+
+    membership = ws_services.membership_for(request.user, workspace_id)
+    ws_services.require_manager(membership)
+    body = {
+        "business_profiles": [p for p in request.POST.getlist("business_profiles") if p],
+        "save_to_record_enabled": request.POST.get("save_to_record_enabled") == "on",
+    }
+    currency = (request.POST.get("default_currency") or "").strip()
+    if currency:
+        body["default_currency"] = currency
+    try:
+        with transaction.atomic():
+            update_org_settings(request, Actor(user=request.user, membership=membership), body)
+    except ApiError as exc:
+        detail = "; ".join(f"{k}: {' '.join(v)}" for k, v in (exc.fields or {}).items())
+        messages.error(request, f"{exc.message} {detail}".strip())
+    else:
+        messages.success(request, "Business settings saved.")
+    return redirect("portal:workspace_settings", workspace_id)
 
 
 @login_required

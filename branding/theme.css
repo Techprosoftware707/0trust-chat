@@ -2,8 +2,130 @@
  * Operator brand overrides. Loaded after design/tokens.css on every surface
  * (website, portal, admin console, chat). Keep it to CSS custom properties.
  *
- * Example — switch the primary accent to violet:
- *
- * :root { --brand-accent: #6b58e8; --brand-accent-strong: #5443c9; }
- * :root[data-theme="dark"] { --accent: #a497fa; --accent-hover: #c4bbfc; }
+ * This branch: "Nexus Office AI", a TEMPORARY test brand (deep navy, charcoal, white,
+ * restrained electric blue). Every text/background pair below is measured for WCAG 2.2 AA
+ * by tests/nexus/brand_contrast.py (results in docs/nexus/ARCHITECTURE.md).
+ * design/tokens.css stays the shared Lumen source; only these variables change.
  */
+
+:root {
+  /* Brand hooks */
+  --brand-accent: #1d4ed8;         /* electric blue, 6.70:1 on white */
+  --brand-accent-strong: #1e40af;
+  --brand-accent-2: #0f6e8c;
+  --brand-accent-3: #4338ca;
+  /* Light enough for the dark label of .btn-gradient (>= 5:1 everywhere on it). */
+  --brand-gradient: linear-gradient(135deg, #a9cfff 0%, #6ea8ff 52%, #4a8dfa 100%);
+  --brand-hero: radial-gradient(1100px 560px at 10% -12%, rgba(59, 130, 246, 0.30), transparent 62%),
+    radial-gradient(800px 460px at 96% 4%, rgba(37, 99, 235, 0.20), transparent 60%),
+    linear-gradient(180deg, #050a18 0%, #0a1430 100%);
+  --brand-wash: radial-gradient(800px 360px at 0% 0%, rgba(59, 130, 246, 0.08), transparent 60%),
+    radial-gradient(700px 320px at 100% 100%, rgba(15, 110, 140, 0.06), transparent 60%);
+
+  /* Compact, enterprise shapes */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --tracking-tight: -0.018em;
+
+  /* Light theme: white surfaces, charcoal text, navy accents */
+  --bg: #f4f6fa;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --surface-3: #e2e7ef;
+  --surface-inverse: #0a1430;
+  --border: #d9dfe8;
+  --border-strong: #c0c9d6;
+  --text: #121826;
+  --text-muted: #475163;
+  --text-subtle: #566072;
+  --text-inverse: #f4f6fa;
+  --accent: var(--brand-accent);
+  --accent-hover: var(--brand-accent-strong);
+  --accent-soft: rgba(29, 78, 216, 0.09);
+  --accent-contrast: #ffffff;
+  --accent-2: var(--brand-accent-2);
+  --accent-3: var(--brand-accent-3);
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.45);
+  --info: #4338ca;
+  --info-soft: rgba(67, 56, 202, 0.09);
+  --shadow-sm: 0 1px 2px rgba(10, 20, 48, 0.06), 0 1px 1px rgba(10, 20, 48, 0.03);
+  --shadow-md: 0 8px 24px -10px rgba(10, 20, 48, 0.16), 0 2px 6px rgba(10, 20, 48, 0.05);
+  --shadow-lg: 0 24px 56px -20px rgba(10, 20, 48, 0.26);
+  --bubble-own: #e7efff;
+  --bubble-other: #ffffff;
+
+  /* Nexus additions: the persistent test-environment banner */
+  --nexus-env-bg: #f2b33d;
+  --nexus-env-fg: #1c1300;
+  --nexus-rail-bg: #0a1430;
+  --nexus-rail-fg: #c9d4e8;
+  --nexus-rail-active-bg: #1d3a7a;
+  --nexus-rail-active-fg: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #060c1d;
+  --bg-elevated: #0a1430;
+  --surface: #0e1a38;
+  --surface-2: #132244;
+  --surface-3: #192b53;
+  --surface-inverse: #f4f6fa;
+  --border: #1e305c;
+  --border-strong: #2b4276;
+  --text: #e8edf6;
+  --text-muted: #a8b4ca;
+  --text-subtle: #8f9bb3;
+  --text-inverse: #0a1430;
+  --accent: #6ea8ff;
+  --accent-hover: #9cc3ff;
+  --accent-soft: rgba(110, 168, 255, 0.14);
+  --accent-contrast: #041029;
+  --accent-2: #5cc8e6;
+  --accent-3: #a5b4fc;
+  --focus-ring: 0 0 0 3px rgba(110, 168, 255, 0.55);
+  --info: #a5b4fc;
+  --info-soft: rgba(165, 180, 252, 0.14);
+  --bubble-own: #15306a;
+  --bubble-other: #132244;
+  --nexus-rail-bg: #050a18;
+  --nexus-rail-fg: #b7c3da;
+  --nexus-rail-active-bg: #1b3670;
+  --nexus-rail-active-fg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #060c1d;
+    --bg-elevated: #0a1430;
+    --surface: #0e1a38;
+    --surface-2: #132244;
+    --surface-3: #192b53;
+    --surface-inverse: #f4f6fa;
+    --border: #1e305c;
+    --border-strong: #2b4276;
+    --text: #e8edf6;
+    --text-muted: #a8b4ca;
+    --text-subtle: #8f9bb3;
+    --text-inverse: #0a1430;
+    --accent: #6ea8ff;
+    --accent-hover: #9cc3ff;
+    --accent-soft: rgba(110, 168, 255, 0.14);
+    --accent-contrast: #041029;
+    --accent-2: #5cc8e6;
+    --accent-3: #a5b4fc;
+    --focus-ring: 0 0 0 3px rgba(110, 168, 255, 0.55);
+    --info: #a5b4fc;
+    --info-soft: rgba(165, 180, 252, 0.14);
+    --bubble-own: #15306a;
+    --bubble-other: #132244;
+    --nexus-rail-bg: #050a18;
+    --nexus-rail-fg: #b7c3da;
+    --nexus-rail-active-bg: #1b3670;
+    --nexus-rail-active-fg: #ffffff;
+  }
+}
