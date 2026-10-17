@@ -57,6 +57,24 @@ written to from this work (other agents work on the latter in `/home/user/0trust
 
 ## Log
 
-The final report of the foundation work (files, migrations, test commands and their observed
-results, known gaps) is kept at the end of [ARCHITECTURE.md](ARCHITECTURE.md#foundation-status)
-and in the commit history of this branch.
+The full hand-off (files, migrations, contracts) is in [ARCHITECTURE.md](ARCHITECTURE.md),
+including its [Foundation status](ARCHITECTURE.md#foundation-status) with the known gaps; the
+commands are in [DEVELOPMENT.md](DEVELOPMENT.md).
+
+Findings outside the brief, recorded here so nobody re-discovers them:
+
+* **OIDC `prompt=none` without a portal session** raised a server error in allauth's
+  authorization view (an anonymous user was stored with the code). `apps/oidc/views.py` now
+  answers `login_required` to a registered redirect URI, as OpenID Connect requires, and a
+  400 page otherwise (commit `ec90f00`, tests in `test_nexus_auth.py`).
+* **`tests/deploy/test_tokens.py::test_themes_differ_and_use_brand_palette` fails at the
+  starting commit `eefa6ab` already** (`design/tokens.css` dark `--bg` is `#081024`, the
+  palette's `lm-midnight-950` is `#050b1a`). `design/` and that test are shared Lumen files
+  this branch must not touch, so it is left failing and reported.
+* **Chat UI suite (`npm run test:ui`)**: one run had "sign out wipes local data" time out
+  waiting for the signed-out notice; the immediate re-run passed 23/23. The workspace
+  sign-out hook is a no-op without a `workspace` block in the chat config (as in that suite),
+  so this looks like timing in the suite rather than this branch; worth watching.
+* **ruff** has no configuration in this repository and CI does not run it; the Nexus Python
+  code is clean under `E,F,W,I` (command in DEVELOPMENT.md). Ruff's wider default set reports
+  `RUF012` (mutable Django `Meta`/class attributes) here as it does in the existing apps.
