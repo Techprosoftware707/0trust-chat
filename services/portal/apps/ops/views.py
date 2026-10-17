@@ -545,7 +545,7 @@ def calls(request):
     if request.method == "POST":
         if not has_perm(request.user, "manage_platform"):
             raise PermissionDenied
-        selftest, err = agent.safe_call("calls.selftest", actor=request.user.username)
+        selftest, err = agent.safe_call("calls.selftest", actor=request.user.username, timeout=160)  # agent allows 150 s
         if err:
             selftest = {"ok": False, "output": err}
         audit(request, "ops.calls_selftest", metadata={"ok": bool(selftest and selftest.get("ok"))})
@@ -849,7 +849,7 @@ def config(request):
         ("Registration mode", runtime.registration_mode()),
         ("Email delivery", "configured" if settings.EMAIL_ENABLED else "not configured"),
         ("Payment provider", f"{provider.label} ({'configured' if provider.is_configured() else 'not configured'})"),
-        ("Voice/video (TURN)", "enabled" if settings.VOIP_ENABLED else "disabled"),
+        ("Voice/video calls", "enabled" if settings.CALLS_ENABLED else "disabled"),
         ("WireGuard", "enabled" if settings.WIREGUARD_ENABLED else "disabled"),
         ("Operator MFA required", "yes" if settings.OPS_REQUIRE_MFA else "NO (insecure)"),
         ("Portal session idle timeout", f"{settings.SESSION_IDLE_TIMEOUT // 60} min (portal), console uses its own"),

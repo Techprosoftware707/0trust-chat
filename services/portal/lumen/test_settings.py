@@ -35,3 +35,7 @@ os.environ.setdefault("POSTGRES_PORT", "55432")
 os.environ.setdefault("POSTGRES_PASSWORD", "devpass")
 
 from .settings import *  # noqa: E402,F401,F403
+
+# Unit tests never talk to a real host agent, even on a host where one is running: the
+# console then shows its "agent unavailable" state, which is what these tests exercise.
+HOST_AGENT_SOCKET = "/nonexistent/lumen-agent-under-test.sock"

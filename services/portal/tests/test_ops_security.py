@@ -61,6 +61,22 @@ class TestOpsAccess:
         path = path.format(plan=Plan.objects.get(code="pro").pk)
         assert ops_client(op).get(path).status_code == expected
 
+    # Every page of the console renders for an owner, in a test environment where the host
+    # agent and the homeserver are unreachable (pages must degrade, not fail). A stale
+    # settings name once made /ops/config/ a 500.
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/ops/dashboard/", "/ops/users/", "/ops/workspaces/", "/ops/plans/", "/ops/plans/new/",
+            "/ops/subscriptions/", "/ops/webhooks/", "/ops/health/", "/ops/calls/", "/ops/federation/",
+            "/ops/backups/", "/ops/wireguard/", "/ops/maintenance/", "/ops/security/", "/ops/audit/",
+            "/ops/config/", "/ops/support/",
+        ],
+    )
+    def test_every_console_page_renders(self, path):
+        owner = make_user("owner-pages", staff_role="owner", mfa=True)
+        assert ops_client(owner).get(path).status_code == 200
+
     def test_auditor_cannot_suspend(self):
         auditor = make_user("aud", staff_role="auditor", mfa=True)
         victim = make_user("victim1")
