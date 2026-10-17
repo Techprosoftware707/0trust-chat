@@ -12,6 +12,8 @@ checkout's containers or ports.
 | Portal: website, portal, OAuth/OIDC provider, `/api/v1` | `http://127.0.0.1:8710` | `dev/nexus/run-portal.sh` |
 | Chat SPA / workspace shell (Vite) | `http://127.0.0.1:5710` | `dev/nexus/run-chat.sh` |
 
+Several independent environments can run side by side: `NEXUS_SLOT=N` (1-9) before any `dev/nexus/*.sh` command, or before `. dev/nexus/env.sh`, gives portal `8710+N`, chat `5710+N` and database `nexus_dev_N`. The homeserver is shared, and only slot 0 resets it (`setup.sh --fresh`). For pytest, pick a database name per environment as well, e.g. `POSTGRES_DB=nexus_b1` (pytest then uses `test_nexus_b1`).
+
 All environment variables live in `dev/nexus/env.sh` (development values only; the OIDC
 signing key is generated into the git-ignored `dev/nexus/.state/`). Every command below is
 run from the repository root unless it says otherwise.

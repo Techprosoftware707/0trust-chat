@@ -3,7 +3,7 @@
 # PostgreSQL container, database, migrations, OAuth clients, demo data, homeserver and
 # Matrix accounts for the demo people. Nothing here touches any other checkout's containers.
 #   dev/nexus/setup.sh            idempotent
-#   dev/nexus/setup.sh --fresh    drop the nexus_dev database first
+#   dev/nexus/setup.sh --fresh    drop this slot's database first (nexus_dev, or nexus_dev_N for NEXUS_SLOT=N)
 set -euo pipefail
 . "$(dirname "$0")/env.sh"
 
@@ -18,10 +18,10 @@ if [ "${1:-}" = "--fresh" ]; then
   # Start over: drop the development database (never any other) and, below, the data of
   # this environment's own homeserver container.
   FRESH=1
-  docker exec nexus-pg dropdb -U lumen_app --if-exists --force nexus_dev
+  docker exec nexus-pg dropdb -U lumen_app --if-exists --force "$NEXUS_DEV_DB"
 fi
-docker exec nexus-pg psql -U lumen_app -d nexus -tAc "SELECT 1 FROM pg_database WHERE datname='nexus_dev'" | grep -q 1 \
-  || docker exec nexus-pg createdb -U lumen_app nexus_dev
+docker exec nexus-pg psql -U lumen_app -d nexus -tAc "SELECT 1 FROM pg_database WHERE datname='$NEXUS_DEV_DB'" | grep -q 1 \
+  || docker exec nexus-pg createdb -U lumen_app "$NEXUS_DEV_DB"
 
 cd "$NEXUS_REPO/services/portal"
 "$NEXUS_VENV/bin/python" manage.py migrate --noinput -v0
@@ -29,7 +29,8 @@ cd "$NEXUS_REPO/services/portal"
 "$NEXUS_VENV/bin/python" manage.py nexus_demo_seed --reset-passwords
 
 cd "$NEXUS_REPO/services/chat"
-[ "$FRESH" = 1 ] && node ../../tests/chat/devserver.mjs reset
+# The homeserver is shared by all slots: only slot 0 resets it.
+[ "$FRESH" = 1 ] && [ "$NEXUS_SLOT" = 0 ] && node ../../tests/chat/devserver.mjs reset
 node ../../tests/chat/devserver.mjs up
 node "$NEXUS_DEV_DIR/matrix-users.mjs"
 echo "ready: run dev/nexus/run-portal.sh and dev/nexus/run-chat.sh"
