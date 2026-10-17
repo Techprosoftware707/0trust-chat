@@ -1,0 +1,153 @@
+{
+  "sdk": "mcp 2.3.0",
+  "python": "3.13.16",
+  "server": "http://127.0.0.1:8710",
+  "user": "demo-riley",
+  "started": "2026-10-17T11:39:04+00:00",
+  "passed": 28,
+  "failed": 0,
+  "result": "PASS",
+  "checks": [
+    {
+      "check": "401 without a token, with resource_metadata in WWW-Authenticate",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "check": "RFC 9728 metadata names the /mcp resource and the issuer",
+      "ok": true,
+      "detail": "{\"resource\": \"http://127.0.0.1:8710/mcp\", \"authorization_servers\": [\"http://127.0.0.1:8710\"], \"scopes_supported\": [\"mcp:read\", \"mcp:write\"], \"bearer_methods_supported\": [\"header\"], \"resource_name\": \"N"
+    },
+    {
+      "check": "[2.x] OAuth: DCR + PKCE S256 + resource, through the SDK",
+      "ok": true,
+      "detail": "auth request {'response_type': 'code', 'code_challenge_method': 'S256', 'resource': 'http://127.0.0.1:8710/mcp', 'scope': 'mcp:read mcp:write'}"
+    },
+    {
+      "check": "[2.x] OAuth: the authorization response carries iss (RFC 9207), validated by the SDK",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x] consent screen shows the redirect host and the loopback warning",
+      "ok": true,
+      "detail": "{\"redirect_host_shown\": true, \"loopback_warning_shown\": true, \"scopes_offered\": [\"mcp:write\", \"mcp:read\"]}"
+    },
+    {
+      "check": "[2.x mode=auto] negotiated protocol version",
+      "ok": true,
+      "detail": "2026-07-28"
+    },
+    {
+      "check": "[2.x 2026-07-28] tools/list returns the Nexus tools",
+      "ok": true,
+      "detail": "38 tools"
+    },
+    {
+      "check": "[2.x 2026-07-28] every tool has annotations and an object input schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2026-07-28] write tools are not read-only, confirm_action is destructive",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2026-07-28] tools/call get_workspace_context",
+      "ok": true,
+      "detail": "Agent / Broker"
+    },
+    {
+      "check": "[2.x 2026-07-28] search results carry record links",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2026-07-28] invalid arguments give a tool error (isError), not a crash",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2026-07-28] an unknown tool is refused",
+      "ok": true,
+      "detail": "MCPError"
+    },
+    {
+      "check": "[2.x 2026-07-28] prepare_create_task only proposes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2026-07-28] confirm_action executes it once",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2026-07-28] a second confirm is refused (single use)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x mode=legacy] negotiated protocol version",
+      "ok": true,
+      "detail": "2025-11-25"
+    },
+    {
+      "check": "[2.x mode=legacy] ping",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] tools/list returns the Nexus tools",
+      "ok": true,
+      "detail": "38 tools"
+    },
+    {
+      "check": "[2.x 2025-11-25] every tool has annotations and an object input schema",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] write tools are not read-only, confirm_action is destructive",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] tools/call get_workspace_context",
+      "ok": true,
+      "detail": "Agent / Broker"
+    },
+    {
+      "check": "[2.x 2025-11-25] search results carry record links",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] invalid arguments give a tool error (isError), not a crash",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] an unknown tool is refused",
+      "ok": true,
+      "detail": "MCPError"
+    },
+    {
+      "check": "[2.x 2025-11-25] prepare_create_task only proposes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] confirm_action executes it once",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "[2.x 2025-11-25] a second confirm is refused (single use)",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "not_covered": "A connection from Claude itself (needs public HTTPS reachable from Anthropic's egress 160.79.104.0/21)."
+}

@@ -1,0 +1,22 @@
+$ cd /home/user/nexus/services/chat
+$ . ../../dev/nexus/env.sh && echo CHATDEV_CONTAINER=$CHATDEV_CONTAINER CHATDEV_PORT=$CHATDEV_PORT && npm run test:e2ee 2>&1 | tail -30
+# started 2026-10-17T11:39:40Z at dda1a5d
+CHATDEV_CONTAINER=lumen-chatdev-nexus CHATDEV_PORT=28108
+
+> lumen-chat@1.0.0 test:e2ee
+> node --test --test-force-exit --test-reporter=spec ../../tests/chat/e2ee.test.mjs
+
+✔ creates an encrypted DM and both users join (2196.530188ms)
+✔ alice -> bob message is encrypted on the wire and decrypted by bob (276.32275ms)
+✔ bob -> alice message is encrypted and decrypted by alice (287.040926ms)
+✔ encrypted attachment: ciphertext on the server, plaintext only after decryption (230.239814ms)
+✔ the server never saw plaintext: /messages and the admin API only hold ciphertext (53.866367ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3435.865277
+# finished 2026-10-17T11:39:43Z exit=0

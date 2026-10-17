@@ -1,0 +1,15 @@
+$ cd /home/user/nexus
+$ . dev/nexus/env.sh && (cd services/portal && $NEXUS_VENV/bin/python manage.py shell -c "from apps.assistant.models import AISettings; from apps.crm.models import OrgSettings; ws=OrgSettings.objects.get(is_demo=True).workspace; AISettings.objects.update_or_create(workspace=ws, defaults={'mcp_enabled': True}); print('demo workspace: Members may connect Claude = on')" 2>&1 | tail -1) && NEXUS_PORTAL_URL=http://127.0.0.1:$NEXUS_PORTAL_PORT NEXUS_APP_URL=http://127.0.0.1:$NEXUS_CHAT_PORT node tests/nexus/assistant.smoke.mjs --no-shots
+# started 2026-10-17T11:38:22Z at dda1a5d
+demo workspace: Members may connect Claude = on
+PASS AI Assistant: development mode answers with verified facts only
+PASS AI Assistant: a proposed task waits for Confirm; Cancel changes nothing
+PASS Ask AI on a contact: summary from the records, with the dev label
+PASS Settings: AI and connectors, Connected apps
+PASS Room CRM panel: Ask AI and Save to record (copy is no longer E2EE)
+PASS Claude connector consent: redirect host, loopback warning, scopes, workspace
+PASS phone width, dark: the assistant
+PASS clean up: Save to record off again
+
+8 passed, 0 failed
+# finished 2026-10-17T11:38:44Z exit=0

@@ -1,0 +1,21 @@
+$ cd /home/user/nexus
+$ . dev/nexus/env.sh && echo NEXUS_INTEGRATIONS_MOCK=$NEXUS_INTEGRATIONS_MOCK && node tests/nexus/integrations.smoke.mjs --no-shots
+# started 2026-10-17T11:37:37Z at dda1a5d
+NEXUS_INTEGRATIONS_MOCK=1
+85 objects imported automatically (use -v 2 for details).
+
+removed 0 mock connection rows
+PASS integrations area: mock mode is labelled, setup steps and scopes are shown
+PASS connect Gmail through the mock consent page (state + PKCE + session binding)
+PASS connect Slack and HighLevel, pick Slack channels, sync
+PASS inbox merges native chats with synced items, each with its source badge
+PASS email: body opens on demand, a reply is drafted, reviewed and sent only after confirming
+PASS link a thread to a contact, then open the contact in the side panel
+PASS Slack: a reply needs confirmation; HighLevel is read-only with a link out
+PASS an agent sees workspace items but never the owner's mailbox
+PASS inbox and integrations at desktop-dark
+PASS inbox and integrations at phone-light
+PASS inbox and integrations at phone-dark
+
+11 passed, 0 failed (mock-based: local fake providers only)
+# finished 2026-10-17T11:38:11Z exit=0

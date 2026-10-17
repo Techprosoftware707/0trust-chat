@@ -1,0 +1,38 @@
+$ cd /home/user/nexus
+$ bash dev/nexus/setup.sh --fresh 2>&1 | tail -40 && . dev/nexus/env.sh && cd services/portal && $NEXUS_VENV/bin/python manage.py showmigrations workspaces crm automation integrations assistant mcp
+# started 2026-10-17T11:34:29Z at dda1a5d
+plans: created ['free', 'pro', 'business', 'enterprise']
+oidc client: created (lumen-synapse -> http://127.0.0.1:28108/_synapse/client/oidc/callback)
+oauth client: created (nexus-web, public, PKCE -> http://127.0.0.1:5710/oauth/callback)
+bootstrap complete
+demo workspace: Harborview Realty & Lending (demo) (f9ae0fbe-821c-43cd-94ca-efb644bc654a)
+business records: 124 created
+demo accounts created: demo-avery, demo-morgan, demo-riley, demo-jordan, demo-casey, demo-sam
+accounts: demo-avery (owner), demo-morgan (manager), demo-riley (agent), demo-jordan (agent), demo-casey (member), demo-sam (readonly)
+demo seed complete
+lumen-chatdev-nexus removed
+dev homeserver data removed
+lumen-chatdev-nexus ready at http://127.0.0.1:28108 (server_name chatdev.test)
+matrix: registered @demo-avery:chatdev.test
+matrix: registered @demo-morgan:chatdev.test
+matrix: registered @demo-riley:chatdev.test
+matrix: registered @demo-jordan:chatdev.test
+matrix: registered @demo-casey:chatdev.test
+matrix: registered @demo-sam:chatdev.test
+ready: run dev/nexus/run-portal.sh and dev/nexus/run-chat.sh
+workspaces
+ [X] 0001_initial
+ [X] 0002_nexus_roles
+crm
+ [X] 0001_initial
+ [X] 0002_verticals_meetings_event_kind
+ [X] 0003_pipeline_stage_restrict
+automation
+ [X] 0001_initial
+integrations
+ [X] 0001_initial
+assistant
+ [X] 0001_initial
+mcp
+ [X] 0001_initial
+# finished 2026-10-17T11:34:57Z exit=0

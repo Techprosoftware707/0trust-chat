@@ -1,0 +1,19 @@
+$ cd /home/user/nexus
+$ . dev/nexus/env.sh && node tests/nexus/verticals.smoke.mjs --no-shots
+# started 2026-10-17T11:36:19Z at dda1a5d
+PASS Home shows meetings, deadlines and applications missing documents
+PASS Properties: list, detail with people and deals, schedule a viewing
+PASS Deal page: people with roles, properties, milestones with approaching deadlines
+PASS Buyer page: preferences, matching listings and viewings
+PASS Lending: pipeline, application, request document, encrypted upload and download, staff decision
+PASS Calendar: agenda, week and day views; an event with a meeting room, notes and next steps
+PASS Calls & Meetings: upcoming, recent calls on this device, confirm a next step into a task
+PASS Reports: pipeline, team week, deadlines, activity, tasks, lending
+PASS Automations: seeded rules, editor, history; notifications and preferences
+PASS an agent sees only the applications assigned to them; a team member sees no lending at all
+PASS dark theme, desktop
+PASS phone width (light): Home, lending application, calendar, properties
+PASS phone width (dark): Home, lending application, calendar, properties
+
+13 passed, 0 failed
+# finished 2026-10-17T11:37:30Z exit=0

@@ -1,0 +1,22 @@
+$ cd /home/user/nexus
+$ . dev/nexus/env.sh && node tests/nexus/shell.smoke.mjs --no-shots
+# started 2026-10-17T11:35:29Z at dda1a5d
+PASS portal is branded and shows the test environment
+PASS chat sign-in, then the workspace connects silently (code + PKCE)
+PASS Home dashboard shows real data
+PASS navigation lists every area; none is a placeholder
+PASS Contacts: search, detail with timeline, create, add a note
+PASS CRM deals list and detail
+PASS Pipelines: kanban, keyboard move between stages
+PASS Tasks: add, complete, team list, delete
+PASS CRM panel next to a conversation: link a contact, see summary; only the room ID is stored
+PASS phone width: the CRM panel is in the room header's More options menu
+PASS Settings: workspace, features, token storage
+PASS dark theme, desktop
+PASS read-only person: no create controls, Reports hidden
+PASS phone width (light): bottom bar, More sheet, list -> detail
+PASS phone width (dark): bottom bar, More sheet, list -> detail
+PASS workspace pages show a connect state when the API session ends
+
+16 passed, 0 failed
+# finished 2026-10-17T11:36:13Z exit=0
