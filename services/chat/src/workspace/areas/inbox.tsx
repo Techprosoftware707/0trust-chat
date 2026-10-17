@@ -35,6 +35,7 @@ import {
   Send,
   Undo2,
   Unlink,
+  UserPlus,
   X,
 } from "lucide-react";
 import "../../styles/integrations.css";
@@ -58,6 +59,7 @@ import {
   fromNotifications,
   fromServerItems,
   groupEntries,
+  highLevelContactToAdd,
   mergeInbox,
   nativeGroupKey,
   unreadTotal,
@@ -318,6 +320,22 @@ function LinksCard({ item, onChanged, onOpen }: { item: ServerInboxItem; onChang
       ui.toast({ kind: "error", title: "Couldn't unlink", body: describeError(e) });
     }
   };
+  // A HighLevel lead who isn't in Nexus yet: create the contact from HighLevel's details (the
+  // documented import API), then link this item to it. Nothing changes in HighLevel.
+  const ghlContact = highLevelContactToAdd(item, ws.can("records.create"));
+  const addFromHighLevel = async (externalId: string) => {
+    setBusy(true);
+    try {
+      const r = await ws.api.post<{ contact: { id: string; display_name: string } }>(`${base}/ghl/contacts/${encodeURIComponent(externalId)}/import`, {});
+      await ws.api.post(`${base}/inbox/${item.id}/links`, { target: { type: "crm.contact", id: r.contact.id } });
+      ui.toast({ kind: "success", title: "Added to Nexus", body: `${r.contact.display_name} is now a contact, linked to this conversation.` });
+      await refresh();
+    } catch (e) {
+      ui.toast({ kind: "error", title: "Couldn't add the contact", body: describeError(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <section className="ib-card" aria-label="Linked records">
       <h3>
@@ -359,6 +377,14 @@ function LinksCard({ item, onChanged, onOpen }: { item: ServerInboxItem; onChang
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+      {ghlContact ? (
+        <div className="stack">
+          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void addFromHighLevel(ghlContact.id)}>
+            {busy ? <Spinner size="sm" /> : <UserPlus aria-hidden="true" />} Add {ghlContact.name} to Nexus
+          </button>
+          <p className="xsmall subtle">Creates a new contact from HighLevel's name, email and phone and links it here. Nothing changes in HighLevel.</p>
         </div>
       ) : null}
       {item.capabilities.link ? (

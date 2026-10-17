@@ -857,6 +857,7 @@ def create_event(request, actor: Actor, body: dict) -> m.CalendarEvent:
     e.save()
     e.attendee_users.set(access.resolve_members(actor, data["attendee_user_ids"], field_name="attendee_user_ids"))
     e.attendee_contacts.set(access.resolve(actor, m.Contact, data["attendee_contact_ids"], field_name="attendee_contact_ids"))
+    sync_event_timeline(e)
     access.audit_write(request, actor, "create", e, fields=list(body))
     return e
 
@@ -889,8 +890,58 @@ def update_event(request, actor: Actor, e: m.CalendarEvent, body: dict) -> m.Cal
     if "attendee_contact_ids" in data:
         e.attendee_contacts.set(access.resolve(actor, m.Contact, data["attendee_contact_ids"], field_name="attendee_contact_ids"))
         changed.append("attendee_contacts")
+    sync_event_timeline(e)
     access.audit_write(request, actor, "update", e, fields=changed)
     return e
+
+
+# --- meetings and meeting notes on the record timeline ---------------------------------------------
+# A meeting linked to a contact or deal, and the notes written about it, appear on that record's
+# timeline as system entries kept in step with the event or note. Only what everyone who can see
+# the record may see: an event or note that isn't shared with the team never gets an entry, and
+# its entry goes as soon as it becomes private or is deleted (signals.py).
+
+EVENT_REF, NOTE_REF = "crm.calendarevent", "crm.meetingnote"
+_EVENT_VERB = {m.CalendarEvent.Status.CANCELED: "canceled", m.CalendarEvent.Status.COMPLETED: "held"}
+
+
+def timeline_entries_for(related_type: str, pk):
+    return m.Activity.objects.filter(source=m.Activity.Source.SYSTEM, related_type=related_type, related_id=pk)
+
+
+def _sync_entry(obj, related_type: str, kind: str, fields: dict, *, shared: bool) -> None:
+    """Creates, updates or removes the one system entry of ``obj``. It is attributed to whoever
+    created the event or wrote the notes, whoever triggers the sync."""
+    rows = timeline_entries_for(related_type, obj.pk).filter(workspace_id=obj.workspace_id)
+    if not shared or not (obj.contact_id or obj.opportunity_id):
+        rows.delete()
+        return
+    fields = {**fields, "contact_id": obj.contact_id, "opportunity_id": obj.opportunity_id}
+    if not rows.update(updated_at=timezone.now(), **fields):
+        m.Activity.objects.create(workspace_id=obj.workspace_id, kind=kind, source=m.Activity.Source.SYSTEM, actor_id=obj.created_by_id,
+                                  created_by_id=obj.created_by_id, occurred_at=obj.created_at, related_type=related_type, related_id=obj.pk,
+                                  is_demo=obj.is_demo, **fields)
+
+
+def sync_event_timeline(e: m.CalendarEvent) -> None:
+    """Puts "Meeting scheduled: <title>" (or viewing, call...) on the event's contact or deal."""
+    label = m.CalendarEvent.Kind(e.kind).label if e.kind != m.CalendarEvent.Kind.OTHER else "Event"
+    summary = f"{label} {_EVENT_VERB.get(e.status, 'scheduled')}: {e.title}"[:300]
+    meta = {"event_id": str(e.pk), "event_kind": e.kind, "start_at": e.start_at.isoformat(), "status": e.status}
+    _sync_entry(e, EVENT_REF, m.Activity.Kind.MEETING, {"summary": summary, "metadata": meta}, shared=e.visibility == m.Visibility.TEAM)
+    for note in m.MeetingNote.objects.filter(event=e).select_related("event"):
+        sync_note_timeline(note)
+
+
+def sync_note_timeline(note) -> None:
+    """The notes of a meeting (title and text) on its contact or deal, when they are shared with
+    the team and so is their meeting."""
+    shared = note.visibility == m.MeetingNote.Visibility.TEAM and (note.event_id is None or note.event.visibility == m.Visibility.TEAM)
+    meta = {"note_id": str(note.pk), "event_id": str(note.event_id) if note.event_id else None}
+    # The app titles new notes "Notes: <meeting>"; don't say "notes" twice.
+    summary = note.title if note.title.lower().startswith(("notes", "meeting notes")) else f"Meeting notes: {note.title}"
+    _sync_entry(note, NOTE_REF, m.Activity.Kind.NOTE, {"summary": summary[:300], "body": note.body[:20000], "metadata": meta},
+                shared=shared)
 
 
 # --- conversation links -----------------------------------------------------------------------------

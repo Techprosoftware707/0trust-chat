@@ -51,6 +51,7 @@ def create_meeting_note(request, actor: Actor, body: dict) -> m.MeetingNote:
     if not (note.event or note.contact or note.opportunity):
         raise ValidationFailed(fields={"event_id": ["Attach the notes to a meeting, a contact or a deal."]})
     note.save()
+    services.sync_note_timeline(note)
     access.audit_write(request, actor, "create", note, fields=list(body))
     return note
 
@@ -62,6 +63,7 @@ def update_meeting_note(request, actor: Actor, note: m.MeetingNote, body: dict) 
     changed: list[str] = []
     services._set(note, data, list(spec), changed)
     note.save()
+    services.sync_note_timeline(note)
     access.audit_write(request, actor, "update", note, fields=changed)
     return note
 

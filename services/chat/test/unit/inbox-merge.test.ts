@@ -6,6 +6,7 @@ import {
   fromNotifications,
   fromServerItems,
   groupEntries,
+  highLevelContactToAdd,
   mergeInbox,
   nativeGroupKey,
   notificationGroupKey,
@@ -132,5 +133,29 @@ describe("inbox merge", () => {
   it("counts unread across sources", () => {
     const merged = mergeInbox(fromNativeRooms([room({ unread: 4 })]), fromServerItems([item(), slack("e1111111-1111-1111-1111-111111111111", T0, false)]));
     expect(unreadTotal(merged)).toBe(5);
+  });
+});
+
+describe("adding a HighLevel lead to Nexus from the inbox", () => {
+  const ghl = (over: Partial<ServerInboxItem> = {}) =>
+    item({ source: "gohighlevel", source_label: "HighLevel", kind: "missed_call", origin: "external_notification", visibility: "workspace",
+           title: "Missed call from Pat Mockperson", participants: [{ name: "Pat Mockperson", address: "pat.mock@example.org" }],
+           meta: { contact_id: "mockContact02" }, ...over });
+
+  it("offers it for a HighLevel item that names its contact and isn't linked to one yet, with the person's name", () => {
+    expect(highLevelContactToAdd(ghl(), true)).toEqual({ id: "mockContact02", name: "Pat Mockperson" });
+    expect(highLevelContactToAdd(ghl({ participants: [] }), true)).toEqual({ id: "mockContact02", name: "this contact" });
+  });
+
+  it("not for other sources, without a HighLevel contact, once linked, or without the right to create or link", () => {
+    expect(highLevelContactToAdd(item({ meta: { contact_id: "x" } }), true)).toBeNull();
+    expect(highLevelContactToAdd(ghl({ meta: {} }), true)).toBeNull();
+    expect(highLevelContactToAdd(ghl({ meta: { contact_id: "  " } }), true)).toBeNull();
+    const linked = [{ id: "l", target: { type: "crm.contact", id: "c", label: "Pat" }, created_by: null, created_at: "", on_timeline: true, permissions: { delete: true } }];
+    expect(highLevelContactToAdd(ghl({ links: linked }), true)).toBeNull();
+    const dealOnly = [{ ...linked[0], target: { type: "crm.opportunity", id: "o", label: "Deal" } }];
+    expect(highLevelContactToAdd(ghl({ links: dealOnly }), true)?.id).toBe("mockContact02");
+    expect(highLevelContactToAdd(ghl(), false)).toBeNull();
+    expect(highLevelContactToAdd(ghl({ capabilities: { change: true, link: false, reply: false, reply_unsupported_reason: "" } }), true)).toBeNull();
   });
 });

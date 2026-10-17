@@ -619,6 +619,14 @@ def dashboard(request, actor: Actor):
     overdue_follow = list(s.contact_queryset(mine_contacts.filter(follow_up_at__lt=now).order_by("follow_up_at"))[:10])
     leads = list(s.contact_queryset(mine_contacts.filter(kind=m.Contact.Kind.LEAD).order_by("-updated_at"))[:10])
     s.prepare_contacts(ctx, overdue_follow + leads)
+    # Each lead's next action: its earliest open task the actor may see (e.g. the follow-up an
+    # automation created), so Home shows what to do next and when, not only the follow-up date.
+    next_task: dict = {}
+    open_lead_tasks = access.for_actor(actor, m.Task).filter(contact_id__in=[c.pk for c in leads],
+                                                             status__in=[m.Task.Status.OPEN, m.Task.Status.IN_PROGRESS]).select_related("assignee")
+    for t in sorted(open_lead_tasks, key=lambda t: (t.due_at is None, t.due_at or now, t.created_at)):
+        next_task.setdefault(t.contact_id, {"id": str(t.pk), "title": t.title, "due_at": t.due_at,
+                                            "is_overdue": bool(t.due_at and t.due_at < now), "assignee": s.user_ref(t.assignee)})
     recent = list(s.activity_queryset(access.for_actor(actor, m.Activity).order_by("-occurred_at", "-created_at"))[:10])
     s.prepare_activities(ctx, recent)
     pipeline = (access.for_actor(actor, m.Pipeline).filter(archived=False).exclude(kind=m.Pipeline.Kind.LENDING)
@@ -644,7 +652,7 @@ def dashboard(request, actor: Actor):
             "tasks_today": [s.task(ctx, t, now=now) for t in today],
             "overdue_task_count": open_tasks.filter(due_at__lt=now).count(),
             "overdue_follow_ups": [s.contact(ctx, c) for c in overdue_follow],
-            "assigned_leads": [s.contact(ctx, c) for c in leads],
+            "assigned_leads": [{**s.contact(ctx, c), "next_task": next_task.get(c.pk)} for c in leads],
             "recent_activity": [s.activity(ctx, a) for a in recent],
             "pipeline_summary": summary,
             # Verticals team: meetings, deadlines, lending, next steps, connected services.

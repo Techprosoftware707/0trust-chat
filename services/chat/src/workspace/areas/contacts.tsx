@@ -62,7 +62,16 @@ const ACTIVITY_LABEL: Record<string, string> = {
   integration_event: "Integration",
 };
 
+/** Where a timeline entry leads besides its record: the meeting a "Meeting scheduled" or
+ * "Meeting notes" entry is about (calendar event page), or nothing. */
+export function activityLink(a: Pick<Activity, "related" | "metadata">): { href: string; label: string } | null {
+  const eventId = a.related?.type === "crm.calendarevent" ? a.related.id : typeof a.metadata?.event_id === "string" ? a.metadata.event_id : null;
+  if (a.related?.type !== "crm.calendarevent" && a.related?.type !== "crm.meetingnote") return null;
+  return eventId ? { href: areaHash("calendar", "event", eventId), label: "Open meeting" } : null;
+}
+
 export function ActivityItem({ a, showRecord = false }: { a: Activity; showRecord?: boolean }) {
+  const link = activityLink(a);
   return (
     <li className={`ws-tl-item ws-tl-${a.kind}`}>
       <span className="ws-tl-dot" aria-hidden="true" />
@@ -92,6 +101,12 @@ export function ActivityItem({ a, showRecord = false }: { a: Activity; showRecor
             <>
               {" · "}
               <a href={roomHash(a.room_id)}>Open conversation</a>
+            </>
+          ) : null}
+          {link ? (
+            <>
+              {" · "}
+              <a href={link.href}>{link.label}</a>
             </>
           ) : null}
         </p>

@@ -8,11 +8,21 @@ import { useUi } from "../../components/UiContext";
 import { describeError } from "../api";
 import { useApiResource, useWorkspace } from "../context";
 import { areaHash, defineArea } from "../define";
-import type { Activity, Dashboard, Task } from "../types";
+import type { Activity, Contact, Dashboard, NextTask, Task } from "../types";
 import { ConnectionGate, DemoBadge, EmptyState, ErrorState, KindBadge, LoadingState, PageHeader, PriorityBadge, formatMoney, formatWhen } from "../ui";
 import { ActivityItem } from "./contacts";
 import { HomeVerticalCards } from "../verticals/HomeCards";
 import type { HomeExtras } from "../verticals/types";
+
+/** The line under an assigned lead: where it came from, its next action (the earliest open task,
+ * e.g. the follow-up an automation created) with its due time, and the follow-up date. */
+export function leadMeta(c: Pick<Contact, "source" | "follow_up_at"> & { next_task?: NextTask | null }): string {
+  const next = c.next_task
+    ? `Next: ${c.next_task.title}${c.next_task.due_at ? ` · ${c.next_task.is_overdue ? "overdue since" : "due"} ${formatWhen(c.next_task.due_at)}` : " · no due date"}`
+    : "";
+  const follow = c.follow_up_at ? `Follow up ${formatWhen(c.follow_up_at)}` : "";
+  return [c.source, next, follow].filter(Boolean).join(" · ") || "No follow-up set";
+}
 
 function greeting(now = new Date()): string {
   const h = now.getHours();
@@ -199,7 +209,7 @@ function HomeDashboard() {
                           <span className="ws-row-title">
                             {c.display_name} <DemoBadge show={c.is_demo} />
                           </span>
-                          <span className="ws-row-meta">{[c.source, c.follow_up_at ? `Follow up ${formatWhen(c.follow_up_at)}` : ""].filter(Boolean).join(" · ") || "No follow-up set"}</span>
+                          <span className={`ws-row-meta${c.next_task?.is_overdue ? " ws-overdue" : ""}`}>{leadMeta(c)}</span>
                         </span>
                         <PriorityBadge priority={c.priority} />
                       </a>

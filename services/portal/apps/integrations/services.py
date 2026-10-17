@@ -667,7 +667,17 @@ def ghl_import_contact(request, actor, external_id: str, *, connection_id=None) 
     except ValidationFailed:
         body["phone"] = ""
         contact = create_contact(request, actor, body)
+    if conn.is_mock:
+        # Like everything else a mock provider produces: labelled, and removed by the demo reset.
+        crm.Contact.objects.filter(pk=contact.pk).update(is_demo=True)
+        contact.is_demo = True
     upsert_mapping(conn, ext, contact, external_url=ghl_contact_url(conn, c["id"]))
+    # Where the contact came from, on its timeline. The details are external (untrusted) data;
+    # an import is not a contact with the person, so last_activity_at is left alone.
+    crm.Activity.objects.create(workspace_id=actor.workspace_id, kind=crm.Activity.Kind.INTEGRATION_EVENT, source=crm.Activity.Source.GOHIGHLEVEL,
+                                summary="Imported from HighLevel as a new contact", contact=contact, untrusted=True, created_by=actor.user,
+                                occurred_at=contact.created_at,  # before what the lead automations did with it
+                                metadata={"provider": Provider.GOHIGHLEVEL, "via": "import"}, is_demo=conn.is_mock)
     return {"linked": True, "contact": {"id": str(contact.pk), "display_name": contact.display_name}}
 
 

@@ -287,3 +287,27 @@ describe("formatting helpers", () => {
     expect(formatMoney("1234.5", "USD")).toMatch(/1,?235|1\.235|1 235/);
   });
 });
+
+describe("Home and timeline helpers (final integration)", () => {
+  it("shows a lead's next action and when it is due, not 'No follow-up set', when an automation gave it a task", async () => {
+    const { leadMeta } = await import("../../src/workspace/areas/home");
+    const due = new Date(Date.now() + 26 * 3600_000).toISOString();
+    const task = { id: "t1", title: "Follow up with new lead Pat Mockperson", due_at: due, is_overdue: false, assignee: null };
+    expect(leadMeta({ source: "GoHighLevel", follow_up_at: null, next_task: task })).toBe(
+      `GoHighLevel · Next: Follow up with new lead Pat Mockperson · due ${formatWhen(due)}`,
+    );
+    expect(leadMeta({ source: "", follow_up_at: null, next_task: { ...task, due_at: null } })).toBe("Next: Follow up with new lead Pat Mockperson · no due date");
+    expect(leadMeta({ source: "", follow_up_at: null, next_task: { ...task, is_overdue: true } })).toMatch(/^Next: .* · overdue since /);
+    expect(leadMeta({ source: "Website form", follow_up_at: null, next_task: null })).toBe("Website form");
+    expect(leadMeta({ source: "", follow_up_at: null })).toBe("No follow-up set");
+  });
+
+  it("links meeting and meeting-notes timeline entries to their meeting, and nothing else", async () => {
+    const { activityLink } = await import("../../src/workspace/areas/contacts");
+    expect(activityLink({ related: { type: "crm.calendarevent", id: "e1" }, metadata: {} })).toEqual({ href: "#/calendar/event/e1", label: "Open meeting" });
+    expect(activityLink({ related: { type: "crm.meetingnote", id: "n1" }, metadata: { event_id: "e2" } })).toEqual({ href: "#/calendar/event/e2", label: "Open meeting" });
+    expect(activityLink({ related: { type: "crm.meetingnote", id: "n1" }, metadata: { event_id: null } })).toBeNull();
+    expect(activityLink({ related: null, metadata: { event_id: "e3" } })).toBeNull(); // not visible, or not a meeting entry
+    expect(activityLink({ related: { type: "crm.property", id: "p1" }, metadata: {} })).toBeNull();
+  });
+});

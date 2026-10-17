@@ -202,8 +202,20 @@ export interface Activity {
   contact: { id: string; display_name: string } | null;
   opportunity: { id: string; name: string } | null;
   task: { id: string; title: string } | null;
+  /** A registered record this entry belongs to (e.g. the meeting a "Meeting scheduled" entry is about). */
+  related?: { type: string; id: string } | null;
+  metadata?: Record<string, unknown>;
   is_demo: boolean;
   permissions: Permissions;
+}
+
+/** A lead's earliest open task the viewer may see (Home → Assigned leads). */
+export interface NextTask {
+  id: string;
+  title: string;
+  due_at: string | null;
+  is_overdue: boolean;
+  assignee: UserRef | null;
 }
 
 export interface CalendarEvent {
@@ -243,7 +255,7 @@ export interface Dashboard {
   tasks_today: Task[];
   overdue_task_count: number;
   overdue_follow_ups: Contact[];
-  assigned_leads: Contact[];
+  assigned_leads: (Contact & { next_task?: NextTask | null })[];
   recent_activity: Activity[];
   pipeline_summary: {
     pipeline: { id: string; name: string; currency: string };

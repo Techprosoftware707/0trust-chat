@@ -338,3 +338,19 @@ export const SOURCE_LABEL: Record<EntrySource, string> = {
   gohighlevel: "HighLevel",
   nexus: "Nexus",
 };
+
+/** The HighLevel contact a person may add to Nexus from this inbox item ("Add to Nexus"): a
+ * HighLevel conversation or missed call that names its contact and isn't linked to a Nexus
+ * contact yet, for people who may create contacts and link items. Otherwise null. The name is the
+ * participant's (a missed call's title is "Missed call from …"). */
+export function highLevelContactToAdd(
+  item: Pick<ServerInboxItem, "source" | "meta" | "links" | "capabilities" | "participants" | "title">,
+  canCreateRecords: boolean,
+): { id: string; name: string } | null {
+  if (item.source !== "gohighlevel" || !canCreateRecords || !item.capabilities.link) return null;
+  const id = item.meta?.contact_id;
+  if (typeof id !== "string" || !id.trim()) return null;
+  if (item.links.some((l) => l.target.type === "crm.contact")) return null;
+  const name = item.participants?.find((p) => p.name?.trim())?.name?.trim();
+  return { id, name: name || "this contact" };
+}

@@ -223,7 +223,9 @@ def test_timeline_events_and_external_content(ctx):
     window = body(api.get(f"{url}/events", {"from": timezone.now().isoformat(), "to": (start + timedelta(days=1)).isoformat()}))["data"]
     assert [x["id"] for x in window] == [e["id"]]
     s = body(api.get(f"{url}/contacts/{c['id']}/summary"))["data"]
-    assert s["next_event"]["id"] == e["id"] and s["last_activity"]["id"] == str(ext.pk)
+    # Scheduling the meeting put it on the contact's timeline, so it is the latest entry now.
+    assert s["next_event"]["id"] == e["id"] and s["last_activity"]["summary"] == "Meeting scheduled: Viewing"
+    assert s["last_activity"]["related"] == {"type": "crm.calendarevent", "id": e["id"]}
 
 
 def test_room_links_store_ids_only(ctx):
