@@ -30,23 +30,22 @@ final class ScreenshotTests: XCTestCase {
     func testScreenshotsIPhone16Pro() throws { try phone("iphone-16-pro") }
     func testScreenshotsIPhoneProMax() throws { try phone("iphone-pro-max") }
 
-    func testScreenshotsIPadPortrait() throws {
-        guard let dir = outputDirectory else { throw XCTSkip("Set LUMEN_SCREENSHOT_DIR to capture screenshots.") }
-        guard isPad else { throw XCTSkip("iPad screenshots are captured on the iPad simulator.") }
-        capture(set: "ipad-portrait", orientation: .portrait, into: dir)
-    }
-
-    func testScreenshotsIPadLandscape() throws {
-        guard let dir = outputDirectory else { throw XCTSkip("Set LUMEN_SCREENSHOT_DIR to capture screenshots.") }
-        guard isPad else { throw XCTSkip("iPad screenshots are captured on the iPad simulator.") }
-        capture(set: "ipad-landscape", orientation: .landscapeLeft, into: dir)
-    }
+    func testScreenshotsIPadPortrait() throws { try pad("ipad-portrait", .portrait) }
+    func testScreenshotsIPadLandscape11() throws { try pad("ipad-11-landscape", .landscapeLeft) }
+    func testScreenshotsIPadLandscape13() throws { try pad("ipad-13-landscape", .landscapeLeft) }
+    func testScreenshotsIPadSplitScreen() throws { try pad("ipad-split", .landscapeLeft) }
 
     /// One iPhone size per app launch, so each stays well inside the test time limit.
     private func phone(_ set: String) throws {
         guard let dir = outputDirectory else { throw XCTSkip("Set LUMEN_SCREENSHOT_DIR to capture screenshots.") }
         guard !isPad else { throw XCTSkip("iPhone screenshots are captured on the iPhone simulator.") }
         capture(set: set, orientation: .portrait, into: dir)
+    }
+
+    private func pad(_ set: String, _ orientation: UIDeviceOrientation) throws {
+        guard let dir = outputDirectory else { throw XCTSkip("Set LUMEN_SCREENSHOT_DIR to capture screenshots.") }
+        guard isPad else { throw XCTSkip("iPad screenshots are captured on the iPad simulator.") }
+        capture(set: set, orientation: orientation, into: dir)
     }
 
     private func capture(set: String, orientation: UIDeviceOrientation, into dir: String) {
@@ -58,27 +57,22 @@ final class ScreenshotTests: XCTestCase {
         app.launchEnvironment["LUMEN_SCREENSHOT_DIR"] = dir
         app.launchEnvironment["LUMEN_SCREENSHOT_SET"] = set
         app.launch()
-        let status = app.staticTexts["screenshotStatus"]
-        XCTAssertTrue(status.waitForExistence(timeout: 60), "screenshot mode didn't start")
 
-        // The app writes the manifest last. Polling the file keeps accessibility
-        // queries (which wait for the busy app) to a minimum.
-        let deadline = Date().addingTimeInterval(540)
-        var label = status.label
-        var polls = 0
+        // The app is busy rendering: accessibility queries would time out, so
+        // wait for the manifest file it writes last, without touching the UI.
+        let deadline = Date().addingTimeInterval(560)
         while Date() < deadline, !FileManager.default.fileExists(atPath: manifest.path) {
-            Thread.sleep(forTimeInterval: 3)
-            polls += 1
-            if polls % 10 == 0 {
-                label = status.label
-                if label.hasPrefix("done") || label.hasPrefix("failed") { break }
-            }
+            Thread.sleep(forTimeInterval: 2)
         }
         Thread.sleep(forTimeInterval: 1)
-        label = status.label
-        let summary = (try? String(contentsOf: manifest, encoding: .utf8))?.components(separatedBy: "\n").first ?? "no manifest"
+        let text = (try? String(contentsOf: manifest, encoding: .utf8)) ?? ""
+        let summary = text.components(separatedBy: "\n").first ?? ""
+        let status = app.staticTexts["screenshotStatus"]
+        let label = status.waitForExistence(timeout: 20) ? status.label : "(no status)"
         print("Screenshots \(set): \(label) | \(summary)")
-        XCTAssertTrue(label.hasPrefix("done"), "screenshot run didn't finish cleanly: \(label) | \(summary)")
+        XCTAssertFalse(text.isEmpty, "no manifest after 560 s; status: \(label)")
+        XCTAssertTrue(summary.hasSuffix(", 0 failures"), "\(summary) | \(label)")
+        XCTAssertTrue(label.hasPrefix("done"), label)
         app.terminate()
     }
 }

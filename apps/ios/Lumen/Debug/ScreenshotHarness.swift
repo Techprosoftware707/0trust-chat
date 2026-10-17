@@ -13,7 +13,8 @@ import UIKit
 //
 // Environment (set by the UI test):
 //   LUMEN_SCREENSHOT_DIR  output folder (default: Documents/LumenScreenshots)
-//   LUMEN_SCREENSHOT_SET  iphone-se | iphone-16-pro | iphone-pro-max | ipad-portrait | ipad-landscape
+//   LUMEN_SCREENSHOT_SET  iphone-se | iphone-16-pro | iphone-pro-max | ipad-portrait |
+//                         ipad-11-landscape | ipad-13-landscape | ipad-split
 
 enum ScreenshotMode {
     static let argument = "-LumenScreenshots"
@@ -75,22 +76,28 @@ enum ScreenshotDevices {
         ScreenshotDevice(id: "ipad-11-portrait", kind: .pad, size: CGSize(width: 834, height: 1210), safeArea: padBars, scale: 1),
     ]
 
+    /// Rendered with the iPad simulator in landscape.
     static let ipadLandscape: [ScreenshotDevice] = [
         ScreenshotDevice(id: "ipad-11-landscape", kind: .pad, size: CGSize(width: 1210, height: 834), safeArea: padBars, scale: 1, appearances: [.light]),
         ScreenshotDevice(id: "ipad-13-landscape", kind: .pad, size: CGSize(width: 1376, height: 1032), safeArea: padBars, scale: 1),
+    ]
+
+    /// Split View widths on a 13" iPad in landscape (half: regular width,
+    /// third: compact width).
+    static let ipadSplit: [ScreenshotDevice] = [
         ScreenshotDevice(id: "ipad-13-split-half", kind: .pad, size: CGSize(width: 683, height: 1032), safeArea: padBars, scale: 1,
                          appearances: [.light], multitaskingOnly: true),
         ScreenshotDevice(id: "ipad-13-split-third", kind: .pad, size: CGSize(width: 375, height: 1032), safeArea: padBars, scale: 2,
                          appearances: [.light], multitaskingOnly: true),
     ]
 
-    /// A set is one device of `iphone` (by its id), or `ipad-portrait` /
-    /// `ipad-landscape`; one app launch renders one set.
+    /// One app launch renders one set: a device of `iphone` or `ipadLandscape`
+    /// (by its id), `ipad-portrait` or `ipad-split`.
     static func set(_ name: String) -> [ScreenshotDevice] {
         switch name {
         case "ipad-portrait": return ipadPortrait
-        case "ipad-landscape": return ipadLandscape
-        default: return iphone.filter { $0.id == name }
+        case "ipad-split": return ipadSplit
+        default: return (iphone + ipadLandscape).filter { $0.id == name }
         }
     }
 }
@@ -119,7 +126,7 @@ struct ScreenshotScene {
     let make: @MainActor (ScreenshotContext) -> AnyView
 
     init(_ name: String, _ devices: Devices = .all, dynamicType: Bool = false, multitasking: Bool = false, pages: Int = 1,
-         settle: Double = 0.45, make: @escaping @MainActor (ScreenshotContext) -> AnyView) {
+         settle: Double = 0.35, make: @escaping @MainActor (ScreenshotContext) -> AnyView) {
         self.name = name
         self.devices = devices
         self.dynamicType = dynamicType
@@ -152,8 +159,9 @@ final class ScreenshotRunner {
         guard let windowScene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
             return "failed: no window scene"
         }
-        // Wait for the launch transition, then render without animations.
-        try? await Task.sleep(nanoseconds: 800_000_000)
+        // Let the launch (and the UI test's launch handshake) finish, then
+        // render without animations.
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(true) }
         SharedPreferences.current().reset()
@@ -176,7 +184,9 @@ final class ScreenshotRunner {
         }
 
         let screen = windowScene.coordinateSpace.bounds.size
+        let started = Date()
         for (index, job) in jobs.enumerated() {
+            let jobStart = Date()
             let (scene, device, style, category, suffix) = job
             progress("\(setName) \(index + 1)/\(jobs.count) \(device.id) \(scene.name)")
             let folder = output.appendingPathComponent(device.id, isDirectory: true)
@@ -193,7 +203,8 @@ final class ScreenshotRunner {
                 }
                 do {
                     try data.write(to: folder.appendingPathComponent(name), options: .atomic)
-                    self.written.append("\(device.id)/\(name) \(Int(device.size.width))x\(Int(device.size.height))pt \(method)")
+                    let ms = Int(Date().timeIntervalSince(jobStart) * 1000)
+                    self.written.append("\(device.id)/\(name) \(Int(device.size.width))x\(Int(device.size.height))pt \(method) \(ms)ms")
                 } catch {
                     self.failures.append("\(device.id)/\(name): \(error.localizedDescription)")
                 }
@@ -201,7 +212,9 @@ final class ScreenshotRunner {
             SharedPreferences.current().reset()
         }
 
-        let manifest = (["# \(setName): \(written.count) screenshots, \(failures.count) failures"] + written + failures.map { "FAILED \($0)" })
+        let seconds = Int(Date().timeIntervalSince(started))
+        let manifest = (["# \(setName): \(written.count) screenshots in \(seconds) s on a \(Int(screen.width))x\(Int(screen.height)) screen, \(failures.count) failures"]
+                        + written + failures.map { "FAILED \($0)" })
             .joined(separator: "\n") + "\n"
         try? manifest.write(to: output.appendingPathComponent("manifest-\(setName).txt"), atomically: true, encoding: .utf8)
         if !failures.isEmpty { return "failed: \(failures.count) of \(jobs.count): \(failures[0])" }
@@ -283,10 +296,12 @@ final class ScreenshotRunner {
         let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { ctx in
             UIColor.black.setFill()
             ctx.fill(bounds)
-            if !(fits && window.drawHierarchy(in: bounds, afterScreenUpdates: true)) {
-                method = "layer"
-                window.layer.render(in: ctx.cgContext)
-            }
+            // The window has been on screen for the settle time, so its last
+            // frame is current; forcing a new commit is slow on CI simulators.
+            if fits && window.drawHierarchy(in: bounds, afterScreenUpdates: false) { return }
+            if fits && window.drawHierarchy(in: bounds, afterScreenUpdates: true) { method = "drawHierarchy+update"; return }
+            method = "layer"
+            window.layer.render(in: ctx.cgContext)
         }
         return (image, method)
     }
