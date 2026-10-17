@@ -139,6 +139,43 @@ Not verified: the kernel WireGuard path (no module in this kernel), a real cloud
 provider firewall, a device across the internet, and phone import of the QR code (it was
 printed and checked for QR blocks and for no key as text, not scanned by a phone).
 
+### DNS inside the tunnel: phones reach the console by name — 2026-10-17
+
+Field problem: a phone connected the tunnel but could not open the console. Profiles route
+only the server's tunnel address, the console's name resolves publicly to the server's public
+address (which the console refuses), and a phone can't add the hosts-file line. Fix: a dnsmasq
+forwarder (`lumen-wg-dns.service`, Ubuntu's `dnsmasq-base`) on the tunnel address only answers
+the console's name with that address and forwards everything else to the host's resolvers;
+profiles set `DNS = <tunnel address>`; `lumenctl wireguard add-device <name>` issues a stored
+phone profile for `show-profile <name>`. Raw outputs: `dns-*.txt` in
+[`docs/test-results/wireguard-autoconfig/`](test-results/wireguard-autoconfig/).
+
+| Test | Result | Evidence |
+|---|---|---|
+| Host-agent unit tests: profile content (DNS line in `[Interface]`, `AllowedIPs` still only the tunnel address, comments, first-device and add-device headers, no DNS line while the forwarder doesn't answer or can't forward), forwarder configuration (one `listen-address`, `bind-interfaces`, no other listener option, `no-hosts`, `local=` + `address=` for the console's name, name injection refused), upstream choice (systemd-resolved's list, its stub, never itself), the self-check (REFUSED/SERVFAIL/silence ≠ forwarding, never the server's own names), DNS wire parser, foreign `wg0` | **85/85** with the renderer tests | `dns-unit-tests.txt` |
+| Portal (console page: DNS server shown, forwarding failure, devices without the DNS line, stored profiles, add-device flow QR and download, a device's own key) | **146/146** | `dns-portal.txt` |
+| shellcheck, changed scripts | **no warnings** | `dns-shellcheck.txt` |
+| Upgrade path: a1749bb installed (first device without the DNS line), then the new code and `update.sh` | update **exit 0**; forwarder only on 10.77.0.1:53 (udp, tcp), nothing else on port 53; UFW 53/udp+tcp only on `wg0` to 10.77.0.1; server key, PSKs, registry, `wg0.conf` and the first device's profile unchanged; agent restarted; e2e by name with no hosts entry **17/17** (old profile, DNS set by hand), **21/21** (device via the agent), **18/18** (`add-device phone`); `show-profile phone` QR; no key in logs, journal or outputs: **18/19**, the FAIL (a same-second run wiped an audit line) fixed and re-checked | `dns-upgrade-path.txt` |
+| `lifecycle.sh` on that upgraded server (DNS checks after every step, add-device, uninstall stops the forwarder) | **93/93** | `dns-lifecycle-upgraded.txt` |
+| systemd-resolved really running (stub mode, per-link servers): `update.sh`, forwarding, e2e; resolved losing its servers, stopped; forced forwarding failure on the fixed self-check | update **exit 0**, `/run/systemd/resolve/resolv.conf` used, e2e **21/21**; found: setup and health check checked only the console's name (fixed: they now report "FORWARDING FAILS" and profiles get no DNS line), and a probe of the server's own domain was answered from `/etc/hosts` (fixed: public names only) | `dns-systemd-resolved.txt`, `dns-resolved-path.txt` |
+| Upstreams the server can't reach (IPv6 without a route; servers that drop every query, listed first or last) | no slowdown (avg 18–21 ms, max 47 ms), no failed lookup | `dns-systemd-resolved.txt` |
+| Without systemd (daemon with a pid file); another DNS server already on port 53 | **9/9** (found and fixed: a re-run took Lumen's own forwarder for another program when `ss` couldn't name its process); port 53 taken: WireGuard up, no forwarder, profile with the hosts line, the other server untouched: **4/4** | `dns-no-systemd-and-port-53-taken.txt` |
+| Why `local=` next to `address=` (dnsmasq 2.91) | with `address=` only, AAAA and HTTPS queries for the console's name are forwarded upstream (a public IPv6 address would bypass the tunnel); with `local=` they get empty answers locally | `dns-dnsmasq-behaviour.txt` |
+| Fresh install with the new code, then `lifecycle.sh` | install **exit 0, SUCCESS**; the installer's first device profile sets `DNS = 10.77.0.1`, `AllowedIPs = 10.77.0.1/32`, 0600; UFW 53/udp+tcp on `wg0` to 10.77.0.1; lifecycle **93/93** | `dns-fresh-install-lifecycle.txt` |
+
+Defects found and fixed on the way, besides the field problem: the console's "Download .conf"
+returned 404 once the page had shown the QR code (observed); for a device with its own key the
+console kept no preshared key to show (found in the code; the page now shows the rest of the
+configuration once); updates left `lumen-agent` running its old code (the console
+would have kept issuing profiles without the DNS line); `log_init` truncated a log shared by
+two runs in the same second.
+
+Not verified: the official apps on real phones and computers (how Android, iOS, Windows and
+macOS apply the DNS line is taken from their source code); a real cloud VM. A field report
+(handshake fine, server-side DNS fine, nothing loading on the phone) points at Android's *Block
+connections without VPN*, which blocks everything outside a split tunnel; the admin guide's
+troubleshooting covers it.
+
 ## Environment
 
 | | |

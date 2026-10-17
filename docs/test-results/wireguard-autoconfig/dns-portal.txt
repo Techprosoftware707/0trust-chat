@@ -1,4 +1,4 @@
-=== portal: POSTGRES_PORT=55432 /tmp/portal-venv/bin/pytest -o addopts= -v (2026-10-17T22:17:54Z); the console's WireGuard page: tests/test_ui_pages.py::TestConsoleWireGuard
+=== portal: POSTGRES_PORT=55432 /tmp/portal-venv/bin/pytest -o addopts= -v (2026-10-17T22:59:50Z), code of 16cf92e; the console's WireGuard page: tests/test_ui_pages.py::TestConsoleWireGuard
 tests/test_accounts.py::TestUsernames::test_valid[alice] PASSED
 tests/test_accounts.py::TestUsernames::test_valid[bob.smith] PASSED
 tests/test_accounts.py::TestUsernames::test_valid[a_1] PASSED
@@ -124,6 +124,7 @@ tests/test_ui_pages.py::TestConsoleWireGuard::test_state_enabled_with_stored_fir
 tests/test_ui_pages.py::TestConsoleWireGuard::test_state_enabled_without_stored_profile PASSED
 tests/test_ui_pages.py::TestConsoleWireGuard::test_empty_peer_list_has_a_friendly_action PASSED
 tests/test_ui_pages.py::TestConsoleWireGuard::test_states_the_dns_server_in_the_profiles PASSED
+tests/test_ui_pages.py::TestConsoleWireGuard::test_forwarding_failure_is_said_plainly PASSED
 tests/test_ui_pages.py::TestConsoleWireGuard::test_dns_unavailable_falls_back_to_the_hosts_line PASSED
 tests/test_ui_pages.py::TestConsoleWireGuard::test_devices_without_the_dns_line_get_the_manual_fix PASSED
 tests/test_ui_pages.py::TestConsoleWireGuard::test_stored_add_device_profiles_are_listed PASSED
@@ -144,7 +145,7 @@ tests/test_workspaces.py::TestEntitlements::test_seat_limit_counts_pending_invit
 tests/test_workspaces.py::TestEntitlements::test_upgrade_raises_limit_and_downgrade_keeps_data PASSED
 tests/test_workspaces.py::TestEntitlements::test_require_mfa_needs_entitlement PASSED
 tests/test_workspaces.py::TestEntitlements::test_one_free_workspace_per_user PASSED
-============================= 145 passed in 26.03s =============================
+============================= 146 passed in 29.10s =============================
 
 === the download defect, observed on the original services/portal/apps/ops/views.py (a1749bb) with a throwaway test: add a device (step-up done),
 === open the WireGuard page (it shows the QR code), then GET /ops/wireguard/peers/download/:

@@ -1,0 +1,147 @@
+=== Fresh install with the new code (16cf92e's code; tree copied by tests/installer/vm.sh at 22:47 UTC), then tests/installer/lifecycle.sh, 2026-10-17 22:47-23:01 UTC
+=== The configuration does NOT set WIREGUARD_ENABLED (calls on, push on, TLS_MODE=internal); systemd-resolved masked as in the image.
+
+### tree 3f6774e + working changes  2026-10-17T22:47:03Z
+VM lumen-it ready (systemd: running)
+### fresh install (test server 172.17.0.3)  2026-10-17T22:47:06Z
+install exit 0  2026-10-17T22:50:34Z
+Result: SUCCESS — all endpoint checks passed
+first device profile: 600 root:root, DNS line: 1, AllowedIPs: 10.77.0.1/32
+# Lumen Secure - WireGuard profile for the operator device "itadmin-device", created by the installer on 2026-10-17.
+# This file contains that device's PRIVATE KEY and its preshared key: treat it like a password.
+#   1. Import it into the WireGuard app on your phone or computer
+#      (QR code for a phone: sudo ./lumenctl wireguard show-profile).
+#   2. Then delete it from the server: sudo ./lumenctl wireguard forget-profile
+#      (the device keeps working; revoke it in the console or with lumenctl wireguard remove-peer).
+# Lumen operator access for itadmin-device. Contains a PRIVATE KEY - keep it secret.
+# Console: https://ops.lumen-it.test:8443/ (while this tunnel is connected)
+# DNS = 10.77.0.1: no hosts-file edit needed. While the tunnel is up, this device sends ALL its
+#   DNS lookups through the tunnel to your Lumen server, which answers ops.lumen-it.test with 10.77.0.1
+#   and forwards every other lookup to its own resolvers (Lumen does not log them).
+#   Prefer a hosts file? Delete the DNS line and add "10.77.0.1 ops.lumen-it.test" to the hosts file.
+### lifecycle  2026-10-17T22:50:34Z
+
+--- install output: WireGuard step and summary
+==> WireGuard
+    WG_ENDPOINT=34.72.45.172 (this server's public IPv4; change it in /etc/lumen/lumen.conf if devices reach this server another way)
+    ✔ WireGuard up on wg0 (10.77.0.0/24, UDP 51820, userspace wireguard-go: this kernel has no WireGuard module); devices dial 34.72.45.172:51820
+    ✔ DNS in the tunnel on 10.77.0.1:53 (wg0 only): ops.lumen-it.test -> 10.77.0.1, other names forwarded to 8.8.8.8 8.8.4.4 (this host's resolvers); checked: example.com -> 172.66.147.243,104.20.23.154
+    ✔ first device 'itadmin-device' added (10.77.0.2); profile: /etc/lumen/wireguard/first-device.conf (root only)
+
+    ✔ firewall rules ensured: 22/tcp 80/tcp 443/tcp 443/udp 7882-7889/udp 7881/tcp 3478/udp 51820/udp 8443/tcp on wg0 53/udp on wg0 to 10.77.0.1 53/tcp on wg0 to 10.77.0.1
+                    Copy the backup key OFF this server: /etc/lumen/backup/identity.txt
+WireGuard:          on (wg0, 10.77.0.0/24, UDP 51820); first device profile: /etc/lumen/wireguard/first-device.conf — show as QR: sudo ./lumenctl wireguard show-profile
+                    console via WireGuard: https://ops.lumen-it.test:8443/  (profiles set DNS = 10.77.0.1, which points the name into the tunnel: no hosts file)
+                    devices dial 34.72.45.172:51820. If your provider has its own firewall (security group), allow UDP 51820 there.
+     • WireGuard: copy the profile:  ssh <you>@<this server> sudo cat /etc/lumen/wireguard/first-device.conf > lumen-wg.conf
+       import lumen-wg.conf into the WireGuard app and connect (phone: sudo ./lumenctl wireguard show-profile),
+       no hosts file needed: the profile sets DNS = 10.77.0.1, which leads ops.lumen-it.test into the tunnel,
+       then delete the server copy:  sudo ./lumenctl wireguard forget-profile
+       and add to your hosts file:  127.0.0.1 ops.lumen-it.test
+
+--- lifecycle (complete output)
+PASS marker account A created
+--- idempotent re-install
+PASS install.sh re-run succeeds
+PASS secrets unchanged by re-install
+PASS homeserver signing key unchanged by re-install
+PASS data kept across re-install (marker A)
+--- WireGuard (on by default)
+PASS wg0 is up and reported up by the host agent
+PASS installer state: wireguard enabled
+PASS first device profile is 0600 root:root
+PASS its directory is 0700 root:root
+PASS re-install added no second device (1 peer)
+PASS re-install changed no WireGuard key and left the profile as it was
+PASS WG_ENDPOINT kept across the --config re-install (34.72.45.172)
+PASS DNS in the tunnel: lumen-wg-dns active, started with wg0, answers the console's name
+PASS UFW: 53/udp and 53/tcp allowed only on wg0, to the tunnel address
+INFO first device profile sets DNS = 10.77.0.1
+PASS the generated profile works from another network namespace: console only through the tunnel, by name with no hosts entry
+PASS a device added later works (by name, through the tunnel DNS) and can be revoked
+PASS add-device stores a root-only profile (0600 in 0700) with DNS = 10.77.0.1, split tunnel kept; prints no key
+PASS show-profile lc-phone prints the path and a QR code, no key as text
+PASS the add-device profile works by name through the tunnel DNS
+PASS forget-profile lc-phone deletes it
+PASS remove-peer revokes lc-phone
+PASS lc-phone gone again: no stored profile, 1 peer
+PASS the first device's keys and the registry are as before
+PASS show-profile prints the path and a QR code, no key as text
+PASS show-profile is logged (without the profile)
+PASS forget-profile deletes the stored profile
+PASS profile gone; the device stays registered (1 peer)
+PASS forget-profile again is harmless
+PASS show-profile refuses once the profile is forgotten
+PASS calls: media flows through the SFU after re-install
+--- calls: media-service restart
+PASS lumenctl restart livekit lkjwt
+PASS calls: media flows after the SFU restart
+PASS SFU configuration unchanged by restart
+PASS data untouched by the SFU restart (marker A)
+PASS healthy after the SFU restart
+--- crash recovery (no operator action)
+PASS synapse killed with SIGKILL comes back healthy on its own
+PASS portal killed with SIGKILL comes back healthy on its own
+PASS ops killed with SIGKILL comes back healthy on its own
+PASS postgres killed with SIGKILL comes back healthy on its own
+PASS healthy again on its own within 2 min of the crashes
+PASS data intact after the crashes (marker A)
+--- health and diagnostics
+PASS healthcheck.sh reports healthy (warnings allowed)
+PASS diagnose.sh completes (1 problem(s) explained)
+--- backup and full restore
+PASS backup.sh creates an encrypted archive
+PASS archive is age-encrypted
+PASS archive contents are not readable without the key
+PASS restore.sh --verify-only on the archive
+PASS marker account B created after the backup
+PASS full restore of the archive
+PASS restored data contains marker A
+PASS restore rolled back to the backup (marker B gone)
+PASS signing key intact after restore
+PASS healthy after restore
+PASS calls: media flows after restore
+PASS WireGuard: wg0 up after restore
+PASS WireGuard: DNS in the tunnel answers after restore
+PASS WireGuard: restore changed no key and re-created no profile
+--- update
+PASS update.sh --no-pull succeeds
+PASS healthy after update
+PASS data kept across update (marker A)
+PASS calls: media flows after update
+PASS WireGuard: wg0 up after update
+PASS WireGuard: DNS in the tunnel answers after update
+PASS WireGuard: UFW DNS rules unchanged by update (wg0 only)
+PASS update summary names DNS in the tunnel
+PASS WireGuard: a device added after the update (the console's path, through the agent) gets the DNS line and works by name
+PASS WireGuard: update added no device, changed no key, re-created no profile
+--- calls: turn off, then on again
+PASS install.sh with CALLS_ENABLED=false
+PASS calls off: SFU and authorization service removed
+PASS calls off: Lumen's calls firewall rules closed
+PASS calls off: homeserver no longer advertises the SFU
+PASS calls off: chat app configured without calls
+PASS data kept with calls off (marker A)
+PASS install.sh with calls on again
+PASS calls on: firewall rules back
+PASS calls on: media flows again
+--- uninstall (keep data) and re-install
+PASS uninstall.sh keeps data
+PASS no Lumen containers left running
+PASS data directories kept
+PASS backups kept
+PASS host agent removed
+PASS uninstall stopped the tunnel DNS (unit removed, nothing on 10.77.0.1:53, its UFW rules gone)
+PASS re-install on kept data succeeds
+PASS kept data is live again (marker A)
+PASS same server identity after re-install
+PASS calls: media flows after uninstall + re-install
+PASS WireGuard: wg0 up again after uninstall + re-install
+PASS WireGuard: DNS in the tunnel answers again after uninstall + re-install
+PASS WireGuard: UFW DNS rules back, wg0 only
+PASS WireGuard: same keys and devices after uninstall + re-install, no new profile
+PASS WireGuard: WG_ENDPOINT unchanged through every re-install, restore and update
+--- secret leak scan
+PASS no secret values in installer/ops logs or diagnose output
+PASS no WireGuard key in any log or installer summary (7 key values checked)
+lifecycle: 93 passed, 0 failed

@@ -1,6 +1,6 @@
-=== python3 -m unittest discover -s tests/deploy -p 'test_[hr]*.py' -v   (2026-10-17T22:17:05Z, Python 3.13.16)
-    tests/deploy/test_host_agent.py (DNS inside the tunnel: DeviceProfiles, TunnelDnsForwarder, DnsUpstream, DnsWire, ForeignWireGuard) + tests/deploy/test_render_apps.py
-test_console_allow_list_includes_the_subnet_by_default (test_host_agent.Defaults.test_console_allow_list_includes_the_subnet_by_default) ... rendered configuration into /tmp/lumen-agent-v4obmae2/out
+=== python3 -m unittest discover -s tests/deploy -p 'test_[hr]*.py' -v   (2026-10-17T22:59:39Z, Python 3.13.16), code of 16cf92e
+    tests/deploy/test_host_agent.py (DNS inside the tunnel: DeviceProfiles, TunnelDnsForwarder, DnsUpstream, DnsSelfCheck, DnsWire, ForeignWireGuard) + tests/deploy/test_render_apps.py
+test_console_allow_list_includes_the_subnet_by_default (test_host_agent.Defaults.test_console_allow_list_includes_the_subnet_by_default) ... rendered configuration into /tmp/lumen-agent-6dolcbaz/out
 ok
 test_endpoint_validation (test_host_agent.Defaults.test_endpoint_validation) ... ok
 test_explicit_off_is_respected (test_host_agent.Defaults.test_explicit_off_is_respected) ... ok
@@ -15,6 +15,15 @@ test_first_device_header_needs_no_hosts_file (test_host_agent.DeviceProfiles.tes
 test_first_device_without_tunnel_dns_explains_the_hosts_line (test_host_agent.DeviceProfiles.test_first_device_without_tunnel_dns_explains_the_hosts_line) ... ok
 test_no_dns_line_while_the_forwarder_does_not_answer (test_host_agent.DeviceProfiles.test_no_dns_line_while_the_forwarder_does_not_answer) ... ok
 test_profile_sets_the_tunnel_dns_and_keeps_the_split_tunnel (test_host_agent.DeviceProfiles.test_profile_sets_the_tunnel_dns_and_keeps_the_split_tunnel) ... ok
+test_a_second_probe_name_when_the_first_fails (test_host_agent.DnsSelfCheck.test_a_second_probe_name_when_the_first_fails) ... ok
+test_cli_exit_codes (test_host_agent.DnsSelfCheck.test_cli_exit_codes) ... ok
+test_console_name_and_forwarding (test_host_agent.DnsSelfCheck.test_console_name_and_forwarding) ... ok
+test_console_name_wrong_or_silent (test_host_agent.DnsSelfCheck.test_console_name_wrong_or_silent) ... ok
+test_never_probes_this_servers_own_names (test_host_agent.DnsSelfCheck.test_never_probes_this_servers_own_names) ... ok
+test_nxdomain_from_upstream_proves_forwarding (test_host_agent.DnsSelfCheck.test_nxdomain_from_upstream_proves_forwarding) ... ok
+test_probe_names_never_the_console (test_host_agent.DnsSelfCheck.test_probe_names_never_the_console) ... ok
+test_profile_has_no_dns_line_while_forwarding_fails (test_host_agent.DnsSelfCheck.test_profile_has_no_dns_line_while_forwarding_fails) ... ok
+test_refused_servfail_or_silence_is_not_forwarding (test_host_agent.DnsSelfCheck.test_refused_servfail_or_silence_is_not_forwarding) ... ok
 test_never_forwards_to_itself (test_host_agent.DnsUpstream.test_never_forwards_to_itself) ... ok
 test_odd_lines_and_scoped_addresses (test_host_agent.DnsUpstream.test_odd_lines_and_scoped_addresses) ... ok
 test_plain_resolv_conf (test_host_agent.DnsUpstream.test_plain_resolv_conf) ... ok
@@ -62,36 +71,36 @@ test_cli_prints_the_facts (test_host_agent.TunnelDnsForwarder.test_cli_prints_th
 test_listens_on_the_tunnel_address_only (test_host_agent.TunnelDnsForwarder.test_listens_on_the_tunnel_address_only) ... ok
 test_not_written_when_wireguard_is_off (test_host_agent.TunnelDnsForwarder.test_not_written_when_wireguard_is_off) ... ok
 test_written_root_only_and_only_when_changed (test_host_agent.TunnelDnsForwarder.test_written_root_only_and_only_when_changed) ... ok
-test_call_widget_is_served_where_wellknown_points (test_render_apps.TestDiscovery.test_call_widget_is_served_where_wellknown_points) ... rendered configuration into /tmp/lumen-render-bwnz2nek/out
+test_call_widget_is_served_where_wellknown_points (test_render_apps.TestDiscovery.test_call_widget_is_served_where_wellknown_points) ... rendered configuration into /tmp/lumen-render-2v3lunvi/out
 ok
-test_calls_off_hides_widget (test_render_apps.TestDiscovery.test_calls_off_hides_widget) ... rendered configuration into /tmp/lumen-render-jmp9_5_q/out
+test_calls_off_hides_widget (test_render_apps.TestDiscovery.test_calls_off_hides_widget) ... rendered configuration into /tmp/lumen-render-earxsg8r/out
 ok
-test_closed_registration_hides_signup (test_render_apps.TestDiscovery.test_closed_registration_hides_signup) ... rendered configuration into /tmp/lumen-render-459459s5/out
+test_closed_registration_hides_signup (test_render_apps.TestDiscovery.test_closed_registration_hides_signup) ... rendered configuration into /tmp/lumen-render-f5y_2mi8/out
 ok
-test_wellknown_contains_no_secret_like_values (test_render_apps.TestDiscovery.test_wellknown_contains_no_secret_like_values) ... rendered configuration into /tmp/lumen-render-q_g1yd3x/out
+test_wellknown_contains_no_secret_like_values (test_render_apps.TestDiscovery.test_wellknown_contains_no_secret_like_values) ... rendered configuration into /tmp/lumen-render-ypfkrl5r/out
 ok
-test_wellknown_has_homeserver_and_lumen_block (test_render_apps.TestDiscovery.test_wellknown_has_homeserver_and_lumen_block) ... rendered configuration into /tmp/lumen-render-hq_3x0z_/out
+test_wellknown_has_homeserver_and_lumen_block (test_render_apps.TestDiscovery.test_wellknown_has_homeserver_and_lumen_block) ... rendered configuration into /tmp/lumen-render-3_vh7db5/out
 ok
-test_no_ca_download_with_public_certificates_or_outside_test_setups (test_render_apps.TestNoDomainTestSetup.test_no_ca_download_with_public_certificates_or_outside_test_setups) ... rendered configuration into /tmp/lumen-render-_lmqtw0y/out
+test_no_ca_download_with_public_certificates_or_outside_test_setups (test_render_apps.TestNoDomainTestSetup.test_no_ca_download_with_public_certificates_or_outside_test_setups) ... rendered configuration into /tmp/lumen-render-t2f8_rmm/out
 ok
-test_test_ca_offered_over_http_only_the_root_certificate (test_render_apps.TestNoDomainTestSetup.test_test_ca_offered_over_http_only_the_root_certificate) ... rendered configuration into /tmp/lumen-render-5_zky3l6/out
+test_test_ca_offered_over_http_only_the_root_certificate (test_render_apps.TestNoDomainTestSetup.test_test_ca_offered_over_http_only_the_root_certificate) ... rendered configuration into /tmp/lumen-render-9cufmja8/out
 ok
-test_platform_without_its_credential_is_left_out (test_render_apps.TestPush.test_platform_without_its_credential_is_left_out) ... rendered configuration into /tmp/lumen-render-z9u9o7re/out
+test_platform_without_its_credential_is_left_out (test_render_apps.TestPush.test_platform_without_its_credential_is_left_out) ... rendered configuration into /tmp/lumen-render-_85blovr/out
 ok
-test_push_disabled_route_is_404 (test_render_apps.TestPush.test_push_disabled_route_is_404) ... rendered configuration into /tmp/lumen-render-hm58la8e/out
+test_push_disabled_route_is_404 (test_render_apps.TestPush.test_push_disabled_route_is_404) ... rendered configuration into /tmp/lumen-render-_ti9n0ec/out
 ok
-test_push_enabled_route_only_from_private_ranges (test_render_apps.TestPush.test_push_enabled_route_only_from_private_ranges) ... rendered configuration into /tmp/lumen-render-wih3oe97/out
+test_push_enabled_route_only_from_private_ranges (test_render_apps.TestPush.test_push_enabled_route_only_from_private_ranges) ... rendered configuration into /tmp/lumen-render-x9q_p0zr/out
 ok
 test_push_needs_a_platform (test_render_apps.TestPush.test_push_needs_a_platform) ... ok
-test_push_never_includes_content (test_render_apps.TestPush.test_push_never_includes_content) ... rendered configuration into /tmp/lumen-render-1rfkdot2/out
+test_push_never_includes_content (test_render_apps.TestPush.test_push_never_includes_content) ... rendered configuration into /tmp/lumen-render-ez1gpadc/out
 ok
-test_app_links_only_when_configured (test_render_apps.TestSsoAndAppLinks.test_app_links_only_when_configured) ... rendered configuration into /tmp/lumen-render-u2aiqujr/out
+test_app_links_only_when_configured (test_render_apps.TestSsoAndAppLinks.test_app_links_only_when_configured) ... rendered configuration into /tmp/lumen-render-0pa36lrw/out
 ok
-test_app_scheme_is_whitelisted_for_sso (test_render_apps.TestSsoAndAppLinks.test_app_scheme_is_whitelisted_for_sso) ... rendered configuration into /tmp/lumen-render-_9j4y5oo/out
+test_app_scheme_is_whitelisted_for_sso (test_render_apps.TestSsoAndAppLinks.test_app_scheme_is_whitelisted_for_sso) ... rendered configuration into /tmp/lumen-render-499zc5em/out
 ok
 test_bad_identifiers_rejected (test_render_apps.TestSsoAndAppLinks.test_bad_identifiers_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 76 tests in 0.237s
+Ran 85 tests in 0.253s
 
 OK
