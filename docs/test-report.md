@@ -1,10 +1,58 @@
 # Test report — Lumen 1.0.0
 
-Date: 2026-10-15. Every result below was observed in this session, on the code at
-or just before the commit that adds this file. Raw outputs are in
+Date: 2026-10-15, final deep sweep added 2026-10-17 (next section). Every result below
+was observed in this session, on the code at or just before the commit that adds it. Raw outputs are in
 [`docs/test-results/`](test-results/). Anything not listed under "Results" was
 **not** tested; see "Not verified" at the end and
 [known-limitations.md](known-limitations.md).
+
+## Final deep sweep — 2026-10-17
+
+Every suite was run again on the current code: the dev stack was rebuilt from it
+(`build_portal`, `build_chat`, `lumenctl apply`), and the installer ran on a fresh test
+server. Raw outputs: [`docs/test-results/final-sweep/`](test-results/final-sweep/). The
+host restarted once during the sweep (Docker, `/etc/hosts`, the host agent, WireGuard and
+the call-lab namespaces were lost); the suites that were running then were started again
+from the beginning, and only complete runs are reported.
+
+| Suite | Result | Evidence (`final-sweep/`) |
+|---|---|---|
+| Portal unit/integration (pytest, PostgreSQL 17) | **118 passed** (97 before; new: every console page renders for an owner ×17, branded 429 page, earlier additions) | `portal-unit.txt` |
+| Renderer (`tests/deploy`), design tokens, shellcheck (31 scripts + entry points) | **18/18**, tokens current, no warnings | `renderer.txt` |
+| Chat unit (vitest) · typecheck · lint | **104/104** · clean · clean | `chat-unit.txt` |
+| Chat E2EE (Node + real Synapse) | **5/5** | `chat-e2ee-and-ui-first-run.txt` |
+| Chat UI (Playwright, production build + CSP) | first run **22/23**: the blocking test failed intermittently (see defects) → fixed → **23/23** | `chat-e2ee-and-ui-first-run.txt`, `chat-ui.txt` |
+| Deployed app E2EE (portal sign-up → SSO → encrypted DM → database holds only ciphertext) | **7/7** | `chat-deployed-e2ee.txt` |
+| Website, portal, console UI | first run **72/75** (console defects below) → fixed; the run on the redeployed stack hit the per-IP sign-up limit (found the 429 gap) → **75/75** | `ui-portal-console.txt`, `ui-portal-console-rate-limited.txt` |
+| SSO flow · plan entitlements · app SSO and discovery | **pass** · **5/5** · **10/10** | `sso-flow.txt`, `entitlements.txt`, `apps-sso.txt` |
+| Calls (real Chromium clients in separate network namespaces) | permissions **3/3**, core **18/18**, security **5/5**, network **7/7** — the 20 mandatory tests and the extra ones. Same caveat as before: under the load of the test browsers (load average 8 on 4 cores) the 720p call was received at 960×540 / 15 fps and the 1080p layer was not delivered (B received 1280×720); both are logged by the tests | `calls-*.txt` |
+| Mobile call path (Matrix Rust SDK widget driver + call widget + web user) | **12/12** | `apps-widget-call.txt` |
+| Desktop app end to end (Linux build, dev stack) | **11/11**, no CSP violations | `desktop-e2e.txt` |
+| Federation (independent remote Synapse) | connect phase **10/10**, allow-list phase **2/2**, reachability probe ok | `federation.txt` |
+| WireGuard | **7/7** | `wireguard-e2e.txt` |
+| Security scan | **123/123** | `security-scan.txt` |
+| **Installer: fresh install** on new Ubuntu 24.04.5 systemd test servers (calls on, push on, app links), twice | **SUCCESS, exit 0** both times, all endpoint checks passed | `installer-fresh-install-round1.txt`, `…-round2.txt` |
+| **Installer lifecycle** (re-install, SFU restart, **new: SIGKILL of the homeserver, portal, console and PostgreSQL**, healthcheck, diagnose, encrypted backup + full restore, update, calls off/on, uninstall + re-install), push gateway running with a throwaway APNs key | round 1: **42/53**: the crash checks passed, but (a) the stack was checked the moment PostgreSQL was back and the homeserver still had broken pooled connections (transient HTTP 500, see below), (b) every later `install.sh` run was refused because preflight demanded 10 GB free on a server already holding Lumen's images → both fixed → round 2 on a new server: **53/53**, healthy again 29 s after the last crash, with no operator action | `installer-lifecycle-round1.txt`, `…-round2.txt` |
+| **iOS app on the simulators, against real public servers** (new `SdkTlsTests`; CI run 38993174644, iPhone 17 Pro and iPad Pro 13-inch (M5)) | first run: the sign-in client could not be built (defect below) → fixed → **162 passed, 0 failed, 2 skipped** (the discovery UI test, which needs a configured server), including both new tests on both simulators | `ios-ci.txt` |
+| **Android app on the emulator against a real Lumen server** (new CI job: `install.sh --test` on the runner, the test CA installed as a user CA, SSO, encrypted DM with a web user, sign-out) | first run (38987977838): every Rust SDK request failed (defect below) → fixed; run 38990967219 got past TLS; with the Rust SDK reaching the server over the test CA (discovery and native sliding sync selected); it then stopped at the SSO callback on a cookie bug in the test's own stand-in browser (fixed). Run 38993220911 (with that fix): build, unit tests and lint **passed**, but GitHub did not start the two emulator jobs (account billing: "recent account payments have failed or your spending limit needs to be increased"). **Not yet observed on Android: SSO completing, the encrypted DM, sign-out, and the emulator test of the new TLS code** | `android-e2e.txt` |
+| CI on the final code | `ci` (web, portal, shared) run 38991710856 **green**; `desktop` run 38991712726 **green** (Windows packaged-app smoke test 43/43; Windows installer SHA-256 `a43603ba…7a39`); `ios` run 38993174644 **green**; `android` run 38993220911: build/unit/lint **green**, emulator jobs not started (billing) | GitHub Actions |
+
+### Defects found in this sweep (all fixed, each with a test)
+
+| Found by | Defect | Fix |
+|---|---|---|
+| host restart during the sweep | **Synapse crash-looped after any unclean stop** (crash, OOM kill, power loss): its unix socket and Twisted's lock file survived, the lock names PID 1, which in the restarted container is Synapse itself, so it refused to listen. The server stayed down until an operator deleted the files. | the Synapse service clears both files before starting (only Synapse uses them). `tests/installer/lifecycle.sh` now kills Synapse, portal, ops and PostgreSQL with SIGKILL and requires each to come back healthy on its own, with data intact |
+| website/portal/console UI suite | **Console → Configuration returned 500** (a renamed setting, `VOIP_ENABLED` → `CALLS_ENABLED`) | fixed; a unit test now renders all 17 console pages as an owner |
+| website/portal/console UI suite | **Console → Calls → media self-test always said "Host agent unreachable: timed out"**: the portal waited 15 s for an operation the agent allows 150 s | the request waits up to 160 s |
+| portal unit tests | on a host with a running host agent, the console tests talked to the real agent | test settings point at a socket that doesn't exist |
+| host restart | `healthcheck.sh` didn't report a down WireGuard interface on hosts without systemd | checked on every host |
+| chat UI suite (intermittent) | Settings promised that messages sent while someone was blocked never appear after unblocking. Matrix servers return them again when history is loaded, so the promise was false (and the test asserting it was racy) | honest text; the test checks the real guarantee: nothing is delivered while blocked, delivery resumes after unblocking |
+| rate-limited UI run | a rate-limited sign-up, login or password reset showed a bare, unstyled "429 Too Many Requests" page | branded "Too many attempts" page + unit test; the UI suite names the sign-up limit when it hits it |
+| host restart | the call lab failed on stale network namespaces ("Invalid argument") | `lab.sh up` recreates them |
+| installer lifecycle, round 1 | **Preflight demanded 10 GB free on every `install.sh` run.** Once Lumen's own images and data were on the disk, a server that met the requirement at install time (e.g. a 20 GB VPS) could no longer re-run the installer, for example to change a setting | a first install still needs 10 GB; on an existing installation 3 GB of headroom (for updated images). Verified with a direct test of the check (5 GB free: first install refused, re-run allowed; 2 GB: re-run refused); in round 2 the test server had 11 GB free, so the new branch did not decide that run |
+| installer lifecycle, round 1 (not a defect, measured) | right after PostgreSQL comes back from a crash, each of the homeserver's pooled database connections fails one request (HTTP 500) before Synapse replaces it | recovers by itself: 16 s on the dev stack under probing, 29 s in the lifecycle run. The lifecycle check now waits up to 2 min and records the time |
+| new iOS test (simulator, real public server) | **iOS sign-in could never work**: the Rust SDK refused to build the sign-in client ("missing session delegates with multi-process lock configuration"). Only the restore path set the session delegate. No earlier test reached a server from iOS | `ClientFactory.newClient` sets the session delegate. `SdkTlsTests` builds the sign-in client against matrix-client.matrix.org (must work) and self-signed.badssl.com (must be refused in the TLS handshake) |
+| new Android test (emulator, real Lumen server) | **Android sign-in could never work**: every HTTPS request of the Rust SDK failed ("Expect rustls-platform-verifier to be initialized"); the SDK package ships neither the JNI initialisation nor the Java half of the verifier | the app initialises the verifier and ships a port of it whose trust anchors follow the app's network security config: release builds trust system CAs only, debug builds also user-installed CAs |
 
 ## Environment
 

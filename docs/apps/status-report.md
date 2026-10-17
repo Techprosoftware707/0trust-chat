@@ -1,6 +1,6 @@
 # Client apps: status report
 
-State of the four apps on 2026-10-15, with the evidence behind each line. Feature-level detail
+State of the four apps on 2026-10-17, with the evidence behind each line. Feature-level detail
 is in [feature-matrix.md](feature-matrix.md); raw outputs are in
 [docs/test-results/](../test-results/).
 
@@ -13,8 +13,14 @@ The short version:
   packaged Windows and macOS builds passed their hardening checks on real Windows and macOS
   runners.
 - **Android and iOS** are native apps on the Matrix Rust SDK. They build, and their logic passes
-  its tests in CI (Android emulator, iPhone and iPad simulators). They have **not yet signed in to a
-  server from the app**. Their call path was proven in a real encrypted call outside the apps.
+  its tests in CI (Android emulator, iPhone and iPad simulators). The first tests that reached a
+  real server (2026-10-17) found that **neither app could have signed in**: on Android every HTTPS
+  request of the SDK failed (its certificate verifier was never initialised), and on iOS the SDK
+  refused to build the sign-in client (no session delegate with the multi-process lock). Both are
+  fixed. iOS now builds its sign-in client against a real server in CI; Android's SDK reached a
+  real Lumen server in the emulator, but the full sign-in → encrypted DM → sign-out run has not
+  completed yet (the last run was blocked by the GitHub account's Actions billing). Their call path
+  was proven in a real encrypted call outside the apps.
 - **Nothing is signed for distribution, nothing has run on a physical device, and nothing has been
   published to a store.** All of that needs the operator's own certificates and accounts.
 
@@ -56,22 +62,22 @@ The short version:
 | Build | Green on GitHub Actions `ubuntu-24.04`: run 38707281536 (round 3; round 2, 38704288600, also green). JDK 21, AGP 8.13.2, Gradle 8.14.3, compile/target SDK 36, min SDK 26. |
 | Package | Release: per-ABI APKs (`arm64-v8a` 69 MB, `armeabi-v7a`, `x86_64`, `x86`), universal APK and `app-release.aab` (106 MB), all **unsigned**; debug universal APK (debug key, for testing). SHA-256 in `docs/test-results/android-ci.txt`. The size is mostly the Rust SDK (`libmatrix_sdk_ffi.so`, 61 MiB on arm64; 16 KB page-aligned as Play requires). |
 | Functional tests | Unit 64/64 (shared vectors: URL policy, well-known, deep links incl. room-version-12 IDs; native SFU-token/transport handling; delivery mapping; preview policy; app-lock timer…). Lint: 0 errors, 0 warnings. On an API 35 emulator: 8 passed, 1 skipped (it needs a test server): launch and server picker, offline input validation, real Keystore seal/open/wipe, backup disabled, foreground-service types, notification channels, permissions. |
-| Messaging / encryption | Implemented against the Rust SDK (the timeline, encrypted send/receive, verification, recovery). **Not yet run against a server from the app.** |
+| Messaging / encryption | Implemented against the Rust SDK (the timeline, encrypted send/receive, verification, recovery). An emulator test against a real Lumen server (CI job "App against a real Lumen server") found that the SDK could make no HTTPS request at all; fixed (verifier initialised; its trust anchors follow the app's network security config: release = system CAs only). With the fix the SDK reached the server (run 38990967219); **sign-in, the encrypted DM and sign-out have not completed in a test yet** (`docs/test-results/final-sweep/android-e2e.txt`). |
 | Calling | The bundled call widget, the native SFU-token and transport handling, Core-Telecom and the call notification are implemented. The same call path (Rust SDK widget driver + Lumen widget + native handling) passed a real encrypted call in the Linux harness (`apps-widget-call.txt`, 12/12). The app's WebView call is **not run**. |
 | Notifications | FCM push via Sygnal (`event_id_only`) is implemented and optional at build time. Delivery is **not verified**: it needs a Firebase project, `PUSH_ENABLED` on the server and a device. |
 | Signing | Release APKs and the AAB are **unsigned** without the `ANDROID_KEYSTORE_*` secrets. The debug APK is signed with a debug key and is for testing only. |
 | Store | Not published. Play needs a developer account, Play App Signing, a Data safety form and review. |
-| Remaining | Sign-in, sync, messaging, verification and a call on a device or emulator against a server; FCM delivery; a TalkBack pass; release signing. |
+| Remaining | Re-run the emulator jobs once the GitHub Actions billing is fixed (SSO, encrypted DM, sign-out, the TLS verifier test); verification and a call against a server; FCM delivery; a TalkBack pass; release signing. |
 
 ## iOS and iPadOS
 
 | | Status |
 |---|---|
 | Source | `apps/ios/`: SwiftUI app, notification service extension, and `LumenCore` Swift package, on the Matrix Rust SDK (`matrix-rust-components-swift` 26.10.02). XcodeGen project. |
-| Build | Green on GitHub Actions `macos-15`, Xcode 26.3: run 38706433166. App and extension build for the simulator with no compiler warnings; the call widget is bundled. |
+| Build | Green on GitHub Actions `macos-15`, Xcode 26.3: run 38993174644 (2026-10-17). App and extension build for the simulator; the call widget is bundled. |
 | Package | Unsigned Release `.xcarchive` (`Lumen-unsigned.xcarchive.zip`, SHA-256 `31541430…ae26`). An installable `.ipa` needs signing. |
-| Functional tests | 78/78 on an iPhone 17 Pro and on an iPad Pro 13-inch (M5) simulator (iOS 26.2): 71 LumenCore tests (shared vectors, native SFU-token/transport handling and more) plus 7 app-level tests against the SDK. Launch UI test passed; the discovery UI test was skipped because no test server is configured in CI (`ios-ci-round5.txt`). |
-| Messaging / encryption | Implemented against the Rust SDK. **Not yet run against a server from the app.** |
+| Functional tests | 80/80 on an iPhone 17 Pro and on an iPad Pro 13-inch (M5) simulator: 71 LumenCore tests, 7 app-level tests against the SDK, and 2 that build the sign-in client exactly as the app does against real public servers (trusted certificate works, self-signed refused). Their first run found that sign-in could never have worked (no session delegate); fixed. Launch UI test passed; the discovery UI test was skipped (no test server in CI) (`final-sweep/ios-ci.txt`). |
+| Messaging / encryption | Implemented against the Rust SDK. Only the sign-in client has met a real server (matrix.org, no account); **no sign-in to a Lumen server from the app yet**: macOS CI runners can't host one. |
 | Calling | Widget in WKWebView, native SFU-token/transport handling, and CallKit are implemented. The call path passed in the Linux harness, as for Android. The app's own call is **not run**. |
 | Notifications | APNs via Sygnal, with the notification extension decrypting on the device and VoIP rings through PushKit/CallKit, is implemented. **Not verified**: it needs an APNs key, `PUSH_ENABLED` and a device. |
 | Signing | Unsigned. Needs an Apple Developer account, certificates and provisioning profiles (the steps are in `release-ios.md`). |
