@@ -16,7 +16,7 @@ SOURCE_LABEL = {Provider.GMAIL: "Gmail", Provider.SLACK: "Slack", Provider.GOHIG
 ORIGIN = {
     InboxItem.Kind.EMAIL_THREAD: "synced_email",
     InboxItem.Kind.SLACK_MESSAGE: "external_message",
-    InboxItem.Kind.GHL_CONVERSATION: "external_message",
+    InboxItem.Kind.GHL_CONVERSATION: "imported_record",
     InboxItem.Kind.MISSED_CALL: "external_notification",
 }
 

@@ -71,6 +71,8 @@ export interface ChatContext {
   contact_id?: string;
   opportunity_id?: string;
   room_id?: string;
+  /** A synced inbox item (integrations); resolved by the server through access as the user. */
+  inbox_item_id?: string;
 }
 
 export interface AiSettings {

@@ -33,9 +33,8 @@ def org():
 
 def _error(response) -> str:
     assert response.status_code == 302, response.content
-    frag = urlsplit(response["Location"]).fragment
-    q = parse_qs(frag.split("?", 1)[1]) if "?" in frag else {}
-    return q.get("error", [""])[0]
+    parts = urlsplit(response["Location"]).fragment.split("/")
+    return parts[3] if len(parts) > 3 and parts[2] == "error" else ""
 
 
 def _callback(client, provider, **params):
@@ -57,7 +56,7 @@ def test_gmail_flow_uses_pkce_offline_access_and_stores_encrypted_tokens(org, fa
     assert set(p["scope"].split()) == {"https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"}
     assert p["redirect_uri"] == conf.redirect_uri("gmail")
     r = _callback(client, "gmail", code=_code(fake, "gmail", p), state=p["state"])
-    assert "connected=gmail" in r["Location"]
+    assert "/integrations/connected/gmail" in r["Location"]
     conn = IntegrationConnection.objects.get(workspace=org["ws"], provider="gmail")
     assert conn.status == "connected" and conn.account_id == "owner.intg@example.com" and conn.owner == org["owner"]
     assert conn.scope == "personal" and not conn.is_mock
@@ -101,7 +100,7 @@ def test_state_is_single_use(org, fake, configured):
     client = portal_client(org["owner"])
     p = provider_params(begin(client, start_flow(org["owner"], org["ws"], "gmail")))
     r = _callback(client, "gmail", code=_code(fake, "gmail", p), state=p["state"])
-    assert "connected=gmail" in r["Location"]
+    assert "/integrations/connected/gmail" in r["Location"]
     # Replaying the callback (same state, even with a fresh code) is refused.
     assert _error(_callback(client, "gmail", code=_code(fake, "gmail", p), state=p["state"])) in {"state_used", "session_mismatch"}
     assert IntegrationConnection.objects.count() == 1
@@ -180,7 +179,7 @@ def test_highlevel_without_state_accepts_only_the_session_bound_flow(org, fake, 
     other = portal_client(org["owner"])
     assert _error(_callback(other, "gohighlevel", code=_code(fake, "gohighlevel", p))) == "state_invalid"
     r = _callback(client, "gohighlevel", code=_code(fake, "gohighlevel", p))
-    assert "connected=gohighlevel" in r["Location"]
+    assert "/integrations/connected/gohighlevel" in r["Location"]
     conn = IntegrationConnection.objects.get(provider="gohighlevel")
     assert conn.account_id == "mockLocation001" and conn.scope == "workspace"
 
@@ -238,7 +237,7 @@ def test_mock_mode_flow_is_labelled(org, fake):
         r = client.post(urlsplit(loc).path, form)
         cb = urlsplit(r["Location"])
         r = client.get(cb.path + "?" + cb.query)
-        assert "connected=gmail" in r["Location"]
+        assert "/integrations/connected/gmail" in r["Location"]
         conn = IntegrationConnection.objects.get(provider="gmail")
         assert conn.is_mock and conn.is_demo
         data = body(api_for(org["owner"]).get(f"{ibase(org['ws'])}/connections/{conn.pk}"))["data"]
@@ -311,7 +310,7 @@ def test_reconnect_restores_and_wrong_account_is_refused(org, fake, configured, 
     assert _error(r) == "wrong_account"
     p = provider_params(begin(client, start_flow(org["owner"], org["ws"], "gmail", reconnect_id=str(gmail.pk))))
     r = _callback(client, "gmail", code=_code(fake, "gmail", p), state=p["state"])
-    assert "connected=gmail" in r["Location"]
+    assert "/integrations/connected/gmail" in r["Location"]
     gmail.refresh_from_db()
     assert gmail.status == "connected" and IntegrationConnection.objects.filter(provider="gmail").count() == 1
 
@@ -323,7 +322,7 @@ def test_denied_read_scope_cannot_connect_and_compose_is_optional(org, fake, con
     assert _error(_callback(client, "gmail", code=code, state=p["state"])) == "scope_denied"
     p = provider_params(begin(client, start_flow(org["owner"], org["ws"], "gmail")))
     code = _code(fake, "gmail", p, extra={"scope": "https://www.googleapis.com/auth/gmail.readonly"})
-    assert "connected=gmail" in _callback(client, "gmail", code=code, state=p["state"])["Location"]
+    assert "/integrations/connected/gmail" in _callback(client, "gmail", code=code, state=p["state"])["Location"]
     data = body(api_for(org["owner"]).get(f"{ibase(org['ws'])}/connections"))["data"][0]
     assert data["missing_scopes"] == ["https://www.googleapis.com/auth/gmail.compose"]
 

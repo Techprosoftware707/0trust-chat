@@ -25,6 +25,7 @@ urlpatterns = [
     path("inbox/<uuid:item_id>/links", v.inbox_links, name="inbox_links"),
     path("inbox/<uuid:item_id>/links/<uuid:link_id>", v.inbox_link_detail, name="inbox_link"),
     path("inbox/<uuid:item_id>/permalink", v.inbox_permalink, name="inbox_permalink"),
+    path("inbox/<uuid:item_id>/conversation", v.inbox_conversation, name="inbox_conversation"),
     path("inbox/<uuid:item_id>/drafts", v.item_drafts, name="item_drafts"),
     path("inbox/<uuid:item_id>/messages/<uuid:message_id>/body", v.message_body, name="message_body"),
     path("inbox/<uuid:item_id>/messages/<uuid:message_id>/attachments/<str:attachment_id>", v.message_attachment, name="message_attachment"),

@@ -72,3 +72,32 @@ def test_credentials_are_bound_to_their_row_and_key(fake, configured):
     with pytest.raises(crypto.KeyMissing), override_settings(NEXUS_INTEGRATIONS_KEYS=["not-hex"]):
         crypto.encrypt("x", aad="t")
     assert cb.key_id == ca.key_id
+
+
+def test_rekey_moves_every_credential_to_the_current_key(fake, configured):
+    from io import StringIO
+
+    from django.core.management import call_command
+    from django.test import override_settings
+
+    owner = make_user("sec3-owner", email="sec3.owner@example.com")
+    ws = business_workspace(owner, "Secret Org 3")
+    a = connect(fake, owner, ws, "gmail", account="sec3.owner@example.com")
+    b = connect(fake, owner, ws, "slack", account="T0MOCK0001")
+    before = {c.pk: read_tokens(c) for c in (a, b)}
+    old_key = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+    new_key = "ee" * 32
+    with override_settings(NEXUS_INTEGRATIONS_KEYS=[new_key, old_key]):
+        out = StringIO()
+        call_command("nexus_integrations_rekey", stdout=out)
+        assert "re-encrypted 2" in out.getvalue() and "failed 0" in out.getvalue()
+        assert "mock-" not in out.getvalue()
+        out = StringIO()
+        call_command("nexus_integrations_rekey", stdout=out)
+        assert "re-encrypted 0" in out.getvalue() and "already current 2" in out.getvalue()
+    with override_settings(NEXUS_INTEGRATIONS_KEYS=[new_key]):
+        # The old key can now be removed: everything still decrypts, versions are unchanged.
+        assert {c.pk: read_tokens(c) for c in (a, b)} == before
+        for cred in IntegrationCredential.objects.filter(connection__in=[a, b]):
+            assert cred.key_id == crypto.current_key_id() == crypto.blob_key_id(cred.access_token)
+            assert cred.version == 1

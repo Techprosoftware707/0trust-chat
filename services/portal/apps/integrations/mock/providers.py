@@ -204,7 +204,8 @@ class FakeGoogle(FakeProvider):
             parts.append({"partId": "2", "mimeType": "application/pdf", "filename": "sample-checklist-mock.pdf",
                           "body": {"attachmentId": f"att-{mid}", "size": 18}})
         payload = {"mimeType": "multipart/mixed" if with_attachment else "multipart/alternative", "headers": headers, "parts": parts}
-        return {"id": mid, "threadId": tid, "labelIds": labels, "snippet": body[:48], "internalDate": _ms(when),
+        snippet = body if len(body) <= 48 else body[:48].rsplit(" ", 1)[0] + "…"
+        return {"id": mid, "threadId": tid, "labelIds": labels, "snippet": snippet, "internalDate": _ms(when),
                 "historyId": "1500", "payload": payload, "_message_id": message_id}
 
     def route(self, req):
@@ -267,8 +268,11 @@ class FakeGoogle(FakeProvider):
             box["sent"].append({"id": mid, "threadId": tid, "raw": (body.get("message") or {}).get("raw", "")})
             t = box["threads"].get(tid)
             if t is not None:
-                t["messages"].append(self._message(mid, tid, "Me", account, "", "Re: " + t["messages"][0]["payload"]["headers"][2]["value"],
-                                                   _now(), unread=False, body="(sent from Nexus, mock)", sent=True))
+                first = t["messages"][0]["payload"]["headers"]
+                to = next((h["value"] for h in first if h["name"] == "From"), "")
+                subject = next((h["value"] for h in first if h["name"] == "Subject"), "")
+                t["messages"].append(self._message(mid, tid, "Me", account, to, f"Re: {subject}", _now(), unread=False,
+                                                   body="(Sent from Nexus through the mock provider.)", sent=True))
                 box["history_id"] += 1
                 t["historyId"] = str(box["history_id"])
                 box.setdefault("history", []).append({"id": box["history_id"], "mid": mid, "tid": tid})

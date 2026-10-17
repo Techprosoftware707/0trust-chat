@@ -49,6 +49,7 @@ def world(fake, configured):
         "gm_item": gm_item, "slack_item": slack_item, "msg": msg, "draft": draft, "action": action, "contact": contact, "opp": opp,
         "link": im.InboxLink.objects.get(item=slack_item), "mute": im.InboxMute.objects.get(workspace=ws_b),
         "record": im.ExternalRecord.objects.filter(connection=ghl, kind="opportunity").first(),
+        "ghl_item": im.InboxItem.objects.filter(connection=ghl, kind="ghl_conversation").first(),
     }
 
 
@@ -73,7 +74,7 @@ def _fmt(world, template):
 GETS = [
     "connections/{gmail}", "connections/{slack}/slack-channels", "inbox/{gm_item}", "inbox/{slack_item}", "inbox/{slack_item}/suggestions",
     "inbox/{slack_item}/permalink", "inbox/{gm_item}/messages/{msg}/body", "inbox/{gm_item}/messages/{msg}/attachments/x", "drafts/{draft}",
-    "actions/{action}",
+    "actions/{action}", "inbox/{ghl_item}/conversation",
 ]
 WRITES = [
     ("patch", "connections/{slack}", {"channels": []}),

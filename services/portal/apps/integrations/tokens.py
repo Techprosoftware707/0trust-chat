@@ -59,8 +59,10 @@ def store_tokens(connection: IntegrationConnection, tokens: TokenSet, *, keep_re
     refresh_blob = crypto.encrypt(tokens.refresh_token, aad=_aad(connection.pk, "refresh")) if tokens.refresh_token else None
     if cred is None:
         cred = IntegrationCredential(connection=connection)
-    elif refresh_blob is None and keep_refresh:
-        refresh_blob = cred.refresh_token
+    elif refresh_blob is None and keep_refresh and cred.refresh_token:
+        # Re-encrypt the kept refresh token too, so the row uses only the current key.
+        kept = crypto.decrypt(cred.refresh_token, aad=_aad(connection.pk, "refresh"))
+        refresh_blob = crypto.encrypt(kept, aad=_aad(connection.pk, "refresh"))
     cred.access_token = crypto.encrypt(tokens.access_token, aad=_aad(connection.pk, "access"))
     cred.refresh_token = refresh_blob
     cred.access_expires_at = _expiry(tokens.expires_in)
@@ -70,6 +72,33 @@ def store_tokens(connection: IntegrationConnection, tokens: TokenSet, *, keep_re
     cred.version = 1 if is_new else cred.version + 1
     cred.save()
     return cred
+
+
+def rekey_all() -> dict:
+    """Re-encrypts every stored credential with the current (first) key, so an old key can
+    be removed from ``NEXUS_INTEGRATIONS_KEY`` afterwards. Each row is locked like a refresh,
+    so a concurrent refresh is never overwritten. Returns counts only."""
+    current = crypto.current_key_id()
+    done = skipped = failed = 0
+    for pk in IntegrationCredential.objects.values_list("pk", flat=True):
+        with transaction.atomic():
+            cred = IntegrationCredential.objects.select_for_update().filter(pk=pk).first()
+            if cred is None or {crypto.blob_key_id(cred.access_token), crypto.blob_key_id(cred.refresh_token) or current} == {current}:
+                skipped += 1
+                continue
+            try:
+                access = crypto.decrypt(cred.access_token, aad=_aad(pk, "access"))
+                refresh = crypto.decrypt(cred.refresh_token, aad=_aad(pk, "refresh")) if cred.refresh_token else None
+            except crypto.DecryptionFailed:
+                failed += 1
+                log.warning("integration credential could not be re-encrypted connection=%s", pk)
+                continue
+            cred.access_token = crypto.encrypt(access, aad=_aad(pk, "access"))
+            cred.refresh_token = crypto.encrypt(refresh, aad=_aad(pk, "refresh")) if refresh is not None else None
+            cred.key_id = current
+            cred.save(update_fields=["access_token", "refresh_token", "key_id", "updated_at"])
+            done += 1
+    return {"reencrypted": done, "skipped": skipped, "failed": failed, "key_id": current}
 
 
 def delete_tokens(connection: IntegrationConnection) -> None:

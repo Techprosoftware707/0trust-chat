@@ -151,6 +151,9 @@ def test_ghl_sync_mirrors_records_as_external(org, ghl):
     assert missed.title == "Missed call from Pat Mockperson"
     detail = body(org["api"].get(f"{ibase(org['ws'])}/inbox/{convs.first().pk}"))["data"]
     assert detail["capabilities"]["reply"] is False and "Open it in HighLevel" in detail["capabilities"]["reply_unsupported_reason"]
+    assert detail["origin"] == "imported_record"
+    conv = body(org["api"].get(f"{ibase(org['ws'])}/inbox/{missed.pk}/conversation"))["data"]
+    assert conv["read_only"] and conv["messages"][0]["call_status"] == "no-answer" and conv["messages"][0]["untrusted"]
 
 
 def test_ghl_search_suggests_but_never_merges(org, ghl):
@@ -255,6 +258,13 @@ def test_private_integration_token(org):
     assert "pit-mock-abc" not in r.content.decode()
     conn = IntegrationConnection.objects.get(pk=data["id"])
     assert sync_connection(conn)["ok"]
+    # Rotating the token: the same location keeps its connection and synced data.
+    from apps.integrations.tokens import read_tokens
+
+    items = conn.inbox_items.count()
+    r = org["api"].post(f"{base}/connections/private-token", {"provider": "gohighlevel", "token": "pit-mock-rotated", "location_id": "mockLocation001"})
+    assert r.status_code in {200, 201} and body(r)["data"]["id"] == str(conn.pk)
+    assert read_tokens(conn)[0] == "pit-mock-rotated" and conn.inbox_items.count() == items
     r = org["api"].post(f"{base}/connections/{conn.pk}/disconnect", {})
     assert body(r)["data"]["revoked_at_provider"] is False and "Private Integrations" in body(r)["data"]["manual_step"]
 

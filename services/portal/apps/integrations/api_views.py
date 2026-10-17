@@ -191,6 +191,12 @@ def inbox_permalink(request, actor, item_id):
     return ok({"permalink": services.slack_permalink(actor, item_id)})
 
 
+@endpoint(["GET"])
+def inbox_conversation(request, actor, item_id):
+    """HighLevel conversation messages, fetched live (read-only; reply in HighLevel)."""
+    return ok(services.ghl_conversation(request, actor, item_id))
+
+
 @endpoint(["GET", "POST"])
 def inbox_mutes(request, actor):
     if request.method == "POST":

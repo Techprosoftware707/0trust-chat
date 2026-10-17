@@ -267,11 +267,14 @@ services:
       LUMEN_SURFACE: public
       OIDC_PRIVATE_KEY_FILE: /run/secrets/oidc_private_key
       SYNAPSE_OIDC_CLIENT_SECRET_FILE: /run/secrets/synapse_oidc_client_secret
+      # For "lumenctl manage nexus_integrations_rekey" (key rotation, docs/nexus/CONFIG.md).
+      NEXUS_INTEGRATIONS_KEY_FILE: /run/secrets/nexus_integrations_key
     secrets:
       - django_secret_key
       - postgres_app_password
       - oidc_private_key
       - synapse_oidc_client_secret
+      - nexus_integrations_key
     networks:
       - backend
 

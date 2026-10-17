@@ -78,7 +78,8 @@ describe("route and feature registry", () => {
       if (a.status === "ready") expect(a.component, a.id).toBeTypeOf("function");
       expect(a.summary.length, a.id).toBeGreaterThan(10);
     }
-    expect(allAreas().filter((a) => a.status === "coming_soon").map((a) => a.id)).toEqual(["inbox", "integrations"]);
+    // Inbox and Integrations are delivered (integrations team): nothing is a placeholder any more.
+    expect(allAreas().filter((a) => a.status === "coming_soon").map((a) => a.id)).toEqual([]);
     expect(allRoomPanels().map((p) => p.id)).toEqual(["crm"]);
     for (const p of allRoomPanels()) expect(BUILTIN_PANELS.has(p.id)).toBe(false);
   });
@@ -97,13 +98,15 @@ describe("route and feature registry", () => {
     expect(isAreaVisible(contacts, null)).toBe(true); // not connected yet: shows its connect state
     expect(isAreaVisible(contacts, ws({ crm: true }, {}))).toBe(true);
     expect(isAreaVisible(contacts, ws({ crm: false }, {}))).toBe(false);
-    expect(isAreaVisible(inbox, ws({}, {}))).toBe(true);
+    expect(isAreaVisible(inbox, ws({}, {}))).toBe(false);
+    expect(isAreaVisible(inbox, ws({ integrations: true }, {}))).toBe(true);
     expect(isAreaVisible(reports, ws({ crm: true }, { "reports.view": false }))).toBe(false);
     expect(isAreaVisible(reports, ws({ crm: true }, { "reports.view": true }))).toBe(true);
   });
 
   it("renders coming-soon areas honestly, without data", () => {
-    const html = renderToStaticMarkup(<ComingSoon area={findArea("inbox")!} />);
+    const area = { ...findArea("calls")!, status: "coming_soon" as const, owner: "integrations team" };
+    const html = renderToStaticMarkup(<ComingSoon area={area} />);
     expect(html).toContain("Coming in this test build");
     expect(html).toContain("integrations team");
     expect(html).not.toMatch(/<table|<li/);

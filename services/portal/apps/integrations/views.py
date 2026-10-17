@@ -12,7 +12,7 @@ and, in mock mode only, the local fake consent page.
 from __future__ import annotations
 
 import logging
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
@@ -30,8 +30,14 @@ from .models import Provider
 log = logging.getLogger("nexus.integrations")
 
 
-def _back(**params) -> HttpResponseRedirect:
-    response = HttpResponseRedirect(conf.app_url("#/integrations" + ("?" + urlencode(params) if params else "")))
+def _back(*, error: str = "", connected: str = "", provider: str = "") -> HttpResponseRedirect:
+    """Back to the app's Integrations area: ``#/integrations/connected/<provider>`` or
+    ``#/integrations/error/<code>[/<provider>]`` (path segments: the SPA's routes have no query)."""
+    if connected:
+        target = f"#/integrations/connected/{quote(connected)}"
+    else:
+        target = f"#/integrations/error/{quote(error or 'unknown')}" + (f"/{quote(provider)}" if provider else "")
+    response = HttpResponseRedirect(conf.app_url(target))
     response["Cache-Control"] = "no-store"
     response["Referrer-Policy"] = "no-referrer"
     return response
@@ -77,7 +83,7 @@ def oauth_callback(request, slug: str):
         return _back(error=exc.code, provider=provider)
     except (PermissionDenied, Http404):
         return _back(error="not_allowed", provider=provider)
-    return _back(connected=provider, connection=str(conn.pk))
+    return _back(connected=conn.provider)
 
 
 # --- mock consent (development / test only) ---------------------------------------------------------------

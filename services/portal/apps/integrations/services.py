@@ -227,6 +227,8 @@ def mark_read(actor, item_ids, *, read: bool = True) -> int:
 # --- mutes --------------------------------------------------------------------------------------------
 
 MATRIX_GROUP_RE = re.compile(r"^matrix:![^:\s]{1,200}(:[^\s]{1,200})?$")
+# Workspace notifications (apps.automation) are grouped by their own group key.
+NOTIFICATION_GROUP_RE = re.compile(r"^nexus:[A-Za-z0-9:._-]{1,190}$")
 
 
 def add_mute(request, actor, body: dict) -> InboxMute:
@@ -235,6 +237,9 @@ def add_mute(request, actor, body: dict) -> InboxMute:
     if key.startswith("matrix:"):
         if not MATRIX_GROUP_RE.match(key):
             raise ValidationFailed(fields={"group_key": ["Not a chat room ID."]})
+    elif key.startswith("nexus:"):
+        if not NOTIFICATION_GROUP_RE.match(key):
+            raise ValidationFailed(fields={"group_key": ["Not a notification group."]})
     elif not access.for_actor(actor, InboxItem).filter(group_key=key).exists():
         raise ValidationFailed(fields={"group_key": ["Unknown or inaccessible group."]})
     mute, _ = InboxMute.objects.get_or_create(workspace=actor.workspace, user=actor.user, group_key=key,
@@ -562,6 +567,21 @@ def _ghl_contact_out(actor, conn, c: dict, mapped: dict) -> dict:
     if not m["linked"]:
         out["suggestions"] = contact_suggestions(actor, [c.get("email") or ""], [c.get("phone") or ""])
     return out
+
+
+def ghl_conversation(request, actor, item_id) -> dict:
+    """The latest messages of a HighLevel conversation, fetched now (read-only, untrusted)."""
+    it = _get_item(actor, item_id)
+    if it.source != Provider.GOHIGHLEVEL:
+        raise Http404()
+    conv_id = it.external_id if it.kind == InboxItem.Kind.GHL_CONVERSATION else it.data.get("conversation_id", "")
+    if not conv_id:
+        return {"messages": [], "untrusted": True}
+    with provider_call(it.connection):
+        rows = adapter_for(Provider.GOHIGHLEVEL).conversation_messages(it.connection, conv_id, limit=20)
+    access.audit_read(request, actor, it, reason="ghl_conversation")
+    return {"messages": [{**r, "untrusted": True} for r in rows], "untrusted": True, "read_only": True,
+            "external_url": it.external_url}
 
 
 def ghl_search_contacts(actor, query: str, *, connection_id=None, limit: int = 20) -> list[dict]:

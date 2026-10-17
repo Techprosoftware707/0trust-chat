@@ -90,5 +90,5 @@ def connect(fake_transport, user, ws, provider, *, account=None, scope=None, cli
     cb = urlsplit(conf.redirect_uri(provider)).path
     r = client.get(cb, {"code": code, "state": p.get("state", "")})
     assert r.status_code == 302, r.content
-    assert "connected=" in r["Location"], r["Location"]
+    assert "/integrations/connected/" in r["Location"], r["Location"]
     return IntegrationConnection.objects.filter(workspace=ws, provider=provider).exclude(status="disconnected").latest("created_at")
