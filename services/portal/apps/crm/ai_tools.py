@@ -793,4 +793,9 @@ TOOLS = [
     ),
 ]
 
+# Real estate, lending, meetings and reports (built on the verticals team's services).
+from .ai_tools_verticals import TOOLS as _VERTICAL_TOOLS  # noqa: E402
+
+TOOLS += _VERTICAL_TOOLS
+
 __all__ = ["TOOLS", "contact_brief", "task_brief", "event_brief", "activity_brief", "opportunity_brief", "LINK"]

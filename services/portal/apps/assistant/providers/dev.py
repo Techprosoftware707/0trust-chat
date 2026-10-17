@@ -33,7 +33,9 @@ HELP = (
     "• “Pipeline overview”\n"
     "• “Daily summary” or “Weekly summary”\n"
     "• “Find contact <name>” / “Search notes for <words>”\n"
-    "• “Remind me to <something> tomorrow” or “Add a note: <text>” (prepared for your confirmation)"
+    "• “Remind me to <something> tomorrow” or “Add a note: <text>” (prepared for your confirmation)\n"
+    "• Real estate and lending: “Approaching deadlines”, “Deals waiting on documents”, “Applications missing documents”, "
+    "“Properties matching this client”, “Draft a viewing confirmation”, “Last meeting's action items”"
 )
 
 _FILLER = {"summarise", "summarize", "summary", "of", "about", "contact", "the", "please", "tell", "me", "who", "is", "a", "an",
@@ -68,8 +70,22 @@ def intent(q: str, ctx: dict) -> str:
         return "create_note"
     if has("next meeting", "prepare me", "prep me", "next appointment"):
         return "next_meeting"
-    if has("waiting on document", "missing document", "document checklist", "outstanding document"):
+    if has("waiting on document", "missing document", "document checklist", "outstanding document", "missing docs"):
         return "documents"
+    if has("deadline", "closing date", "contingenc"):
+        return "deadlines"
+    if has("viewing confirmation", "confirm the viewing", "confirm my viewing") or (has("draft") and has("viewing")):
+        return "viewing_draft"
+    if has("last meeting", "previous meeting", "action items", "next steps from"):
+        return "last_meeting"
+    if has("matching propert", "properties for this", "properties that fit", "properties match"):
+        return "matching_properties"
+    if has("find propert", "search propert", "listings", "properties in"):
+        return "search_properties"
+    if has("lending report", "lending pipeline", "loan pipeline"):
+        return "lending_report"
+    if has("team week", "team's week", "week report"):
+        return "team_week"
     if has("weekly", "this week", "last week") and has("summary", "recap", "report", "activity"):
         return "weekly"
     if has("daily", "today", "yesterday") and has("summary", "recap", "report", "activity"):
@@ -212,7 +228,21 @@ class DevProvider:
                 if ev.get("opportunity"):
                     return want("get_opportunity", {"opportunity_id": ev["opportunity"]["id"]})
                 return "Here is your next meeting. It isn't linked to a contact or deal, so there is nothing more to prepare from."
+            if last[0] == "get_contact_summary" and "meeting_action_items" in available:
+                return [_call("meeting_action_items", {"contact_id": last[1]["contact"]["id"]})]
             return "Here is your next meeting and what the records say about who you're meeting."
+        if kind == "viewing_draft":
+            if not done:
+                args = {"upcoming_only": True, "limit": 1}
+                if ctx.get("contact_id"):
+                    args["contact_id"] = ctx["contact_id"]
+                return want("viewings", args)
+            if last[0] == "viewings":
+                rows = last[1].get("viewings", [])
+                if not rows:
+                    return "There is no upcoming viewing to confirm."
+                return want("draft_viewing_confirmation", {"event_id": rows[0]["id"]})
+            return "Here is a draft built from the appointment. It hasn't been sent: copy it and send it yourself."
         if done:
             if last[0].startswith("prepare_"):
                 return "I prepared this change. Review it below and press Confirm to apply it, or Cancel."
@@ -232,10 +262,27 @@ class DevProvider:
             name, args = single[kind]
             return want(name, args)
         if kind == "documents":
-            for name in ("deals_waiting_on_documents", "lending_applications_missing_documents"):
+            order = ("lending_applications_missing_documents", "deals_waiting_on_documents") if "application" in q.lower() else (
+                "deals_waiting_on_documents", "lending_applications_missing_documents")
+            for name in order:
                 if name in available:
                     return [_call(name, {})]
-            return "Document checklists aren't available in this build yet, so I can't list deals waiting on documents."
+            return "Lending document checklists aren't turned on for this workspace, so there's nothing to list."
+        if kind == "deadlines":
+            return want("approaching_deadlines", {"days": _days(q.lower(), 14)})
+        if kind == "last_meeting":
+            return want("meeting_action_items", {"contact_id": ctx["contact_id"]} if ctx.get("contact_id") else {})
+        if kind == "matching_properties":
+            if not ctx.get("contact_id"):
+                return "Open the client's contact and ask again, so I know whose preferences to use."
+            return want("matching_properties", {"contact_id": ctx["contact_id"]})
+        if kind == "search_properties":
+            query = re.sub(r"(?i)^.*?(find properties|search properties|properties in|listings)\s*(in|for|on)?\s*", "", q).strip(" ?.")
+            return want("search_properties", {"query": query[:100]})
+        if kind == "lending_report":
+            return want("lending_pipeline_report", {})
+        if kind == "team_week":
+            return want("team_week_report", {})
         if kind == "search_activities":
             query = re.sub(r"(?i)^.*?(notes about|emails about|timeline for|search notes for|search notes|search the timeline for|"
                            r"search the timeline|search activities for|search activities)\s*", "", q).strip(" ?.")
