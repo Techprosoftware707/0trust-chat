@@ -257,6 +257,9 @@ await test("portal: sign up lands on the dashboard", async () => {
   await fill(cp, "input[name=password2]", password);
   await cp.locator("input[name=accept_terms]").check();
   await submit(cp);
+  if (await cp.getByRole("heading", { name: "Too many attempts" }).count()) {
+    throw new Error("the portal's sign-up limit for this IP (10/hour) is used up; reset it on the test host (docs/test-report.md, Reproducing)");
+  }
   assert.match(cp.url(), /\/portal\/dashboard\/$/);
   await cp.getByText("UI Tester").first().waitFor();
   await shot(cp, "portal-dashboard-new");
@@ -390,7 +393,7 @@ await test("mobile portal workspace detail: no horizontal overflow", async () =>
   await shot(mcp, "mobile-portal-workspace-detail");
 });
 
-{
+if (workspaceUrl) {
   const dcust = await newContext({ colorScheme: "dark", storageState: await cust.storageState() });
   const dcp = await dcust.newPage();
   await dcp.goto(site + "/portal/dashboard/");

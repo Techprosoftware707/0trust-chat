@@ -101,6 +101,16 @@ class TestSignupAndLogin:
         assert r.status_code == 200
         assert not User.objects.filter(username="weak").exists()
 
+    def test_rate_limited_signup_gets_the_branded_page(self, settings):
+        settings.ACCOUNT_RATE_LIMITS = {**settings.ACCOUNT_RATE_LIMITS, "signup": "1/h/ip"}
+        c = Client()
+        data = {"username": "weak", "email": "w@example.org", "password1": "password", "password2": "password"}
+        c.post("/accounts/signup/", data)
+        r = c.post("/accounts/signup/", data)
+        assert r.status_code == 429
+        body = r.content.decode()
+        assert "<h1>Too many attempts</h1>" in body and 'id="main"' in body
+
     def test_signup_rejects_uppercase_reserved(self):
         c = Client()
         for name in ["admin", "Root"]:
