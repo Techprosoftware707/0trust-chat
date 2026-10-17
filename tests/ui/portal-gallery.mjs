@@ -444,6 +444,19 @@ async function settle(page) {
   await page.evaluate(() => document.fonts && document.fonts.ready);
   await page.waitForTimeout(120);
 }
+/** Masks credentials before a screenshot: recovery codes, TOTP secrets and QR codes, one-time
+ *  links and WireGuard profiles. The layout stays; the secret never reaches a PNG. */
+async function redact(page) {
+  await page.evaluate(() => {
+    const mask = (t) => t.replace(/[A-Za-z0-9+/=_-]/g, "•");
+    for (const el of document.querySelectorAll("textarea[readonly], textarea[disabled], #authenticator_secret, .recovery-codes")) {
+      if ("value" in el && el.value) el.value = mask(el.value);
+      else el.textContent = mask(el.textContent);
+    }
+    for (const el of document.querySelectorAll(".codebox, .wg-config, main pre.small")) el.textContent = mask(el.textContent);
+    for (const el of document.querySelectorAll(".qr, img[src^='data:image']")) el.style.filter = "blur(9px)";
+  });
+}
 async function captureAll(page, name, label = name, { focus = true, shots = SHOTS } = {}) {
   const entry = { page: label, url: page.url(), status: page.__status ?? null, shots: [], focus: [] };
   for (const [vp, theme] of shots) {
@@ -451,6 +464,7 @@ async function captureAll(page, name, label = name, { focus = true, shots = SHOT
     await page.setViewportSize({ width: v.width, height: v.height });
     await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
     await settle(page);
+    await redact(page);
     const file = `${label}--${vp}-${theme}.png`;
     if (v.zoom) {
       // 200 % zoom: the same CSS layout at device scale 2 (what a 1280 px window shows at 200 %).
