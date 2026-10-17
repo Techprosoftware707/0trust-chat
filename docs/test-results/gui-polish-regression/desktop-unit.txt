@@ -1,0 +1,214 @@
+TAP version 13
+# Subtest: parseServerInput accepts server names, Matrix IDs and https URLs
+ok 1 - parseServerInput accepts server names, Matrix IDs and https URLs
+  ---
+  duration_ms: 2.27318
+  type: 'test'
+  ...
+# Subtest: discoverServer: Lumen server with io.lumen.app, SSO provider from the block, rtc needs auth
+ok 2 - discoverServer: Lumen server with io.lumen.app, SSO provider from the block, rtc needs auth
+  ---
+  duration_ms: 3.655935
+  type: 'test'
+  ...
+# Subtest: discoverServer: advertised livekit transports enable calls
+ok 3 - discoverServer: advertised livekit transports enable calls
+  ---
+  duration_ms: 0.867809
+  type: 'test'
+  ...
+# Subtest: discoverServer: plain Matrix server without well-known falls back to https://<name>
+ok 4 - discoverServer: plain Matrix server without well-known falls back to https://<name>
+  ---
+  duration_ms: 0.421257
+  type: 'test'
+  ...
+# Subtest: discoverServer: errors
+ok 5 - discoverServer: errors
+  ---
+  duration_ms: 1.601951
+  type: 'test'
+  ...
+# Subtest: toWebClientConfig output is accepted by the web client's own parser rules
+ok 6 - toWebClientConfig output is accepted by the web client's own parser rules
+  ---
+  duration_ms: 0.733173
+  type: 'test'
+  ...
+# Subtest: io.lumen.app account_delete_url is parsed and validated like the other links
+ok 7 - io.lumen.app account_delete_url is parsed and validated like the other links
+  ---
+  duration_ms: 1.755359
+  type: 'test'
+  ...
+# Subtest: parseRtcTransports keeps at most 4 valid wss URLs
+ok 8 - parseRtcTransports keeps at most 4 valid wss URLs
+  ---
+  duration_ms: 0.636158
+  type: 'test'
+  ...
+# Subtest: parseStoredProfile re-validates a tampered server.json
+ok 9 - parseStoredProfile re-validates a tampered server.json
+  ---
+  duration_ms: 1.207079
+  type: 'test'
+  ...
+# Subtest: parseBuildConfig: LUMEN_DEFAULT_SERVER is a server name, empty means ask
+ok 10 - parseBuildConfig: LUMEN_DEFAULT_SERVER is a server name, empty means ask
+  ---
+  duration_ms: 1.120808
+  type: 'test'
+  ...
+# Subtest: PIN verifier: PBKDF2-SHA-256 with 600 000 iterations and a random salt
+ok 11 - PIN verifier: PBKDF2-SHA-256 with 600 000 iterations and a random salt
+  ---
+  duration_ms: 414.005348
+  type: 'test'
+  ...
+# Subtest: PIN verifier: known-answer check against node:crypto pbkdf2Sync
+ok 12 - PIN verifier: known-answer check against node:crypto pbkdf2Sync
+  ---
+  duration_ms: 34.369102
+  type: 'test'
+  ...
+# Subtest: PIN rules and verifier parsing
+ok 13 - PIN rules and verifier parsing
+  ---
+  duration_ms: 19.578087
+  type: 'test'
+  ...
+# Subtest: lock-screen back-off
+ok 14 - lock-screen back-off
+  ---
+  duration_ms: 0.43142
+  type: 'test'
+  ...
+# Subtest: settings: defaults and validation
+ok 15 - settings: defaults and validation
+  ---
+  duration_ms: 0.47531
+  type: 'test'
+  ...
+# Subtest: window state is only restored onto a visible display
+ok 16 - window state is only restored onto a visible display
+  ---
+  duration_ms: 0.439664
+  type: 'test'
+  ...
+# Subtest: web client CSP: script-src self + wasm, no unsafe-inline/eval, connect-src limited to configured origins
+ok 17 - web client CSP: script-src self + wasm, no unsafe-inline/eval, connect-src limited to configured origins
+  ---
+  duration_ms: 3.076106
+  type: 'test'
+  ...
+# Subtest: desktop pages CSP has no network access
+ok 18 - desktop pages CSP has no network access
+  ---
+  duration_ms: 0.281555
+  type: 'test'
+  ...
+# Subtest: permission requests: media/notifications only for the app origin's top frame
+ok 19 - permission requests: media/notifications only for the app origin's top frame
+  ---
+  duration_ms: 0.659758
+  type: 'test'
+  ...
+# Subtest: permission checks and display media
+ok 20 - permission checks and display media
+  ---
+  duration_ms: 0.290592
+  type: 'test'
+  ...
+# Subtest: app:// path resolution refuses traversal
+ok 21 - app:// path resolution refuses traversal
+  ---
+  duration_ms: 1.044611
+  type: 'test'
+  ...
+# Subtest: URL helpers
+ok 22 - URL helpers
+  ---
+  duration_ms: 1.184946
+  type: 'test'
+  ...
+# Subtest: packaged builds refuse debugging / insecure switches
+ok 23 - packaged builds refuse debugging / insecure switches
+  ---
+  duration_ms: 0.439023
+  type: 'test'
+  ...
+# Subtest: ssoRedirectUrl builds the RFC 8252 redirect with the nonce inside redirectUrl
+ok 24 - ssoRedirectUrl builds the RFC 8252 redirect with the nonce inside redirectUrl
+  ---
+  duration_ms: 1.159502
+  type: 'test'
+  ...
+# Subtest: a callback with the pending nonce completes sign-in exactly once
+ok 25 - a callback with the pending nonce completes sign-in exactly once
+  ---
+  duration_ms: 0.876236
+  type: 'test'
+  ...
+# Subtest: stray callbacks (no attempt, wrong nonce, no token, other path) are ignored
+ok 26 - stray callbacks (no attempt, wrong nonce, no token, other path) are ignored
+  ---
+  duration_ms: 0.670958
+  type: 'test'
+  ...
+# Subtest: a new attempt supersedes the old one; cancel and timeout reject
+ok 27 - a new attempt supersedes the old one; cancel and timeout reject
+  ---
+  duration_ms: 0.936739
+  type: 'test'
+  ...
+# Subtest: the renderer can only start SSO at the configured homeserver with a valid IdP id
+ok 28 - the renderer can only start SSO at the configured homeserver with a valid IdP id
+  ---
+  duration_ms: 2.740419
+  type: 'test'
+  ...
+# Subtest: browser failing to open rejects the attempt
+ok 29 - browser failing to open rejects the attempt
+  ---
+  duration_ms: 0.46405
+  type: 'test'
+  ...
+# Subtest: findAppLinkInArgv: Windows/Linux deliver the URL as an argument
+ok 30 - findAppLinkInArgv: Windows/Linux deliver the URL as an argument
+  ---
+  duration_ms: 0.27741
+  type: 'test'
+  ...
+# Subtest: safeEqual and routeDeepLink edge cases
+ok 31 - safeEqual and routeDeepLink edge cases
+  ---
+  duration_ms: 1.913657
+  type: 'test'
+  ...
+# Subtest: url-validation.json: validateEndpointUrl
+ok 32 - url-validation.json: validateEndpointUrl
+  ---
+  duration_ms: 2.340344
+  type: 'test'
+  ...
+# Subtest: wellknown.json: parseWellKnown
+ok 33 - wellknown.json: parseWellKnown
+  ---
+  duration_ms: 3.027854
+  type: 'test'
+  ...
+# Subtest: deeplinks.json: routeDeepLink
+ok 34 - deeplinks.json: routeDeepLink
+  ---
+  duration_ms: 2.618388
+  type: 'test'
+  ...
+1..34
+# tests 34
+# suites 0
+# pass 34
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 653.53578

@@ -1,0 +1,36 @@
+HEAD 01c7773
+=== portal-unit start 08:40:40
+=== portal-unit exit 0 08:41:11
+=== chat-unit start 08:41:11
+=== chat-unit exit 0 08:41:16
+=== chat-typecheck-lint start 08:41:16
+=== chat-typecheck-lint exit 0 08:41:27
+=== chat-e2ee start 08:41:27
+=== chat-e2ee exit 0 08:41:30
+=== chat-ui start 08:41:30
+=== chat-ui exit 0 08:42:43
+=== deployed-e2ee start 08:42:43
+=== deployed-e2ee exit 0 08:42:57
+=== ui-portal start 08:42:57
+=== ui-portal exit 0 08:43:56
+=== calls-permissions start 08:43:56
+=== calls-permissions exit 0 08:44:21
+=== calls-core start 08:44:21
+=== calls-core exit 0 08:48:54
+=== calls-security start 08:48:54
+=== calls-security exit 0 08:51:39
+=== calls-network start 08:51:39
+=== calls-network exit 0 08:57:30
+=== widget-call start 08:57:30
+=== widget-call exit 1 08:59:43
+=== desktop-unit start 08:59:43
+=== desktop-unit exit 0 08:59:46
+=== desktop-e2e start 08:59:46
+=== desktop-e2e exit 0 09:01:00
+=== federation start 09:01:00
+=== federation exit 0 09:03:39
+=== wireguard start 09:03:39
+=== wireguard exit 0 09:03:47
+=== security-scan start 09:03:47
+=== security-scan exit 1 09:03:53
+=== done 09:03:53

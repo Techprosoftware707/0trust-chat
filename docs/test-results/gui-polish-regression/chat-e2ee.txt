@@ -1,0 +1,13 @@
+✔ creates an encrypted DM and both users join (1930.111443ms)
+✔ alice -> bob message is encrypted on the wire and decrypted by bob (254.178693ms)
+✔ bob -> alice message is encrypted and decrypted by alice (212.203685ms)
+✔ encrypted attachment: ciphertext on the server, plaintext only after decryption (216.751884ms)
+✔ the server never saw plaintext: /messages and the admin API only hold ciphertext (50.507012ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3098.173162
