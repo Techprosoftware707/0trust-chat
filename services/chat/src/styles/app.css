@@ -37,7 +37,7 @@ pre { background: var(--surface-2); border: 1px solid var(--border); border-radi
 pre code { background: none; border: 0; padding: 0; }
 ::selection { background: rgba(92, 208, 230, 0.35); }
 :focus-visible { outline: none; box-shadow: var(--focus-ring); }
-a:focus-visible { border-radius: 4px; }
+a:not([class]):focus-visible { border-radius: 4px; }
 button { font: inherit; color: inherit; }
 svg.lucide { width: 1.15em; height: 1.15em; flex: none; stroke-width: 2; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px; }
@@ -170,7 +170,8 @@ legend { padding: 0; margin-bottom: var(--space-2); }
 .check-list li { display: flex; gap: var(--space-2); align-items: flex-start; }
 .check-list li svg.lucide { color: var(--success); margin-top: 0.15rem; }
 .codebox { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); overflow-wrap: anywhere; user-select: all; }
-dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-5); margin: 0; font-size: var(--text-sm); }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-5); font-size: var(--text-sm); }
+:where(dl.kv) { margin: 0; } /* zero specificity: stack spacing (.stack > * + *) still applies */
 dl.kv dt { color: var(--text-muted); }
 dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 mark { background: color-mix(in srgb, var(--lm-amber-400) 45%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
@@ -510,7 +511,7 @@ mark { background: color-mix(in srgb, var(--lm-amber-400) 45%, transparent); col
 .send-btn:active { transform: scale(0.92); }
 .send-btn:not([disabled]) { box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--lm-cyan-500) 80%, transparent); animation: pop var(--dur-med) var(--ease-spring) both; }
 .send-btn[disabled] { opacity: 0.4; cursor: default; filter: grayscale(0.4); }
-.composer-hint { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-subtle); margin: 6px 0 0; text-align: center; }
+.composer-hint { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-subtle); margin: 6px auto 0; text-align: center; }
 .composer-hint svg.lucide { width: 0.85rem; height: 0.85rem; }
 .composer-context { display: flex; gap: var(--space-2); align-items: center; padding: 6px 6px 6px 14px; margin-bottom: 6px; border-radius: var(--radius-md); background: var(--surface-2); border-left: 3px solid var(--accent-3); font-size: var(--text-sm); }
 .composer-context > svg.lucide { color: var(--accent-3); }
@@ -597,8 +598,10 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .verify-icon.celebrate { animation: pop var(--dur-slow) var(--ease-spring) both; filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--success) 35%, transparent)); }
 .verify-headline { display: block; font-size: var(--text-lg); margin-bottom: 2px; color: var(--text); }
 /* 7 emoji: 4 + 3, the second row centred */
-.sas-grid { list-style: none; margin: var(--space-4) 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
-.sas-item { flex: 0 0 calc((100% - 3 * var(--space-2)) / 4); display: grid; justify-items: center; gap: 4px; padding: var(--space-3) var(--space-1); border-radius: var(--radius-md); background: var(--surface-2); border: 1px solid var(--border); animation: pop var(--dur-slow) var(--ease-spring) both; }
+.sas-grid { list-style: none; margin: var(--space-4) 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-2); }
+.sas-item:nth-child(5) { grid-column: 2 / span 2; }
+.sas-name { overflow-wrap: break-word; }
+.sas-item { grid-column: span 2; min-width: 0; display: grid; justify-items: center; gap: 4px; padding: var(--space-3) var(--space-1); border-radius: var(--radius-md); background: var(--surface-2); border: 1px solid var(--border); animation: pop var(--dur-slow) var(--ease-spring) both; }
 .sas-item:nth-child(2) { animation-delay: 30ms; } .sas-item:nth-child(3) { animation-delay: 60ms; } .sas-item:nth-child(4) { animation-delay: 90ms; }
 .sas-item:nth-child(5) { animation-delay: 120ms; } .sas-item:nth-child(6) { animation-delay: 150ms; } .sas-item:nth-child(7) { animation-delay: 180ms; }
 .sas-emoji { font-size: 2rem; line-height: 1.1; }
@@ -682,7 +685,12 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .about-crypto { display: block; margin-top: 2px; }
 
 /* ---- Calls ---------------------------------------------------------------- */
-:root { --call-stage: #0b1428; --call-stage-2: #101d38; --call-chip: rgba(5, 11, 26, 0.62); }
+:root { --call-stage: #0b1428; --call-stage-2: #101d38; --call-chip: rgba(5, 11, 26, 0.62);
+  /* tiles without video: airy in light mode, the dark stage in dark mode */
+  --call-tile-bg: radial-gradient(420px 220px at 50% 0%, rgba(134, 118, 244, 0.14), transparent 70%), radial-gradient(420px 220px at 50% 110%, rgba(255, 179, 145, 0.16), transparent 70%), linear-gradient(180deg, #edf1f7, #e2e8f2);
+  --call-tile-edge: rgba(10, 22, 48, 0.08); }
+:root[data-theme="dark"] { --call-tile-bg: radial-gradient(360px 180px at 50% 0%, rgba(134, 118, 244, 0.16), transparent 70%), var(--call-stage); --call-tile-edge: rgba(255, 255, 255, 0.14); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --call-tile-bg: radial-gradient(360px 180px at 50% 0%, rgba(134, 118, 244, 0.16), transparent 70%), var(--call-stage); --call-tile-edge: rgba(255, 255, 255, 0.14); } }
 .btn-success { --btn-bg: var(--success); --btn-fg: #fff; --btn-border: transparent; }
 .btn-success:hover { color: #fff; filter: brightness(1.07); border-color: transparent; }
 :root[data-theme="dark"] .btn-success { --btn-fg: #04111f; }
@@ -769,6 +777,8 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 /* Call screen */
 .call-screen { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--bg); color: var(--text); animation: fade-up var(--dur-med) var(--ease-out) both; }
 .call-screen:fullscreen { background: var(--bg); }
+/* notch / rounded corners (the mobile widget sets its own padding in widget.css) */
+.call-screen { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 .call-top { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) clamp(var(--space-3), 2vw, var(--space-5)); min-height: 4rem; }
 .call-title { min-width: 0; flex: 1; }
 .call-name { font-size: var(--text-lg); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -787,10 +797,10 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .call-stage { flex: 1; min-width: 0; min-height: 0; position: relative; }
 .layout-one { display: grid; }
 .layout-one > .call-tile.large, .call-waiting { width: 100%; height: 100%; }
-.call-waiting { display: grid; place-content: center; justify-items: center; gap: var(--space-3); border-radius: var(--radius-xl); background: radial-gradient(520px 260px at 50% 0%, rgba(92, 208, 230, 0.16), transparent 70%), var(--call-stage); color: #dce6f5; text-align: center; padding: var(--space-5); }
-.call-waiting p { margin: 0; color: #a9b4c9; }
+.call-waiting { display: grid; place-content: center; justify-items: center; gap: var(--space-3); border-radius: var(--radius-xl); background: var(--call-tile-bg); box-shadow: inset 0 0 0 1px var(--call-tile-edge); color: var(--text); text-align: center; padding: var(--space-5); }
+.call-waiting p { margin: 0; color: var(--text-muted); }
 .pip { position: absolute; right: var(--space-3); bottom: var(--space-3); width: clamp(140px, 22%, 280px); aspect-ratio: 16 / 10; z-index: 2; box-shadow: var(--shadow-lg); border-radius: var(--radius-lg); }
-.pip .call-tile { width: 100%; height: 100%; border: 2px solid rgba(255, 255, 255, 0.18); }
+.pip .call-tile { width: 100%; height: 100%; border: 2px solid var(--call-tile-edge); }
 .pip .tile-caption { left: 6px; bottom: 6px; font-size: var(--text-xs); padding: 2px 8px; }
 .layout-grid { display: grid; gap: var(--space-3); align-content: center; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .layout-grid.n5, .layout-grid.n6, .layout-grid.n7, .layout-grid.n8, .layout-grid.n9 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -805,6 +815,8 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
 .filmstrip .call-tile { aspect-ratio: 16 / 10; flex: none; }
 .call-tile { position: relative; margin: 0; border-radius: var(--radius-lg); overflow: hidden; background: radial-gradient(360px 180px at 50% 0%, rgba(134, 118, 244, 0.16), transparent 70%), var(--call-stage); color: #e9eef7; min-height: 0; isolation: isolate; transition: box-shadow var(--dur-fast); }
 .call-tile.large { border-radius: var(--radius-xl); }
+/* :where() keeps this below the state rings (.unknown, .speaking) */
+.call-tile:where(:not(.has-video):not(.screen)) { background: var(--call-tile-bg); box-shadow: inset 0 0 0 1px var(--call-tile-edge); }
 .call-tile.screen { background: var(--call-stage); }
 /* Who's talking: a ring round the avatar in voice, a soft frame round video. */
 .call-tile.speaking.has-video { box-shadow: inset 0 0 0 2px var(--lm-teal-400), 0 0 24px -6px color-mix(in srgb, var(--lm-teal-400) 70%, transparent); }
@@ -935,7 +947,7 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
   .call-log { min-width: 0; width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .live-dot, .incoming-call.ring > .avatar, .typing-dots span { animation: none; }
+  .live-dot, .incoming-call.ring > .avatar, .typing-dots span, .sas-item { animation: none; }
   .call-btn, .call-tile, .tile-avatar .avatar { transition: none; }
 }
 
@@ -987,9 +999,11 @@ dialog.dialog::backdrop { background: rgba(5, 11, 26, 0.55); backdrop-filter: bl
   .theme-options { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
   .dialog-header { padding: var(--space-4) var(--space-4) var(--space-2); }
   .dialog-body { padding: var(--space-2) var(--space-4) var(--space-4); }
-  .sas-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .sas-emoji { font-size: 1.6rem; }
-  .toasts { left: var(--space-3); right: var(--space-3); bottom: var(--space-3); width: auto; }
+  .sas-grid { gap: 6px; }
+  .sas-item { padding-inline: 2px; }
+  .sas-name { font-size: 0.6875rem; letter-spacing: -0.01em; }
+  .toasts { left: var(--space-3); right: var(--space-3); bottom: max(var(--space-3), env(safe-area-inset-bottom)); width: auto; }
 }
 @media (hover: none) {
   .msg-actions { transition: none; }

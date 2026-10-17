@@ -9,7 +9,7 @@ import {
 } from "matrix-js-sdk";
 import { ArrowDown, LockKeyhole } from "lucide-react";
 import { useClient } from "../../matrix/context";
-import { buildTimeline, type TimelineItem } from "../../matrix/timeline";
+import { buildTimeline, groupRuns } from "../../matrix/timeline";
 import { buildCallHistory, callMarkers } from "../../calls/history";
 import { useRoomCall } from "../../calls/store";
 import { CallTimelineItem } from "../calls/CallTimelineItem";
@@ -32,26 +32,6 @@ const ROOM_EVENTS = [
   RoomEvent.TimelineRefresh,
 ] as const;
 const CLIENT_EVENTS = [MatrixEventEvent.Decrypted, MatrixEventEvent.Replaced, MatrixEventEvent.VisibilityChange] as const;
-
-type CallItem = Extract<TimelineItem, { kind: "call" }>;
-type NoticeItem = Extract<TimelineItem, { kind: "notice" }>;
-type Block = TimelineItem | { kind: "call-run"; key: string; items: CallItem[] } | { kind: "notice-run"; key: string; items: NoticeItem[] };
-
-/** Consecutive call items share one compact card; consecutive notices one quiet block. */
-function groupRuns(items: TimelineItem[]): Block[] {
-  const out: Block[] = [];
-  for (const it of items) {
-    const last = out[out.length - 1];
-    if (it.kind === "call") {
-      if (last?.kind === "call-run") last.items.push(it);
-      else out.push({ kind: "call-run", key: `calls-${it.key}`, items: [it] });
-    } else if (it.kind === "notice") {
-      if (last?.kind === "notice-run") last.items.push(it);
-      else out.push({ kind: "notice-run", key: `notices-${it.key}`, items: [it] });
-    } else out.push(it);
-  }
-  return out;
-}
 
 function lastRealEvent(room: Room): MatrixEvent | null {
   const evs = room.getLiveTimeline().getEvents();

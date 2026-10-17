@@ -64,50 +64,37 @@ const CURATED = [
   "login-1280-light",
   "login-390-dark",
   "backup-intro-1280-light",
-  "backup-key-390-dark",
   "nudge-1280-light",
-  "list-360-light",
-  "list-390-dark",
-  "empty-account-1280-light",
   "empty-account-390-dark",
+  "list-360-light",
   "dm-1280-light",
   "dm-1280-dark",
   "dm-1920-light",
   "dm-1024-dark",
   "dm-768-light",
   "dm-390-light",
-  "dm-390-dark",
   "dm-360-light",
   "dm-zoom200-light",
-  "calls-run-1280-light",
   "calls-run-390-dark",
   "group-1280-light",
   "utd-preview-1280-dark",
-  "composer-1280-light",
   "composer-390-dark",
   "info-1280-light",
-  "info-390-dark",
   "search-1280-dark",
-  "settings-profile-1280-light",
-  "settings-appearance-1280-dark",
-  "settings-notifications-1280-light",
-  "settings-calls-1280-light",
-  "settings-security-1280-light",
+  "settings-about-1280-light",
   "settings-sessions-390-dark",
-  "settings-about-zoom200-light",
-  "verify-sas-1280-light",
+  "settings-security-390-light",
+  "settings-notifications-blocked-1280-light",
+  "verify-sas-360-light",
   "verify-device-390-light",
   "offline-1280-light",
   "lobby-video-1280-dark",
-  "lobby-voice-390-light",
-  "incoming-1280-light",
   "incoming-390-dark",
-  "join-call-header-1280-light",
   "widget-joining-390-dark",
-  "call-voice-1280-dark",
-  "call-video-1280-light",
+  "call-voice-1280-light",
   "call-voice-390-dark",
-  "call-mini-1280-light",
+  "call-mini-390-dark",
+  "call-video-1280-light",
 ];
 
 const failures = [];
@@ -516,6 +503,7 @@ await section("settings: every tab", async () => {
     },
   });
   await passwordSignIn(blocked.page, origin, E);
+  await dismissFirstRun(blocked.page);
   await blocked.page.getByRole("button", { name: "Settings" }).click();
   await blocked.page.getByRole("tab", { name: "Notifications" }).click();
   await shots(blocked.page, "settings-notifications-blocked", ["1280"], ["light"]);
@@ -657,6 +645,9 @@ if (WITH_CALLS) {
           const type = { ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".woff2": "font/woff2", ".svg": "image/svg+xml", ".json": "application/json", ".png": "image/png" }[ext] ?? "application/octet-stream";
           return route.fulfill({ status: 200, headers: { "content-type": type, "cache-control": "no-store" }, body: readFileSync(f) });
         }
+        // anything else that isn't the page itself (e.g. the deployed build's assets when a
+        // redirect brought the deployed page) comes from the server
+        if (route.request().resourceType() !== "document") return route.continue();
         // the page itself: the deployed response headers (CSP etc.), the local HTML
         const real = await route.fetch();
         const headers = { ...real.headers() };
@@ -666,13 +657,27 @@ if (WITH_CALLS) {
         return route.fulfill({ status: 200, headers: { ...headers, "content-type": "text/html; charset=utf-8" }, body: readFileSync(path.join(dist, "index.html")) });
       });
     };
-    const X = await lab.launchClient({ ns: "host", label: "gallery-ada", tone: 440 });
-    const Y = await lab.launchClient({ ns: "host", label: "gallery-grace", tone: 660 });
+    // A fulfilled page has no network address, so Chrome's local-network checks would block
+    // its requests to the (loopback) dev stack: test browsers only.
+    const extraArgs = ["--disable-features=WebRtcHideLocalIpsWithMdns,LocalNetworkAccessChecks,PrivateNetworkAccessRespectPreflightResults,PrivateNetworkAccessSendPreflights"];
+    const X = await lab.launchClient({ ns: "host", label: "gallery-ada", tone: 440, extraArgs });
+    const Y = await lab.launchClient({ ns: "host", label: "gallery-grace", tone: 660, extraArgs });
     try {
       await local(X);
       await local(Y);
       await lab.signIn(X, "gallery-ada", "Ada Lovelace");
       await lab.signIn(Y, "gallery-grace", "Grace Hopper");
+      // The SSO callback is a redirect, which Playwright doesn't route: reload so the page is
+      // the local build (the session is restored from this browser), and check it is.
+      const css = readdirSync(path.join(dist, "assets")).find((f) => f.endsWith(".css"));
+      for (const c of [X, Y]) {
+        await c.page.reload();
+        await c.page.locator(".user-chip-id").waitFor({ timeout: 60_000 });
+        const sheets = await c.page.evaluate(() => [...document.styleSheets].map((x) => x.href ?? ""));
+        if (!sheets.some((h) => h.endsWith(`/assets/${css}`))) throw new Error(`${c.label} isn't running the local build (${sheets.join(", ")})`);
+        const later = c.page.getByRole("dialog").getByRole("button", { name: /^(Later|Not now|Skip)$/ });
+        if (await later.count()) await later.first().click().catch(() => undefined);
+      }
       const room = await lab.createDm(X, Y);
       await lab.openRoom(X, room);
       await lab.openRoom(Y, room);

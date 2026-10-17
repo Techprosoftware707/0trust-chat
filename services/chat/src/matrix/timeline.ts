@@ -113,3 +113,23 @@ export function buildTimeline(
   }
   return items;
 }
+
+export type CallItem = Extract<TimelineItem, { kind: "call" }>;
+export type NoticeItem = Extract<TimelineItem, { kind: "notice" }>;
+export type TimelineBlock = TimelineItem | { kind: "call-run"; key: string; items: CallItem[] } | { kind: "notice-run"; key: string; items: NoticeItem[] };
+
+/** Consecutive call items share one compact card; consecutive notices one quiet block. */
+export function groupRuns(items: TimelineItem[]): TimelineBlock[] {
+  const out: TimelineBlock[] = [];
+  for (const it of items) {
+    const last = out[out.length - 1];
+    if (it.kind === "call") {
+      if (last?.kind === "call-run") last.items.push(it);
+      else out.push({ kind: "call-run", key: `calls-${it.key}`, items: [it] });
+    } else if (it.kind === "notice") {
+      if (last?.kind === "notice-run") last.items.push(it);
+      else out.push({ kind: "notice-run", key: `notices-${it.key}`, items: [it] });
+    } else out.push(it);
+  }
+  return out;
+}

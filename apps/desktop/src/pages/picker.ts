@@ -64,6 +64,9 @@ void api.sources().then((info) => {
   $("screens").append(...screens.map(tile));
   $("windows").append(...windows.map(tile));
   $("empty").hidden = info.sources.length > 0;
+  // no empty sections: a heading only above something to choose
+  $("screens-h").hidden = $("screens").hidden = screens.length === 0;
+  $("windows-h").hidden = $("windows").hidden = windows.length === 0;
   $("audio-row").hidden = !info.audioSupported;
   $("perm").hidden = info.screenPermission === "granted" || info.screenPermission === "not-determined";
   if (screens.length === 1 && windows.length === 0) select(screens[0]!.id);

@@ -138,7 +138,7 @@ await page("server-error", "setup.html", {
     await p.locator("#error").waitFor({ state: "visible" });
   },
 });
-await page("lock", "lock.html", { themes: ["light", "dark"] });
+await page("lock", "lock.html", { themes: ["dark"] });
 await page("lock-error", "lock.html", {
   state: { touchId: true },
   themes: ["dark"],
@@ -149,6 +149,6 @@ await page("lock-error", "lock.html", {
   },
 });
 await page("settings", "settings.html", { state: { lockEnabled: true }, size: { width: 760, height: 900 }, themes: ["light", "dark"] });
-await page("picker", "picker.html", { size: { width: 900, height: 640 }, themes: ["light", "dark"] });
+await page("picker", "picker.html", { size: { width: 900, height: 640 }, themes: ["dark"] });
 await browser.close();
 console.log(`${shots.length} desktop page screenshots → ${path.relative(REPO, OUT)}\n  ${shots.join("\n  ")}`);
