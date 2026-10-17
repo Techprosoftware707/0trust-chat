@@ -34,7 +34,7 @@
   <section class="card wg-status" aria-labelledby="wg-state-title">
     <div class="wg-state"><span class="status-dot {% if status.up %}status-ok{% else %}status-failed{% endif %}" aria-hidden="true"></span><div><h2 id="wg-state-title" class="mb-0">{% if status.up %}Tunnel is up{% else %}Tunnel is down{% endif %}</h2><div class="xsmall muted">Interface <span class="mono">{{ status.interface }}</span> · {{ status.address }}</div></div></div>
     <dl class="wg-facts">
-      {% if status.endpoint %}<div class="wg-fact"><dt>Devices dial</dt><dd class="mono">{{ status.endpoint }}</dd></div>{% endif %}
+      {% if status.endpoint %}<div class="wg-fact wide"><dt>Devices dial</dt><dd class="mono">{{ status.endpoint }}</dd></div>{% endif %}
       <div class="wg-fact"><dt>Listen port</dt><dd>{{ status.listen_port }}/udp</dd></div>
       <div class="wg-fact"><dt>Operator devices</dt><dd>{{ peers|length }}</dd></div>
       <div class="wg-fact"><dt>Preshared keys</dt><dd>{% if peers %}{{ psk }} of {{ peers|length }}{% else %}—{% endif %}</dd></div>

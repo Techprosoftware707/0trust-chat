@@ -195,7 +195,7 @@
         btn.setAttribute("aria-pressed", show ? "true" : "false");
       });
 
-      var isNew = input.autocomplete === "new-password" || /^(password1|new_password1)$/.test(input.name);
+      var isNew = /^(password1|new_password1)$/.test(input.name) || (input.autocomplete === "new-password" && !/2$/.test(input.name));
       if (isNew) {
         var meter = document.createElement("div");
         meter.className = "pw-meter";
@@ -229,6 +229,13 @@
       }
     });
   }
+
+  // One-time codes: let phones offer the code from an SMS/app autofill (letters stay allowed
+  // because recovery codes contain them).
+  document.querySelectorAll('input[name="code"]').forEach(function (i) {
+    if (!i.getAttribute("autocomplete")) i.setAttribute("autocomplete", "one-time-code");
+    i.setAttribute("spellcheck", "false");
+  });
 
   // Wide tables scroll inside their frame; make that frame reachable by keyboard.
   function enhanceTables() {

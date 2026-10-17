@@ -151,7 +151,7 @@
       <p class="eyebrow mb-0">Zero-trust architecture</p>
       <h3>Every boundary authenticates</h3>
       <p class="muted">The website, customer portal, homeserver, database and operator console run as separate services with separate credentials. The operator console is not on the public internet at all. Billing never touches conversations.</p>
-      <ul class="check-list">
+      <ul class="check-list hide-sm">
         <li>{% icon "check" %} Encryption happens on your devices — never on our servers</li>
         <li>{% icon "check" %} Operator access needs MFA and a private network path, and every action is audit-logged</li>
         <li>{% icon "check" %} No hidden admin accounts, no default passwords, no backdoors</li>
@@ -165,7 +165,7 @@
 <section class="section band" aria-labelledby="pricing-title">
   <div class="container">
     <div class="section-head"><p class="eyebrow">Pricing</p><h2 id="pricing-title">Start free. Upgrade when your team grows.</h2><p class="lead">Every plan has the same end-to-end encryption. Paid plans raise a workspace's limits.</p></div>
-    <div class="pricing">
+    <div class="pricing pricing-compact">
       {% for row in plans %}{% with plan=row.plan %}
       <div class="card plan{% if forloop.counter == 2 %} featured{% endif %}">
         <div><h3 class="mb-0">{{ plan.name }}</h3><p class="muted small mb-0">{{ plan.tagline }}</p></div>

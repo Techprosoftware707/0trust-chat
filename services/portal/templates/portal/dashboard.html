@@ -25,7 +25,7 @@
 
 <div class="dash-grid">
   <div class="dash-col">
-    <section class="card" aria-labelledby="ws-title">
+    <section class="card dash-ws" aria-labelledby="ws-title">
       <div class="card-header"><h2 id="ws-title">Workspaces</h2>{% if workspaces %}<a class="btn btn-sm" href="{% url 'portal:workspaces' %}">{% icon "plus" %} New workspace</a>{% endif %}</div>
       {% if workspaces %}
       <ul class="list-plain list-rows">
@@ -35,28 +35,13 @@
       <div class="empty">{% icon "building-2" %}<p class="empty-title">Bring your team together</p><p>Create a workspace to invite colleagues and share a plan. Chatting on your own? That works too, on the Free plan.</p><a class="btn btn-primary" href="{% url 'portal:workspaces' %}">{% icon "plus" %} Create a workspace</a></div>
       {% endif %}
     </section>
-    <section class="card" aria-labelledby="act-title">
+    <section class="card dash-act" aria-labelledby="act-title">
       <div class="card-header"><h2 id="act-title">Recent security activity</h2><a class="link-arrow small" href="{% url 'portal:security' %}">All activity {% icon "arrow-right" %}</a></div>
       {% if recent_events %}
       <ul class="list-plain list-rows">{% for e in recent_events %}<li>{% include "portal/_event_label.html" with kind=e.kind %}<span class="row-meta">{{ e.at|naturaltime }}{% if e.ip %} · {{ e.ip }}{% endif %}</span></li>{% endfor %}</ul>
       {% else %}<div class="empty">{% icon "shield-check" %}<p>Sign-ins and security changes will show up here.</p></div>{% endif %}
     </section>
-  </div>
-  <div class="dash-col">
-    <section class="card matrix-card stack" aria-labelledby="mx-title">
-      <div class="card-title"><span class="icon-chip">{% icon "waypoints" %}</span><h2 id="mx-title" class="mb-0">Your account runs on Matrix</h2></div>
-      <p class="small muted mb-0">Matrix is the open standard for secure, decentralised messaging. Your server is</p>
-      <span class="server-name">{{ lumen.server_name }}</span>
-      <p class="small muted mb-0">Prefer another Matrix app, such as Element? Choose “sign in with another server”, enter the server name above and sign in with this account.</p>
-      <p class="mb-0"><a class="link-arrow small" href="{% url 'site:download' %}">Apps &amp; clients {% icon "arrow-right" %}</a></p>
-    </section>
-    <section class="card stack" aria-labelledby="keys-title">
-      <div class="card-title"><span class="icon-chip violet">{% icon "key-round" %}</span><h2 id="keys-title" class="mb-0">Your encryption keys</h2></div>
-      <p class="small muted mb-0">Message keys live in the chat app on your devices — this portal never has them. In the chat app you can verify devices, set up your recovery key and review chat sessions.</p>
-      <div class="cluster"><a class="btn btn-sm" href="{{ lumen.app_url }}">Manage in chat</a><a class="btn btn-sm btn-ghost" href="{% url 'site:doc' 'encryption' %}">How it works</a></div>
-      <p class="xsmall subtle mb-0">{% if user.chat_last_login_at %}Last chat sign-in {{ user.chat_last_login_at|naturaltime }}.{% else %}You haven't signed in to chat yet.{% endif %}</p>
-    </section>
-    <section class="card" aria-labelledby="help-title">
+    <section class="card dash-help" aria-labelledby="help-title">
       <h2 id="help-title">Help</h2>
       <ul class="link-list">
         <li><a href="{% url 'site:doc' 'getting-started' %}">{% icon "book-open" %} Getting started {% icon "chevron-right" %}</a></li>
@@ -64,6 +49,20 @@
         <li><a href="{% url 'site:doc' 'account-recovery' %}">{% icon "life-buoy" %} Account recovery {% icon "chevron-right" %}</a></li>
         <li><a href="{% url 'portal:support' %}">{% icon "mail" %} Contact support {% icon "chevron-right" %}</a></li>
       </ul>
+    </section>
+  </div>
+  <div class="dash-col">
+    <section class="card matrix-card stack dash-mx" aria-labelledby="mx-title">
+      <div class="card-title"><span class="icon-chip">{% icon "waypoints" %}</span><h2 id="mx-title" class="mb-0">Your account runs on Matrix</h2></div>
+      <p class="small muted mb-0">Matrix is the open standard for secure, decentralised messaging. Your Matrix server is <span class="server-name">{{ lumen.server_name }}</span></p>
+      <p class="small muted mb-0">Like another Matrix app, such as Element? Choose “sign in with another server”, enter <strong>{{ lumen.server_name }}</strong> and sign in with this account.</p>
+      <p class="mb-0"><a class="link-arrow small" href="{% url 'site:download' %}">Apps &amp; clients {% icon "arrow-right" %}</a></p>
+    </section>
+    <section class="card stack dash-keys" aria-labelledby="keys-title">
+      <div class="card-title"><span class="icon-chip violet">{% icon "key-round" %}</span><h2 id="keys-title" class="mb-0">Your encryption keys</h2></div>
+      <p class="small muted mb-0">Message keys live in the chat app on your devices — this portal never has them. In the chat app you can verify devices, set up your recovery key and review chat sessions.</p>
+      <div class="cluster"><a class="btn btn-sm" href="{{ lumen.app_url }}">Manage in chat</a><a class="btn btn-sm btn-ghost" href="{% url 'site:doc' 'encryption' %}">How it works</a></div>
+      <p class="xsmall subtle mb-0">{% if user.chat_last_login_at %}Last chat sign-in {{ user.chat_last_login_at|naturaltime }}.{% else %}You haven't signed in to chat yet.{% endif %}</p>
     </section>
   </div>
 </div>
