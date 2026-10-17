@@ -14,11 +14,11 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHmac, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { importChatDep } from "../chat/lib/deps.mjs";
+import { fill, freshTotp, launchBrowser, noOverflow, passReauth, submit, watch as watchPage } from "./lib/portal-helpers.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "../..");
@@ -29,9 +29,6 @@ const shots = !args.includes("--no-shots");
 const site = `https://${base}`;
 const ops = `https://ops.${base}:8443`;
 fs.mkdirSync(OUT, { recursive: true });
-
-const pw = await importChatDep("playwright");
-const chromium = pw.chromium ?? pw.default.chromium;
 
 let passed = 0;
 let failed = 0;
@@ -48,59 +45,15 @@ async function test(name, fn) {
   }
 }
 
-// --- TOTP (RFC 6238) ------------------------------------------------------------------------
-function base32Decode(s) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = "";
-  for (const ch of s.replace(/=+$/, "").toUpperCase()) {
-    const v = alphabet.indexOf(ch);
-    if (v < 0) continue;
-    bits += v.toString(2).padStart(5, "0");
-  }
-  const bytes = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
-  return Buffer.from(bytes);
-}
-function totp(secret, t = Date.now()) {
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(t / 1000 / 30)));
-  const h = createHmac("sha1", base32Decode(secret)).update(counter).digest();
-  const o = h[h.length - 1] & 0xf;
-  return String((h.readUInt32BE(o) & 0x7fffffff) % 1_000_000).padStart(6, "0");
-}
-/** A code from a 30 s window that has not been used yet (allauth rejects code reuse). */
-async function freshTotp(secret, lastWindow) {
-  let w = Math.floor(Date.now() / 30000);
-  if (w === lastWindow) {
-    await new Promise((r) => setTimeout(r, (w + 1) * 30000 - Date.now() + 500));
-    w = Math.floor(Date.now() / 30000);
-  }
-  return { code: totp(secret), window: w };
-}
-
 // --- browser ----------------------------------------------------------------------------------
-const noProxy = [process.env.no_proxy || process.env.NO_PROXY, base, `.${base}`, "127.0.0.1", "localhost"].filter(Boolean).join(",");
-const browser = await chromium.launch({
-  args: [`--host-resolver-rules=MAP ${base} 127.0.0.1, MAP *.${base} 127.0.0.1`],
-  env: { ...process.env, no_proxy: noProxy, NO_PROXY: noProxy },
-});
+const browser = await launchBrowser(base);
 
 /** A context that records problems on every page it opens. */
 async function newContext(opts = {}) {
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 860 }, ...opts });
   ctx.problems = [];
-  ctx.on("page", (p) => watch(p, ctx.problems));
+  ctx.on("page", (p) => watchPage(p, ctx.problems, base));
   return ctx;
-}
-function watch(p, problems) {
-  p.on("console", (m) => {
-    if (m.type() === "error" || /Content Security Policy/i.test(m.text())) problems.push(`console: ${m.text()}`);
-  });
-  p.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
-  p.on("response", (r) => {
-    const u = new URL(r.url());
-    if (u.hostname.endsWith(base) && r.status() >= 500) problems.push(`HTTP ${r.status()} ${r.url()}`);
-  });
 }
 function takeProblems(ctx) {
   const p = ctx.problems.splice(0);
@@ -108,41 +61,6 @@ function takeProblems(ctx) {
 }
 async function shot(page, name) {
   if (shots) await page.screenshot({ path: path.join(OUT, `${name}.png`), fullPage: true });
-}
-async function noOverflow(page) {
-  const { sw, cw, culprit } = await page.evaluate(() => {
-    const cw = document.documentElement.clientWidth;
-    // Content inside a horizontally scrollable/clipping box (e.g. .table-wrap) is fine.
-    const clipped = (el) => {
-      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement)
-        if (["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(a).overflowX)) return true;
-      return false;
-    };
-    let culprit = "";
-    for (const el of document.querySelectorAll("body *")) {
-      const r = el.getBoundingClientRect();
-      if (r.right > cw + 1 && getComputedStyle(el).position !== "fixed" && !clipped(el)) {
-        culprit = `${el.tagName.toLowerCase()}.${[...el.classList].join(".")} right=${Math.round(r.right)}`;
-        break;
-      }
-    }
-    return { sw: document.documentElement.scrollWidth, cw, culprit };
-  });
-  assert.ok(sw <= cw + 1, `horizontal overflow ${sw}px > ${cw}px (${culprit})`);
-}
-async function fill(page, sel, value) {
-  await page.locator(sel).fill(value);
-}
-/** Completes allauth's step-up (re-authentication) prompt if it is shown. */
-async function passReauth(page, password) {
-  if (!/\/accounts\/reauthenticate\//.test(page.url())) return false;
-  await fill(page, "input[name=password]", password);
-  await submit(page);
-  return true;
-}
-async function submit(page, sel = "main form button[type=submit]") {
-  await Promise.all([page.waitForLoadState("domcontentloaded"), page.locator(sel).first().click()]);
-  await page.waitForLoadState("domcontentloaded");
 }
 
 // --- 1. public website -------------------------------------------------------------------------
