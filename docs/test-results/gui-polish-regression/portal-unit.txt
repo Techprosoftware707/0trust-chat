@@ -1,0 +1,17 @@
+........................................................................ [ 51%]
+...................................................................      [100%]
+=============================== warnings summary ===============================
+../../../../../tmp/portal-venv/lib/python3.13/site-packages/pytest_django/plugin.py:394
+  /tmp/portal-venv/lib/python3.13/site-packages/pytest_django/plugin.py:394: RemovedInDjango2028Warning: The EMAIL_BACKEND setting is deprecated. Migrate to MAILERS before Django 2028.
+    dj_settings.DATABASES  # noqa: B018
+
+tests/test_accounts.py: 14 warnings
+tests/test_billing.py: 69 warnings
+tests/test_oidc.py: 8 warnings
+tests/test_ops_security.py: 43 warnings
+tests/test_ui_pages.py: 20 warnings
+tests/test_workspaces.py: 9 warnings
+  /tmp/portal-venv/lib/python3.13/site-packages/django/core/handlers/base.py:63: UserWarning: No directory at: /home/user/0trust-chat/services/portal/staticfiles/
+    mw_instance = middleware(adapted_handler)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

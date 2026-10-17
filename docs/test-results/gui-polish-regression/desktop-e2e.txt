@@ -1,0 +1,118 @@
+> node /home/user/0trust-chat/services/chat/node_modules/typescript/bin/tsc -p tsconfig.json --noEmit   (in services/chat)
+> node /home/user/0trust-chat/services/chat/node_modules/vite/bin/vite.js build --outDir /home/user/0trust-chat/apps/desktop/dist/web --emptyOutDir   (in services/chat)
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2283 modules transformed.
+rendering chunks...
+../../apps/desktop/dist/web/index.html                                                  0.93 kB
+../../apps/desktop/dist/web/assets/logo-D6mvRjln.svg                                    0.93 kB
+../../apps/desktop/dist/web/licenses/LICENSE-Inter.txt                                  4.47 kB
+../../apps/desktop/dist/web/licenses/LICENSE-JetBrainsMono.txt                          4.52 kB
+../../apps/desktop/dist/web/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
+../../apps/desktop/dist/web/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
+../../apps/desktop/dist/web/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
+../../apps/desktop/dist/web/licenses/third-party.md                                    92.72 kB
+../../apps/desktop/dist/web/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
+../../apps/desktop/dist/web/assets/matrix_sdk_crypto_wasm_bg-DQQaknxI.wasm          7,805.48 kB
+../../apps/desktop/dist/web/assets/index-dX74p8GN.css                                  84.75 kB
+../../apps/desktop/dist/web/assets/rust-crypto-COeoONx-.js                            226.02 kB
+../../apps/desktop/dist/web/assets/index-B006pOAa.js                                1,946.62 kB
+
+✓ built in 2.60s
+web client: 17 files, 10.4 MB -> apps/desktop/dist/web
+icons: 7 runtime icons in dist/icons, icns/ico/png set in build/generated
+
+  dist/main/index.cjs  90.1kb
+
+⚡ Done in 21ms
+
+  dist/preload/app.cjs  3.8kb
+
+⚡ Done in 2ms
+
+  dist/preload/lock.cjs  452b 
+
+⚡ Done in 1ms
+
+  dist/preload/settings.cjs  1.3kb
+
+⚡ Done in 3ms
+
+  dist/preload/picker.cjs  531b 
+
+⚡ Done in 1ms
+
+  dist/pages/setup.js  2.6kb
+
+⚡ Done in 1ms
+
+  dist/pages/lock.js  1.8kb
+
+⚡ Done in 1ms
+
+  dist/pages/settings.js  6.2kb
+
+⚡ Done in 2ms
+
+  dist/pages/picker.js  2.2kb
+
+⚡ Done in 1ms
+desktop-config.json: default server (none: ask on first run)
+libnotify already unpacked
+desktop e2e against lumen.test — Electron /home/user/0trust-chat/apps/desktop/node_modules/electron/dist/electron
+app HOME /tmp/lumen-e2e-app-Ls05N8 (userData /tmp/lumen-e2e-app-Ls05N8/.config/Lumen Secure); running as root: true (adds --no-sandbox, test harness only)
+  discovered: {"Server":"lumen.test","Homeserver":"https://matrix.lumen.test","Sign-in":"Single sign-on in your web browser","Calls":"Checked after you sign in"}
+  synthesized config.json: {"brand":{"name":"Lumen Secure","short_name":"Lumen"},"homeserver":{"base_url":"https://matrix.lumen.test","server_name":"lumen.test"},"sso":{"idp_id":"oidc-lumen","label":"Continue with your Lumen account"},"portal_url":"https://lumen.test/accounts/signup/","allow_custom_homeserver":false,"calls":{"enabled":false,"rtc_domain":null},"privacy_url":"https://lumen.test/privacy/","help_url":"https://lumen.test/docs/"}
+  CSP: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://matrix.lumen.test https://lumen.test blob:; worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  storage protection: {"level":"basic","backend":"basic_text"}
+  visible warning: "No OS keyring is available (Secret Service or KWallet), so this app can't encrypt your session keys with the operating system. Anyone who can read your files could use your session."
+✔ pass  (a) first run: server picker, discovery of lumen.test, web client sign-in screen (1.1 s)
+  accounts: A=@deskaaed48f:lumen.test (desktop), B=@deskbc58ca8:lumen.test (web)
+  app opened in the system browser: https://matrix.lumen.test/_matrix/client/v3/login/sso/redirect/oidc-lumen?redirectUrl=io.lumen.secure%3A%2Fsso-callback%3Fn%3D<nonce>
+  stray callbacks delivered (second instances exited 0, 0)
+  browser was redirected to io.lumen.secure:/sso-callback?n=<nonce>&loginToken=<…>
+  signed in at the portal during SSO (fresh login: login form POST → … → app scheme)
+  callback delivered as the OS would (second instance exit code 0)
+  device display name: Lumen Desktop (Linux)
+✔ pass  (b) SSO in the system browser; stray and replayed io.lumen.secure callbacks are ignored (8.5 s)
+✔ pass  web user B signs in on https://app.lumen.test (normal web SSO) (5.0 s)
+  DM room !-MOADax__CI4aq6hI_3NCx71nCQaGGqteq4OqMXcY64
+  web user B decrypted the desktop message
+  desktop user A decrypted the web reply
+✔ pass  (c) encrypted DM both ways: desktop → web and web → desktop (2.9 s)
+  first close to the tray showed the hint: "Lumen Secure is still running"
+  notification(s) created by the main process: [{"title":"Web Wes","body":"New encrypted message","silent":false}]
+  received by the OS notification service (D-Bus): [{"id":2,"app_name":"Lumen Secure","summary":"Web Wes","body":"New encrypted message","actions":["default","Show"],"icon":""}]
+  click on the notification showed the window and opened the room
+✔ pass  (e) OS notification from the main process; click opens the room (1.2 s)
+  message arrived (decrypted in the room list), no notification while do-not-disturb is on
+  app.getBadgeCount() = 1 (Linux only shows it on Unity-style launchers)
+  updates: "Updates are checked only in installed builds."
+✔ pass  (e2) Do not disturb suppresses notifications; unread badge reported (4.0 s)
+  desktop: connected, label "End-to-end encrypted"
+  web: connected, label "End-to-end encrypted"
+  desktop inbound-rtp: [{"kind":"audio","bytes":103359,"frames":null},{"kind":"video","bytes":1415792,"frames":286}]
+  web inbound-rtp: [{"kind":"audio","bytes":99466,"frames":null},{"kind":"video","bytes":998937,"frames":268}]
+  picker sources: ["Entire screen"]
+  web inbound video streams while sharing: [{"kind":"video","bytes":97971,"frames":21},{"kind":"video","bytes":1479944,"frames":426}]
+✔ pass  (d) call desktop ↔ web: connected, media both ways, E2EE label; screen share from the desktop (27.8 s)
+  key storage: No OS keyring is available (Secret Service / KWallet), so the keys are stored with a fixed, publicly known key — effectively unprotected. Install and unlock a keyring, then sign in again.
+  web client while locked: {"visibility":"hidden","locked":true,"inert":true}
+  unlocked with the PIN
+  OS lock-screen event locked the app; unlocked again
+✔ pass  (f) app lock: PIN set in desktop settings, lock hides the app, wrong PIN refused, right PIN unlocks, OS lock event locks (2.3 s)
+  scanned 91 files, 5.7 MB, 1 LevelDB tables / 6 decompressed blocks
+  positive control (user ID, stored in plaintext by design): 3 hit(s), e.g. IndexedDB/app_lumen_0.indexeddb.leveldb/000020.ldb
+  secret hits: []
+  persisted window state: {"x":120,"y":50,"width":1200,"height":800,"maximized":false}
+  store-key.bin: 51 bytes, prefix "v10" (safeStorage format)
+✔ pass  (h) no access token, store key or crypto-store passphrase in plaintext under userData (2.0 s)
+  IndexedDB directory after sign-out: []
+  re-scan after sign-out: 78 files, hits: []
+✔ pass  (g) sign-out wipes the store key and the app's browser storage; the token is revoked (2.6 s)
+  confirmation asked: ["Sign out of lumen.test?"]
+  back at the server picker; session revoked on the server; local data wiped
+✔ pass  (i) Change server…: confirmation, sign-out on the server, local wipe, back to the server picker (3.9 s)
+✔ no CSP violations in the desktop app or the web client
+
+11 passed, 0 failed

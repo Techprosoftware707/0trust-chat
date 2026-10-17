@@ -1,10 +1,60 @@
 # Test report — Lumen 1.0.0
 
-Date: 2026-10-15, final deep sweep added 2026-10-17 (next section). Every result below
+Date: 2026-10-15; final deep sweep, WireGuard and GUI polish added 2026-10-17 (next sections). Every result below
 was observed in this session, on the code at or just before the commit that adds it. Raw outputs are in
 [`docs/test-results/`](test-results/). Anything not listed under "Results" was
 **not** tested; see "Not verified" at the end and
 [known-limitations.md](known-limitations.md).
+
+## GUI polish on every platform — 2026-10-17
+
+The website, portal, operator console, web chat, desktop, Android and iOS apps were reviewed
+screen by screen at phone, tablet and desktop sizes, in light and dark, and at large text
+sizes. They were then fixed and polished (warmer, calmer design; WCAG 2.2 AA contrast; touch
+targets; layout bugs). The shared design tokens changed in `0755f71`, `eefa6ab` and `01c7773`.
+Before/after screenshots with the same names, and an issue → fix table, are in
+[`test-results/ui-polish/`](test-results/ui-polish/): `portal/`, `web/`, `android/`, `ios/`.
+
+Real defects found and fixed, besides the visual issues:
+- The console plan editor showed raw template code in the bullet box; saving a plan would
+  have overwritten its marketing bullets.
+- Copy that wasn't true:
+  - group calls were shown as unavailable;
+  - Lumen was called "open-source software" although no licence is chosen;
+  - "Most popular" was shown with no data behind it;
+  - the Calls page implied TURN over TLS.
+- Android: every font weight rendered as Regular; at 150 % text, invitation buttons were squeezed into vertical letters.
+- iOS:
+  - the verification sheet closed before showing its result;
+  - the lock screen could never unlock on a device without a passcode;
+  - on iPhone SE the call controls were cut off;
+  - room details claimed E2EE in unencrypted rooms.
+- Desktop: the lock screen was unreadable when the OS used a dark theme.
+
+Results on the final code: the dev stack was redeployed from `01c7773`, and the raw outputs
+are in [`test-results/gui-polish-regression/`](test-results/gui-polish-regression/).
+
+| Suite | Result |
+|---|---|
+| Portal pytest | all passed (139 tests in the polish run) |
+| Chat vitest / typecheck / lint | 107 passed / clean / clean |
+| Chat E2EE / chat UI (production CSP) | 5/5 · 23/23 |
+| Deployed E2EE (sign-up → SSO → encrypted DM → backup) | 7/7 |
+| Portal, website and console UI | 75/75 |
+| Calls: permissions / core / security / network | 3/3 · 18/18 · 5/5 · 7/7 |
+| Mobile-app call widget harness (Rust SDK) | 12/12 |
+| Desktop unit / Electron e2e | 34/34 · 11/11 |
+| Federation | 12/12 |
+| WireGuard tunnel e2e | 8/8 |
+| Security scan | 122/123: the failure is a listener of the separate Nexus test branch's dev server on this shared machine (127.0.0.1:8710), not the Lumen stack |
+| CI `ci` run 39019751614 (portal tests, web client, shared checks) on `01c7773` | success |
+| CI `desktop` run 39019753336 on `01c7773` | success |
+| CI `android` run 39015358079 on `c7e5afb` (build, unit, lint, screenshots, instrumented, real-server e2e 42/42, Android 8.0/9 install) | success |
+| CI `ios` run 39016001073 on `0a9bb93` (build, LumenCore, 80/80 unit on iPhone and iPad, launch UI test, 466 screenshots, unsigned archive) | success |
+
+Not re-run on CI: after the Android and iOS runs, `01c7773` added two palette constants to the
+generated `LumenTokens.kt` and `LumenTokens.swift`. Nothing uses them yet, and no other app
+file changed.
 
 ## Final deep sweep — 2026-10-17
 

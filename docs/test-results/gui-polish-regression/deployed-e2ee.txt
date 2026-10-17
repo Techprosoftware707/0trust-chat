@@ -1,0 +1,10 @@
+PASS both people sign up on the portal and sign in to the deployed app via SSO
+PASS Alice sets up secure backup (recovery key shown once, confirmed)
+PASS Alice starts an encrypted direct chat with Bob and sends a message
+PASS Bob accepts, decrypts Alice's message and replies
+PASS homeserver database: room holds only m.room.encrypted message events
+PASS homeserver database: the plaintext markers appear nowhere in the event store
+     (Matrix API 4xx responses seen: HTTP 404 GET /_matrix/client/v3/room_keys/version; HTTP 403 GET /_matrix/client/v3/profile/%40chate2eb322e6d%3Alumen.test)
+PASS no CSP violations or page errors in the deployed app
+
+deployed e2ee: 7 passed, 0 failed

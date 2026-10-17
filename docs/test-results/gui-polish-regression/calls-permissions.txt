@@ -1,0 +1,16 @@
+
+--- sign in B; DM with A
+PASS sign in B; DM with A (4.7 s)
+
+--- 17a: permission denied → clear message in the lobby; joining listen-only never shows the mic as live
+lobby errors: ["Access to your microphone is blocked. Allow it for this site in your browser's settings (usually the icon next to the address), then try again. Try again","Access to your camera is blocked. Allow it for this site in your browser's settings (usually the icon next to the address), then try again. Try again"]
+in-call banner: Access to your microphone is blocked. Allow it for this site in your browser's settings (usually the icon next to the address), then try again. Others can't hear you.
+B sees X's microphone as: muted (no track published)
+PASS 17a: permission denied → clear message in the lobby; joining listen-only never shows the mic as live (12.8 s)
+
+--- 17b: no capture devices at all → 'no microphone/camera found' messages
+lobby errors: ["No microphone was found. Connect one, or check that it's enabled in your system settings. Try again","No camera was found. Connect one, or check that it's enabled in your system settings. Try again"]
+PASS 17b: no capture devices at all → 'no microphone/camera found' messages (5.9 s)
+
+permissions: 3 passed, 0 failed, 0 skipped (started 2026-10-17T08:43:57.006Z, finished 2026-10-17T08:44:20.848Z)
+raw output saved to docs/test-results/calls-permissions.txt

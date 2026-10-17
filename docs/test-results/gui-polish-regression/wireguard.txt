@@ -1,0 +1,9 @@
+PASS profile contains a private key and a preshared key
+PASS server config does not contain the device's private key
+PASS server knows the device with its preshared key
+PASS console reachable through the tunnel (10.77.0.1)
+PASS console NOT reachable from a non-tunnel address (192.168.78.2 -> 192.168.78.1)
+PASS agent reports a recent handshake with PSK
+PASS access revoked after removing the peer
+PASS peer removed from wg0.conf
+wireguard e2e: 8 passed, 0 failed
