@@ -75,6 +75,8 @@ calmer presentation. The shared tokens (`design/tokens.css`) were not edited.
 
 ## Test results (this work)
 
+All from the final code (re-run after the last change).
+
 | Suite | Result |
 |---|---|
 | `services/chat` `npm test` (vitest) | 107 passed (9 files; 3 new tests: undecryptable previews, website link, timeline runs) |
@@ -83,7 +85,7 @@ calmer presentation. The shared tokens (`design/tokens.css`) were not edited.
 | `npm run test:ui` (production build, production CSP) | 23 passed, no CSP violations or page errors |
 | `apps/desktop` `npm test` | typecheck clean, 34 passed |
 | `apps/desktop` `npm run build && npm run test:e2e` (Electron, deployed stack) | 11 passed, no CSP violations |
-| `tests/chat/ui-gallery.mjs --calls` | all sections passed (the in-call section was retried once while the shared stack was being restarted by another test) |
+| `tests/chat/ui-gallery.mjs --calls` | all sections passed; the in-call section (deployed stack) of the final "after" set was run on its own (`--only in-call`) because another test restarted the shared stack during the full run |
 
 The calls suites (`tests/calls`, deployed stack and network namespaces) were not run here; the
 call UI parts changed are listed in the hand-over below.
