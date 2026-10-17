@@ -121,8 +121,13 @@ test_configure() {
   local out="$1" ip="${LUMEN_TEST_IP:-}" host="${LUMEN_TEST_HOST:-}" pub email opuser regmode calls tls private=false
   if [[ -z "$ip" ]]; then
     pub="$(public_ip)"
-    # Use the public address only if it is on this host (not NATed); otherwise the LAN address.
-    if [[ -n "$pub" ]] && ip -4 -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -qxF "$pub"; then
+    # With a public DNS name (Let's Encrypt), devices reach the server at its public address,
+    # also behind cloud NAT where that address is on no interface (preflight checks that the
+    # name points there). Without one: the public address only if it is on this host, otherwise
+    # the LAN address.
+    if [[ -n "$host" && -n "$pub" ]]; then
+      ip="$pub"
+    elif [[ -n "$pub" ]] && ip -4 -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -qxF "$pub"; then
       ip="$pub"
     else
       ip="$(lan_ipv4)"
