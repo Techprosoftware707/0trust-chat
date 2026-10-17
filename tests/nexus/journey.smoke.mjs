@@ -362,6 +362,8 @@ await test("7. an email reply is prepared by the assistant and confirmed as a Gm
   await done.waitFor({ timeout: 30_000 });
   assert.match(await done.innerText(), /saved as a draft in Gmail/);
   assert.match(await done.innerText(), /Nothing was sent/);
+  // Top of the conversation pane, clear of the sticky question box.
+  await action.evaluate((el) => el.scrollIntoView({ block: "start" }));
   await shot(action, "5-email-reply-saved-as-draft--desktop-light");
   // In the inbox: the reviewed draft waits for the person; nothing was sent.
   await app.goto(threadUrl);
