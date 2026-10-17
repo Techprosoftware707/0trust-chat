@@ -46,7 +46,7 @@ are in [`test-results/gui-polish-regression/`](test-results/gui-polish-regressio
 | Desktop unit / Electron e2e | 34/34 · 11/11 |
 | Federation | 12/12 |
 | WireGuard tunnel e2e | 8/8 |
-| Security scan | 122/123: the failure is a listener of the separate Nexus test branch's dev server on this shared machine (127.0.0.1:8710), not the Lumen stack |
+| Security scan | 123/123 (first pass 122/123: the one failure was a listener of the separate Nexus test branch on this shared machine, not the Lumen stack; re-run with it stopped) |
 | CI `ci` run 39019751614 (portal tests, web client, shared checks) on `01c7773` | success |
 | CI `desktop` run 39019753336 on `01c7773` | success |
 | CI `android` run 39015358079 on `c7e5afb` (build, unit, lint, screenshots, instrumented, real-server e2e 42/42, Android 8.0/9 install) | success |
