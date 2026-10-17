@@ -12,7 +12,15 @@ from apps.crm import models as m
 from apps.crm.services import record_external_activity
 from apps.workspaces.models import Role
 
-from .nexus_helpers import api_for, base, body, business_workspace, issue_token, make_user, member
+from .nexus_helpers import (
+    api_for,
+    base,
+    body,
+    business_workspace,
+    issue_token,
+    make_user,
+    member,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -102,7 +110,7 @@ def test_contact_filters_search_and_pagination(ctx):
 
 
 def test_pipeline_board_moves_history_and_status(ctx):
-    api, url, ws = ctx["api"], ctx["url"], ctx["ws"]
+    api, url = ctx["api"], ctx["url"]
     pipelines = body(api.get(f"{url}/pipelines"))["data"]
     assert {p["kind"] for p in pipelines} == {"general", "real_estate"}
     p = next(p for p in pipelines if p["kind"] == "general")

@@ -147,9 +147,8 @@ def authenticate_bearer(request, *, policy: TokenPolicy, scopes: Iterable[str] =
     if resources:
         if not policy.resource or not is_resources_subset([policy.resource], list(resources)):
             raise _fail(request, policy, "The access token was not issued for this resource.")
-    elif policy.allowed_client_ids is not None and token.client_id not in policy.allowed_client_ids:
-        raise _fail(request, policy, "The access token was not issued for this resource.")
-    elif policy.allowed_client_ids is None:
+    elif policy.allowed_client_ids is None or token.client_id not in policy.allowed_client_ids:
+        # No resource indicator on the token: only the policy's own clients may use it.
         raise _fail(request, policy, "The access token was not issued for this resource.")
 
     user = token.user

@@ -32,9 +32,8 @@ def counts(ws):
 
 @pytest.mark.parametrize("command", ["nexus_demo_seed", "nexus_demo_reset"])
 def test_refuses_in_production(command):
-    with override_settings(NEXUS_ENVIRONMENT="production"):
-        with pytest.raises(CommandError, match="only allowed in development or test"):
-            call_command(command, stdout=StringIO())
+    with override_settings(NEXUS_ENVIRONMENT="production"), pytest.raises(CommandError, match="only allowed in development or test"):
+        call_command(command, stdout=StringIO())
     assert not Workspace.objects.filter(slug=demo.DEMO_SLUG).exists()
 
 

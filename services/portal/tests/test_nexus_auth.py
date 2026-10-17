@@ -70,7 +70,8 @@ def test_nexus_web_client_is_public_pkce_first_party():
 
 def test_code_flow_with_pkce_refresh_rotation_and_cors():
     u = make_user("spa-user")
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     verifier, challenge = pkce()
     r = authorize(c, challenge)
     assert r.status_code == 302 and r["Location"].startswith(REDIRECT + "?")  # consent skipped
@@ -100,7 +101,8 @@ def test_code_flow_with_pkce_refresh_rotation_and_cors():
 
 def test_pkce_is_required_for_the_public_client():
     u = make_user()
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     r = c.get("/identity/o/authorize", {"response_type": "code", "client_id": "nexus-web", "redirect_uri": REDIRECT,
                                         "scope": "workspace:read", "state": "s"})
     assert not (r.status_code == 302 and "code=" in r.get("Location", ""))
@@ -113,7 +115,8 @@ def test_pkce_is_required_for_the_public_client():
 
 def test_exact_redirect_uri_only():
     u = make_user()
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     _, challenge = pkce()
     for bad in ("https://app.lumen.test/oauth/callback/../x", "https://evil.example/oauth/callback", "https://app.lumen.test/"):
         r = authorize(c, challenge, redirect_uri=bad)
@@ -122,7 +125,8 @@ def test_exact_redirect_uri_only():
 
 def test_scopes_outside_the_client_are_refused():
     u = make_user()
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     _, challenge = pkce()
     r = authorize(c, challenge, scope="workspace:read admin:everything")
     assert "code=" not in r.get("Location", "")
@@ -137,7 +141,8 @@ def test_untrusted_origin_gets_no_cors_on_token_endpoint():
 def test_logout_revokes_spa_tokens():
     u = make_user()
     token = issue_token(u)
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     c.post("/accounts/logout/")
     assert Api(token).get("/api/v1/me").status_code == 401
     assert not Token.objects.filter(user=u, client_id="nexus-web").exists()
@@ -237,7 +242,8 @@ def test_token_in_query_string_is_refused():
 def test_session_cookie_alone_is_not_enough():
     """CSRF safety: the API never authenticates with the portal session."""
     u = make_user()
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     assert c.get("/api/v1/me").status_code == 401
     ws = business_workspace(u)
     r = c.post(f"/api/v1/workspaces/{ws.pk}/crm/contacts", '{"first_name": "X"}', content_type="application/json")
@@ -248,7 +254,8 @@ def test_session_cookie_alone_is_not_enough():
 def test_inactive_accounts_are_refused(status):
     u = make_user()
     token = issue_token(u)
-    u.set_status(status); u.save()
+    u.set_status(status)
+    u.save()
     assert Api(token).get("/api/v1/me").status_code == 401
 
 
@@ -303,7 +310,8 @@ def test_prompt_none_without_portal_session_answers_login_required():
 
 def test_prompt_none_with_portal_session_issues_a_code():
     u = make_user()
-    c = Client(); c.force_login(u)
+    c = Client()
+    c.force_login(u)
     verifier, challenge = pkce()
     r = authorize(c, challenge, prompt="none")
     assert r.status_code == 302 and "code=" in r["Location"], r.content[:300]

@@ -37,7 +37,7 @@
   --surface-3: #e2e7ef;
   --surface-inverse: #0a1430;
   --border: #d9dfe8;
-  --border-strong: #c0c9d6;
+  --border-strong: #7f8aa0;        /* input and button outlines: >= 3:1 (non-text contrast) */
   --text: #121826;
   --text-muted: #475163;
   --text-subtle: #566072;
@@ -75,7 +75,7 @@
   --surface-3: #192b53;
   --surface-inverse: #f4f6fa;
   --border: #1e305c;
-  --border-strong: #2b4276;
+  --border-strong: #5b6f99;
   --text: #e8edf6;
   --text-muted: #a8b4ca;
   --text-subtle: #8f9bb3;
@@ -107,7 +107,7 @@
     --surface-3: #192b53;
     --surface-inverse: #f4f6fa;
     --border: #1e305c;
-    --border-strong: #2b4276;
+    --border-strong: #5b6f99;
     --text: #e8edf6;
     --text-muted: #a8b4ca;
     --text-subtle: #8f9bb3;

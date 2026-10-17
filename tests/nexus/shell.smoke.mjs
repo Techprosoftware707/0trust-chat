@@ -87,7 +87,11 @@ function takeProblems(ctx) {
 }
 
 async function shot(page, name) {
-  if (shots) await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
+  if (!shots) return;
+  // Earlier steps' confirmations would cover the page being documented.
+  const close = page.locator(".toast-close");
+  for (let n = await close.count(); n > 0; n--) await close.first().click().catch(() => undefined);
+  await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
 }
 
 async function noOverflow(page) {

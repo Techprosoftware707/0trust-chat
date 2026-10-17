@@ -202,5 +202,27 @@ class TestNoDomainTestSetup(unittest.TestCase):
         self.assertNotIn("lumen-test-ca.crt", self.render_test("TLS_MODE=acme\n"))
         self.assertNotIn("lumen-test-ca.crt", (rendered("TLS_MODE=internal\n") / "caddy" / "Caddyfile").read_text())
 
+
+class TestNexusWorkspace(unittest.TestCase):
+    """Nexus (test/unified-business-workspace): the chat app's workspace API block, the
+    environment banner setting and the temporary test brand."""
+
+    def test_chat_config_has_workspace_and_environment(self):
+        out = rendered()
+        cfg = json.loads((out / "chat" / "config.json").read_text())
+        self.assertEqual(cfg["workspace"], {"api_url": "https://example.com/api/v1", "client_id": "nexus-web"})
+        self.assertEqual(cfg["environment"], "test")
+        self.assertEqual(cfg["brand"]["name"], "Nexus Office AI")
+        env = (out / "app.env").read_text()
+        self.assertIn("NEXUS_ENVIRONMENT=test\n", env)
+
+    def test_production_environment_and_validation(self):
+        out = rendered("NEXUS_ENVIRONMENT=production\nBRAND_NAME=Acme Chat\n")
+        cfg = json.loads((out / "chat" / "config.json").read_text())
+        self.assertEqual(cfg["environment"], "production")
+        self.assertEqual(cfg["brand"]["name"], "Acme Chat")
+        self.assertIn("NEXUS_ENVIRONMENT must be", config_error("NEXUS_ENVIRONMENT=staging\n"))
+
+
 if __name__ == "__main__":
     unittest.main()

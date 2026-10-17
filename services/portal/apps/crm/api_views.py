@@ -18,8 +18,9 @@ from apps.api.errors import ValidationFailed
 from apps.api.http import created, json_body, no_content, ok, paginated
 from apps.api.schema import F, query_bool, query_param
 
-from . import access, serializers as s, services
+from . import access, services
 from . import models as m
+from . import serializers as s
 from .access import CHANGE, DELETE, Actor, Cap
 
 crm_endpoint = lambda methods: api_endpoint(methods=methods, feature="crm")  # noqa: E731

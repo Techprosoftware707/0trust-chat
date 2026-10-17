@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 import pytest
+from django.core.exceptions import PermissionDenied
 from django.test import Client
 from django.utils import timezone
 
@@ -92,7 +93,8 @@ def test_crm_configuration_by_role(org, role):
     can = role in MANAGERS
     assert a.post(f"{base(org['ws'])}/pipelines", {"name": f"P {role}"}).status_code == (201 if can else 403)
     assert a.patch(f"{base(org['ws'])}/stages/{stage.pk}", {"name": "Renamed"}).status_code == (200 if can else 403)
-    assert a.post(f"{base(org['ws'])}/fields", {"entity": "contact", "key": f"k_{role}", "label": "K", "field_type": "text"}).status_code == (201 if can else 403)
+    field = {"entity": "contact", "key": f"k_{role}", "label": "K", "field_type": "text"}
+    assert a.post(f"{base(org['ws'])}/fields", field).status_code == (201 if can else 403)
     tag = a.post(f"{base(org['ws'])}/tags", {"name": f"T {role}"})
     assert tag.status_code == (201 if role in MANAGERS | {Role.AGENT} else 403)
 
@@ -203,7 +205,8 @@ def test_access_actor_requires_membership(org):
 
 
 def test_owner_invites_with_business_roles(org):
-    c = Client(); c.force_login(org["people"][Role.OWNER])
+    c = Client()
+    c.force_login(org["people"][Role.OWNER])
     for role in [Role.MANAGER, Role.AGENT, Role.READONLY, Role.ADMIN]:
         c.post(f"/portal/workspaces/{org['ws'].pk}/invite/", {"email": f"{role}@example.org", "role": role})
         assert Invitation.objects.get(email=f"{role}@example.org").role == role
@@ -214,11 +217,11 @@ def test_owner_invites_with_business_roles(org):
 def test_admin_gives_roles_below_admin_only(org):
     admin = org["people"][Role.ADMIN]
     _, _ = ws_services.invite(admin, org["ws"].pk, "mgr@example.org", Role.MANAGER)
-    with pytest.raises(Exception):
+    with pytest.raises(PermissionDenied, match="Only the owner can invite admins"):
         ws_services.invite(admin, org["ws"].pk, "adm@example.org", Role.ADMIN)
     target = Membership.objects.get(workspace=org["ws"], user=org["people"][Role.MEMBER])
     assert ws_services.change_role(admin, org["ws"].pk, target.pk, Role.AGENT).role == Role.AGENT
-    with pytest.raises(Exception):
+    with pytest.raises(PermissionDenied, match="Only the owner can change admins"):
         ws_services.change_role(admin, org["ws"].pk, target.pk, Role.ADMIN)
     other_admin = Membership.objects.get(workspace=org["ws"], user=admin)
     owner = org["people"][Role.OWNER]
@@ -228,7 +231,8 @@ def test_admin_gives_roles_below_admin_only(org):
 @pytest.mark.parametrize("role", [Role.MANAGER, Role.AGENT, Role.MEMBER, Role.READONLY])
 def test_non_admins_cannot_change_roles(org, role):
     target = Membership.objects.get(workspace=org["ws"], user=org["other_agent"])
-    c = Client(); c.force_login(org["people"][role])
+    c = Client()
+    c.force_login(org["people"][role])
     c.post(f"/portal/workspaces/{org['ws'].pk}/members/{target.pk}/role/", {"role": Role.READONLY})
     target.refresh_from_db()
     assert target.role == Role.AGENT
@@ -236,7 +240,8 @@ def test_non_admins_cannot_change_roles(org, role):
 
 def test_portal_role_change_form(org):
     target = Membership.objects.get(workspace=org["ws"], user=org["other_agent"])
-    c = Client(); c.force_login(org["people"][Role.OWNER])
+    c = Client()
+    c.force_login(org["people"][Role.OWNER])
     r = c.post(f"/portal/workspaces/{org['ws'].pk}/members/{target.pk}/role/", {"role": Role.READONLY}, follow=True)
     target.refresh_from_db()
     assert target.role == Role.READONLY and b"is now read-only" in r.content
@@ -244,7 +249,48 @@ def test_portal_role_change_form(org):
 
 
 def test_invitation_acceptance_keeps_business_role(org):
-    inv, token = ws_services.invite(org["people"][Role.OWNER], org["ws"].pk, "newagent@example.org", Role.AGENT)
+    _, token = ws_services.invite(org["people"][Role.OWNER], org["ws"].pk, "newagent@example.org", Role.AGENT)
     u = make_user("newagent", email="newagent@example.org")
     ms = ws_services.accept_invitation(u, token)
     assert ms.role == Role.AGENT
+
+
+def test_portal_business_settings_form(org):
+    ws = org["ws"]
+    url = f"/portal/workspaces/{ws.pk}/business/"
+    c = Client()
+    c.force_login(org["people"][Role.OWNER])
+    r = c.post(url, {"business_profiles": ["general", "real_estate", "lending"], "save_to_record_enabled": "on",
+                     "default_currency": "EUR"}, follow=True)
+    assert b"Business settings saved." in r.content
+    settings = m.OrgSettings.objects.get(workspace=ws)
+    assert settings.business_profiles == ["general", "real_estate", "lending"]
+    assert settings.save_to_record_enabled and settings.default_currency == "EUR"
+    assert {"real_estate", "lending"} <= set(m.Pipeline.objects.filter(workspace=ws).values_list("kind", flat=True))
+    assert AuditEvent.objects.filter(action="crm.orgsettings.update", target_id=str(ws.pk)).exists()
+    # The toggle is off again when the box is unticked; the profiles stay as posted.
+    c.post(url, {"business_profiles": ["general"]})
+    settings.refresh_from_db()
+    assert not settings.save_to_record_enabled and settings.business_profiles == ["general"]
+
+
+@pytest.mark.parametrize("role", [Role.MANAGER, Role.AGENT, Role.READONLY])
+def test_portal_business_settings_form_needs_owner_or_admin(org, role):
+    c = Client()
+    c.force_login(org["people"][role])
+    r = c.post(f"/portal/workspaces/{org['ws'].pk}/business/", {"business_profiles": ["general"], "save_to_record_enabled": "on"})
+    assert r.status_code == 403
+    assert not m.OrgSettings.objects.get(workspace=org["ws"]).save_to_record_enabled
+
+
+def test_portal_business_settings_form_respects_the_plan():
+    owner = make_user("free-owner")
+    ws = business_workspace(owner, "Free Org", plan="free")
+    c = Client()
+    c.force_login(owner)
+    r = c.post(f"/portal/workspaces/{ws.pk}/business/", {"business_profiles": ["general", "real_estate"]}, follow=True)
+    assert b"real-estate and lending profiles" in r.content
+    assert m.OrgSettings.objects.get(workspace=ws).business_profiles == ["general"]
+    r = c.post(f"/portal/workspaces/{ws.pk}/business/", {"business_profiles": ["general", "bakery"]}, follow=True)
+    assert b"Business settings saved." not in r.content
+    assert m.OrgSettings.objects.get(workspace=ws).business_profiles == ["general"]
