@@ -10,6 +10,7 @@ struct RoomView: View {
     @State private var model: TimelineModel
     @Environment(AppModel.self) private var app
     @Environment(\.lumen) private var c
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var composer = ""
     @State private var replyTo: MessageRow?
     @State private var editing: MessageRow?
@@ -21,6 +22,9 @@ struct RoomView: View {
     @State private var reportTarget: MessageRow?
     @State private var reportReason = ""
     @State private var reported = false
+    @State private var sentCount = 0
+    @State private var reactionCount = 0
+    @State private var failureCount = 0
 
     /// `draft`, `replyTo`, `editing` and `sending` seed the composer (DEBUG screenshots).
     init(session: SessionModel, model: TimelineModel, draft: String = "", replyTo: MessageRow? = nil, editing: MessageRow? = nil, sending: Bool = false) {
@@ -34,50 +38,81 @@ struct RoomView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let banner = session.banner {
-                ConnectionBannerView(banner: banner) { session.retrySync() }
-            }
-            ForEach(model.identityWarnings) { w in
-                IdentityWarningBanner(warning: w, model: model, error: $actionError)
+            if session.banner != nil || !model.identityWarnings.isEmpty {
+                VStack(spacing: LumenDimens.space2) {
+                    if let banner = session.banner {
+                        ConnectionBannerView(banner: banner) { session.retrySync() }
+                    }
+                    ForEach(model.identityWarnings) { w in
+                        IdentityWarningBanner(warning: w, model: model, error: $actionError)
+                    }
+                }
+                .padding(.horizontal, LumenDimens.space3)
+                .padding(.vertical, LumenDimens.space2)
             }
             timeline
-            if !model.typingUserIds.isEmpty {
-                Text(typingText)
-                    .font(.caption)
-                    .foregroundStyle(c.textMuted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, LumenDimens.space4)
-                    .accessibilityAddTraits(.updatesFrequently)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                if !model.typingUserIds.isEmpty {
+                    TypingIndicatorView(text: typingText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, LumenDimens.space4)
+                        .padding(.vertical, LumenDimens.space2)
+                        .transition(.opacity)
+                }
+                ComposerView(
+                    text: $composer,
+                    replyTo: $replyTo,
+                    editing: $editing,
+                    photoItem: $photoItem,
+                    importingFile: $importingFile,
+                    sending: sending,
+                    isEncrypted: model.encryptionKnown && model.isEncrypted,
+                    onSend: send,
+                    onTyping: { typing in Task { await model.setTyping(typing) } }
+                )
             }
-            ComposerView(
-                text: $composer,
-                replyTo: $replyTo,
-                editing: $editing,
-                photoItem: $photoItem,
-                importingFile: $importingFile,
-                sending: sending,
-                onSend: send,
-                onTyping: { typing in Task { await model.setTyping(typing) } }
-            )
         }
         .background(c.bg)
         .navigationTitle(model.roomName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Button { showInfo = true } label: { titleView }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(titleAccessibility)
+                    .accessibilityHint("Shows the people, calls and settings of this conversation")
+            }
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    app.calls.startCall(roomId: model.roomId, roomName: model.roomName, video: false)
-                } label: { Image(systemName: "phone") }
-                .accessibilityLabel(model.hasActiveCall ? "Join the call" : "Start a voice call")
-                Button {
-                    app.calls.startCall(roomId: model.roomId, roomName: model.roomName, video: true)
-                } label: { Image(systemName: "video") }
-                .accessibilityLabel(model.hasActiveCall ? "Join the call with video" : "Start a video call")
-                Button { showInfo = true } label: { Image(systemName: "info.circle") }
-                    .accessibilityLabel("Room details")
+                if model.hasActiveCall {
+                    Button {
+                        app.calls.startCall(roomId: model.roomId, roomName: model.roomName, video: false)
+                    } label: {
+                        Label("Join", systemImage: "phone.fill")
+                            .labelStyle(.titleAndIcon)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(c.success)
+                    .accessibilityLabel("Join the call")
+                } else {
+                    Button {
+                        app.calls.startCall(roomId: model.roomId, roomName: model.roomName, video: true)
+                    } label: { Image(systemName: "video") }
+                    .accessibilityLabel("Start a video call")
+                    Button {
+                        app.calls.startCall(roomId: model.roomId, roomName: model.roomName, video: false)
+                    } label: { Image(systemName: "phone") }
+                    .accessibilityLabel("Start a voice call")
+                }
             }
         }
         .sheet(isPresented: $showInfo) { RoomInfoView(session: session, model: model).lumenTheme() }
+        .sensoryFeedback(.impact(weight: .light), trigger: sentCount)
+        .sensoryFeedback(.selection, trigger: reactionCount)
+        .sensoryFeedback(.error, trigger: failureCount)
+        .animation(reduceMotion ? nil : Animation.lumenEaseOut, value: model.typingUserIds)
         .task {
             let appModel = app
             model.preferences = { [weak appModel] in appModel?.preferences ?? LumenPreferences() }
@@ -94,10 +129,13 @@ struct RoomView: View {
             guard let item else { return }
             Task { await sendPhoto(item) }
         }
+        .onChange(of: actionError) { _, error in
+            if error != nil { failureCount += 1 }
+        }
         .fileImporter(isPresented: $importingFile, allowedContentTypes: [.item]) { result in
             if case .success(let url) = result { Task { await sendFile(url) } }
         }
-        .alert("Something went wrong", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
+        .alert("That didn't work", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK") {}
         } message: { Text(actionError ?? "") }
         .alert("Report this message?", isPresented: Binding(get: { reportTarget != nil }, set: { if !$0 { reportTarget = nil } })) {
@@ -115,66 +153,139 @@ struct RoomView: View {
         } message: {
             Text("The report goes to your server's administrators. In an encrypted room they receive the message's ID and your reason, not its text. To stop seeing this person, block them from the room details.")
         }
-        .alert("Reported", isPresented: $reported) {
+        .alert("Thanks for reporting", isPresented: $reported) {
             Button("OK") {}
-        } message: { Text("Thank you. The server's administrators have been notified.") }
+        } message: { Text("Your server's administrators have been notified.") }
+    }
+
+    // MARK: - Title
+
+    private var titleView: some View {
+        VStack(spacing: 1) {
+            Text(model.roomName)
+                .font(.headline)
+                .foregroundStyle(c.text)
+                .lineLimit(1)
+            if model.encryptionKnown {
+                HStack(spacing: 3) {
+                    Image(systemName: model.isEncrypted ? "lock.fill" : "lock.open")
+                    Text(model.isEncrypted ? "End-to-end encrypted" : "Not encrypted")
+                }
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(model.isEncrypted ? c.textMuted : c.warning)
+                .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: 260)
+        .contentShape(Rectangle())
+    }
+
+    private var titleAccessibility: String {
+        guard model.encryptionKnown else { return model.roomName }
+        return "\(model.roomName), \(model.isEncrypted ? "end-to-end encrypted" : "not encrypted")"
     }
 
     private var typingText: String {
-        let n = model.typingUserIds.count
-        return n == 1 ? "\(model.typingUserIds[0]) is typing…" : "\(n) people are typing…"
+        let names = model.typingNames
+        switch names.count {
+        case 0: return ""
+        case 1: return "\(names[0]) is typing…"
+        case 2: return "\(names[0]) and \(names[1]) are typing…"
+        default: return "Several people are typing…"
+        }
+    }
+
+    // MARK: - Timeline
+
+    private struct LaidOutRow: Identifiable {
+        let row: TimelineRow
+        let grouping: BubbleGrouping
+        var id: String { row.id }
+    }
+
+    /// Consecutive messages from the same person within five minutes form one run.
+    private var laidOutRows: [LaidOutRow] {
+        let rows = model.rows
+        return rows.indices.map { i in
+            LaidOutRow(row: rows[i], grouping: BubbleGrouping(
+                withPrevious: i > 0 && Self.sameRun(rows[i - 1], rows[i]),
+                withNext: i + 1 < rows.count && Self.sameRun(rows[i], rows[i + 1])))
+        }
+    }
+
+    private static func sameRun(_ a: TimelineRow, _ b: TimelineRow) -> Bool {
+        guard case .message(let x) = a.kind, case .message(let y) = b.kind else { return false }
+        return x.sender == y.sender && abs(y.timestamp.timeIntervalSince(x.timestamp)) < 300
     }
 
     private var timeline: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: LumenDimens.space2) {
+                LazyVStack(spacing: 0) {
                     if model.reachedStart {
-                        Text(model.isEncrypted ? "Start of the conversation. Messages are end-to-end encrypted." : "Start of the conversation.")
-                            .font(.footnote)
-                            .foregroundStyle(c.textSubtle)
-                            .padding()
+                        if model.loadError == nil && model.encryptionKnown {
+                            ConversationStartCard(isEncrypted: model.isEncrypted, isDirect: model.isDirect)
+                                .padding(.vertical, LumenDimens.space4)
+                        }
                     } else {
                         ProgressView()
-                            .padding()
+                            .padding(LumenDimens.space5)
                             .onAppear { Task { await model.paginateBackwards() } }
                             .accessibilityLabel("Loading earlier messages")
                     }
-                    ForEach(model.rows) { row in
-                        rowView(row).id(row.id)
+                    ForEach(laidOutRows) { item in
+                        rowView(item)
+                            .padding(.top, item.grouping.withPrevious ? 2 : LumenDimens.space3)
+                            .id(item.row.id)
                     }
-                    Color.clear.frame(height: 1).id("bottom")
+                    Color.clear.frame(height: LumenDimens.space3).id("bottom")
                 }
                 .padding(.horizontal, LumenDimens.space3)
+                .frame(maxWidth: 820)
+                .frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.bottom)
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: model.rows.last?.id) { _, _ in
-                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                if reduceMotion {
+                    proxy.scrollTo("bottom", anchor: .bottom)
+                } else {
+                    withAnimation(.lumenEaseOut) { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
                 Task { await model.markAsRead() }
             }
             .overlay {
                 if let e = model.loadError {
-                    ContentUnavailableView("Couldn't load messages", systemImage: "exclamationmark.triangle", description: Text(e))
+                    EmptyStateView(systemImage: "bubble.left.and.exclamationmark.bubble.right", title: "Messages didn't load", message: e)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func rowView(_ row: TimelineRow) -> some View {
-        switch row.kind {
+    private func rowView(_ item: LaidOutRow) -> some View {
+        switch item.row.kind {
         case .dateDivider(let d):
-            Text(d.formatted(date: .complete, time: .omitted))
+            Text(d.dayDividerLabel)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(c.textSubtle)
+                .foregroundStyle(c.textMuted)
+                .padding(.horizontal, LumenDimens.space3)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(c.surface2))
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, LumenDimens.space2)
                 .accessibilityAddTraits(.isHeader)
         case .readMarker:
-            HStack {
-                Rectangle().fill(c.accent).frame(height: 1)
-                Text("New").font(.caption2.weight(.bold)).foregroundStyle(c.accent)
-                Rectangle().fill(c.accent).frame(height: 1)
+            HStack(spacing: LumenDimens.space2) {
+                Rectangle().fill(c.accent.opacity(0.5)).frame(height: 1)
+                Text("New messages")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(c.accent)
+                    .fixedSize()
+                Rectangle().fill(c.accent.opacity(0.5)).frame(height: 1)
             }
+            .padding(.vertical, LumenDimens.space1)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("New messages below")
         case .timelineStart:
             EmptyView()
@@ -183,6 +294,7 @@ struct RoomView: View {
                 .font(.caption)
                 .foregroundStyle(c.textSubtle)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
                 .frame(maxWidth: .infinity)
         case .call(let call):
             CallTimelineRow(row: call, ownUserId: session.userId) {
@@ -192,9 +304,14 @@ struct RoomView: View {
             MessageBubbleView(
                 message: m,
                 media: session.media,
+                isDirect: model.isDirect,
+                grouping: item.grouping,
                 onReply: { replyTo = m; editing = nil },
                 onEdit: { editing = m; replyTo = nil; composer = m.plainText ?? "" },
-                onReact: { key in run { try await model.toggleReaction(m.itemId, key: key) } },
+                onReact: { key in
+                    reactionCount += 1
+                    run { try await model.toggleReaction(m.itemId, key: key) }
+                },
                 onDelete: { run { try await model.redact(m.itemId) } },
                 onRetry: { run { try await model.retrySend(m.itemId) } },
                 onCancelSend: { run { try await model.cancelSend(m.itemId) } },
@@ -203,9 +320,11 @@ struct RoomView: View {
         }
     }
 
+    // MARK: - Actions
+
     private func run(_ op: @escaping () async throws -> Void) {
         Task {
-            do { try await op() } catch { actionError = "That didn't work. Check your connection and try again." }
+            do { try await op() } catch { actionError = "Check your connection and try again." }
         }
     }
 
@@ -216,6 +335,7 @@ struct RoomView: View {
         composer = ""
         replyTo = nil
         editing = nil
+        sentCount += 1
         Task {
             do {
                 if let edit {
@@ -225,7 +345,7 @@ struct RoomView: View {
                 }
             } catch {
                 composer = text
-                actionError = "The message couldn't be queued."
+                actionError = "The message couldn't be queued. Your text is back in the composer."
             }
         }
     }
@@ -243,8 +363,9 @@ struct RoomView: View {
             defer { try? FileManager.default.removeItem(at: url) }
             let size = UIImage(data: data)?.size
             try await model.sendFile(at: url, mimeType: type.preferredMIMEType, isImage: type.conforms(to: .image), width: size.map { UInt64($0.width) }, height: size.map { UInt64($0.height) }, caption: nil)
+            sentCount += 1
         } catch {
-            actionError = "The image couldn't be sent."
+            actionError = "The image couldn't be sent. Check your connection and try again."
         }
     }
 
@@ -260,9 +381,41 @@ struct RoomView: View {
             defer { try? FileManager.default.removeItem(at: url) }
             let type = UTType(filenameExtension: url.pathExtension)
             try await model.sendFile(at: url, mimeType: type?.preferredMIMEType, isImage: false, width: nil, height: nil, caption: nil)
+            sentCount += 1
         } catch {
-            actionError = "The file couldn't be sent."
+            actionError = "The file couldn't be sent. Check your connection and try again."
         }
+    }
+}
+
+/// The top of a conversation: what encryption means here, in one calm card.
+struct ConversationStartCard: View {
+    let isEncrypted: Bool
+    let isDirect: Bool
+    @Environment(\.lumen) private var c
+
+    var body: some View {
+        VStack(spacing: LumenDimens.space2) {
+            Image(systemName: isEncrypted ? "lock.shield.fill" : "lock.open")
+                .font(.title2)
+                .foregroundStyle(isEncrypted ? AnyShapeStyle(c.brandGradient) : AnyShapeStyle(c.warning))
+                .accessibilityHidden(true)
+            Text(isEncrypted ? "Messages are end-to-end encrypted" : "This conversation isn't encrypted")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(c.text)
+            Text(isEncrypted
+                 ? (isDirect ? "Only the two of you can read them. Not even the server can." : "Only people in this conversation can read them. Not even the server can.")
+                 : "The server can read messages in this room.")
+                .font(.footnote)
+                .foregroundStyle(c.textMuted)
+        }
+        .multilineTextAlignment(.center)
+        .padding(LumenDimens.space4)
+        .frame(maxWidth: 360)
+        .background(c.surface, in: RoundedRectangle(cornerRadius: LumenDimens.radiusLg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: LumenDimens.radiusLg, style: .continuous).strokeBorder(c.border))
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -279,7 +432,7 @@ struct IdentityWarningBanner: View {
                    actionTitle: warning.actionTitle,
                    action: {
                        Task {
-                           do { try await model.resolve(warning) } catch { self.error = "The change couldn't be acknowledged." }
+                           do { try await model.resolve(warning) } catch { self.error = "The change couldn't be acknowledged. Try again in a moment." }
                        }
                    })
         .task { name = await model.displayName(of: warning.userId) }
@@ -294,19 +447,36 @@ struct CallTimelineRow: View {
 
     var body: some View {
         let entry = CallHistoryBuilder.build([row.record], ownUserId: ownUserId).first
-        HStack {
+        let outcome = entry?.outcome
+        let tint: Color = outcome == .missed ? c.danger : (outcome == .ongoing ? c.success : c.accent)
+        let soft: Color = outcome == .missed ? c.dangerSoft : (outcome == .ongoing ? c.successSoft : c.accentSoft)
+        HStack(spacing: LumenDimens.space3) {
             Image(systemName: row.record.callIntent == "video" ? "video.fill" : "phone.fill")
-                .foregroundStyle(entry?.outcome == .missed ? c.danger : c.accent)
-            VStack(alignment: .leading) {
-                Text(entry?.outcome.title ?? "Call").font(.subheadline.weight(.semibold))
-                Text("\(row.senderName) · \(row.record.timestamp.shortRelative)").font(.caption).foregroundStyle(c.textMuted)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(soft))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(outcome?.title ?? "Call")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(c.text)
+                Text("\(row.senderName) · \(row.record.timestamp.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption)
+                    .foregroundStyle(c.textMuted)
+                    .lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: LumenDimens.space2)
             if !row.record.activeMembers.isEmpty && !row.record.isJoined {
-                Button("Join", action: join).buttonStyle(.borderedProminent)
+                Button("Join", action: join)
+                    .buttonStyle(ChipButtonStyle(prominent: true))
             }
         }
-        .lumenCard()
+        .padding(LumenDimens.space3)
+        .frame(maxWidth: 420)
+        .background(c.surface, in: RoundedRectangle(cornerRadius: LumenDimens.radiusLg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: LumenDimens.radiusLg, style: .continuous).strokeBorder(c.border))
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
     }
 }

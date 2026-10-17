@@ -16,6 +16,9 @@ final class TimelineModel {
     private(set) var roomName: String
     private(set) var isDirect = false
     private(set) var isEncrypted = false
+    /// `isEncrypted` has been read from the room (so the UI never flashes
+    /// "not encrypted" while it loads).
+    private(set) var encryptionKnown = false
     private(set) var hasActiveCall = false
     private(set) var loadError: String?
     private(set) var callHistory: [CallHistoryEntry] = []
@@ -55,6 +58,7 @@ final class TimelineModel {
         self.roomName = roomName
         self.isDirect = isDirect
         self.isEncrypted = isEncrypted
+        self.encryptionKnown = true
         self.hasActiveCall = hasActiveCall
         self.reachedStart = reachedStart
         self.typingUserIds = typingUserIds
@@ -105,6 +109,7 @@ final class TimelineModel {
 
         isDirect = await room.isDirect()
         isEncrypted = await room.isEncrypted()
+        encryptionKnown = true
         if let info = try? await room.roomInfo() {
             roomName = info.displayName ?? roomName
             hasActiveCall = info.hasRoomCall
@@ -264,6 +269,22 @@ final class TimelineModel {
     /// not the decrypted text.
     func report(eventId: String, reason: String?) async throws {
         try await room?.reportContent(eventId: eventId, reason: reason)
+    }
+
+    /// Names of the people typing, from their messages in the loaded
+    /// timeline (else the user ID's localpart).
+    var typingNames: [String] {
+        typingUserIds.map { id in
+            for row in rows.reversed() {
+                if case .message(let m) = row.kind, m.sender == id { return m.senderName }
+            }
+            return Self.localpart(id)
+        }
+    }
+
+    nonisolated static func localpart(_ userId: String) -> String {
+        guard userId.hasPrefix("@") else { return userId }
+        return String(userId.dropFirst().prefix { $0 != ":" })
     }
 
     func displayName(of userId: String) async -> String {

@@ -273,14 +273,14 @@ enum TimelineText {
     static func utd(_ msg: EncryptedMessage) -> String {
         if case .megolmV1AesSha2(_, let cause) = msg {
             switch cause {
-            case .sentBeforeWeJoined: return "You can't read this message: it was sent before you joined."
-            case .verificationViolation: return "Blocked: the sender's verified identity changed."
-            case .unsignedDevice: return "Blocked: sent from a device its owner hasn't verified."
-            case .unknownDevice: return "Blocked: sent from an unknown device."
-            case .historicalMessageAndBackupIsDisabled: return "Sent before this device signed in, and there is no key backup to restore it from."
+            case .sentBeforeWeJoined: return "Sent before you joined, so this device can't read it."
+            case .verificationViolation: return "Hidden because the sender's verified identity changed."
+            case .unsignedDevice: return "Hidden: sent from a device its owner hasn't verified."
+            case .unknownDevice: return "Hidden: sent from a device that isn't known."
+            case .historicalMessageAndBackupIsDisabled: return "Sent before this device signed in, and there's no key backup to restore it from."
             default: break
             }
         }
-        return "Waiting for the key to decrypt this message. Verify this device or enter your recovery key."
+        return "The key for this message hasn't arrived yet. Verifying this device or entering your recovery key usually helps."
     }
 }

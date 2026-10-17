@@ -287,14 +287,11 @@ enum ScreenshotCatalog {
                 AnyView(HomeView(session: session(ctx, verificationPhase: .waitingForOther)))
             },
             ScreenshotScene("verification-verified", .phone, settle: 0.8) { ctx in
-                // In the app this state is reached inside the open sheet.
-                let s = session(ctx)
-                return overHome(s, VerificationView(verification: VerificationModel(preview: .verified)))
+                AnyView(HomeView(session: session(ctx, verificationPhase: .verified)))
             },
             ScreenshotScene("verification-cancelled", .phone, settle: 0.8) { ctx in
-                let s = session(ctx)
                 let why = "The emoji didn't match, so the verification was stopped. Someone may be intercepting the connection; try again in person."
-                return overHome(s, VerificationView(verification: VerificationModel(preview: .cancelled(why))))
+                return AnyView(HomeView(session: session(ctx, verificationPhase: .cancelled(why))))
             },
         ]
     }
@@ -338,9 +335,10 @@ struct PreviewCallScreen: View {
                 ForEach(["Maya Chen", "Sam Okafor"], id: \.self) { name in
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(Color(white: 0.14))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .overlay { AvatarView(name: name, size: 72) }
                         .overlay(alignment: .bottomLeading) {
-                            Text(name).font(.caption.weight(.semibold)).foregroundStyle(.white).padding(10)
+                            Text(name).font(.caption.weight(.semibold)).foregroundStyle(.white).padding(12)
                         }
                 }
                 Text("Call widget (web content, not rendered in screenshots)")

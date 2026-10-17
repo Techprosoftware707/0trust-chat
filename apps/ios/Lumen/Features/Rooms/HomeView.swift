@@ -16,8 +16,9 @@ struct HomeView: View {
     var body: some View {
         @Bindable var model = model
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            RoomListView(session: session, selection: $model.selectedRoomId)
+            RoomListView(session: session, selection: $model.selectedRoomId, onNewChat: { showNewChat = true }, onSecure: { showSecurity = true })
                 .navigationTitle(session.brandShortName)
+                .navigationSplitViewColumnWidth(min: 300, ideal: 350, max: 420)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showSettings = true } label: {
@@ -35,34 +36,32 @@ struct HomeView: View {
                         .accessibilityLabel("Start a conversation")
                     }
                 }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    VStack(spacing: 0) {
-                        if let banner = session.banner {
-                            ConnectionBannerView(banner: banner) { session.retrySync() }
-                        }
-                        if session.encryption.needsVerification || session.encryption.needsRecoverySetup {
-                            BannerView(style: .warning, systemImage: "key",
-                                       text: session.encryption.needsVerification ? "Verify this device to read your earlier messages and to show others it's really you." : "Set up recovery so you don't lose your messages if you lose this device.",
-                                       actionTitle: "Set up", action: { showSecurity = true })
-                        }
-                        if let e = session.authError {
-                            BannerView(style: .danger, systemImage: "person.crop.circle.badge.exclamationmark", text: e)
-                        }
-                    }
-                }
         } detail: {
             if let id = model.selectedRoomId, let timeline = session.makeTimelineModel(roomId: id) {
                 RoomView(session: session, model: timeline)
                     .id(id)
             } else {
-                ContentUnavailableView("No conversation selected", systemImage: "bubble.left.and.bubble.right", description: Text("Choose a conversation, or start a new one."))
+                EmptyStateView(systemImage: "bubble.left.and.bubble.right", title: "Pick a conversation",
+                               message: "Choose one from the list, or start something new.")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .lumenScreenBackground()
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView(session: session).lumenTheme() }
         .sheet(isPresented: $showNewChat) { NewChatView(session: session) { model.selectedRoomId = $0 }.lumenTheme() }
         .sheet(isPresented: $showNewGroup) { NewGroupView(session: session) { model.selectedRoomId = $0 }.lumenTheme() }
         .sheet(isPresented: $showSecurity) { SecurityOnboardingView(session: session).lumenTheme() }
-        .sheet(isPresented: Binding(get: { session.verification.isActive }, set: { if !$0 { Task { await session.verification.cancel() } } })) {
+        // Shown for the whole verification, including its result; closing it
+        // during a verification cancels that verification.
+        .sheet(isPresented: Binding(get: { session.verification.phase != .idle }, set: { shown in
+            guard !shown else { return }
+            let verification = session.verification
+            if verification.isActive {
+                Task { await verification.cancel() }
+            } else {
+                verification.reset()
+            }
+        })) {
             VerificationView(verification: session.verification).lumenTheme()
         }
         .task(id: session.encryption.initialised) {
@@ -79,20 +78,67 @@ struct HomeView: View {
     }
 }
 
+/// The plain list style on iPhone, the sidebar style beside a detail column.
+private struct RoomListStyleModifier: ViewModifier {
+    let compact: Bool
+    func body(content: Content) -> some View {
+        if compact {
+            content.listStyle(.plain)
+        } else {
+            content.listStyle(.sidebar)
+        }
+    }
+}
+
 struct RoomListView: View {
     let session: SessionModel
     @Binding var selection: String?
+    var onNewChat: () -> Void = {}
+    var onSecure: () -> Void = {}
     @Environment(\.lumen) private var c
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var actionError: String?
+
+    private var hasBanners: Bool {
+        session.banner != nil || session.authError != nil
+            || session.encryption.needsVerification || session.encryption.needsRecoverySetup
+    }
 
     var body: some View {
         @Bindable var list = session.roomList
         List(selection: $selection) {
+            if hasBanners {
+                Section {
+                    VStack(spacing: LumenDimens.space2) {
+                        if let banner = session.banner {
+                            ConnectionBannerView(banner: banner) { session.retrySync() }
+                        }
+                        if session.encryption.needsVerification {
+                            BannerView(style: .info, systemImage: "checkmark.shield",
+                                       text: "Confirm it's you to unlock your earlier messages and show your contacts this device is yours.",
+                                       actionTitle: "Verify", action: onSecure)
+                        } else if session.encryption.needsRecoverySetup {
+                            BannerView(style: .info, systemImage: "key",
+                                       text: "Set up recovery so your messages stay safe if you lose this device.",
+                                       actionTitle: "Set up", action: onSecure)
+                        }
+                        if let e = session.authError {
+                            BannerView(style: .danger, systemImage: "person.crop.circle.badge.exclamationmark", text: e)
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: LumenDimens.space2, leading: LumenDimens.space4, bottom: LumenDimens.space2, trailing: LumenDimens.space4))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+            }
             if !list.invites.isEmpty {
-                Section("Invitations") {
+                Section {
                     ForEach(list.invites) { invite in
                         InviteRow(summary: invite, session: session, error: $actionError)
+                            .listRowSeparator(.hidden)
                     }
+                } header: {
+                    Text("Invitations")
                 }
             }
             Section {
@@ -103,24 +149,38 @@ struct RoomListView: View {
                             if room.id == list.joined.last?.id { list.loadMore() }
                         }
                 }
+            } header: {
+                if !list.invites.isEmpty && !list.joined.isEmpty {
+                    Text("Conversations")
+                }
             }
         }
-        .listStyle(.sidebar)
+        .modifier(RoomListStyleModifier(compact: sizeClass == .compact))
+        .scrollContentBackground(.hidden)
+        .background(c.bg)
         .searchable(text: $list.searchText, prompt: "Search conversations")
         .overlay {
             if list.isLoading {
-                ProgressView("Loading conversations…")
+                RoomListSkeleton()
             } else if let e = list.loadError {
-                ContentUnavailableView("Couldn't load conversations", systemImage: "exclamationmark.triangle", description: Text(e))
+                EmptyStateView(systemImage: "exclamationmark.bubble", title: "Your conversations didn't load",
+                               message: "\(e) Close Lumen and open it again to retry.")
             } else if list.summaries.isEmpty {
                 if list.searchText.isEmpty {
-                    ContentUnavailableView("No conversations yet", systemImage: "bubble.left.and.bubble.right", description: Text("Start a chat with the pencil button."))
+                    EmptyStateView(systemImage: "bubble.left.and.text.bubble.right", title: "Your conversations will appear here",
+                                   message: "Start a private, end-to-end encrypted chat with anyone on Matrix.") {
+                        Button(action: onNewChat) {
+                            Label("Start a conversation", systemImage: "square.and.pencil")
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .frame(maxWidth: 300)
+                    }
                 } else {
                     ContentUnavailableView.search(text: list.searchText)
                 }
             }
         }
-        .alert("Something went wrong", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
+        .alert("That didn't work", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
             Button("OK") {}
         } message: {
             Text(actionError ?? "")
@@ -131,58 +191,111 @@ struct RoomListView: View {
 struct RoomRow: View {
     let summary: RoomSummary
     @Environment(\.lumen) private var c
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    var body: some View {
-        HStack(spacing: LumenDimens.space3) {
-            AvatarView(name: summary.name, size: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text(summary.name)
-                        .font(.body.weight(summary.hasUnread ? .semibold : .regular))
-                        .foregroundStyle(c.text)
-                        .lineLimit(1)
-                    if summary.hasCall {
-                        Image(systemName: "phone.fill")
-                            .font(.caption)
-                            .foregroundStyle(c.success)
-                            .accessibilityLabel("Call in progress")
-                    }
-                    Spacer()
-                    if let ts = summary.lastTimestamp {
-                        Text(ts.shortRelative)
-                            .font(.caption)
-                            .foregroundStyle(c.textSubtle)
-                    }
-                }
-                HStack {
-                    Text(summary.lastMessage ?? (summary.isEncrypted ? "Encrypted conversation" : " "))
-                        .font(.subheadline)
-                        .foregroundStyle(c.textMuted)
-                        .lineLimit(1)
-                    Spacer()
-                    if summary.unreadMentions > 0 {
-                        badge("@", accessibility: "\(summary.unreadMentions) mentions")
-                    } else if summary.unreadMessages > 0 {
-                        badge(summary.unreadMessages > 99 ? "99+" : "\(summary.unreadMessages)", accessibility: "\(summary.unreadMessages) unread")
-                    } else if summary.isMarkedUnread {
-                        Circle().fill(c.accent).frame(width: 10, height: 10).accessibilityLabel("Marked unread")
-                    }
-                }
-            }
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(summary.isDirect ? "Direct chat" : "Group")
+    private var preview: String {
+        if let last = summary.lastMessage, !last.isEmpty { return last }
+        return summary.isEncrypted ? "End-to-end encrypted" : "No messages yet"
     }
 
-    private func badge(_ text: String, accessibility: String) -> some View {
+    var body: some View {
+        HStack(alignment: .center, spacing: LumenDimens.space3) {
+            AvatarView(name: summary.name, size: typeSize.isAccessibilitySize ? 44 : 52)
+                .overlay(alignment: .bottomTrailing) {
+                    if summary.hasCall {
+                        Image(systemName: "phone.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 20, height: 20)
+                            .background(Circle().fill(c.success))
+                            .overlay(Circle().strokeBorder(c.bg, lineWidth: 2))
+                            .offset(x: 3, y: 3)
+                    }
+                }
+            VStack(alignment: .leading, spacing: 3) {
+                if typeSize.isAccessibilitySize {
+                    name
+                    timestamp
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: LumenDimens.space2) {
+                        name
+                        Spacer(minLength: LumenDimens.space1)
+                        timestamp
+                    }
+                }
+                HStack(alignment: .top, spacing: LumenDimens.space2) {
+                    Text(preview)
+                        .font(.subheadline)
+                        .foregroundStyle(c.textMuted)
+                        .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    badge
+                }
+            }
+            .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] }
+        }
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var name: some View {
+        HStack(spacing: 4) {
+            Text(summary.name)
+                .font(.body.weight(summary.hasUnread ? .semibold : .medium))
+                .foregroundStyle(c.text)
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+            if !summary.isEncrypted {
+                Image(systemName: "lock.open")
+                    .font(.caption)
+                    .foregroundStyle(c.warning)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var timestamp: some View {
+        if let ts = summary.lastTimestamp {
+            Text(ts.shortRelative)
+                .font(.footnote.weight(summary.hasUnread ? .semibold : .regular))
+                .monospacedDigit()
+                .foregroundStyle(summary.hasUnread ? c.accent : c.textSubtle)
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private var badge: some View {
+        if summary.unreadMentions > 0 {
+            countBadge("@")
+        } else if summary.unreadMessages > 0 {
+            countBadge(summary.unreadMessages > 99 ? "99+" : "\(summary.unreadMessages)")
+        } else if summary.isMarkedUnread {
+            Circle().fill(c.accent).frame(width: 12, height: 12).padding(.top, 4)
+        }
+    }
+
+    private func countBadge(_ text: String) -> some View {
         Text(text)
-            .font(.caption2.weight(.bold))
+            .font(.caption.weight(.bold))
+            .monospacedDigit()
             .foregroundStyle(c.accentContrast)
             .padding(.horizontal, 7)
-            .padding(.vertical, 2)
+            .frame(minWidth: 22, minHeight: 22)
             .background(Capsule().fill(c.accent))
-            .accessibilityLabel(accessibility)
+    }
+
+    private var accessibilityText: String {
+        var parts = [summary.name]
+        if summary.hasCall { parts.append("call in progress") }
+        if summary.unreadMentions > 0 { parts.append("\(summary.unreadMentions) \(summary.unreadMentions == 1 ? "mention" : "mentions")") }
+        if summary.unreadMessages > 0 { parts.append("\(summary.unreadMessages) unread") } else if summary.isMarkedUnread { parts.append("marked unread") }
+        parts.append(preview)
+        if let ts = summary.lastTimestamp { parts.append(ts.shortRelative) }
+        if !summary.isEncrypted { parts.append("not encrypted") }
+        parts.append(summary.isDirect ? "direct chat" : "group")
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -193,41 +306,67 @@ struct InviteRow: View {
     @Environment(\.lumen) private var c
 
     var body: some View {
-        VStack(alignment: .leading, spacing: LumenDimens.space2) {
-            HStack {
-                AvatarView(name: summary.name, size: 36)
-                VStack(alignment: .leading) {
-                    Text(summary.name).font(.body.weight(.semibold)).foregroundStyle(c.text)
-                    if let inviter = summary.inviterId {
-                        Text("Invited by \(inviter)").font(.caption).foregroundStyle(c.textMuted)
-                    }
+        VStack(alignment: .leading, spacing: LumenDimens.space3) {
+            HStack(spacing: LumenDimens.space3) {
+                AvatarView(name: summary.name, size: 44, ring: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.name)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(c.text)
+                        .lineLimit(2)
+                    Text(summary.inviterId.map { "\($0) invited you" } ?? "You're invited")
+                        .font(.footnote)
+                        .foregroundStyle(c.textMuted)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
-            HStack {
-                AsyncButton {
-                    do { try await RoomActions(client: session.client).accept(roomId: summary.id) }
-                    catch { self.error = "The invitation couldn't be accepted." }
-                } label: { Text("Accept") }
-                .buttonStyle(.borderedProminent)
-                AsyncButton {
-                    do { try await RoomActions(client: session.client).decline(roomId: summary.id) }
-                    catch { self.error = "The invitation couldn't be declined." }
-                } label: { Text("Decline") }
-                .buttonStyle(.bordered)
-                if let inviter = summary.inviterId {
-                    AsyncButton {
-                        do {
-                            try await RoomActions(client: session.client).decline(roomId: summary.id)
-                            try await session.ignore(userId: inviter)
-                        } catch { self.error = "That didn't work. Try again." }
-                    } label: { Text("Block") }
-                    .buttonStyle(.bordered)
-                    .tint(c.danger)
-                    .accessibilityHint("Declines and blocks \(inviter)")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: LumenDimens.space2) {
+                    acceptButton
+                    declineButton
+                    blockButton
+                    Spacer(minLength: 0)
+                }
+                VStack(alignment: .leading, spacing: LumenDimens.space2) {
+                    acceptButton
+                    declineButton
+                    blockButton
                 }
             }
         }
-        .padding(.vertical, LumenDimens.space1)
+        .padding(.vertical, LumenDimens.space2)
+        .accessibilityElement(children: .contain)
+    }
+
+    private var acceptButton: some View {
+        AsyncButton {
+            do { try await RoomActions(client: session.client).accept(roomId: summary.id) }
+            catch { self.error = "The invitation couldn't be accepted. Check your connection and try again." }
+        } label: { Text("Accept") }
+        .buttonStyle(ChipButtonStyle(prominent: true))
+    }
+
+    private var declineButton: some View {
+        AsyncButton {
+            do { try await RoomActions(client: session.client).decline(roomId: summary.id) }
+            catch { self.error = "The invitation couldn't be declined. Check your connection and try again." }
+        } label: { Text("Decline") }
+        .buttonStyle(ChipButtonStyle())
+    }
+
+    @ViewBuilder
+    private var blockButton: some View {
+        if let inviter = summary.inviterId {
+            AsyncButton(role: .destructive) {
+                do {
+                    try await RoomActions(client: session.client).decline(roomId: summary.id)
+                    try await session.ignore(userId: inviter)
+                } catch { self.error = "That didn't go through. Check your connection and try again." }
+            } label: { Text("Block") }
+            .buttonStyle(ChipButtonStyle())
+            .accessibilityHint("Declines and blocks \(inviter)")
+        }
     }
 }
 
@@ -237,42 +376,79 @@ struct ConfirmLinkView: View {
     let session: SessionModel
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.lumen) private var c
     @State private var error: String?
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: LumenDimens.space4) {
-                switch route {
-                case .room(let id, _, let via):
-                    Text("Open or join \(id)?").font(.title3.weight(.semibold))
-                    Text("If you're not a member yet, you'll join this room and its members will see you.").foregroundStyle(.secondary)
-                    AsyncButton {
-                        do {
-                            let roomId = id.hasPrefix("!") && session.roomList.room(id: id) != nil ? id : try await RoomActions(client: session.client).join(idOrAlias: id, via: via)
-                            model.selectedRoomId = roomId
-                            dismiss()
-                        } catch { self.error = "The room couldn't be opened. You may need an invitation." }
-                    } label: { Text("Open") }
-                    .buttonStyle(PrimaryButtonStyle())
-                case .user(let id):
-                    Text("Start a chat with \(id)?").font(.title3.weight(.semibold))
-                    Text("An end-to-end encrypted direct chat is created and \(id) is invited.").foregroundStyle(.secondary)
-                    AsyncButton {
-                        do {
-                            model.selectedRoomId = try await RoomActions(client: session.client).startDirectMessage(with: id)
-                            dismiss()
-                        } catch { self.error = "The chat couldn't be started." }
-                    } label: { Text("Start chat") }
-                    .buttonStyle(PrimaryButtonStyle())
-                default:
-                    EmptyView()
+            ScrollView {
+                VStack(spacing: LumenDimens.space4) {
+                    switch route {
+                    case .room(let id, _, let via):
+                        header(systemImage: "number", title: "Open this room?", subtitle: id)
+                        Text("If you're not a member yet, you'll join it and its members will see you.")
+                            .font(.subheadline)
+                            .foregroundStyle(c.textMuted)
+                            .multilineTextAlignment(.center)
+                        AsyncButton {
+                            do {
+                                let roomId = id.hasPrefix("!") && session.roomList.room(id: id) != nil ? id : try await RoomActions(client: session.client).join(idOrAlias: id, via: via)
+                                model.selectedRoomId = roomId
+                                dismiss()
+                            } catch { self.error = "The room couldn't be opened. You may need an invitation." }
+                        } label: { Text("Open") }
+                        .buttonStyle(PrimaryButtonStyle())
+                    case .user(let id):
+                        header(systemImage: "person.crop.circle.badge.plus", title: "Start a chat?", subtitle: id)
+                        Text("Lumen creates an end-to-end encrypted direct chat and invites them.")
+                            .font(.subheadline)
+                            .foregroundStyle(c.textMuted)
+                            .multilineTextAlignment(.center)
+                        AsyncButton {
+                            do {
+                                model.selectedRoomId = try await RoomActions(client: session.client).startDirectMessage(with: id)
+                                dismiss()
+                            } catch { self.error = "The chat couldn't be started. Check your connection and try again." }
+                        } label: { Text("Start chat") }
+                        .buttonStyle(PrimaryButtonStyle())
+                    default:
+                        EmptyView()
+                    }
+                    if let error {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(c.danger)
+                            .multilineTextAlignment(.center)
+                    }
                 }
-                if let error { Text(error).foregroundStyle(.red) }
-                Spacer()
+                .padding(LumenDimens.space5)
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
             }
-            .padding(LumenDimens.space5)
+            .background(c.bg)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+    }
+
+    private func header(systemImage: String, title: String, subtitle: String) -> some View {
+        VStack(spacing: LumenDimens.space2) {
+            Image(systemName: systemImage)
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(c.accent)
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(c.accentSoft))
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(c.text)
+            Text(subtitle)
+                .font(.subheadline.monospaced())
+                .foregroundStyle(c.textMuted)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .multilineTextAlignment(.center)
+        }
     }
 }

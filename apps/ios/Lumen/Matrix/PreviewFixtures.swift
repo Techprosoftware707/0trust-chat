@@ -196,9 +196,9 @@ enum PreviewFixtures {
         [
             divider("d1", at(daysAgo: 2, 8, 0)),
             state("s1", "Jonas Weber joined"),
-            message("u1", jonas, at: at(daysAgo: 2, 8, 4), .unableToDecrypt("Waiting for the key to decrypt this message. Verify this device or enter your recovery key.")),
-            message("u2", sam, at: at(daysAgo: 2, 8, 6), .unableToDecrypt("You can't read this message: it was sent before you joined.")),
-            message("u3", jonas, at: at(daysAgo: 2, 8, 7), .unableToDecrypt("Blocked: sent from a device its owner hasn't verified.")),
+            message("u1", jonas, at: at(daysAgo: 2, 8, 4), .unableToDecrypt(TimelineText.utd(.megolmV1AesSha2(sessionId: "s1", cause: .unknown)))),
+            message("u2", sam, at: at(daysAgo: 2, 8, 6), .unableToDecrypt(TimelineText.utd(.megolmV1AesSha2(sessionId: "s2", cause: .sentBeforeWeJoined)))),
+            message("u3", jonas, at: at(daysAgo: 2, 8, 7), .unableToDecrypt(TimelineText.utd(.megolmV1AesSha2(sessionId: "s3", cause: .unsignedDevice)))),
             message("x1", maya, at: at(daysAgo: 2, 8, 30), .redacted),
             message("x2", sam, at: at(daysAgo: 2, 8, 40), .unsupported("Poll: Team lunch on Friday? (open the web app to vote)")),
             call("c1", maya, at: at(daysAgo: 2, 9, 0), video: true),
