@@ -1,0 +1,130 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+widget bundle: /home/user/0trust-chat/services/chat/dist-widget (present)
+
+--- web user signs in to https://app.lumen.test (lab-b) through portal SSO
+web user @callappwidgetweb2c534a:lumen.test, device EFSFPFTJGZ
+PASS web user signs in to https://app.lumen.test (lab-b) through portal SSO (3.9 s)
+
+--- native user: portal account, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens
+native user @callappwidgetnative812576:lumen.test; got 2 single-use login tokens from the app-scheme callback
+PASS native user: portal account, SSO with the apps' redirect URI (io.lumen.secure:/sso-callback) → login tokens (1.0 s)
+
+--- web user opens an encrypted DM with the native user (normal web client UI)
+DM !SnKdfraoOpmPUdZ7Ozob1we-nLI3n_Pg8tkvEr_19sM, encryption m.megolm.v1.aes-sha2
+PASS web user opens an encrypted DM with the native user (normal web client UI) (0.9 s)
+
+--- negative: the harness grants exactly the apps' capability set and refuses everything beyond it
+     [probe] INFO lumen_widget_harness: trusting additional root certificate(s) count=136 file=/etc/lumen/ca/bundle.crt
+     [probe] INFO lumen_widget_harness: logged in user_id=@callappwidgetnative812576:lumen.test device_id=ZBXKZMRWEM
+     [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [probe] WARN lumen_widget_harness: cross-signing not complete: Some(CrossSigningStatus { has_master: false, has_self_signing: false, has_user_signing: false })
+     [probe] INFO lumen_widget_harness: joining the room
+     [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [probe] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!VmZ9UkpIWQUK-qjDdHXuX5EDknlRWF6nU9jHKQGT9po" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!eo476Dy8PP4lwYFxxWqscuv5kWLMigY0h6o-Zyh5GYI" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!jhDDY4zjPlLtOzXgNnNWdHPhVvXZ7IOYFqvM4PNdvzg" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!oqa6k_nHEr7M8OlJfG9qz8zBiwAPpn2Mago9nlV6ET4" }
+     [probe] ERROR matrix_sdk::latest_events::room_latest_events: Room is unknown room=WeakRoom { client: WeakClient { client: (Weak) }, room_id: "!wRXXmKUDKVWzeBPBF60IFLDEkXWWEneZlY4G9jH2QD4" }
+     [probe] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [probe] INFO lumen_widget_harness: room joined encrypted=true sync=Running
+     [probe] INFO lumen_widget_harness: ready: widget driver running (widget id lumen-call-probe)
+     [probe] WARN matrix_sdk::event_cache::redecryptor: Failed to redecrypt an event despite receiving a room key or request to redecrypt
+     [probe] WARN matrix_sdk::event_cache::redecryptor: Failed to redecrypt an event despite receiving a room key or request to redecrypt
+probe harness: @callappwidgetnative812576:lumen.test device ZBXKZMRWEM, room encrypted=true, matrix-rust-sdk 2a3db80e99fe322b9849325a182dc8a634fb20d4
+driver API versions: 0.0.1, 0.0.2, org.matrix.msc2762, org.matrix.msc2762_update_state, org.matrix.msc2871, org.matrix.msc3819, org.matrix.msc4039, org.matrix.msc4515, org.matrix.msc4533
+     [probe] INFO lumen_widget_harness: capabilities negotiated (Element Call required set) requested=40 granted=31
+     [probe] INFO lumen_widget_harness: capabilities refused (not in the required set): ["org.matrix.msc2762.receive.event:m.room.message", "org.matrix.msc2762.receive.state_event:m.room.power_levels", "org.matrix.msc3819.receive.to_device:m.room_key", "org.matrix.msc2762.send.event:m.room.message", "org.matrix.msc2762.send.event:m.room.message#m.text", "org.matrix.msc2762.send.state_event:m.room.name", "org.matrix.msc2762.send.state_event:m.room.power_levels", "org.matrix.msc2762.send.state_event:org.matrix.msc3401.call.member#_@someone:lumen.test_OTHER_m.call", "org.matrix.msc3819.send.to_device:m.room_key_request"]
+     [probe] INFO lumen_widget_harness::native_rtc: native: granted org.matrix.msc4533.rtc_livekit_get_token (own room, own member ID only)
+requested 47, approved 32; refused: 15 extras
+send m.room.message → error: Not allowed to send event
+send call.member for another user → error: Not allowed to send event
+send_to_device m.room_key_request → error: Not allowed to send to-device message of type: m.room_key_request
+read m.room.message → error: Not allowed to read message-like event
+     [probe] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4515.get_rtc_transports
+     [probe] WARN lumen_widget_harness::native_rtc: native: refused org.matrix.msc4533.rtc_livekit_get_token: Tokens are only issued for the widget's own room
+     [probe] WARN lumen_widget_harness::native_rtc: native: refused org.matrix.msc4533.rtc_livekit_get_token: Tokens are only issued for this device's call membership
+     [probe] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4533.rtc_livekit_get_token
+own-room token: identity G9/F3uYO… (pseudonymous hash), valid 60 min
+     [probe] INFO lumen_widget_harness: stdin closed (widget gone)
+     [probe] INFO lumen_widget_harness: terminated
+     [probe] INFO lumen_widget_harness: logged out (device deleted)
+probe harness stopped (exit {"code":0,"signal":null})
+PASS negative: the harness grants exactly the apps' capability set and refuses everything beyond it (4.5 s)
+
+--- native: the harness signs in (m.login.token), trusts the dev CA, joins the DM and builds the widget URL
+     [native] INFO lumen_widget_harness: trusting additional root certificate(s) count=136 file=/etc/lumen/ca/bundle.crt
+     [native] INFO lumen_widget_harness: logged in user_id=@callappwidgetnative812576:lumen.test device_id=NSXYTQFGIY
+     [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [native] WARN lumen_widget_harness: cross-signing not complete: Some(CrossSigningStatus { has_master: false, has_self_signing: false, has_user_signing: false })
+     [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [native] INFO lumen_widget_harness: joining the room
+     [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+     [native] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [native] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [native] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [native] WARN matrix_sdk_base::room::room_info: Unable to get the room version rules, defaulting to rules for room version 11
+     [native] INFO lumen_widget_harness: room joined encrypted=true sync=Running
+     [native] INFO lumen_widget_harness: ready: widget driver running (widget id lumen-call)
+     [native] WARN matrix_sdk::event_cache::redecryptor: Failed to redecrypt an event despite receiving a room key or request to redecrypt
+     [native] WARN matrix_sdk::event_cache::redecryptor: Failed to redecrypt an event despite receiving a room key or request to redecrypt
+     [native] ERROR matrix_sdk::http_client: Error while sending request: Api(Server(MatrixError(Error { status_code: 404, body: Standard(StandardErrorBody { kind: NotFound, message: "Account data not found" }) })))
+widget URL params: widgetId, parentUrl, roomId, userId, deviceId, baseUrl, lang, theme, intent, video, notify
+PASS native: the harness signs in (m.login.token), trusts the dev CA, joins the DM and builds the widget URL (0.6 s)
+
+--- widget page (lab-a, http://localhost) connects over the native bridge; capabilities negotiated
+     [native] INFO lumen_widget_harness: capabilities negotiated (Element Call required set) requested=15 granted=31
+     [native] INFO lumen_widget_harness::native_rtc: native: granted org.matrix.msc4533.rtc_livekit_get_token (own room, own member ID only)
+widget requested 17, approved 32
+requested but not approved: ["org.matrix.msc2762.timeline:!SnKdfraoOpmPUdZ7Ozob1we-nLI3n_Pg8tkvEr_19sM"]
+PASS widget page (lab-a, http://localhost) connects over the native bridge; capabilities negotiated (0.6 s)
+
+--- widget starts the call (ring) and joins it over MatrixRTC through the Rust SDK
+     [native] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4515.get_rtc_transports
+     [native] INFO lumen_widget_harness::native_rtc: native: answered org.matrix.msc4533.rtc_livekit_get_token
+call_state sequence: connecting → connected; video=true muted=false
+widget membership (sent through the driver): application=m.call call_id="" transport=[{"type":"livekit","url":"wss://rtc.lumen.test"}]
+widget → driver: 3 call.member sends (1 delayed), 1 delayed-event updates, 1 SFU token request(s)
+PASS widget starts the call (ring) and joins it over MatrixRTC through the Rust SDK (0.6 s)
+
+--- web user answers the ring in the normal web client and joins the same call
+web call status: 0:00
+PASS web user answers the ring in the normal web client and joins the same call (1.6 s)
+
+--- E2EE on both sides, with media keys exchanged as Olm-encrypted to-device messages through the Rust SDK
+web UI: "End-to-end encrypted"; native tile encryption=encrypted key index=0
+widget call_state: e2ee=encrypted remoteEncrypted=1/1
+widget UI: "End-to-end encrypted"
+media keys: 1 received by the widget (encrypted flag: true, senders: @callappwidgetweb2c534a:lumen.test), 2 sent (encrypted flag: true)
+PASS E2EE on both sides, with media keys exchanged as Olm-encrypted to-device messages through the Rust SDK (8.0 s)
+
+--- media flows both ways: inbound RTP audio and video on both sides (getStats), tones identified by FFT
+widget inbound: audio audio/opus bytes=78118 packets=596 kbps=53; video video/VP8 bytes=1517789 packets=1483 kbps=1216 1280x720 framesDecoded=336
+widget outbound: audio audio/opus bytes=88992 packets=680 kbps=52; video video/VP8 bytes=240951 packets=314 kbps=152 320x180 framesDecoded=-; video video/VP8 bytes=2142711 packets=2100 kbps=1197 1280x720 framesDecoded=-; video video/VP8 bytes=664325 packets=717 kbps=400 640x360 framesDecoded=-
+web inbound: audio audio/opus bytes=82299 packets=629 kbps=52; video video/VP8 bytes=1659593 packets=1621 kbps=1197 1280x720 framesDecoded=341
+web outbound: audio audio/opus bytes=79526 packets=606 kbps=53; video video/VP8 bytes=1952947 packets=1918 kbps=1207 1280x720 framesDecoded=-; video video/VP8 bytes=212323 packets=280 kbps=153 320x180 framesDecoded=-; video video/VP8 bytes=607472 packets=670 kbps=366 640x360 framesDecoded=-
+widget receives audio 53 kbit/s, video 1280x720; web receives audio 52 kbit/s, video 1280x720
+web hears: [{"participant":"@callappwidgetnative812576:lumen.test","name":"Phone Lumen","source":"microphone","medianPeakHz":441,"audibleFraction":1,"meanRms":0.0226}]
+widget hears: [{"participant":"@callappwidgetweb2c534a:lumen.test","name":"Web Lumen","source":"microphone","medianPeakHz":662,"audibleFraction":1,"meanRms":0.023}]
+PASS media flows both ways: inbound RTP audio and video on both sides (getStats), tones identified by FFT (9.2 s)
+
+--- hang-up from the native side (io.lumen.call_action hangup) ends the widget's call; the web user sees the leave
+widget call_state: ended (You left the call)
+web call status: The other person left the call
+widget membership state after hang-up: {}
+PASS hang-up from the native side (io.lumen.call_action hangup) ends the widget's call; the web user sees the leave (0.4 s)
+
+--- bridge hygiene: no CSP violations or page errors in the widget, nothing undeliverable
+bridge: 25 widget → driver messages, 25 driver → widget messages delivered, 12 call_state messages, 0 other
+PASS bridge hygiene: no CSP violations or page errors in the widget, nothing undeliverable (0.0 s)
+     [native] INFO lumen_widget_harness: stdin closed (widget gone)
+     [native] INFO lumen_widget_harness: widget driver closed its channel
+     [native] INFO lumen_widget_harness: terminated
+     [native] INFO lumen_widget_harness: logged out (device deleted)
+native harness stopped (exit {"code":0,"signal":null}): logged out, device deleted
+
+apps-widget-call: 12 passed, 0 failed (started 2026-10-17T01:01:56.904Z, finished 2026-10-17T01:02:28.583Z)
+raw output saved to docs/test-results/apps-widget-call.txt

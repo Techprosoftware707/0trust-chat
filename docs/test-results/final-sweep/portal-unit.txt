@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.16, pytest-9.1.1, pluggy-1.6.0
+django: version: 6.1.2, settings: lumen.test_settings (from ini)
+rootdir: /home/user/0trust-chat/services/portal
+configfile: pytest.ini
+plugins: hypothesis-6.169.2, platformdirs-4.13.0, django-4.14.0
+collected 118 items
+
+tests/test_accounts.py .................................                 [ 27%]
+tests/test_billing.py ..............                                     [ 39%]
+tests/test_oidc.py .........                                             [ 47%]
+tests/test_ops_security.py ............................................. [ 85%]
+....                                                                     [ 88%]
+tests/test_workspaces.py .............                                   [100%]
+
+============================= 118 passed in 21.60s =============================

@@ -1,0 +1,86 @@
+lumen-chatdev-synapse already running at http://127.0.0.1:28008
+devserver exit 0
+✔ creates an encrypted DM and both users join (2327.417692ms)
+✔ alice -> bob message is encrypted on the wire and decrypted by bob (222.460467ms)
+✔ bob -> alice message is encrypted and decrypted by alice (189.652969ms)
+✔ encrypted attachment: ciphertext on the server, plaintext only after decryption (194.527265ms)
+✔ the server never saw plaintext: /messages and the admin API only hold ciphertext (29.867951ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3373.266471
+e2ee exit 0
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2283 modules transformed.
+rendering chunks...
+dist/index.html                                                  0.93 kB
+dist/assets/logo-D6mvRjln.svg                                    0.93 kB
+dist/licenses/LICENSE-Inter.txt                                  4.47 kB
+dist/licenses/LICENSE-JetBrainsMono.txt                          4.52 kB
+dist/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
+dist/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
+dist/licenses/third-party.md                                    92.72 kB
+dist/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
+dist/assets/matrix_sdk_crypto_wasm_bg-DQQaknxI.wasm          7,805.48 kB
+dist/assets/index-D0KmDM8g.css                                  74.62 kB
+dist/assets/rust-crypto-ZV5Z-gO8.js                            226.02 kB
+dist/assets/index-kF24CAsH.js                                1,937.70 kB
+
+✓ built in 1.99s
+✔ login screen renders under the production CSP (2303.884596ms)
+✔ both users sign in; Ada sets up secure backup, Grace postpones (5191.63475ms)
+✔ Ada starts an encrypted DM; Grace accepts and both exchange messages (1688.796549ms)
+✔ reply, reaction and edit round-trip (884.423164ms)
+✔ encrypted image attachment is decrypted and shown inline by the receiver (225.896792ms)
+✔ Grace sets up backup from Settings, then they verify each other with emoji (4091.5166ms)
+✔ deleting a message removes it for the other side (721.655074ms)
+✔ on-device search finds decrypted messages (298.148764ms)
+✔ screenshots: desktop and 390px mobile, light and dark (2505.021601ms)
+✔ profile: display name and avatar upload (1016.737572ms)
+✔ groups: encrypted by default; an unencrypted group is labelled honestly; history pagination; upload limit (4887.783915ms)
+✔ deep links: existing DM opens directly; a new contact needs confirmation; reload restores the session (2407.324937ms)
+✔ notifications: only requested from settings, follow push rules, previews off by default (1859.057279ms)
+✔ offline: banner, failed send with retry after reconnecting (650.016085ms)
+✔ new device: history is unreadable until verified with the recovery key, then restored from backup (3607.499918ms)
+✔ self-verification: a new device is verified by an existing one with emoji (4185.004963ms)
+✔ sessions: rename, and sign out other devices with password confirmation (4514.791159ms)
+✔ identity reset: a verified contact's new identity triggers a warning (2592.575994ms)
+✔ identity change of an unverified contact: 'I understand' pins the new identity (2483.267042ms)
+✔ appearance: theme switch is stored like the website's (903.062036ms)
+✖ blocking: Ada blocks Grace; Grace's messages stop arriving; unblocking in Settings restores delivery (1941.147667ms)
+✔ sign out wipes local data (759.913336ms)
+✔ no CSP violations or uncaught errors in any browser (0.581137ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 22
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 50346.082385
+
+✖ failing tests:
+
+test at ../../tests/chat/ui.test.mjs:647:1
+✖ blocking: Ada blocks Grace; Grace's messages stop arriving; unblocking in Settings restores delivery (1941.147667ms)
+  AssertionError [ERR_ASSERTION]: a message sent while blocked must not be shown
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/user/0trust-chat/tests/chat/ui.test.mjs:677:10)
+      at async Test.run (node:internal/test_runner/test:1054:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:744:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+ui exit 1

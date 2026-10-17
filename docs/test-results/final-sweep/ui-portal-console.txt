@@ -1,0 +1,77 @@
+PASS website / renders (200, one h1, no CSP/console errors)
+PASS website /features/ renders (200, one h1, no CSP/console errors)
+PASS website /security/ renders (200, one h1, no CSP/console errors)
+PASS website /zero-trust/ renders (200, one h1, no CSP/console errors)
+PASS website /federation/ renders (200, one h1, no CSP/console errors)
+PASS website /pricing/ renders (200, one h1, no CSP/console errors)
+PASS website /docs/ renders (200, one h1, no CSP/console errors)
+PASS website /download/ renders (200, one h1, no CSP/console errors)
+PASS website /status/ renders (200, one h1, no CSP/console errors)
+PASS website /contact/ renders (200, one h1, no CSP/console errors)
+PASS website /privacy/ renders (200, one h1, no CSP/console errors)
+PASS website /terms/ renders (200, one h1, no CSP/console errors)
+PASS website /security/disclosure/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/signup/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/login/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/password/reset/ renders (200, one h1, no CSP/console errors)
+PASS website: every internal link resolves (no 404/500)
+PASS website: docs articles render
+PASS website: dark theme follows the system preference
+PASS website: theme toggle switches and persists
+PASS mobile /: no horizontal overflow at 390px
+PASS mobile /features/: no horizontal overflow at 390px
+PASS mobile /security/: no horizontal overflow at 390px
+PASS mobile /zero-trust/: no horizontal overflow at 390px
+PASS mobile /federation/: no horizontal overflow at 390px
+PASS mobile /pricing/: no horizontal overflow at 390px
+PASS mobile /docs/: no horizontal overflow at 390px
+PASS mobile /download/: no horizontal overflow at 390px
+PASS mobile /status/: no horizontal overflow at 390px
+PASS mobile /contact/: no horizontal overflow at 390px
+PASS mobile /privacy/: no horizontal overflow at 390px
+PASS mobile /terms/: no horizontal overflow at 390px
+PASS mobile /security/disclosure/: no horizontal overflow at 390px
+PASS mobile /accounts/signup/: no horizontal overflow at 390px
+PASS mobile /accounts/login/: no horizontal overflow at 390px
+PASS mobile /accounts/password/reset/: no horizontal overflow at 390px
+PASS mobile: navigation menu opens and links are reachable
+PASS portal: sign up lands on the dashboard
+PASS portal: signup rejects a weak password with a clear message
+PASS portal: create a workspace and invite a member
+PASS portal: billing never fakes a payment when no provider is configured
+PASS portal: enable TOTP two-factor authentication
+PASS portal: other portal pages render
+PASS portal: data export downloads JSON
+PASS portal: sign-out, then sign-in requires the TOTP code
+PASS portal: customer cannot reach the operator console
+PASS mobile portal /portal/dashboard/: no horizontal overflow
+PASS mobile portal /portal/security/: no horizontal overflow
+PASS mobile portal /portal/workspaces/: no horizontal overflow
+PASS mobile portal workspace detail: no horizontal overflow
+PASS ops: console is not served on the public site
+PASS ops: setup link -> password -> mandatory TOTP enrolment -> console
+PASS ops: setup link is single-use
+PASS ops /ops/users/ renders
+PASS ops /ops/workspaces/ renders
+PASS ops /ops/plans/ renders
+PASS ops /ops/subscriptions/ renders
+PASS ops /ops/webhooks/ renders
+PASS ops /ops/health/ renders
+PASS ops /ops/federation/ renders
+PASS ops /ops/backups/ renders
+PASS ops /ops/wireguard/ renders
+PASS ops /ops/maintenance/ renders
+PASS ops /ops/security/ renders
+PASS ops /ops/audit/ renders
+PASS ops /ops/config/ renders
+PASS ops /ops/support/ renders
+PASS ops /ops/calls/ renders
+PASS ops: Calls page runs the real media self-test through the host agent
+PASS ops: user detail shows metadata only and finds the UI test customer
+PASS ops: destructive action requires recent re-authentication
+PASS ops: audit chain verifies
+PASS mobile ops /ops/dashboard/: no horizontal overflow
+PASS mobile ops /ops/users/: no horizontal overflow
+PASS mobile ops /ops/health/: no horizontal overflow
+
+UI e2e: 75 passed, 0 failed

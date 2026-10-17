@@ -1,0 +1,36 @@
+ Volume lumen-fedtest_remote-caddy Creating 
+ Volume lumen-fedtest_remote-caddy Creating 
+ Volume lumen-fedtest_remote-caddy Created 
+ Volume lumen-fedtest_remote-caddy Created 
+ Container lumen-fedtest-remote-caddy-1 Creating 
+ Container lumen-fedtest-remote-caddy-1 Created 
+ Container lumen-fedtest-remote-caddy-1 Starting 
+ Container lumen-fedtest-remote-caddy-1 Started 
+ Volume lumen-fedtest_remote-data Creating 
+ Volume lumen-fedtest_remote-data Creating 
+ Volume lumen-fedtest_remote-data Created 
+ Volume lumen-fedtest_remote-data Created 
+ Container lumen-fedtest-remote-synapse-1 Creating 
+ Container lumen-fedtest-remote-synapse-1 Created 
+ Container lumen-fedtest-remote-synapse-1 Starting 
+ Container lumen-fedtest-remote-synapse-1 Started 
+PASS Lumen server discovery (.well-known/matrix/server)
+PASS remote server discovery
+PASS remote server fetched Lumen's signing keys over federation (notary query)
+PASS rooms created on Lumen are end-to-end encrypted by default
+PASS Lumen user can invite a remote user (federated invite accepted)
+PASS invite arrived on the remote server
+PASS remote user joined the room over federation
+PASS Lumen → remote message delivered
+PASS remote → Lumen message delivered
+PASS both servers' users are joined members
+federation (connect phase): 10 passed, 0 failed
+--- federation reachability probe (worker, notary = matrix.remote.test)
+ok | matrix.remote.test fetched our signing keys over federation
+PASS worker federation probe reports external reachability
+--- allowlist policy (remote.test not allowed)
+PASS rooms created on Lumen are end-to-end encrypted by default
+PASS allowlist policy: invite to a non-allow-listed server is refused
+federation (denied phase): 2 passed, 0 failed
+probe under allowlist: ok | matrix.remote.test fetched our signing keys over federation
+federation test suite exit: 0

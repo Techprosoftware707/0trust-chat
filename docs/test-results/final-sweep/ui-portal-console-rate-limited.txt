@@ -1,0 +1,100 @@
+PASS website / renders (200, one h1, no CSP/console errors)
+PASS website /features/ renders (200, one h1, no CSP/console errors)
+PASS website /security/ renders (200, one h1, no CSP/console errors)
+PASS website /zero-trust/ renders (200, one h1, no CSP/console errors)
+PASS website /federation/ renders (200, one h1, no CSP/console errors)
+PASS website /pricing/ renders (200, one h1, no CSP/console errors)
+PASS website /docs/ renders (200, one h1, no CSP/console errors)
+PASS website /download/ renders (200, one h1, no CSP/console errors)
+PASS website /status/ renders (200, one h1, no CSP/console errors)
+PASS website /contact/ renders (200, one h1, no CSP/console errors)
+PASS website /privacy/ renders (200, one h1, no CSP/console errors)
+PASS website /terms/ renders (200, one h1, no CSP/console errors)
+PASS website /security/disclosure/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/signup/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/login/ renders (200, one h1, no CSP/console errors)
+PASS website /accounts/password/reset/ renders (200, one h1, no CSP/console errors)
+PASS website: every internal link resolves (no 404/500)
+PASS website: docs articles render
+PASS website: dark theme follows the system preference
+PASS website: theme toggle switches and persists
+PASS mobile /: no horizontal overflow at 390px
+PASS mobile /features/: no horizontal overflow at 390px
+PASS mobile /security/: no horizontal overflow at 390px
+PASS mobile /zero-trust/: no horizontal overflow at 390px
+PASS mobile /federation/: no horizontal overflow at 390px
+PASS mobile /pricing/: no horizontal overflow at 390px
+PASS mobile /docs/: no horizontal overflow at 390px
+PASS mobile /download/: no horizontal overflow at 390px
+PASS mobile /status/: no horizontal overflow at 390px
+PASS mobile /contact/: no horizontal overflow at 390px
+PASS mobile /privacy/: no horizontal overflow at 390px
+PASS mobile /terms/: no horizontal overflow at 390px
+PASS mobile /security/disclosure/: no horizontal overflow at 390px
+PASS mobile /accounts/signup/: no horizontal overflow at 390px
+PASS mobile /accounts/login/: no horizontal overflow at 390px
+PASS mobile /accounts/password/reset/: no horizontal overflow at 390px
+PASS mobile: navigation menu opens and links are reachable
+FAIL portal: sign up lands on the dashboard
+     The input did not match the regular expression /\/portal\/dashboard\/$/. Input:
+     
+     'https://lumen.test/accounts/signup/'
+     
+FAIL portal: signup rejects a weak password with a clear message
+     error shown
+FAIL portal: create a workspace and invite a member
+     locator.fill: Timeout 30000ms exceeded.
+     Call log:
+     [2m  - waiting for locator('input[name=name]')[22m
+     
+FAIL portal: billing never fakes a payment when no provider is configured
+     page.goto: Protocol error (Page.navigate): Cannot navigate to invalid URL
+     Call log:
+     [2m  - navigating to "billing/", waiting until "load"[22m
+     
+FAIL portal: enable TOTP two-factor authentication
+     Expected values to be strictly equal:
+     + actual - expected
+     
+     + '/accounts/login/'
+     - '/accounts/2fa/totp/activate/'
+                  ^
+FAIL portal: other portal pages render
+     Expected values to be strictly equal:
+     + actual - expected
+     
+     + '/accounts/login/'
+     - '/portal/profile/'
+     
+FAIL portal: data export downloads JSON
+     page.waitForEvent: Timeout 30000ms exceeded while waiting for event "download"
+     =========================== logs ===========================
+     waiting for event "download"
+     ============================================================
+FAIL portal: sign-out, then sign-in requires the TOTP code
+     locator.click: Timeout 30000ms exceeded.
+     Call log:
+     [2m  - waiting for locator('main form button[type=submit]').first()[22m
+     
+PASS portal: customer cannot reach the operator console
+PASS mobile portal /portal/dashboard/: no horizontal overflow
+PASS mobile portal /portal/security/: no horizontal overflow
+PASS mobile portal /portal/workspaces/: no horizontal overflow
+FAIL mobile portal workspace detail: no horizontal overflow
+     page.goto: Protocol error (Page.navigate): Cannot navigate to invalid URL
+     Call log:
+     [2m  - navigating to "", waiting until "load"[22m
+     
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+page.goto: Protocol error (Page.navigate): Cannot navigate to invalid URL
+Call log:
+[2m  - navigating to "", waiting until "load"[22m
+
+    at /home/user/0trust-chat/tests/ui/portal.e2e.mjs:398:13 {
+  name: 'Error'
+}
+
+Node.js v22.22.0

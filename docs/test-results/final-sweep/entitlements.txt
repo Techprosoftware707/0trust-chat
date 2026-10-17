@@ -1,0 +1,7 @@
+plans: free=25 MB per file, pro=100 MB per file
+PASS Free user: /media/config advertises the Free per-file limit
+PASS Free user: small upload accepted
+PASS Free user: 25 MB + 1 KB upload refused by the homeserver (413)
+PASS Pro user: /media/config advertises the Pro per-file limit
+PASS Pro user: the same 25 MB + 1 KB upload is accepted
+entitlements: 5 passed, 0 failed

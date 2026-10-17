@@ -1,0 +1,45 @@
+
+--- sign in A and B; their encrypted DM
+PASS sign in A and B; their encrypted DM (8.7 s)
+
+--- 13: outsider D (lab-c, not in the room): token 403, anonymous 401, membership event 403, no call UI
+D get_token for A+B's DM: HTTP 403 {"errcode":"M_FORBIDDEN","error":"The requesting user is not a member of the room"}
+anonymous get_token: HTTP 401 {"errcode":"M_MISSING_TOKEN","error":"Missing access token"}
+D sends a call membership into the DM: HTTP 403 {"errcode":"M_FORBIDDEN","error":"User @calldave3ac345:lumen.test not in room !4Vnk5hKxxudAFlRBA09SRmSwa8QNMOi6aDjpkRKob20"}
+PASS 13: outsider D (lab-c, not in the room): token 403, anonymous 401, membership event 403, no call UI (4.4 s)
+
+--- 14: rogue SFU-level subscriber with a valid operator token receives the media but can't decode it; members can
+A's SFU token: sub=0zpfAXxWCYQ1sHBzpBoic/ELwGImSko9rrC7gfLxxGM room=VyfFwGrPLuD79A/4+BEazGbFA2GkIaXyMgSyYQcOFI0 roomJoin=true roomCreate=false ttl=3600s
+rogue joined LiveKit room as operator-rogue-subscriber and sees: [{"identity":"0zpfAXxWCYQ1sHBzpBoic/ELwGImSko9rrC7gfLxxGM","tracks":["audio/microphone encrypted=true subscribed=true","video/camera encrypted=true subscribed=true"]},{"identity":"EtUP6WavTJa90Hbc9iEY80CXYj175ZtgOYNAHXVwgCg","tracks":["video/camera encrypted=true subscribed=true","audio/microphone encrypted=true subscribed=true"]}]
+rogue inbound RTP (receives the bytes): ["audio audio/opus 52 kbit/s packets+250 framesDecoded=- (+-) keyFramesDecoded=- framesDropped=-","audio audio/opus 52 kbit/s packets+250 framesDecoded=- (+-) keyFramesDecoded=- framesDropped=-","video video/VP8 1028 kbit/s packets+634 framesDecoded=0 (+0) keyFramesDecoded=0 framesDropped=17","video video/VP8 1149 kbit/s packets+693 framesDecoded=0 (+0) keyFramesDecoded=0 framesDropped=17"]
+rogue audio analysis (members' tones are 440 and 660 Hz): [{"participant":"EtUP6WavTJa90Hbc9iEY80CXYj175ZtgOYNAHXVwgCg","name":null,"source":"microphone","medianPeakHz":829,"audibleFraction":1,"meanRms":0.2087},{"participant":"0zpfAXxWCYQ1sHBzpBoic/ELwGImSko9rrC7gfLxxGM","name":null,"source":"microphone","medianPeakHz":205,"audibleFraction":1,"meanRms":0.1686}]
+rogue video elements (members' cameras are mostly green): [{"w":0,"h":0,"greenShare":0},{"w":0,"h":0,"greenShare":0}]
+rogue: video frames decoded in 5 s = 0; tone recognised = false
+A inbound video meanwhile: ["640x360 decoded+60"]
+A's warning: A connection on the media server didn't join through Matrix and gets no encryption keys.
+PASS 14: rogue SFU-level subscriber with a valid operator token receives the media but can't decode it; members can (44.3 s)
+
+--- R1: revocation, normal client — admin A removes C during a 3-person call: C's app leaves the call and the SFU, keys rotate for A and B, C's token request is refused
+media key indices before removal: {"BseesA":"0","AseesB":"0","CseesA":"0"}
+C's app: call closed by itself — "Revocation 00:49:33 You're no longer in this conversation. Back to conversations"
+A: C's connection is gone from the SFU (C's client disconnected itself; the SFU does not kick on its own)
+media key indices after removal: {"BseesA":"1","AseesB":"1"}
+C get_token after removal: HTTP 403 {"errcode":"M_FORBIDDEN","error":"The requesting user is not a member of the room"}
+PASS R1: revocation, normal client — admin A removes C during a 3-person call: C's app leaves the call and the SFU, keys rotate for A and B, C's token request is refused (35.7 s)
+
+--- R2: revocation, client that ignores the removal — C keeps its SFU connection: no new keys reach C (server queue checked), C can't decode media sent after the rotation, A and B stop playing C
+media key indices with C back in the call: {"BseesA":"3","AseesB":"3","CseesA":"3","CseesB":"3"}
+A removed C again at 2026-10-17T00:50:26.426Z; C's sync is blocked
+A still plays C's audio: no — C has no call membership any more, so A unsubscribed
+media key indices after the removal: {"BseesA":"4","AseesB":"4","CseesA":"3","CseesB":"3"}
+server: to-device messages from A/B waiting for C's device since its sync was blocked: 0
+C get_token: HTTP 403 {"errcode":"M_FORBIDDEN","error":"The requesting user is not a member of the room"}
+C's peer connections: connected/connected — still connected: the SFU doesn't remove members who leave the Matrix room
+C inbound after the rotation: ["audio 53 kbit/s packets+252 decoded+- dropped=-","audio 53 kbit/s packets+252 decoded+- dropped=-","video 412 kbit/s packets+263 decoded+0 dropped=13","video 383 kbit/s packets+249 decoded+0 dropped=12"]
+C audio analysis after the rotation: [{"participant":"@callbob3c0b91:lumen.test","name":"Bob Lumen","source":"microphone","medianPeakHz":null,"audibleFraction":0,"meanRms":0},{"participant":"@callalicec1a8e3:lumen.test","name":"Alice Lumen","source":"microphone","medianPeakHz":null,"audibleFraction":0,"meanRms":0}]
+C's own UI: [{"user":"@callcarole70cf6:lumen.test","enc":"encrypted","key":"0","mic":"on","label":"Carol Lumen (you)"},{"user":"@callbob3c0b91:lumen.test","enc":"decrypt-error","key":"3","mic":"on","label":"Bob Lumen"},{"user":"@callalicec1a8e3:lumen.test","enc":"decrypt-error","key":"3","mic":"on","label":"Alice Lumen"}]
+after C's client could sync again: it left the call and the SFU (seen by A): true
+PASS R2: revocation, client that ignores the removal — C keeps its SFU connection: no new keys reach C (server queue checked), C can't decode media sent after the rotation, A and B stop playing C (63.7 s)
+CSP violations / page errors: none
+
+security: 5 passed, 0 failed, 0 skipped (started 2026-10-17T00:48:31.356Z, finished 2026-10-17T00:51:08.830Z)

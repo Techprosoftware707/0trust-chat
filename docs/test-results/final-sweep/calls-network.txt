@@ -1,0 +1,63 @@
+lab: lumenlab         UP             10.200.0.1/24  | lab-a: 10.200.0.11/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-b: 10.200.0.12/24 qdisc: qdisc noqueue 0: root refcnt 2  | lab-c: 10.200.0.13/24 qdisc: qdisc noqueue 0: root refcnt 2
+
+--- sign in A and B; open their DM
+PASS sign in A and B; open their DM (8.7 s)
+
+--- 9: 300 kbit/s + 50 ms on A's uplink → bandwidth-limited, lower layer for B, audio continues; recovers after unshape
+A before: ["out audio 52 kbit/s","out video/q 320x180@20 156 kbit/s limit=none","out video/h 640x360@20 390 kbit/s limit=none","out video/f 1280x720@29 1217 kbit/s limit=none"]
+lab-a: no netem in this kernel; tbf rate=300kbit, iptables random loss=0% (ignored: delay 50ms)
+A shaped (out): ["out audio 53 kbit/s","out video/q 320x180@20 146 kbit/s limit=bandwidth","out video/h 0 kbit/s limit=bandwidth","out video/f 0 kbit/s limit=bandwidth"]
+B while A shaped (in): ["in audio 51 kbit/s","in video 320x180@17 142 kbit/s"]
+B receives 320x180 (was 720p-class before)
+B hears while A is limited: [{"participant":"@callalicec1a8e3:lumen.test","name":"Alice Lumen","source":"microphone","medianPeakHz":441,"audibleFraction":1,"meanRms":0.0225}]
+lab-a: unshaped
+recovery +8s: B receives 320x180@20 154 kbit/s
+recovery +16s: B receives 320x180@20 147 kbit/s
+recovery +24s: B receives 640x360@21 376 kbit/s
+recovery +32s: B receives 640x360@20 383 kbit/s
+recovery +40s: B receives 1280x720@30 1269 kbit/s
+PASS 9: 300 kbit/s + 50 ms on A's uplink → bandwidth-limited, lower layer for B, audio continues; recovers after unshape (98.6 s)
+
+--- 10: 10 % packet loss on B's uplink: voice continues; loss, concealment and FEC from A's inbound-rtp
+lab-b: no netem in this kernel; tbf rate=none, iptables random loss=10% (ignored: delay 30ms)
+A inbound audio from B under 10 % loss: {"packets":363,"lost":35,"lossPct":8.8,"concealedSamples":32652,"totalSamples":382560,"concealedPct":8.5,"fecPacketsReceived":0,"jitterMs":0}
+B outbound audio under its 10 % uplink loss (SFU's receiver reports, retransmissions): {"packetsSent":301,"retransmittedPacketsSent":0,"nackCount":0,"sfuReportedLoss":{"packetsLost":112,"fractionLost":0.15625,"rtt":0.001,"jitter":0.0005}}
+note: Chrome counts only FlexFEC/ULPFEC in fecPacketsReceived; Opus in-band FEC recovery isn't exposed in getStats (it shows up as less concealment than loss). Audio isn't retransmitted (NACK counts above), so the uplink loss reaches A; the SFU's fractionLost is its last receiver-report interval only
+A hears B under loss: [{"participant":"@callbob3c0b91:lumen.test","name":"Bob Lumen","source":"microphone","medianPeakHz":662,"audibleFraction":1,"meanRms":0.0238}]
+A call status under loss: 0:27 · Poor network
+lab-b: unshaped
+PASS 10: 10 % packet loss on B's uplink: voice continues; loss, concealment and FEC from A's inbound-rtp (32.2 s)
+
+--- 15a: no direct media path for B (all UDP except TURN/UDP 3478, and ICE/TCP 7881 blocked) → TURN relay over UDP, media flows
+lab-b: outbound udp dropped except to port(s) 3478
+lab-b: outbound tcp to port 7881 dropped
+B's ICE candidate pairs after 10 s: ["waiting: host/tcp 10.200.0.12:9 → host/tcp 10.200.0.1:7881 checks sent 0, answered 0, received 0","in-progress: host/udp 10.200.0.12:37826 → host/udp 10.200.0.1:7882 checks sent 151, answered 0, received 2","succeeded: relay/udp via udp 10.200.0.1:40031 → host/udp 10.200.0.1:7882 checks sent 8, answered 8, received 6"]
+B selected ICE path(s): ["relay/udp via udp → host/udp :7882 rtt=0.001"]
+B diagnostics: TURN relay in use (UDP): a direct path to the media server isn't available on this network. Media stays encrypted.
+lab-b: all blocks removed
+PASS 15a: no direct media path for B (all UDP except TURN/UDP 3478, and ICE/TCP 7881 blocked) → TURN relay over UDP, media flows (23.4 s)
+
+--- 15b: all UDP blocked for B → ICE over TCP (port 7881), media flows
+lab-b: all outbound UDP dropped
+B's ICE candidate pairs after 10 s: ["succeeded: prflx/tcp 10.200.0.12:46716 → host/tcp 10.200.0.1:7881 checks sent 7, answered 7, received 7","in-progress: host/udp 10.200.0.12:60996 → host/udp 10.200.0.1:7884 checks sent 16, answered 0, received 2"]
+B selected ICE path(s): ["prflx/tcp → host/tcp :7881 rtt=0.001"]
+PASS 15b: all UDP blocked for B → ICE over TCP (port 7881), media flows (23.4 s)
+
+--- 15c: all UDP and ICE/TCP blocked for B → no media path; B is told the call could not connect
+lab-b: all outbound UDP dropped
+lab-b: outbound tcp to port 7881 dropped
+B's ICE candidate pairs after 10 s: ["waiting: host/tcp 10.200.0.12:9 → host/tcp 10.200.0.1:7881 checks sent 0, answered 0, received 0","in-progress: host/udp 10.200.0.12:49385 → host/udp 10.200.0.1:7882 checks sent 159, answered 0, received 8"]
+B's call phases over 45 s: ["connecting","ended"] status: Couldn't connect to the media server (could not establish pc connection). Check your network: calls need UDP or TCP/TLS access to rtc.lumen.test.
+lab-b: all blocks removed
+PASS 15c: all UDP and ICE/TCP blocked for B → no media path; B is told the call could not connect (116.7 s)
+
+--- 16: B's link down for ~5 s → B shows 'Reconnecting', then media resumes in both directions
+lab-b: eth0 down
+lab-b: eth0 up
+'Reconnecting' banner shown on B after 5360 ms
+B back to connected 7758 ms after the outage began
+B connection events: 12:56 AM Reconnected | 12:56 AM Network changed (4g) | 12:56 AM Network changed (4g) | 12:56 AM Signalling connection interrupted — reconnecting | 12:56 AM Network: back online | 12:56 AM Network changed (4g) | 12:56 AM Network changed (4g) | 12:56 AM Network: offline | 12:56 AM Connected | 12:56 AM Media server: rtc.lumen.test
+PASS 16: B's link down for ~5 s → B shows 'Reconnecting', then media resumes in both directions (31.6 s)
+CSP violations / page errors: none
+
+network: 7 passed, 0 failed, 0 skipped (started 2026-10-17T00:51:09.494Z, finished 2026-10-17T00:56:44.848Z)

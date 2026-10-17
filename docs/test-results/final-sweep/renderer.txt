@@ -1,0 +1,21 @@
+rendered configuration into /tmp/lumen-render-45hpjhuu/out
+.rendered configuration into /tmp/lumen-render-15uhqgqt/out
+.rendered configuration into /tmp/lumen-render-1x2bdl9h/out
+.rendered configuration into /tmp/lumen-render-s61w3xou/out
+.rendered configuration into /tmp/lumen-render-p8idg4jj/out
+.rendered configuration into /tmp/lumen-render-h8pu3fd8/out
+rendered configuration into /tmp/lumen-render-wt4_7m98/out
+.rendered configuration into /tmp/lumen-render-jypj7p6h/out
+.rendered configuration into /tmp/lumen-render-3rjqxg9p/out
+rendered configuration into /tmp/lumen-render-w3kaz_f2/out
+.rendered configuration into /tmp/lumen-render-0e7yficg/out
+.rendered configuration into /tmp/lumen-render-m31g1m8s/out
+..rendered configuration into /tmp/lumen-render-gm6vjv8g/out
+.rendered configuration into /tmp/lumen-render-bm261_ws/out
+rendered configuration into /tmp/lumen-render-id3felt0/out
+.rendered configuration into /tmp/lumen-render-0rd4r79f/out
+.....
+----------------------------------------------------------------------
+Ran 18 tests in 0.102s
+
+OK

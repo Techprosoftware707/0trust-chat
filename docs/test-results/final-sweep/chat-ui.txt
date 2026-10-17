@@ -1,0 +1,51 @@
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2283 modules transformed.
+rendering chunks...
+dist/index.html                                                  0.93 kB
+dist/assets/logo-D6mvRjln.svg                                    0.93 kB
+dist/licenses/LICENSE-Inter.txt                                  4.47 kB
+dist/licenses/LICENSE-JetBrainsMono.txt                          4.52 kB
+dist/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2     40.40 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2              48.25 kB
+dist/assets/inter-latin-wght-italic-DpCbqKDY.woff2              51.83 kB
+dist/licenses/third-party.md                                    92.72 kB
+dist/assets/livekit-client.e2ee.worker-Dx7xyzGW.js              97.85 kB
+dist/assets/matrix_sdk_crypto_wasm_bg-DQQaknxI.wasm          7,805.48 kB
+dist/assets/index-D0KmDM8g.css                                  74.62 kB
+dist/assets/rust-crypto-sDA9keU_.js                            226.02 kB
+dist/assets/index-BEAJeB6U.js                                1,937.74 kB
+
+✓ built in 1.46s
+✔ login screen renders under the production CSP (1655.668235ms)
+✔ both users sign in; Ada sets up secure backup, Grace postpones (4551.735431ms)
+✔ Ada starts an encrypted DM; Grace accepts and both exchange messages (1568.899069ms)
+✔ reply, reaction and edit round-trip (808.133875ms)
+✔ encrypted image attachment is decrypted and shown inline by the receiver (236.094873ms)
+✔ Grace sets up backup from Settings, then they verify each other with emoji (3933.257954ms)
+✔ deleting a message removes it for the other side (652.980399ms)
+✔ on-device search finds decrypted messages (315.701848ms)
+✔ screenshots: desktop and 390px mobile, light and dark (2316.600284ms)
+✔ profile: display name and avatar upload (974.435151ms)
+✔ groups: encrypted by default; an unencrypted group is labelled honestly; history pagination; upload limit (4781.12953ms)
+✔ deep links: existing DM opens directly; a new contact needs confirmation; reload restores the session (2586.828412ms)
+✔ notifications: only requested from settings, follow push rules, previews off by default (1916.51473ms)
+✔ offline: banner, failed send with retry after reconnecting (645.532258ms)
+✔ new device: history is unreadable until verified with the recovery key, then restored from backup (3694.401009ms)
+✔ self-verification: a new device is verified by an existing one with emoji (4342.324024ms)
+✔ sessions: rename, and sign out other devices with password confirmation (4732.315177ms)
+✔ identity reset: a verified contact's new identity triggers a warning (3014.027882ms)
+✔ identity change of an unverified contact: 'I understand' pins the new identity (2565.244048ms)
+✔ appearance: theme switch is stored like the website's (885.934713ms)
+✔ blocking: Ada blocks Grace; Grace's messages don't reach Ada while blocked; unblocking restores delivery (2029.10503ms)
+✔ sign out wipes local data (2699.473824ms)
+✔ no CSP violations or uncaught errors in any browser (0.518328ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51277.917137
+ui exit 0

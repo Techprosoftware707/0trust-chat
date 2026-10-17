@@ -1,0 +1,5 @@
+  302 matrix.lumen.test/_matrix/client/v3/login/sso/redirect/oidc-lumen
+  302 lumen.test/identity/o/authorize
+  302 matrix.lumen.test/_synapse/client/oidc/callback
+whoami: {'user_id': '@it8775b8:lumen.test', 'is_guest': False, 'device_id': 'CUICQGMINX'}
+SSO OK @it8775b8:lumen.test CUICQGMINX

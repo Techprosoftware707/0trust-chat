@@ -1,0 +1,13 @@
+
+ RUN  v5.0.4 /home/user/0trust-chat/services/chat
+
+
+ Test Files  9 passed (9)
+      Tests  104 passed (104)
+   Start at  01:06:32
+   Duration  4.55s (environment 66%, import 14%, transform 14%, tests 4%, setup 2%)
+
+Environment  jsdom was created 9 times · 7.76s total, 66% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
