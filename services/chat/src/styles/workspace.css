@@ -9,9 +9,20 @@
 .env-banner { flex: none; display: flex; flex-wrap: wrap; gap: 0.3rem 0.55rem; align-items: center; justify-content: center; padding: 0.3rem var(--space-4); font-size: var(--text-xs); line-height: 1.35; background: var(--nexus-env-bg, #f2b33d); color: var(--nexus-env-fg, #1c1300); text-align: center; z-index: 70; }
 .env-banner svg.lucide { width: 0.95rem; height: 0.95rem; }
 .env-banner-note { opacity: 0.9; }
-body[data-env-banner] #root { display: flex; flex-direction: column; }
+/* #root takes the visual-viewport height that .app takes without the banner (ChatApp sets
+   --app-height so the composer stays above the on-screen keyboard); .app fills the rest. */
+body[data-env-banner] #root { display: flex; flex-direction: column; height: 100%; height: var(--app-height, 100dvh); }
 body[data-env-banner] #root > :not(.env-banner) { flex: 1; min-height: 0; }
 body[data-env-banner] #root > .app { height: auto; }
+/* One line at every width (on phones the note is for screen readers only), so the overlays
+   that cover the whole window (side panels on tablets and phones, the call screen) start right
+   below the banner and keep their headers and close buttons reachable. */
+body[data-env-banner] { --env-banner-h: 1.625rem; }
+.env-banner { min-height: var(--env-banner-h, 1.625rem); }
+@media (max-width: 640px) { .env-banner-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; margin: -1px; } }
+body[data-env-banner] .right-panel, body[data-env-banner] .call-screen { top: var(--env-banner-h); }
+body[data-env-banner] .incoming-calls { top: calc(var(--env-banner-h) + var(--space-4)); }
+@media (max-width: 759px) { body[data-env-banner] .call-panel { top: var(--env-banner-h); } }
 
 /* ---- Frame and navigation rail ------------------------------------------------ */
 .nexus-frame { flex: 1; min-height: 0; display: flex; }

@@ -156,7 +156,8 @@ await test("chat sign-in, then the workspace connects silently (code + PKCE)", a
   const login = await owner.newPage();
   await login.goto(`${APP}/`);
   await checkBanner(login);
-  await login.getByRole("heading", { name: "Sign in" }).waitFor();
+  // The polished sign-in screen greets with "Welcome back"; the button is the stable anchor.
+  await login.getByRole("button", { name: "Sign in", exact: true }).waitFor();
   await shot(login, "spa-login--desktop-light");
   await login.close();
   app = await signIn(owner, "demo-avery");
@@ -299,6 +300,7 @@ await test("Tasks: add, complete, team list, delete", async () => {
 });
 
 // --- 6. Room CRM panel ---------------------------------------------------------------------------------
+let crmRoomId = null;
 await test("CRM panel next to a conversation: link a contact, see summary; only the room ID is stored", async () => {
   // A conversation of Avery's, created through the client-server API.
   const login = await (await fetch(`${HS}/_matrix/client/v3/login`, {
@@ -311,6 +313,7 @@ await test("CRM panel next to a conversation: link a contact, see summary; only 
     body: JSON.stringify({ name: "Harper - Gull Lane", preset: "private_chat", initial_state: [{ type: "m.room.encryption", state_key: "", content: { algorithm: "m.megolm.v1.aes-sha2" } }] }),
   })).json();
   assert.ok(room.room_id, JSON.stringify(room));
+  crmRoomId = room.room_id;
   await fetch(`${HS}/_matrix/client/v3/logout`, { method: "POST", headers: { Authorization: `Bearer ${login.access_token}` } });
   await go(app, `#/room/${encodeURIComponent(room.room_id)}`);
   await app.locator(".room-header").waitFor({ timeout: 30_000 });
@@ -324,6 +327,28 @@ await test("CRM panel next to a conversation: link a contact, see summary; only 
   await app.getByRole("button", { name: "Unlink this contact" }).click();
   await app.getByText("Not linked to a record").waitFor();
   assert.deepEqual(takeProblems(owner), []);
+});
+
+// The polished room header folds its secondary actions into "More options" when narrow; the
+// workspace panels go with them.
+await test("phone width: the CRM panel is in the room header's More options menu", async () => {
+  assert.ok(crmRoomId, "needs the conversation from the previous test");
+  const ctx = await newContext({ viewport: PHONE });
+  const page = await signIn(ctx, "demo-avery");
+  await go(page, `#/room/${encodeURIComponent(crmRoomId)}`);
+  await page.locator(".room-header").waitFor({ timeout: 30_000 });
+  assert.equal(await page.getByRole("button", { name: "CRM", exact: true }).isVisible(), false, "CRM header button shown in a narrow header");
+  await page.getByRole("button", { name: "More options" }).click();
+  await page.getByRole("menuitem", { name: "CRM" }).click();
+  await page.getByText("Not linked to a record").waitFor();
+  await noOverflow(page);
+  await shot(page, "room-crm-panel--phone-light");
+  // The full-screen panel starts below the environment banner: its close button is reachable.
+  await page.getByRole("button", { name: "Close CRM panel" }).click({ timeout: 5_000 });
+  await page.locator(".right-panel").waitFor({ state: "detached" });
+  await page.locator(".composer-wrap").waitFor();
+  assert.deepEqual(takeProblems(ctx), []);
+  await ctx.close();
 });
 
 await test("Settings: workspace, features, token storage", async () => {
