@@ -171,6 +171,38 @@ Anthropic API set `AI_PROVIDER=anthropic`, `AI_MODEL=<a current Claude model ID>
 `AI_API_KEY` (allowed as a plain variable only in local development) before starting the portal.
 See [CLAUDE-CONNECTOR.md](CLAUDE-CONNECTOR.md).
 
+### Verticals, automation, calendar, meetings and reports (team B1)
+
+Portal suites. They need only the test database and no external service. The Home test
+calls B2's real health hook (network calls are blocked) and then fake and failing providers:
+
+```sh
+cd services/portal
+POSTGRES_PORT=55433 POSTGRES_DB=nexus /home/user/nexus-venv/bin/python -m pytest \
+  tests/test_nexus_verticals.py tests/test_nexus_documents.py tests/test_nexus_automation.py \
+  tests/test_nexus_meetings_reports.py tests/test_nexus_isolation.py tests/test_nexus_migrations.py
+```
+
+The document tests use a temporary storage directory and a random key per test, and check
+that no plaintext reaches the disk or the logs. The browser smoke needs the dev servers of the
+slot running (sections 2 and 3). `env.sh` sets up secure document storage for the slot:
+
+```sh
+NEXUS_SLOT=1 . dev/nexus/env.sh && node tests/nexus/verticals.smoke.mjs             # 13 journeys, screenshots in docs/nexus/screenshots/b1/
+NEXUS_SLOT=1 . dev/nexus/env.sh && node tests/nexus/verticals.smoke.mjs --no-shots
+```
+
+Without `--keep-data` it deletes and reseeds the demo workspace first. The journeys create
+rows: a viewing, an encrypted upload, notes and tasks. The automation scans (overdue tasks,
+appointment reminders) run on the worker's schedule; to run them once by hand:
+
+```sh
+. dev/nexus/env.sh && cd services/portal && "$NEXUS_VENV/bin/python" manage.py nexus_automation_scan
+```
+
+SPA unit tests of the verticals logic are in `services/chat/test/unit/verticals.test.tsx`.
+They run as part of `npm test`.
+
 ### Brand contrast (WCAG 2.2 AA)
 
 ```sh

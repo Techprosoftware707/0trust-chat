@@ -218,3 +218,76 @@ What was built is described in [CLAUDE-CONNECTOR.md](CLAUDE-CONNECTOR.md) and th
   registrations for the demo people. Those accounts already existed on the homeserver and
   signing in worked. During the SDK conformance run the shared `nexus-pg` hit its 100-connection
   limit (other slots' runservers held idle connections); main is adding `POSTGRES_CONN_MAX_AGE`.
+
+## Team B1: verticals, automation, calendar, meetings and reports
+
+What was built is in [ARCHITECTURE.md](ARCHITECTURE.md) section 12, and the settings are in
+[CONFIG.md](CONFIG.md#verticals-lending-documents-automation-and-reports-team-b1). Decisions,
+assumptions and findings:
+
+* **No new dependencies.** Encryption uses `cryptography` (AES-256-GCM), tokens use
+  `django.core.signing`, and the SPA uses only what was already installed.
+* **Lending applications are their own records with their own pipeline**, not deals. They
+  get a `Pipeline(kind="lending")` with the brief's seven stages. The Pipelines page opens a
+  deal pipeline by default and, on a lending pipeline, points to the Lending area; the
+  dashboard's deal pipeline summary leaves lending pipelines out. The demo's former lending *deals* were replaced by five applications, APP-0001 to
+  APP-0005. An application can point to a deal and a property.
+* **Checklist status `pending`** was added before `requested`: an item from a template
+  hasn't been asked for yet. Outstanding = pending, requested or rejected, for required items.
+* **Decisions are staff records only.** `decision` is empty until someone with
+  `lending.decide` records one with `"confirm": true` and an optional note. Nothing in the
+  code sets it otherwise. The UI says "Authorised staff make every lending decision. Nexus
+  never approves or rejects anything". Automations can't touch it: there is no action for it.
+* **"Request document"** creates a private task for the requester (related to the
+  application) and marks the item `requested`. Nothing reaches the borrower. The checklist
+  says "Nexus can't send the request to the borrower yet".
+* **Download tokens** are signed (`django.core.signing`, user + workspace + document +
+  grant + expiry) and backed by a single-use `DocumentDownloadGrant` row. They travel in a
+  POST body, never in a URL. The download view returns its refusals instead of raising them,
+  so the audit and access-log rows of a refused download are committed.
+* **Agents ("brokers") see only applications assigned to them** (`loan_officer`). The brief's
+  "assigned broker" was read as the application's loan officer, and borrowers' contact
+  visibility doesn't widen it.
+* **Viewings are calendar events** (`kind="viewing"`, related to the property, the buyer as
+  attendee contact), so they show in the calendar, on Home and in reminders without a second
+  model. `CalendarEvent.kind` was added to the foundation model in `crm.0002`.
+* **Shared fix: `Opportunity.pipeline/stage` from `PROTECT` to `RESTRICT`** (`crm.0003`,
+  approved by main). With `PROTECT`, deleting a business workspace that had deals raised
+  `ProtectedError`. `RESTRICT` still blocks deleting a used pipeline or stage on its own (the
+  API answers 409 with a message), but lets the workspace cascade. Tested. The demo reset's
+  blocker check handles both.
+* **Shared fix: `POSTGRES_CONN_MAX_AGE`** (default 60, `dev/nexus/env.sh` 0, approved by
+  main). Several slots' dev servers with persistent connections exhausted the shared
+  `nexus-pg` (100 connections).
+* **Automation actions run as the rule's owner** (whoever last saved it), who must still be
+  an active member with `automation.manage`. Otherwise the run fails visibly ("save the rule
+  again to take it over"). There is no service account that could exceed a person's rights.
+* **Example rules** (the brief's four) are seeded, switched on, only in the demo workspace.
+  Other workspaces start empty.
+* **Notifications are in-app only.** There is no email or push channel in this phase, and
+  the preferences page says so.
+* **Meeting rooms are created by the browser** (`createGroup`, encrypted) and only the room
+  ID is stored. Recent calls in Calls & Meetings come from the chat client's call events in
+  the browser and are never sent to the server. "Link to record" sends only what the person
+  confirms, plus the room and event IDs.
+* **Home's connected-service slot** discovers `health.py` modules
+  (`nexus_modules("health")`) rather than importing the integrations app, so Home works with
+  or without it. Home shows B2's rows as they are, with the mock label.
+* **Real-estate listings are never invented.** Properties come from manual entry or a
+  labelled import or integration (`source`, `source_label`). There is no MLS or listing feed,
+  and the demo's properties say "(fictional)".
+
+Known gaps:
+
+* **Installer wiring for secure documents** isn't in the repository: on a deployed server
+  uploads and downloads answer `503 not_configured` until an operator sets up the key and
+  directory by hand (steps in CONFIG.md). The proposed patch is pending the owner's decision.
+* No virus scanning of uploaded documents. No re-encryption command for key rotation.
+* No editor in the app for checklist templates (API only) and no bulk actions.
+* Recording and transcription don't exist, so meeting notes are typed by people. External
+  meeting invitations wait for the Gmail integration.
+* Reports are computed per request. That's fine at test-build sizes; there are no
+  snapshots or exports.
+* `dev/nexus/setup.sh` on slot 1 reported failed Matrix shared-secret registrations
+  (`matrix-users.mjs`, HMAC) for the demo people. The accounts already existed and signing in
+  worked; it wasn't investigated further (shared homeserver, not B1's to change).

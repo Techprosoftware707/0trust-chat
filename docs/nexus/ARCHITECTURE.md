@@ -302,6 +302,168 @@ deletes only `is_demo` rows of demo-flagged workspaces, keeps demo rows that rea
 depend on (and their demo children), never touches accounts. Both refuse unless
 `NEXUS_ENVIRONMENT` is `development` or `test`.
 
+## 12. Verticals, automation, calendar, meetings and reports (team B1)
+
+Code: `apps/crm/models_verticals.py`, `models_meetings.py`, `policies_verticals.py`, the
+service modules below, `api_verticals.py` (views), `serializers_verticals.py`; the
+`apps.automation` app; SPA areas `properties`, `lending`, `calendar`, `calls`, `reports`,
+`notifications`, `automations` and the shared pieces in `services/chat/src/workspace/verticals/`.
+Migrations: `crm.0002_verticals_meetings_event_kind`, `crm.0003_pipeline_stage_restrict`,
+`automation.0001_initial`.
+
+### Data model (all `TenantModel`s, all registered with a policy)
+
+| Model | Key fields | Notes |
+|---|---|---|
+| `Property` | address, city/region/postcode/country, `listing_type`, `property_type`, `status` (prospect, coming_soon, active, under_contract, sold, leased, withdrawn, off_market), price, beds/baths/area, `owner`, `visibility`, `source` (manual default, `import`, `integration`) + `source_label` | Never invented, never "MLS": `source` says where a row came from; demo rows say "(fictional)" |
+| `PropertyContact` | property ↔ contact with a role (seller, buyer, landlord, tenant, interested, other) | |
+| `OpportunityProperty` | deal ↔ property with a role (listing, purchase, considering, other) | |
+| `ClientPreference` | one per contact: listing type, budget range, areas, property types, minimum beds/baths/area, must-haves, nice-to-haves, timeline, move-by date, notes | Used by `matching_properties` (only the workspace's own properties) |
+| `CalendarEvent.kind` | meeting (default), viewing, call, closing, appointment, other | A viewing is a `CalendarEvent(kind="viewing", related=crm.property)` |
+| `Milestone` | `category` (milestone, deadline), `milestone_type` (offer_submitted, counter_offer, offer_accepted, negotiation, inspection, appraisal, financing, title, closing, disclosures, conditions, rate_lock, documents, …), `due_date`, `status` (pending, done, waived, missed), amount, responsible; on a deal **or** an application (DB constraint) | Urgency `overdue` / `due_soon` (`NEXUS_DEADLINE_SOON_DAYS`) / `upcoming` computed server-side |
+| `LendingApplication` | `reference` (unique per workspace), own pipeline (kind `lending`) and stage, `loan_officer` (the assigned broker), `product_type`, `amount_requested`, `status`, optional deal/property, target close, `decision` (`""`, approved, conditional, declined) + note/by/at | Pipeline and stage `RESTRICT`; decisions are recorded by staff only |
+| `ApplicationBorrower`, `LendingStageHistory` | borrowers (contact + role borrower, co_borrower, guarantor), stage moves | |
+| `ApplicationNote` | `visibility` staff (everyone working on the application), managers, private (author + managers) | Internal; never sent to borrowers or AI |
+| `ChecklistTemplate` | product type, ordered `items` (name, category, required) | Defaults per product created on demand |
+| `DocumentChecklistItem` | name, category, required, `status` (pending, requested, received, accepted, rejected, waived), requested/received/reviewed by and at, linked task | Outstanding = pending, requested, rejected (required items) |
+| `SecureDocument` | name, content type, size, `sha256`, `storage_name`, `key_id`, `wrapped_key` | Metadata only; ciphertext on disk (below) |
+| `DocumentDownloadGrant`, `DocumentAccessLog` | single-use grant (user, document, expiry, used_at); log (upload, grant, download, denied, delete + reason) | Log readable by managers+ only |
+| `MeetingNote` | event/contact/deal/room ID, title, body, `visibility` (team, attendees, private) | `room_id` is an identifier only |
+| `ActionItem` | note/event/contact/deal, title, suggested assignee/due, `status` (proposed, confirmed, dismissed), `source` (manual, ai_suggestion), decided by/at, `task` | Becomes a `Task` only when a person confirms it |
+
+`Opportunity.pipeline/stage` became `RESTRICT` (was `PROTECT`) so deleting a workspace
+cascades again; deleting a pipeline or stage that still has deals or applications is a
+`409 conflict` from the API.
+
+### Capabilities and who sees what
+
+| Capability | Roles | Grants |
+|---|---|---|
+| `lending.access` | owner, admin, manager, agent | the Lending area; agents see and work on **only applications assigned to them** (`loan_officer`) |
+| `lending.sensitive` | owner, admin, manager | every application, the document access log |
+| `lending.decide` | owner, admin, manager | record a decision (`POST .../decision` with `"confirm": true`) |
+| `automation.manage` | owner, admin, manager | rules, execution history, manual retry |
+| `reports.view` | owner, admin, manager | the Reports area (team-wide aggregates) |
+
+Team members and read-only people have no lending access at all (404 on every lending ID).
+Properties, milestones, preferences, meeting notes and action items follow the record rules
+of section 2 (owner/assignee/visibility; children follow their parent). Reports aggregate
+`for_actor()` querysets only, so nobody gets a number built from rows they can't see.
+
+### Secure lending documents
+
+* Upload: raw request body (the file's own `Content-Type`, name in `X-Nexus-Filename`),
+  read into memory up to `NEXUS_DOCUMENT_MAX_MB`; allow-list PDF, JPEG, PNG, TIFF, DOCX,
+  XLSX, checked against the leading bytes; never a temporary file.
+* Encryption (`apps/crm/documents.py`): a fresh AES-256-GCM data key per document, AAD =
+  workspace + document ID; the data key is stored wrapped by the master key from the secret
+  file `NEXUS_DOCUMENT_KEY_FILE` (several keys = rotation, first encrypts). Ciphertext files
+  in `NEXUS_SECURE_DOCUMENTS_DIR` (0700/0600, random names); the portal refuses a directory
+  inside or containing a static, template, media or branding path. Deleting a row deletes
+  its file after commit; where the directory isn't mounted the leftover file is unreadable
+  because its only wrapped key went with the row.
+* Download: `POST .../documents/<id>/download-token` (lending access + view on the
+  application) returns a signed token bound to user, workspace, document and expiry
+  (`NEXUS_DOCUMENT_TOKEN_SECONDS`, 60 s) backed by a single-use grant row; `POST
+  .../documents/download` with the token **in the body** re-checks membership and access at
+  redemption and streams `Content-Disposition: attachment`, `nosniff`, `no-store`.
+  Expired, reused, tampered or other-user tokens get `403 permission_denied`; access revoked
+  since the grant, or a token of another workspace, gets 404. Every refusal is audited
+  (`crm.securedocument.download_refused` with a reason) and, when the document is known,
+  logged as `denied`.
+* Every upload, grant, download, refusal and delete is in the access log and the audit
+  chain (field names and IDs only). Contents never reach logs, search, notifications,
+  automation payloads, reports or AI tools. **No virus scanning** in this build.
+* Not configured → `503 not_configured` ("Secure document storage isn't set up").
+
+### Automation
+
+* `engine.emit(workspace_id, event_type, subject=, dedup_key=, payload=, actor=)` runs on
+  `transaction.on_commit`; one `AutomationEvent` per (workspace, type, dedup key) and one
+  `AutomationExecution` per (workspace, dedup key = event + rule): the same fact never runs
+  a rule twice.
+* Triggers: `contact.created`, `lead.created`, `task.overdue`, `appointment.upcoming`,
+  `opportunity.stage_changed`, `action_item.proposed`. Conditions: `field` +
+  `equals | not_equals | in | contains` on the trigger's listed fields (all must match).
+* Actions (internal only): `assign_owner`, `create_task`, `notify_user` (in-app),
+  `update_related_tasks`. They run as the rule's owner (who last saved it) through
+  `apps.crm.access`, are audited and need that person to still hold `automation.manage`.
+* Loop protection: depth (`NEXUS_AUTOMATION_MAX_DEPTH`), a rule never runs on events its
+  own actions caused, per-rule `max_runs_per_hour`, per-workspace
+  `NEXUS_AUTOMATION_MAX_RUNS_PER_HOUR` (statuses `loop_blocked`, `rate_limited`).
+* Failures: `retrying` with backoff 1, 5, 30 minutes (worker job `automation.retries`), then
+  `failed`; manual retry from the history; errors are stored without record contents.
+* Worker jobs (`apps/automation/jobs.py`): `overdue_tasks` and `appointment_reminders`
+  (every 5 min; reminders `NEXUS_AUTOMATION_REMINDER_MINUTES` ahead), `retries` (1 min),
+  `retention` (hourly, `NEXUS_AUTOMATION_RETENTION_DAYS`). `manage.py nexus_automation_scan`
+  runs the scans once (tests, demos).
+* Notifications are in-app only (`Notification`, grouped by `group_key`), with per-user and
+  per-workspace `NotificationPreference` (mute, mute until, grouping, per-event switches).
+
+### Calendar, calls and meetings
+
+* Agenda, day and week views on `GET crm/events` (filters `from`, `to`, `kind`,
+  `attending=me`). A meeting's room is a Matrix room the **browser** creates
+  (`createGroup`, encrypted) and stores as `matrix_room_id`; joining uses the room's
+  existing MatrixRTC call. Internal invitations only (workspace members); invitations to
+  external people wait for the Gmail integration.
+* Calls & Meetings: upcoming meetings from the server; **recent calls are read in the
+  browser** from the chat client's call events and never sent to the server. "Link to
+  record" posts an `Activity(kind="call")` with the room and event IDs and what the person
+  typed.
+* No recording or transcription exists, and nothing records silently; the UI says so.
+
+### Reports and Home
+
+Server-side, under `reports.view`: `reports/pipeline` (by stage, value and owner),
+`reports/team-week`, `reports/activity`, `reports/tasks`, `reports/lending` (checklist
+status; `available: false` without the lending feature), `reports/deadlines`. Home's `dashboard` gains
+`meetings_today`, `approaching_deadlines`, `applications_missing_documents` (`null` without
+lending access), `suggested_next_steps` and `connected_services`.
+
+**Connected-service health slot.** `home.connected_services(actor)` calls every installed
+app's `health.py` → `service_health(actor)` (found with `nexus_modules("health")`) and
+returns their rows, or `null` when no app provides one. Rows follow the integrations
+contract: `service`, `label`, `status` (connected, needs_reauth, error, not_connected,
+not_configured), `status_label`, `detail`, `checked_at`, `link`, `mock`, `mock_label`. The
+hook must not make network calls; a provider that raises is skipped. Home shows the mock
+label whenever `mock` is true.
+
+### API routes (under `/api/v1/workspaces/<id>/`)
+
+`crm/`: `properties[/<id>[/contacts|/viewings]]`, `property-contacts/<id>`,
+`opportunities/<id>/(vertical|properties|contact-roles|deadline-template)`,
+`opportunity-properties/<id>`, `contacts/<id>/(preferences|vertical)` (preferences: GET,
+PUT, PATCH), `milestones[/<id>]`, `lending/applications[/<id>[/move|/decision|/history|
+/notes|/checklist[/apply-template]|/deadline-template|/documents|/access-log]]`,
+`lending/board`, `lending/notes/<id>`, `lending/checklist/<id>[/request]`,
+`lending/documents/<id>[/download-token]`, `lending/documents/download`,
+`lending/templates[/<id>]`, `meetings/upcoming`, `meetings/notes[/<id>]`,
+`action-items[/<id>[/confirm|/dismiss]]`, `reports/(pipeline|team-week|activity|tasks|
+lending|deadlines)`. `automation/`: `catalog`, `rules[/<id>]`, `executions[/summary]`,
+`executions/<id>/retry`, `notifications[/<id>]`, `notifications/unread-count`,
+`notifications/read-all`, `preferences[/workspace]`. Every route uses `@api_endpoint` and
+the error and pagination formats of section 5; CORS gained the `X-Nexus-Filename` header.
+
+### Services other teams may call
+
+All take an `Actor` and enforce access themselves; writes take the `request` for the audit
+entry and must run inside the caller's transaction (`@api_endpoint` provides one).
+
+| Module | Functions |
+|---|---|
+| `apps.crm.realestate` | `create_property`, `update_property`, `search_properties`, `link_property_contact`, `link_opportunity_property`, `set_opportunity_contact_role`, `get_preferences`, `save_preferences`, `matching_properties`, `schedule_viewing`, `viewings`, `create_milestone`, `update_milestone`, `apply_deadline_template` (`DEADLINE_TEMPLATES`: purchase, listing, lending), `milestones_for`, `milestone_urgency`, `approaching_deadlines` |
+| `apps.crm.lending` | `create_application`, `update_application`, `move_application`, `record_decision` (staff, `confirm: true`), `search_applications`, `visible_application`, `checklist_progress`, `outstanding_work`, `applications_missing_documents`, `create_note`, `update_note`, `add_checklist_item`, `update_checklist_item`, `apply_checklist_template`, `request_document` (creates the task; nothing is sent to the borrower), `create_template`, `update_template`, `template_for`, `ensure_default_templates`, `upload_document`, `delete_document`, `issue_download`, `redeem_download`, `access_log` |
+| `apps.crm.documents` | `is_configured`, `check_upload`, `seal`, `open_sealed` (download view only), `remove_sealed` |
+| `apps.crm.meetings` | `create_meeting_note`, `update_meeting_note`, `propose_action_item` (`source="ai_suggestion"` for AI), `confirm_action_item` (creates the task), `dismiss_action_item`, `update_action_item`, `upcoming_meetings` |
+| `apps.crm.reports` | `pipeline_report`, `team_week`, `activity_report`, `task_report`, `lending_report`, `deadlines_report` |
+| `apps.crm.home` | `home_extras`, `connected_services` |
+| `apps.automation.engine` | `emit` (with the `*_facts` helpers for payloads), `run_due_retries` |
+| `apps.automation.notifications` | `notify(workspace, recipient, event_type=, title=, body=, link=, related=, group_key=)` (in-app, honours preferences), `notifications_for`, `unread_count`, `mark_read`, `mark_all_read`, `effective_preferences`, `update_preferences` |
+| `apps.automation.services` | `catalog`, `create_rule`, `update_rule`, `retry_execution`, `execution_summary`, `seed_example_rules` |
+
+The AI tools on these services are in `apps/crm/ai_tools_verticals.py` (team B3).
+
 ## Foundation status
 
 See the final report in the hand-off and the commit history of
@@ -310,7 +472,8 @@ Known gaps at hand-off:
 
 * No optimistic-concurrency check on updates (last write wins); no bulk endpoints.
 * Calendar, Calls & Meetings, Inbox, AI Assistant, Reports, Integrations are coming-soon
-  pages (the calendar *API* exists).
+  pages (the calendar *API* exists). Since then Calendar, Calls & Meetings and Reports have
+  shipped (section 12).
 * The SPA's API calls are cross-origin (app domain → portal domain); a same-origin `/api`
   proxy on the app domain would remove CORS but is not set up.
 * Members see the list of workspace members (needed for assignment pickers).

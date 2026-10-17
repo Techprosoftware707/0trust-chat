@@ -122,3 +122,82 @@ once `NEXUS_INTEGRATIONS_KEY` exists.
 Losing the key makes the stored tokens unreadable: syncs stop with the error "The stored
 credentials can't be decrypted with the configured key" and people reconnect (OAuth) or paste
 a new private integration token; synced items are unaffected.
+
+## Verticals, lending documents, automation and reports (team B1)
+
+How these fit together is in [ARCHITECTURE.md](ARCHITECTURE.md), section 12.
+
+### Secure lending documents
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `NEXUS_DOCUMENT_KEY_FILE` (secret `nexus_document_key`) | none | The master key(s) for document encryption: 32 bytes as 64 hex characters (`openssl rand -hex 32`) or base64 (`openssl rand -base64 32`). Several keys, comma- or newline-separated, rotate: the **first** encrypts new documents, all of them decrypt. `NEXUS_DOCUMENT_KEY` as a plain environment variable is accepted only where env secrets are allowed (development, tests) |
+| `NEXUS_SECURE_DOCUMENTS_DIR` | empty | Directory for the ciphertext files (created 0700, files 0600). The portal refuses a path inside, or containing, a static, template, media or branding directory |
+| `NEXUS_DOCUMENT_MAX_MB` | `15` | Largest upload |
+| `NEXUS_DOCUMENT_TOKEN_SECONDS` | `60` | Lifetime of a single-use download token |
+
+Without both the key and the directory, lending works except documents: uploads and
+downloads answer `503 not_configured` and the Lending area says "Secure document storage
+isn't set up on this server yet". Local development sets both (`dev/nexus/env.sh` creates
+`document-key-<slot>` with mode 0600 and `secure-documents-<slot>/` under `.nexus-state`).
+
+**Known gap: the installer does not set this up yet.** On a deployed server, secure document
+storage answers `503 not_configured` until an operator provides the key file and directory.
+Proposed installer wiring (generated secret, private directory, portal-only mount,
+inclusion in backups and restores, deploy tests) exists as a patch outside the repository,
+pending the project owner's decision (B1 hand-off:
+`/tmp/claude-0/-home-user/e6bb18e2-ef15-525e-9375-04c4a4514dbf/scratchpad/b1-deploy-wiring.patch`).
+Until then, by hand (defaults: `LUMEN_CONFIG_DIR=/etc/lumen`, `LUMEN_DATA_DIR=/var/lib/lumen`,
+app user 10001, secrets group 10100):
+
+1. Create the key: `sudo sh -c 'umask 077; openssl rand -hex 32 | tr -d "\n" > /etc/lumen/secrets/nexus_document_key'`,
+   then `sudo chown root:10100 /etc/lumen/secrets/nexus_document_key` and
+   `sudo chmod 0440 /etc/lumen/secrets/nexus_document_key`.
+2. Create the directory: `sudo install -d -m 0700 -o 10001 -g 10001 /var/lib/lumen/nexus-documents`.
+3. Give **only the portal service** in `docker-compose.yml` the environment
+   `NEXUS_DOCUMENT_KEY_FILE: /run/secrets/nexus_document_key` and
+   `NEXUS_SECURE_DOCUMENTS_DIR: /var/lib/nexus-documents`, the secret `nexus_document_key`,
+   the volume `${LUMEN_DATA_DIR}/nexus-documents:/var/lib/nexus-documents`, and declare the
+   secret at the end of the file (`file: ${LUMEN_SECRETS_DIR}/nexus_document_key`). This is
+   a local change to the checkout: check it is still there after every update.
+4. `sudo ./lumenctl restart portal`, then upload a test file on a demo application.
+5. Back up `/var/lib/lumen/nexus-documents` yourself: `backup.sh` doesn't include it without
+   the patch. It holds ciphertext only; the key is in `/etc/lumen/secrets`, which backups
+   keep in `config/` (restore with `--with-config`). Losing the key makes every document
+   unreadable.
+
+Key rotation: write the new key first and keep the old ones after it (comma-separated),
+then restart the portal. Existing documents keep their key ID and need their old key until
+they're deleted: there is no re-encryption command yet. Deleting a document row deletes its
+file; a file left behind (for example after the operator console deletes a workspace,
+where the directory isn't mounted) can't be decrypted, because its only wrapped data key
+was in the deleted row. No virus scanning in this build.
+
+### Other settings (portal environment)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `NEXUS_DEADLINE_SOON_DAYS` | `3` | A milestone or deadline due within this many days is "due soon" (amber); past due is "overdue" |
+| `NEXUS_AUTOMATION_MAX_DEPTH` | `3` | How many automation-caused events may chain before runs are blocked as a loop |
+| `NEXUS_AUTOMATION_MAX_RUNS_PER_HOUR` | `300` | Automation runs per workspace per hour (each rule also has its own cap, default 60) |
+| `NEXUS_AUTOMATION_REMINDER_MINUTES` | `60` | How far ahead `appointment.upcoming` fires |
+| `NEXUS_AUTOMATION_RETENTION_DAYS` | `90` | Automation events, executions and read notifications are deleted after this |
+| `POSTGRES_CONN_MAX_AGE` | `60` | Seconds a portal process keeps a database connection (Django `CONN_MAX_AGE`). `dev/nexus/env.sh` sets `0` so dev servers on the shared test PostgreSQL don't hold idle connections |
+
+These have no `lumen.conf` keys, so an installed server uses the defaults. Nothing here is a
+credential.
+
+### Workspace settings
+
+| Setting | Who | Default |
+|---|---|---|
+| Business profiles real estate / lending (Settings → Business workspace) | owner, admin | off. They switch on the Properties and Lending areas and their default pipelines (lending: Lead → Initial Contact → Information Requested → Documents Pending → In Review → Decision Pending → Completed) |
+| Document checklist templates per loan product (API `crm/lending/templates`; no editor in the app yet) | owner, admin, manager | defaults per product created on first use |
+| Automation rules (Automations) | owner, admin, manager | none; the demo workspace gets the four example rules, switched on |
+| Notification defaults (Notifications → Preferences → Workspace defaults) | owner, admin | everything on, grouping on; everyone can change their own |
+
+### Background jobs (`manage.py lumen_worker`)
+
+`automation.overdue_tasks` and `automation.appointment_reminders` (every 5 minutes),
+`automation.retries` (every minute) and `automation.retention` (hourly).
+`manage.py nexus_automation_scan` runs the two scans once.
