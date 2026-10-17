@@ -328,7 +328,7 @@ struct AboutView: View {
             }
         }
         .navigationTitle("About")
-        .task { transports = await CallRoomActions(client: session.client).transports() }
+        .task { transports = await session.callTransports() }
     }
 
     private var widgetSourceLabel: String {

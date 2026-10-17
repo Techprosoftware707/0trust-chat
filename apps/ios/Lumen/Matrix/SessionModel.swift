@@ -7,7 +7,13 @@ import Observation
 /// the screens use.
 @Observable @MainActor
 final class SessionModel {
-    let client: Client
+    /// The Rust SDK client. Only DEBUG preview sessions (screenshots) have
+    /// none; they never reach code that needs it.
+    private let sdkClient: Client?
+    var client: Client {
+        guard let sdkClient else { preconditionFailure("A preview session has no SDK client") }
+        return sdkClient
+    }
     private(set) var account: StoredAccount
     let lumen: LumenAppInfo?
     let userId: String
@@ -23,6 +29,10 @@ final class SessionModel {
     let roomList: RoomListModel
     let encryption: EncryptionModel
     let verification: VerificationModel
+    /// Attachment images and files for the timeline.
+    @ObservationIgnored let media: MediaLoading
+    /// Canned data of a DEBUG preview session; nil for real sessions.
+    @ObservationIgnored private let preview: SessionPreviewData?
 
     /// Called for rings and for notifications that should be shown locally
     /// (background refresh or other rooms while in the foreground).
@@ -31,6 +41,7 @@ final class SessionModel {
 
     @ObservationIgnored private let accountStore: AccountStoring
     @ObservationIgnored private let paths: StorePaths
+    @ObservationIgnored private let http: HTTPClient
     @ObservationIgnored private var syncService: SyncService?
     @ObservationIgnored private var handles: [TaskHandle] = []
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
@@ -44,17 +55,47 @@ final class SessionModel {
     var serverName: String { account.serverName }
 
     init(client: Client, account: StoredAccount, accountStore: AccountStoring, paths: StorePaths) throws {
-        self.client = client
+        self.sdkClient = client
         self.account = account
         self.accountStore = accountStore
         self.paths = paths
+        self.http = URLSessionHTTPClient()
         self.lumen = LumenAppInfo.fromJSONData(account.lumenAppJSON)
         self.userId = try client.userId()
         self.deviceId = try client.deviceId()
         self.roomList = RoomListModel()
         self.encryption = EncryptionModel(encryption: client.encryption())
         self.verification = VerificationModel(client: client)
+        self.media = SDKMediaLoader(client: client)
+        self.preview = nil
     }
+
+    #if DEBUG
+    /// A session without a server for DEBUG screenshots: the given models and
+    /// canned data, no SDK client, no sync.
+    init(preview data: SessionPreviewData, account: StoredAccount, lumen: LumenAppInfo?, roomList: RoomListModel,
+         encryption: EncryptionModel, verification: VerificationModel, media: MediaLoading, http: HTTPClient, paths: StorePaths) {
+        self.sdkClient = nil
+        self.account = account
+        self.accountStore = PreviewAccountStore()
+        self.paths = paths
+        self.http = http
+        self.lumen = lumen
+        self.userId = account.userId
+        self.deviceId = account.deviceId
+        self.roomList = roomList
+        self.encryption = encryption
+        self.verification = verification
+        self.media = media
+        self.preview = data
+        self.syncStatus = data.syncStatus
+        self.networkReachable = data.networkReachable
+        self.wasDisconnected = data.wasDisconnected
+        self.syncIndicatorVisible = data.syncIndicatorVisible
+        self.ignoredUsers = data.ignoredUsers
+        self.authError = data.authError
+    }
+    #endif
 
     // MARK: - Lifecycle
 
@@ -192,15 +233,30 @@ final class SessionModel {
         try await client.unignoreUser(userId: userId)
     }
 
-    func devicesAPI(http: HTTPClient = URLSessionHTTPClient()) -> DevicesAPI {
-        let client = self.client
+    func devicesAPI() -> DevicesAPI {
+        let client = sdkClient
         return DevicesAPI(http: http, homeserverURL: URL(string: account.homeserverURL)!, accessToken: {
-            try client.session().accessToken
+            guard let client else { return "" }
+            return try client.session().accessToken
         })
     }
 
     func displayName() async -> String? {
-        try? await client.displayName()
+        guard let sdkClient else { return preview?.displayName }
+        return try? await sdkClient.displayName()
+    }
+
+    /// The server's MatrixRTC transports (Settings → About).
+    func callTransports() async -> [String] {
+        guard let sdkClient else { return preview?.callTransports ?? [] }
+        return await CallRoomActions(client: sdkClient).transports()
+    }
+
+    /// The live timeline of a room, or nil when the room isn't known here.
+    func makeTimelineModel(roomId: String) -> TimelineModel? {
+        guard let sdkClient else { return preview?.timelines[roomId] }
+        guard let room = roomList.room(id: roomId) else { return nil }
+        return TimelineModel(room: room, ownUserId: userId, encryption: sdkClient.encryption())
     }
 
     /// Signs out: `POST /logout` (the server deletes the device and its
@@ -218,3 +274,25 @@ final class SessionModel {
         SharedPreferences.current().reset()
     }
 }
+
+/// Canned data shown by a DEBUG preview session (screenshots).
+struct SessionPreviewData {
+    var displayName: String?
+    var callTransports: [String] = []
+    var timelines: [String: TimelineModel] = [:]
+    var syncStatus: SyncStatus = .running
+    var networkReachable = true
+    var wasDisconnected = false
+    var syncIndicatorVisible = false
+    var ignoredUsers: [String] = []
+    var authError: String?
+}
+
+#if DEBUG
+/// Preview sessions store nothing.
+struct PreviewAccountStore: AccountStoring {
+    func load() -> StoredAccount? { nil }
+    func save(_ account: StoredAccount) throws {}
+    func delete() throws {}
+}
+#endif

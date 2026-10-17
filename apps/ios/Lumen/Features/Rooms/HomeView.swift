@@ -51,8 +51,8 @@ struct HomeView: View {
                     }
                 }
         } detail: {
-            if let id = model.selectedRoomId, let room = session.roomList.room(id: id) {
-                RoomView(session: session, room: room)
+            if let id = model.selectedRoomId, let timeline = session.makeTimelineModel(roomId: id) {
+                RoomView(session: session, model: timeline)
                     .id(id)
             } else {
                 ContentUnavailableView("No conversation selected", systemImage: "bubble.left.and.bubble.right", description: Text("Choose a conversation, or start a new one."))

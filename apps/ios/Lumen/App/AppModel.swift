@@ -64,6 +64,13 @@ final class AppModel {
 
     var storesShared: Bool { factory.paths.isShared }
 
+    #if DEBUG
+    /// Shows a session without a server (DEBUG screenshots); nothing is started.
+    func showPreview(session: SessionModel?) {
+        phase = session.map { .signedIn($0) } ?? .signedOut
+    }
+    #endif
+
     // MARK: - Launch and sign-in
 
     func launch() async {

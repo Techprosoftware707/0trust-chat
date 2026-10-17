@@ -68,6 +68,14 @@ final class AuthModel {
         phase = .idle
     }
 
+    #if DEBUG
+    /// Shows a sign-in state without a server (DEBUG screenshots).
+    func showPreview(_ phase: Phase, serverInput: String) {
+        self.serverInput = serverInput
+        self.phase = phase
+    }
+    #endif
+
     /// SSO: `startSsoLogin` → system browser → callback (nonce checked) →
     /// `SsoHandler.finish`. Returns the stored account and the logged-in client.
     func signInWithSSO(provider: LoginFlows.IdentityProvider?, web: WebAuthenticating, deviceModel: String) async throws -> (StoredAccount, Client) {

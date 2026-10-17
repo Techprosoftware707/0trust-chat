@@ -8,11 +8,11 @@ struct RoomInfoView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var app
     @Environment(\.lumen) private var c
-    @State private var members: [RoomMember] = []
+    @State private var members: [MemberSummary] = []
     @State private var confirmLeave = false
-    @State private var blockTarget: RoomMember?
+    @State private var blockTarget: MemberSummary?
     @State private var error: String?
-    @State private var verified: [String: Bool] = [:]
+    @State private var verified: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -36,13 +36,13 @@ struct RoomInfoView: View {
                 Section("People") {
                     ForEach(members, id: \.userId) { m in
                         HStack {
-                            AvatarView(name: m.displayName ?? m.userId, size: 32)
+                            AvatarView(name: m.name, size: 32)
                             VStack(alignment: .leading) {
-                                Text(m.displayName ?? m.userId)
+                                Text(m.name)
                                 Text(m.userId).font(.caption).foregroundStyle(c.textMuted)
                             }
                             Spacer()
-                            if verified[m.userId] == true {
+                            if verified.contains(m.userId) {
                                 Image(systemName: "checkmark.seal.fill").foregroundStyle(c.success).accessibilityLabel("Verified")
                             }
                         }
@@ -55,7 +55,7 @@ struct RoomInfoView: View {
                             if m.userId != session.userId {
                                 Button {
                                     Task { await session.verification.requestUserVerification(m.userId) }
-                                } label: { Label("Verify \(m.displayName ?? m.userId)", systemImage: "checkmark.shield") }
+                                } label: { Label("Verify \(m.name)", systemImage: "checkmark.shield") }
                                 Button(role: .destructive) { blockTarget = m } label: { Label("Block", systemImage: "hand.raised") }
                             }
                         }
@@ -67,7 +67,7 @@ struct RoomInfoView: View {
                         Button {
                             dismiss()
                             Task { await session.verification.requestUserVerification(other.userId) }
-                        } label: { Label("Verify \(other.displayName ?? other.userId)", systemImage: "checkmark.shield") }
+                        } label: { Label("Verify \(other.name)", systemImage: "checkmark.shield") }
                     } footer: {
                         Text("Compare emoji with them, ideally in person or on a call you trust, to be sure their messages really come from them.")
                     }
@@ -108,7 +108,7 @@ struct RoomInfoView: View {
                     }
                 }
             }
-            .confirmationDialog("Block \(blockTarget?.displayName ?? blockTarget?.userId ?? "")?", isPresented: Binding(get: { blockTarget != nil }, set: { if !$0 { blockTarget = nil } }), titleVisibility: .visible) {
+            .confirmationDialog("Block \(blockTarget?.name ?? "")?", isPresented: Binding(get: { blockTarget != nil }, set: { if !$0 { blockTarget = nil } }), titleVisibility: .visible) {
                 Button("Block", role: .destructive) {
                     guard let t = blockTarget else { return }
                     Task {
@@ -125,18 +125,7 @@ struct RoomInfoView: View {
     }
 
     private func loadMembers() async {
-        guard let it = try? await model.room.members() else { return }
-        var all: [RoomMember] = []
-        while let chunk = it.nextChunk(chunkSize: 100), all.count < 500 {
-            all.append(contentsOf: chunk)
-        }
-        members = all.filter { $0.membership == .join || $0.membership == .invite }
-            .sorted { ($0.displayName ?? $0.userId).localizedCaseInsensitiveCompare($1.displayName ?? $1.userId) == .orderedAscending }
-        let encryption = session.client.encryption()
-        for m in members.prefix(50) where m.userId != session.userId {
-            if let identity = try? await encryption.userIdentity(userId: m.userId, fallbackToServer: false) {
-                verified[m.userId] = identity.isVerified()
-            }
-        }
+        members = await model.loadMembers()
+        verified = await model.verifiedUserIds(among: members)
     }
 }

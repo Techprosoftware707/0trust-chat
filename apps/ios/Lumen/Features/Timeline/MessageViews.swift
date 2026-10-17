@@ -7,7 +7,7 @@ import UIKit
 
 struct MessageBubbleView: View {
     let message: MessageRow
-    let client: Client
+    let media: MediaLoading
     var onReply: () -> Void
     var onEdit: () -> Void
     var onReact: (String) -> Void
@@ -100,7 +100,7 @@ struct MessageBubbleView: View {
         case .emote(let t):
             Text("* \(message.senderName) \(t)").italic().foregroundStyle(c.text)
         case .attachment(let a, let caption):
-            AttachmentView(attachment: a, client: client)
+            AttachmentView(attachment: a, media: media)
             if let caption, !caption.isEmpty { Text(caption).foregroundStyle(c.text) }
         case .redacted:
             Label("Message deleted", systemImage: "trash").font(.subheadline).foregroundStyle(c.textSubtle)
@@ -172,11 +172,11 @@ struct MessageBubbleView: View {
 /// `getMediaFile`); files open in Quick Look from the SDK's temporary copy.
 struct AttachmentView: View {
     let attachment: Attachment
-    let client: Client
+    let media: MediaLoading
     @Environment(\.lumen) private var c
     @State private var image: UIImage?
     @State private var previewURL: URL?
-    @State private var fileHandle: MediaFileHandle?
+    @State private var fileHandle: AnyObject?
     @State private var loading = false
     @State private var failed = false
 
@@ -222,12 +222,7 @@ struct AttachmentView: View {
             let w = UInt64(min(attachment.width ?? 800, 800))
             let h = UInt64(min(attachment.height ?? 800, 800))
             do {
-                let data: Data
-                if let thumb = attachment.thumbnailSource {
-                    data = try await client.getMediaContent(mediaSource: thumb)
-                } else {
-                    data = try await client.getMediaThumbnail(mediaSource: attachment.source, width: w, height: h)
-                }
+                let data = try await media.imageData(for: attachment, maxWidth: w, maxHeight: h)
                 image = UIImage(data: data)
                 failed = image == nil
             } catch {
@@ -249,9 +244,9 @@ struct AttachmentView: View {
         loading = true
         defer { loading = false }
         do {
-            let handle = try await client.getMediaFile(mediaSource: attachment.source, filename: attachment.filename, mimeType: attachment.mimeType ?? "application/octet-stream", useCache: true, tempDir: nil)
-            fileHandle = handle // keeps the temporary file alive while previewed
-            previewURL = URL(fileURLWithPath: try handle.path())
+            let file = try await media.file(for: attachment)
+            fileHandle = file.keepAlive // keeps the temporary file alive while previewed
+            previewURL = file.url
         } catch {
             failed = true
         }

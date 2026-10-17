@@ -20,8 +20,12 @@ final class TimelineModel {
     private(set) var loadError: String?
     private(set) var callHistory: [CallHistoryEntry] = []
 
-    @ObservationIgnored let room: Room
-    @ObservationIgnored private let encryption: Encryption
+    /// The SDK room; nil only for DEBUG screenshot previews.
+    @ObservationIgnored private let room: Room?
+    @ObservationIgnored private let encryption: Encryption?
+    /// Members shown by a DEBUG preview (no SDK room).
+    @ObservationIgnored private var previewMembers: [MemberSummary] = []
+    @ObservationIgnored private var previewVerified: Set<String> = []
     @ObservationIgnored private var timeline: Timeline?
     @ObservationIgnored private var items: [TimelineItem] = []
     @ObservationIgnored private var handles: [TaskHandle] = []
@@ -39,7 +43,33 @@ final class TimelineModel {
         self.hasActiveCall = room.hasActiveRoomCall()
     }
 
+    #if DEBUG
+    /// A timeline without a server for DEBUG screenshots.
+    init(preview roomId: String, roomName: String, ownUserId: String, rows: [TimelineRow], isDirect: Bool, isEncrypted: Bool,
+         hasActiveCall: Bool = false, reachedStart: Bool = true, typingUserIds: [String] = [], identityWarnings: [IdentityWarning] = [],
+         loadError: String? = nil, members: [MemberSummary] = [], verifiedUserIds: Set<String> = []) {
+        self.room = nil
+        self.encryption = nil
+        self.roomId = roomId
+        self.ownUserId = ownUserId
+        self.roomName = roomName
+        self.isDirect = isDirect
+        self.isEncrypted = isEncrypted
+        self.hasActiveCall = hasActiveCall
+        self.reachedStart = reachedStart
+        self.typingUserIds = typingUserIds
+        self.identityWarnings = identityWarnings
+        self.loadError = loadError
+        self.rows = rows
+        self.previewMembers = members
+        self.previewVerified = verifiedUserIds
+        let calls: [RtcNotificationRecord] = rows.compactMap { if case .call(let c) = $0.kind { return c.record } else { return nil } }
+        self.callHistory = CallHistoryBuilder.build(calls, ownUserId: ownUserId)
+    }
+    #endif
+
     func start() async {
+        guard let room else { return }
         do {
             let t = try await room.timeline()
             timeline = t
@@ -96,7 +126,7 @@ final class TimelineModel {
         tasks.removeAll()
         handles.removeAll()
         timeline = nil
-        if typingSent { Task { [room] in try? await room.typingNotice(isTyping: false) } }
+        if typingSent, let room { Task { [room] in try? await room.typingNotice(isTyping: false) } }
     }
 
     // MARK: - Diffs
@@ -217,12 +247,12 @@ final class TimelineModel {
         guard preferences().sendTypingNotices || (!typing && typingSent) else { return }
         guard typing != typingSent else { return }
         typingSent = typing
-        try? await room.typingNotice(isTyping: typing)
+        try? await room?.typingNotice(isTyping: typing)
     }
 
     /// Acknowledge a changed identity (pin it) or withdraw a broken verification.
     func resolve(_ warning: IdentityWarning) async throws {
-        guard let identity = try await encryption.userIdentity(userId: warning.userId, fallbackToServer: true) else { return }
+        guard let encryption, let identity = try await encryption.userIdentity(userId: warning.userId, fallbackToServer: true) else { return }
         switch warning.kind {
         case .changed: try await identity.pin()
         case .verifiedChanged: try await identity.withdrawVerification()
@@ -233,14 +263,50 @@ final class TimelineModel {
     /// In encrypted rooms the server receives only the event ID and the reason,
     /// not the decrypted text.
     func report(eventId: String, reason: String?) async throws {
-        try await room.reportContent(eventId: eventId, reason: reason)
+        try await room?.reportContent(eventId: eventId, reason: reason)
     }
 
     func displayName(of userId: String) async -> String {
-        (try? await room.memberDisplayName(userId: userId)).flatMap { $0 } ?? userId
+        guard let room else { return previewMembers.first { $0.userId == userId }?.displayName ?? userId }
+        return (try? await room.memberDisplayName(userId: userId)).flatMap { $0 } ?? userId
     }
 
     func leave() async throws {
-        try await room.leave()
+        try await room?.leave()
     }
+
+    /// Joined and invited members sorted by name (at most about 500 loaded).
+    func loadMembers() async -> [MemberSummary] {
+        guard let room else { return previewMembers }
+        guard let it = try? await room.members() else { return [] }
+        var all: [RoomMember] = []
+        while let chunk = it.nextChunk(chunkSize: 100), all.count < 500 {
+            all.append(contentsOf: chunk)
+        }
+        return all.filter { $0.membership == .join || $0.membership == .invite }
+            .map { MemberSummary(userId: $0.userId, displayName: $0.displayName, isInvited: $0.membership == .invite) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// Which of the first 50 other members have a verified identity, from
+    /// this device's crypto store (no server request).
+    func verifiedUserIds(among members: [MemberSummary]) async -> Set<String> {
+        guard let encryption else { return previewVerified }
+        var verified: Set<String> = []
+        for m in members.prefix(50) where m.userId != ownUserId {
+            if let identity = try? await encryption.userIdentity(userId: m.userId, fallbackToServer: false), identity.isVerified() {
+                verified.insert(m.userId)
+            }
+        }
+        return verified
+    }
+}
+
+/// A room member as the details screen shows it.
+struct MemberSummary: Identifiable, Equatable, Sendable {
+    var userId: String
+    var displayName: String?
+    var isInvited = false
+    var id: String { userId }
+    var name: String { displayName ?? userId }
 }

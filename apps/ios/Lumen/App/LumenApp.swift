@@ -11,18 +11,32 @@ struct LumenApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(model)
-                .lumenTheme()
-                .onOpenURL { model.handle(url: $0) }
-                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
-                    if let url = activity.webpageURL { model.handle(url: url) }
-                }
-                .task { await model.launch() }
+            #if DEBUG
+            if ScreenshotMode.isRequested {
+                // UI tests only (LumenUITests/ScreenshotTests): renders the
+                // screens with made-up data; never compiled into Release.
+                ScreenshotRunnerView()
+            } else {
+                app
+            }
+            #else
+            app
+            #endif
         }
         .onChange(of: scenePhase) { _, phase in
             model.scenePhaseChanged(phase)
         }
+    }
+
+    private var app: some View {
+        RootView()
+            .environment(model)
+            .lumenTheme()
+            .onOpenURL { model.handle(url: $0) }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                if let url = activity.webpageURL { model.handle(url: url) }
+            }
+            .task { await model.launch() }
     }
 }
 

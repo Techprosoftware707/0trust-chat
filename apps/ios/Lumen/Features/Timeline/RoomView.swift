@@ -22,9 +22,14 @@ struct RoomView: View {
     @State private var reportReason = ""
     @State private var reported = false
 
-    init(session: SessionModel, room: Room) {
+    /// `draft`, `replyTo`, `editing` and `sending` seed the composer (DEBUG screenshots).
+    init(session: SessionModel, model: TimelineModel, draft: String = "", replyTo: MessageRow? = nil, editing: MessageRow? = nil, sending: Bool = false) {
         self.session = session
-        _model = State(initialValue: TimelineModel(room: room, ownUserId: session.userId, encryption: session.client.encryption()))
+        _model = State(initialValue: model)
+        _composer = State(initialValue: draft)
+        _replyTo = State(initialValue: replyTo)
+        _editing = State(initialValue: editing)
+        _sending = State(initialValue: sending)
     }
 
     var body: some View {
@@ -186,7 +191,7 @@ struct RoomView: View {
         case .message(let m):
             MessageBubbleView(
                 message: m,
-                client: session.client,
+                media: session.media,
                 onReply: { replyTo = m; editing = nil },
                 onEdit: { editing = m; replyTo = nil; composer = m.plainText ?? "" },
                 onReact: { key in run { try await model.toggleReaction(m.itemId, key: key) } },

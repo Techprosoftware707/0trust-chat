@@ -6,7 +6,6 @@ import WebKit
 
 struct CallScreen: View {
     let coordinator: CallCoordinator
-    @Environment(\.lumen) private var c
     @State private var speaker = false
 
     var body: some View {
@@ -16,11 +15,17 @@ struct CallScreen: View {
                 WidgetWebView(host: call.host)
                     .ignoresSafeArea(edges: .bottom)
                     .accessibilityLabel("Call view")
-                VStack(spacing: 0) {
-                    header(call)
-                    Spacer()
-                    controls
-                }
+                CallChrome(
+                    roomName: call.roomName,
+                    sourceLabel: call.source.label,
+                    state: coordinator.state,
+                    speaker: $speaker,
+                    onToggleMute: { coordinator.toggleMute() },
+                    onToggleVideo: { coordinator.toggleVideo() },
+                    onSwitchCamera: { coordinator.switchCamera() },
+                    onSpeakerChanged: { CallKitController.setSpeaker($0) },
+                    onEnd: { coordinator.end() }
+                )
             } else {
                 ProgressView().tint(.white)
             }
@@ -28,21 +33,43 @@ struct CallScreen: View {
         .preferredColorScheme(.dark)
         .statusBarHidden(false)
     }
+}
 
-    private func header(_ call: CallCoordinator.ActiveCall) -> some View {
+/// The call screen's header and controls over the widget. Driven by plain
+/// values so it can be rendered without a call (DEBUG screenshots).
+struct CallChrome: View {
+    let roomName: String
+    let sourceLabel: String
+    let state: CallStateUpdate?
+    @Binding var speaker: Bool
+    var onToggleMute: () -> Void
+    var onToggleVideo: () -> Void
+    var onSwitchCamera: () -> Void
+    var onSpeakerChanged: (Bool) -> Void
+    var onEnd: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Spacer()
+            controls
+        }
+    }
+
+    private var header: some View {
         VStack(spacing: 4) {
-            Text(call.roomName)
+            Text(roomName)
                 .font(.headline)
                 .foregroundStyle(.white)
             Text(stateLabel)
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.8))
-            let e2ee = coordinator.state?.e2ee ?? .unknown
+            let e2ee = state?.e2ee ?? .unknown
             Label(e2ee.label, systemImage: e2ee.isEncrypted ? "lock.fill" : "lock.open")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(e2ee.isEncrypted ? LumenPalette.green400 : LumenPalette.amber400)
                 .accessibilityLabel("Call encryption: \(e2ee.label)")
-            Text(call.source.label)
+            Text(sourceLabel)
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.6))
         }
@@ -53,7 +80,7 @@ struct CallScreen: View {
     }
 
     private var stateLabel: String {
-        switch coordinator.state?.state {
+        switch state?.state {
         case .connecting?, nil: return "Connecting…"
         case .connected?: return "Connected"
         case .reconnecting?: return "Reconnecting…"
@@ -62,30 +89,30 @@ struct CallScreen: View {
     }
 
     private var controls: some View {
-        let muted = coordinator.state?.muted ?? false
-        let video = coordinator.state?.video ?? false
+        let muted = state?.muted ?? false
+        let video = state?.video ?? false
         return HStack(spacing: LumenDimens.space4) {
             controlButton(muted ? "mic.slash.fill" : "mic.fill", label: muted ? "Unmute" : "Mute", active: muted) {
-                coordinator.toggleMute()
+                onToggleMute()
             }
             controlButton(video ? "video.fill" : "video.slash.fill", label: video ? "Turn camera off" : "Turn camera on", active: !video) {
-                coordinator.toggleVideo()
+                onToggleVideo()
             }
             if video {
                 controlButton("arrow.triangle.2.circlepath.camera", label: "Switch camera", active: false) {
-                    coordinator.switchCamera()
+                    onSwitchCamera()
                 }
             }
             controlButton(speaker ? "speaker.wave.3.fill" : "speaker.fill", label: speaker ? "Speaker off" : "Speaker on", active: speaker) {
                 speaker.toggle()
-                CallKitController.setSpeaker(speaker)
+                onSpeakerChanged(speaker)
             }
             RoutePickerView()
                 .frame(width: 52, height: 52)
                 .background(Circle().fill(.white.opacity(0.15)))
                 .accessibilityLabel("Audio output: Bluetooth, AirPlay or this device")
             Button {
-                coordinator.end()
+                onEnd()
             } label: {
                 Image(systemName: "phone.down.fill")
                     .font(.title2)

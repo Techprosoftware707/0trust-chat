@@ -13,13 +13,27 @@ final class EncryptionModel {
     private(set) var initialised = false
     private(set) var recoveryProgress: String?
 
-    @ObservationIgnored let encryption: Encryption
+    /// The SDK's encryption API; nil only for DEBUG screenshot previews.
+    @ObservationIgnored private let encryption: Encryption?
     @ObservationIgnored private var handles: [TaskHandle] = []
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
 
     init(encryption: Encryption) {
         self.encryption = encryption
     }
+
+    #if DEBUG
+    /// Fixed states for DEBUG screenshots (no SDK).
+    init(preview recovery: RecoveryState, backup: BackupState, verification: VerificationState, hasOtherDevices: Bool, recoveryProgress: String? = nil) {
+        self.encryption = nil
+        self.recoveryState = recovery
+        self.backupState = backup
+        self.verificationState = verification
+        self.hasOtherDevices = hasOtherDevices
+        self.recoveryProgress = recoveryProgress
+        self.initialised = true
+    }
+    #endif
 
     /// The device can't read its history or prove who it is yet.
     var needsVerification: Bool { initialised && verificationState == .unverified }
@@ -29,6 +43,7 @@ final class EncryptionModel {
     var needsRecoveryKey: Bool { initialised && recoveryState == .incomplete }
 
     func start() {
+        guard let encryption else { return }
         recoveryState = encryption.recoveryState()
         backupState = encryption.backupState()
         verificationState = encryption.verificationState()
@@ -65,6 +80,7 @@ final class EncryptionModel {
     /// Creates secret storage and a key backup and returns the new recovery
     /// key. The key is shown once and not stored by the app.
     func enableRecovery() async throws -> String {
+        guard let encryption else { throw SDKUnavailableError() }
         let (stream, cont) = makeStream(EnableRecoveryProgress.self)
         let progressTask = Task { [weak self] in
             for await p in stream {
@@ -85,12 +101,14 @@ final class EncryptionModel {
     /// Unlocks secret storage with the recovery key: cross-signing keys and
     /// the backup key are imported, and this device becomes verified.
     func recover(with key: String) async throws {
+        guard let encryption else { throw SDKUnavailableError() }
         try await encryption.recover(recoveryKey: RecoveryKeyFormat.normalise(key))
     }
 
     /// Replaces the recovery key (the old one stops working).
     func resetRecoveryKey() async throws -> String {
-        try await encryption.resetRecoveryKey()
+        guard let encryption else { throw SDKUnavailableError() }
+        return try await encryption.resetRecoveryKey()
     }
 
     var backupLabel: String {
@@ -132,7 +150,8 @@ final class VerificationModel {
     /// Whom we are verifying: nil for own devices.
     private(set) var otherUserId: String?
 
-    @ObservationIgnored private let client: Client
+    /// nil only for DEBUG screenshot previews.
+    @ObservationIgnored private let client: Client?
     @ObservationIgnored private var controller: SessionVerificationController?
     @ObservationIgnored private var delegate: VerificationDelegate?
     @ObservationIgnored private var consumer: Task<Void, Never>?
@@ -141,6 +160,15 @@ final class VerificationModel {
     init(client: Client) {
         self.client = client
     }
+
+    #if DEBUG
+    /// A fixed phase for DEBUG screenshots (no SDK).
+    init(preview phase: Phase, otherUserId: String? = nil) {
+        self.client = nil
+        self.phase = phase
+        self.otherUserId = otherUserId
+    }
+    #endif
 
     var isActive: Bool {
         switch phase {
@@ -161,7 +189,7 @@ final class VerificationModel {
     @discardableResult
     private func ensureController() async -> SessionVerificationController? {
         if let controller { return controller }
-        guard let c = try? await client.getSessionVerificationController() else { return nil }
+        guard let client, let c = try? await client.getSessionVerificationController() else { return nil }
         let (stream, cont) = makeStream(VerificationEvent.self)
         let d = VerificationDelegate(cont)
         c.setDelegate(delegate: d)
@@ -177,7 +205,7 @@ final class VerificationModel {
         switch e {
         case .request(let details):
             pendingRequest = details
-            otherUserId = details.senderProfile.userId == (try? client.userId()) ? nil : details.senderProfile.userId
+            otherUserId = details.senderProfile.userId == (try? client?.userId()) ? nil : details.senderProfile.userId
             phase = .incoming(sender: details.senderProfile.displayName ?? details.senderProfile.userId, deviceName: details.deviceDisplayName, deviceId: details.deviceId)
             Task { [weak self] in
                 try? await self?.controller?.acknowledgeVerificationRequest(senderId: details.senderProfile.userId, flowId: details.flowId)
@@ -284,3 +312,6 @@ final class VerificationDelegate: SessionVerificationControllerDelegate {
     func didCancel() { continuation.yield(.cancelled) }
     func didFinish() { continuation.yield(.finished) }
 }
+
+/// An SDK call was made where there is no SDK object (DEBUG previews).
+struct SDKUnavailableError: Error {}

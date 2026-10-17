@@ -5,6 +5,8 @@ import SwiftUI
 /// pre-filled with the build's `LUMEN_DEFAULT_SERVER`.
 struct ServerPickerView: View {
     @Bindable var auth: AuthModel
+    /// A sign-in error to show from the start (DEBUG screenshots).
+    var initialError: String? = nil
     @Environment(AppModel.self) private var model
     @Environment(\.lumen) private var c
     @State private var error: String?
@@ -50,6 +52,7 @@ struct ServerPickerView: View {
         }
         .background(c.bg.ignoresSafeArea())
         .sheet(item: $safariURL) { SafariView(url: $0.url).ignoresSafeArea() }
+        .onAppear { if let initialError, error == nil { error = initialError } }
         .task {
             // A pre-configured server is looked up straight away.
             if case .idle = auth.phase, !auth.serverInput.isEmpty { await auth.discover() }

@@ -7,11 +7,19 @@ import UIKit
 /// or set up recovery if the account has none.
 struct SecurityOnboardingView: View {
     let session: SessionModel
+    /// Shown on the setup step's "your recovery key" page (DEBUG screenshots).
+    private let previewKey: String?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lumen) private var c
     @State private var mode: Mode = .choose
 
     enum Mode { case choose, enterKey, setup }
+
+    init(session: SessionModel, startIn mode: Mode = .choose, previewKey: String? = nil) {
+        self.session = session
+        self.previewKey = previewKey
+        _mode = State(initialValue: mode)
+    }
 
     var body: some View {
         NavigationStack {
@@ -19,7 +27,7 @@ struct SecurityOnboardingView: View {
                 switch mode {
                 case .choose: choose
                 case .enterKey: EnterRecoveryKeyView(encryption: session.encryption) { dismiss() }
-                case .setup: SetupRecoveryView(encryption: session.encryption) { dismiss() }
+                case .setup: SetupRecoveryView(encryption: session.encryption, done: { dismiss() }, initialKey: previewKey)
                 }
             }
             .navigationTitle("Secure your messages")
@@ -115,6 +123,8 @@ struct EnterRecoveryKeyView: View {
 struct SetupRecoveryView: View {
     let encryption: EncryptionModel
     var done: () -> Void
+    /// Start on the "your recovery key" step with this key (DEBUG screenshots).
+    var initialKey: String? = nil
     @State private var step: Step = .intro
     @State private var key: String?
     @State private var saved = false
@@ -195,6 +205,12 @@ struct SetupRecoveryView: View {
                 }
             }
             .padding(LumenDimens.space5)
+        }
+        .onAppear {
+            if let initialKey, key == nil {
+                key = initialKey
+                step = .show
+            }
         }
     }
 }
