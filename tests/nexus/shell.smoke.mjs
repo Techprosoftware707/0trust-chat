@@ -22,8 +22,9 @@ import { importChatDep } from "../chat/lib/deps.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "../..");
 const SHOTS = path.join(REPO, "docs/nexus/screenshots/foundation");
-const PORTAL = process.env.NEXUS_PORTAL_URL || "http://127.0.0.1:8710";
-const APP = process.env.NEXUS_APP_URL || "http://127.0.0.1:5710";
+// The slot's servers (NEXUS_SLOT=N . dev/nexus/env.sh sets the ports), slot 0 by default.
+const PORTAL = process.env.NEXUS_PORTAL_URL || `http://127.0.0.1:${process.env.NEXUS_PORTAL_PORT || 8710}`;
+const APP = process.env.NEXUS_APP_URL || `http://127.0.0.1:${process.env.NEXUS_CHAT_PORT || 5710}`;
 const HS = process.env.NEXUS_HS_URL || "http://127.0.0.1:28108";
 const PASSWORD = process.env.NEXUS_DEMO_PASSWORD;
 const shots = !process.argv.includes("--no-shots");
@@ -182,10 +183,12 @@ await test("Home dashboard shows real data", async () => {
 
 await test("navigation lists every area; coming-soon areas say so", async () => {
   const labels = await app.locator(".ws-rail-label").allInnerTexts();
-  for (const l of ["Home", "Inbox", "Chat", "Calls & Meetings", "Contacts", "CRM", "Pipelines", "Tasks", "Calendar", "AI Assistant", "Reports", "Integrations", "Settings"]) {
+  for (const l of ["Home", "Notifications", "Inbox", "Chat", "Calls & Meetings", "Contacts", "CRM", "Pipelines", "Properties", "Lending", "Tasks", "Calendar",
+    "AI Assistant", "Reports", "Integrations", "Automations", "Settings"]) {
     assert.ok(labels.includes(l), `missing nav entry ${l}`);
   }
-  for (const id of ["inbox", "calls", "calendar", "reports", "integrations"]) {
+  // Calendar, Calls & Meetings and Reports are real now (tests/nexus/verticals.smoke.mjs).
+  for (const id of ["inbox", "integrations"]) {
     await go(app, `#/${id}`);
     await app.getByText("Coming in this test build").waitFor();
   }

@@ -11,6 +11,8 @@ import { areaHash, defineArea } from "../define";
 import type { Activity, Dashboard, Task } from "../types";
 import { ConnectionGate, DemoBadge, EmptyState, ErrorState, KindBadge, LoadingState, PageHeader, PriorityBadge, formatMoney, formatWhen } from "../ui";
 import { ActivityItem } from "./contacts";
+import { HomeVerticalCards } from "../verticals/HomeCards";
+import type { HomeExtras } from "../verticals/types";
 
 function greeting(now = new Date()): string {
   const h = now.getHours();
@@ -235,6 +237,8 @@ function HomeDashboard() {
               )}
             </section>
 
+            <HomeVerticalCards d={d as Dashboard & HomeExtras} team={scope === "team"} />
+
             <section className="ws-card ws-card-wide" aria-labelledby="home-activity">
               <header className="ws-card-header">
                 <h2 id="home-activity">Recent activity</h2>
@@ -306,6 +310,6 @@ export const area = defineArea({
   order: 10,
   status: "ready",
   mobile: true,
-  summary: "Today's tasks, follow-ups, leads, recent activity and your pipeline.",
+  summary: "Today's tasks and meetings, follow-ups, deadlines, leads, recent activity and your pipeline.",
   component: HomePage,
 });

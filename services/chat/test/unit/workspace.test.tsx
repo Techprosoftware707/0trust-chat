@@ -72,12 +72,13 @@ describe("route and feature registry", () => {
 
   it("discovers every nav entry, in order, ready ones with a component", () => {
     const ids = allAreas().map((a) => a.id);
-    expect(ids).toEqual(["home", "inbox", "calls", "contacts", "crm", "pipelines", "tasks", "calendar", "assistant", "reports", "integrations", "settings"]);
+    expect(ids).toEqual(["home", "notifications", "inbox", "calls", "contacts", "crm", "pipelines", "properties", "lending", "tasks", "calendar", "assistant", "reports",
+      "integrations", "automations", "settings"]);
     for (const a of allAreas()) {
       if (a.status === "ready") expect(a.component, a.id).toBeTypeOf("function");
       expect(a.summary.length, a.id).toBeGreaterThan(10);
     }
-    expect(allAreas().filter((a) => a.status === "coming_soon").map((a) => a.id)).toEqual(["inbox", "calls", "calendar", "reports", "integrations"]);
+    expect(allAreas().filter((a) => a.status === "coming_soon").map((a) => a.id)).toEqual(["inbox", "integrations"]);
     expect(allRoomPanels().map((p) => p.id)).toEqual(["crm"]);
     for (const p of allRoomPanels()) expect(BUILTIN_PANELS.has(p.id)).toBe(false);
   });
@@ -97,8 +98,8 @@ describe("route and feature registry", () => {
     expect(isAreaVisible(contacts, ws({ crm: true }, {}))).toBe(true);
     expect(isAreaVisible(contacts, ws({ crm: false }, {}))).toBe(false);
     expect(isAreaVisible(inbox, ws({}, {}))).toBe(true);
-    expect(isAreaVisible(reports, ws({}, { "records.view_all": false }))).toBe(false);
-    expect(isAreaVisible(reports, ws({}, { "records.view_all": true }))).toBe(true);
+    expect(isAreaVisible(reports, ws({ crm: true }, { "reports.view": false }))).toBe(false);
+    expect(isAreaVisible(reports, ws({ crm: true }, { "reports.view": true }))).toBe(true);
   });
 
   it("renders coming-soon areas honestly, without data", () => {

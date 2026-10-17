@@ -47,6 +47,7 @@ import {
 } from "../ui";
 import { TaskCheck } from "./home";
 import { AskAiPanel } from "../assistant/components";
+import { ContactVerticalPanels } from "../verticals/RecordPanels";
 
 // --- timeline -----------------------------------------------------------------------------
 
@@ -353,6 +354,8 @@ function ContactDetail({ id, fields, onDeleted }: { id: string; fields: FieldDef
             )}
             <QuickTask contactId={c.id} onAdded={(t) => tasks.setData((p) => (p ? { ...p, data: [t, ...p.data] } : p))} />
           </Section>
+
+          <ContactVerticalPanels contactId={c.id} />
 
           <Section title="Timeline" icon={MessageSquare}>
             <AddActivity contactId={c.id} onAdded={(a) => timeline.setData((p) => (p ? { ...p, data: [a, ...p.data] } : p))} />

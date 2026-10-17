@@ -464,6 +464,12 @@ function BoardView({ pipeline, pipelines }: { pipeline: Pipeline; pipelines: Pip
       <p className="visually-hidden" aria-live="polite">
         {announce}
       </p>
+      {pipeline.kind === "lending" && ws.hasFeature("lending") ? (
+        <p className="alert alert-info small vx-callout">
+          Lending applications move through this pipeline's stages: open them in{" "}
+          <a href={areaHash("lending")}>Lending</a>. Stage names here are steps of the process, never decisions.
+        </p>
+      ) : null}
       {board.error && !board.data ? <ErrorState error={board.error} onRetry={board.reload} /> : null}
       {!board.data && !board.error ? <LoadingState label="Loading the board…" /> : null}
       {board.data ? (
@@ -519,7 +525,10 @@ function PipelinesPage({ path }: AreaProps) {
   const ws = useWorkspace();
   const res = useApiResource((api, signal) => api.list<Pipeline>(`${ws.crm}/pipelines`, { limit: 100 }, signal), [ws.crm]);
   const pipelines = useMemo(() => (res.data as Page<Pipeline> | null)?.data ?? [], [res.data]);
-  const selected = pipelines.find((p) => p.id === path[0]) ?? pipelines.find((p) => p.is_default) ?? pipelines[0];
+  // Lending pipelines carry lending applications (the Lending area), not deals: open the
+  // first deal pipeline unless a lending one is asked for by its ID (to edit its stages).
+  const deals = pipelines.filter((p) => p.kind !== "lending" || !ws.hasFeature("lending"));
+  const selected = pipelines.find((p) => p.id === path[0]) ?? deals.find((p) => p.is_default) ?? deals[0] ?? pipelines[0];
   if (res.error) return <ErrorState error={res.error} onRetry={res.reload} />;
   if (!res.data) return <LoadingState />;
   if (!selected) {

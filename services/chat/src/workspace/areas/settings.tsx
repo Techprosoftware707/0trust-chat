@@ -1,10 +1,10 @@
 /** Settings: app settings (chat), the workspace connection, the selected workspace. */
 
-import { ExternalLink, KeyRound, Lock, LogOut, Settings, TriangleAlert } from "lucide-react";
+import { Bell, ExternalLink, KeyRound, Lock, LogOut, Settings, TriangleAlert, Workflow } from "lucide-react";
 import { useMatrix } from "../../matrix/context";
 import { useUi } from "../../components/UiContext";
 import { useWorkspace } from "../context";
-import { defineArea } from "../define";
+import { areaHash, defineArea } from "../define";
 import { PageHeader } from "../ui";
 import { AiSettingsCard, ConnectedAppsCard } from "../assistant/SettingsCards";
 
@@ -15,7 +15,31 @@ const FEATURE_LABEL: Record<string, string> = {
   save_to_record: "“Save to record” from chat (copies selected text out of end-to-end encryption)",
   assistant: "AI assistant",
   mcp: "Claude connector (MCP)",
+  automation: "Automations (internal actions: owners, tasks, in-app notifications)",
+  notifications: "In-app notifications",
 };
+
+/** Notification preferences and automations (verticals team): links to their pages. */
+function NotificationsCard({ canManage }: { canManage: boolean }) {
+  return (
+    <section className="ws-card" aria-labelledby="set-notif">
+      <header className="ws-card-header">
+        <h2 id="set-notif">Notifications</h2>
+      </header>
+      <p className="muted small">Mute, group, and choose which reminders and automation messages reach you. In the app only for now.</p>
+      <div className="cluster">
+        <a className="btn btn-sm" href={areaHash("notifications", "preferences")}>
+          <Bell aria-hidden="true" /> Notification preferences
+        </a>
+        {canManage ? (
+          <a className="btn btn-sm btn-ghost" href={areaHash("automations")}>
+            <Workflow aria-hidden="true" /> Automations
+          </a>
+        ) : null}
+      </div>
+    </section>
+  );
+}
 
 function SettingsPage() {
   const ws = useWorkspace();
@@ -105,6 +129,8 @@ function SettingsPage() {
             </div>
           ) : null}
         </section>
+
+        {ws.status === "ready" && w?.features.notifications ? <NotificationsCard canManage={ws.can("automation.manage")} /> : null}
 
         {ws.status === "ready" ? (
           <>

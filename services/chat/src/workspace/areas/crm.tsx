@@ -8,6 +8,7 @@ import { areaHash, defineArea, type AreaProps } from "../define";
 import type { Activity, Opportunity, Pipeline } from "../types";
 import { ConnectionGate, DemoBadge, EmptyState, ErrorState, LoadingState, PriorityBadge, UserLabel, formatMoney, formatWhen } from "../ui";
 import { ActivityItem, listKeys } from "./contacts";
+import { DealVerticalPanels } from "../verticals/RecordPanels";
 
 interface HistoryRow {
   id: string;
@@ -49,6 +50,7 @@ function DealDetail({ id }: { id: string }) {
       </header>
       <div className="ws-detail-grid">
         <div className="ws-detail-main">
+          <DealVerticalPanels opportunityId={o.id} />
           <section className="ws-section" aria-label="Timeline">
             <h3 className="ws-section-title">Timeline</h3>
             {timeline.data?.data.length ? (
