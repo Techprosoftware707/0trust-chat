@@ -203,7 +203,7 @@ export function SecurityTab() {
       <section className="stack">
         <h3>Blocked people</h3>
         <p className="small muted">
-          You don't receive messages or invites from blocked people. Messages they sent while blocked aren't shown after you unblock them.
+          You don't receive messages or invites from blocked people. After you unblock someone, messages they sent in the meantime can appear when the conversation's history loads.
         </p>
         <BlockedPeople client={client} />
       </section>

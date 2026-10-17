@@ -2,7 +2,8 @@
  * Blocking is Matrix "ignoring" (`m.ignored_user_list` account data). The homeserver then stops
  * delivering the person's messages and invites to every device of this account; the person isn't
  * told, but their homeserver can't see the list either (account data stays on our server).
- * Messages that arrived while they were blocked are not delivered again after unblocking.
+ * After unblocking, the server includes their earlier messages again when history is loaded
+ * (back-pagination), so messages sent while they were blocked can reappear.
  */
 import type { MatrixClient } from "matrix-js-sdk";
 import { isValidUserId } from "../lib/matrix-id";

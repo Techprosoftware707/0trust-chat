@@ -644,7 +644,7 @@ test("appearance: theme switch is stored like the website's", async () => {
   await closeDialog(p);
 });
 
-test("blocking: Ada blocks Grace; Grace's messages stop arriving; unblocking in Settings restores delivery", async () => {
+test("blocking: Ada blocks Grace; Grace's messages don't reach Ada while blocked; unblocking restores delivery", async () => {
   const a = ada.page;
   const g = grace.page;
   await a.locator(".room-item", { hasText: "Grace Hopper" }).click();
@@ -662,6 +662,13 @@ test("blocking: Ada blocks Grace; Grace's messages stop arriving; unblocking in 
   await g.locator("#composer").fill("Sent while blocked");
   await g.keyboard.press("Enter");
   await msg(g, "Sent while blocked").getByRole("img", { name: /^Sent$|^Seen by/ }).waitFor({ timeout: T });
+  // Ada then sends a message of her own. Its server echo ("Sent") arrives through Ada's sync,
+  // which therefore has passed Grace's earlier message: absent now means not delivered.
+  await a.locator("#composer").fill("Ada after the blocked message");
+  await a.keyboard.press("Enter");
+  await msg(a, "Ada after the blocked message").getByRole("img", { name: /^Sent$|^Seen by/ }).waitFor({ timeout: T });
+  await msg(g, "Ada after the blocked message").waitFor({ timeout: T });
+  assert.equal(await msg(a, "Sent while blocked").count(), 0, "a message sent while blocked must not be delivered");
 
   await openSettings(a, "Security & privacy");
   const row = a.locator(".blocked-row", { hasText: B.user_id });
@@ -673,8 +680,8 @@ test("blocking: Ada blocks Grace; Grace's messages stop arriving; unblocking in 
   await g.locator("#composer").fill("Sent after unblock");
   await g.keyboard.press("Enter");
   await msg(a, "Sent after unblock").waitFor({ timeout: T });
-  // Ada has synced past Grace's earlier message, which was never delivered to her.
-  assert.equal(await msg(a, "Sent while blocked").count(), 0, "a message sent while blocked must not be shown");
+  // Not asserted: after unblocking, loading history can bring back what Grace sent meanwhile
+  // (the server stops filtering it); Settings says so.
 });
 
 test("sign out wipes local data", async () => {
