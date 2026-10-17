@@ -162,7 +162,7 @@ function AddActivity({ contactId, onAdded }: { contactId: string; onAdded: (a: A
       ) : null}
       <div className="cluster">
         <button type="submit" className="btn btn-sm btn-primary" disabled={busy}>
-          {busy ? <Spinner size="sm" /> : <StickyNote aria-hidden="true" />} Add
+          {busy ? <Spinner size="sm" /> : <StickyNote aria-hidden="true" />} Add to timeline
         </button>
       </div>
     </form>
@@ -223,7 +223,7 @@ function QuickTask({ contactId, onAdded }: { contactId: string; onAdded: (t: Tas
       </label>
       <input id={`${id}-d`} type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} />
       <button type="submit" className="btn btn-sm" disabled={busy || !title.trim()}>
-        <Plus aria-hidden="true" /> Add
+        <Plus aria-hidden="true" /> Add task
       </button>
     </form>
   );
@@ -439,7 +439,7 @@ function ContactDetail({ id, fields, onDeleted }: { id: string; fields: FieldDef
             )}
           </div>
           <p className="xsmall subtle">
-            Updated {formatWhen(c.updated_at)}
+            Updated {formatWhen(c.updated_at)} ·{" "}
             <button type="button" className="link-button xsmall" onClick={() => contact.reload()}>
               Refresh
             </button>
@@ -572,6 +572,10 @@ function ContactForm({ existing, fields, tags, onSaved, onCancel, onTagCreated }
   const err = (k: string) => errors[k];
   const aria = (k: string) => (errors[k] ? { "aria-invalid": "true" as const, "aria-describedby": `${id(k)}-err` } : {});
   const defs = fields.filter((f) => !f.archived);
+  useEffect(() => {
+    // After a failed save, take keyboard and screen-reader users to the first problem.
+    if (Object.keys(errors).length) formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus();
+  }, [errors]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -595,7 +599,6 @@ function ContactForm({ existing, fields, tags, onSaved, onCancel, onTagCreated }
         const next: Record<string, string> = {};
         for (const [k, v] of Object.entries(e2.fields)) next[k.replace(/^custom_fields\./, "cf_")] = v[0];
         setErrors(next);
-        requestAnimationFrame(() => (formRef.current?.querySelector("[aria-invalid='true']") as HTMLElement | null)?.focus());
       } else {
         ui.toast({ kind: "error", title: "Couldn't save the contact", body: describeError(e2) });
       }
@@ -897,7 +900,7 @@ function ContactsPage({ path }: AreaProps) {
             </button>
           </div>
         </header>
-        <div className="ws-list-scroll" onKeyDown={listKeys}>
+        <div className="ws-list-scroll" onKeyDown={listKeys} aria-busy={list.loading ? "true" : undefined} data-loading={list.loading ? "true" : undefined}>
           {list.error ? <ErrorState error={list.error} onRetry={list.reload} compact /> : null}
           {list.loading && !list.data ? <LoadingState /> : null}
           {list.data && rows.length === 0 ? (

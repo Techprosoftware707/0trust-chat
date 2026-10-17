@@ -219,68 +219,85 @@ def seed(*, password: str | None = None, reset_passwords: bool = False, now=None
             ms.role = role
             ms.save(update_fields=["role"])
 
-    if m.Contact.objects.filter(workspace=ws, is_demo=True).exists():
-        return {"workspace": ws, "created": False, "users": created_users, "password": generated}
-
+    # Every demo row is looked up by a natural key first, so re-running the seed (also after
+    # a partial reset that had to keep some rows) only adds what is missing.
+    created = 0
     owner = users["demo-avery"]
     pipelines = {}
     for kind in ("real_estate", "lending", "general"):
         p = m.Pipeline.objects.filter(workspace=ws, kind=kind, is_demo=True).first()
-        pipelines[kind] = p or create_default_pipeline(ws, kind, user=owner, is_demo=True)
-    m.Pipeline.objects.filter(workspace=ws).update(is_default=False)
-    m.Pipeline.objects.filter(pk=pipelines["real_estate"].pk).update(is_default=True)
+        if p is None:
+            p = create_default_pipeline(ws, kind, user=owner, is_demo=True)
+            created += 1
+        pipelines[kind] = p
+    if not m.Pipeline.objects.filter(workspace=ws, is_default=True).exists():
+        m.Pipeline.objects.filter(pk=pipelines["real_estate"].pk).update(is_default=True)
 
-    tags = {name: m.Tag.objects.get_or_create(workspace=ws, name=name, defaults={"color": color, "is_demo": True, "created_by": owner})[0]
-            for name, color in TAGS}
+    tags = {}
+    for name, color in TAGS:
+        tags[name], was = m.Tag.objects.get_or_create(workspace=ws, name=name, defaults={"color": color, "is_demo": True, "created_by": owner})
+        created += was
     for i, (entity, key, label, ftype, options, sensitive, profile) in enumerate(FIELDS):
-        m.FieldDefinition.objects.get_or_create(
+        _, was = m.FieldDefinition.objects.get_or_create(
             workspace=ws, entity=entity, key=key,
             defaults={"label": label, "field_type": ftype, "options": options, "sensitive": sensitive, "profile": profile,
                       "position": i * 10, "is_demo": True, "created_by": owner},
         )
+        created += was
 
     contacts = {}
     for (key, first, last, company, email, phone, kind, roles, own, assignees, priority, follow, tag_names, visibility, custom,
          source) in CONTACTS:
-        c = m.Contact.objects.create(
-            workspace=ws, first_name=first, last_name=last, company=company, email=email, phone=phone, kind=kind, roles=roles,
-            owner=users[own], priority=priority, follow_up_at=_at(follow, 10, now) if follow is not None else None,
-            visibility=visibility, custom_fields=custom, source=source, campaign="Demo spring campaign" if source == "Paid search" else "",
-            created_by=users[own], is_demo=True,
-        )
-        c.assignees.set([users[a] for a in assignees])
-        c.tags.set([tags[t] for t in tag_names])
+        c = m.Contact.objects.filter(workspace=ws, email=email, is_demo=True).first()
+        if c is None:
+            c = m.Contact.objects.create(
+                workspace=ws, first_name=first, last_name=last, company=company, email=email, phone=phone, kind=kind, roles=roles,
+                owner=users[own], priority=priority, follow_up_at=_at(follow, 10, now) if follow is not None else None,
+                visibility=visibility, custom_fields=custom, source=source,
+                campaign="Demo spring campaign" if source == "Paid search" else "", created_by=users[own], is_demo=True,
+            )
+            c.assignees.set([users[a] for a in assignees])
+            c.tags.set([tags[t] for t in tag_names])
+            created += 1
         contacts[key] = c
 
     opps = {}
     for name, kind, stage_index, value, own, contact_keys, close_days, custom in OPPORTUNITIES:
-        pipeline = pipelines[kind]
-        stages = list(pipeline.stages.order_by("position"))
-        stage = stages[min(stage_index, len(stages) - 1)]
-        status = "won" if stage.is_won else "lost" if stage.is_lost else "open"
-        o = m.Opportunity.objects.create(
-            workspace=ws, name=name, pipeline=pipeline, stage=stage, value=Decimal(value), currency="USD", owner=users[own],
-            status=status, expected_close_date=(now + dt.timedelta(days=close_days)).date(), closed_at=now if status != "open" else None,
-            stage_entered_at=now - dt.timedelta(days=3), position=float(len(opps) * 1024), custom_fields=custom,
-            created_by=users[own], is_demo=True,
-        )
-        for i, ck in enumerate(contact_keys):
-            m.OpportunityContact.objects.create(opportunity=o, contact=contacts[ck], role="primary" if i == 0 else "other")
-        m.StageHistory.objects.create(workspace=ws, opportunity=o, to_stage=stage, to_name=stage.name, created_by=users[own], is_demo=True)
+        o = m.Opportunity.objects.filter(workspace=ws, name=name, is_demo=True).first()
+        if o is None:
+            pipeline = pipelines[kind]
+            stages = list(pipeline.stages.order_by("position"))
+            stage = stages[min(stage_index, len(stages) - 1)]
+            status = "won" if stage.is_won else "lost" if stage.is_lost else "open"
+            o = m.Opportunity.objects.create(
+                workspace=ws, name=name, pipeline=pipeline, stage=stage, value=Decimal(value), currency="USD", owner=users[own],
+                status=status, expected_close_date=(now + dt.timedelta(days=close_days)).date(),
+                closed_at=now if status != "open" else None, stage_entered_at=now - dt.timedelta(days=3),
+                position=float((len(opps) + 1) * 1024), custom_fields=custom, created_by=users[own], is_demo=True,
+            )
+            for i, ck in enumerate(contact_keys):
+                m.OpportunityContact.objects.create(opportunity=o, contact=contacts[ck], role="primary" if i == 0 else "other")
+            m.StageHistory.objects.create(workspace=ws, opportunity=o, to_stage=stage, to_name=stage.name, created_by=users[own], is_demo=True)
+            created += 1
         opps[name] = o
 
     def opp_by_prefix(prefix):
         return next((o for n, o in opps.items() if n.startswith(prefix)), None) if prefix else None
 
     for title, assignee, (days, hour), priority, ck, opp_prefix, status in TASKS:
+        if m.Task.objects.filter(workspace=ws, title=title, is_demo=True).exists():
+            continue
         m.Task.objects.create(
             workspace=ws, title=title, assignee=users[assignee], due_at=_at(days, hour, now), priority=priority,
             contact=contacts.get(ck) if ck else None, opportunity=opp_by_prefix(opp_prefix), status=status,
             completed_at=now if status == "done" else None, completed_by=users[assignee] if status == "done" else None,
             created_by=owner, is_demo=True,
         )
+        created += 1
 
     for ck, kind, summary, body, days_ago, actor, source, untrusted in ACTIVITIES:
+        if m.Activity.objects.filter(workspace=ws, contact=contacts[ck], summary=summary, is_demo=True).exists():
+            continue
         when = now - dt.timedelta(days=days_ago, hours=2)
         m.Activity.objects.create(
             workspace=ws, contact=contacts[ck], kind=kind, summary=summary, body=body, occurred_at=when,
@@ -289,8 +306,11 @@ def seed(*, password: str | None = None, reset_passwords: bool = False, now=None
             is_demo=True,
         )
         m.Contact.objects.filter(pk=contacts[ck].pk).update(last_activity_at=when)
+        created += 1
 
     for title, organizer, (days, hour), minutes, ck, location, attendees in EVENTS:
+        if m.CalendarEvent.objects.filter(workspace=ws, title=title, is_demo=True).exists():
+            continue
         start = _at(days, hour, now)
         e = m.CalendarEvent.objects.create(
             workspace=ws, title=title, start_at=start, end_at=start + dt.timedelta(minutes=minutes), location=location,
@@ -299,8 +319,9 @@ def seed(*, password: str | None = None, reset_passwords: bool = False, now=None
         e.attendee_users.set([users[a] for a in attendees])
         if ck:
             e.attendee_contacts.set([contacts[ck]])
+        created += 1
 
-    return {"workspace": ws, "created": True, "users": created_users, "password": generated}
+    return {"workspace": ws, "created": created, "users": created_users, "password": generated}
 
 
 def tenant_models() -> list[type[models.Model]]:
@@ -330,6 +351,17 @@ def _blocked(model, qs) -> set:
     return blocked
 
 
+def _independent(model, qs):
+    """Rows that belong to a demo parent (a stage of a demo pipeline, the history of a demo
+    deal) are never deleted on their own: they go with the parent, or stay with it when
+    the parent has to stay, so a kept record is never left half-dismantled."""
+    for f in model._meta.fields:
+        remote = getattr(f, "related_model", None)
+        if f.many_to_one and remote is not None and issubclass(remote, m.TenantModel) and f.remote_field.on_delete is models.CASCADE:
+            qs = qs.exclude(**{f"{f.name}__is_demo": True})
+    return qs
+
+
 @transaction.atomic
 def reset() -> dict:
     """Deletes ``is_demo`` rows in demo-flagged workspaces, never anything else."""
@@ -342,7 +374,7 @@ def reset() -> dict:
     while progress:
         progress = False
         for model in models_:
-            qs = model.objects.filter(workspace_id__in=demo_ws, is_demo=True)
+            qs = _independent(model, model.objects.filter(workspace_id__in=demo_ws, is_demo=True))
             blocked = _blocked(model, qs)
             doomed = qs.exclude(pk__in=blocked)
             n = doomed.count()

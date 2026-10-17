@@ -21,7 +21,9 @@ export function TaskCheck({ task, onDone }: { task: Task; onDone: (t: Task) => v
   const { api, crm } = useWorkspace();
   const ui = useUi();
   const [busy, setBusy] = useState(false);
-  const done = task.status === "done";
+  // Optimistic: the box changes at once and goes back if the server says no.
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const done = optimistic ?? task.status === "done";
   return (
     <input
       type="checkbox"
@@ -31,14 +33,17 @@ export function TaskCheck({ task, onDone }: { task: Task; onDone: (t: Task) => v
       aria-label={`${done ? "Reopen" : "Complete"} task: ${task.title}`}
       title={task.permissions.change ? undefined : "You can't change this task"}
       onChange={async () => {
+        const next = !done;
+        setOptimistic(next);
         setBusy(true);
         try {
-          const updated = await api.patch<Task>(`${crm}/tasks/${task.id}`, { status: done ? "open" : "done" });
+          const updated = await api.patch<Task>(`${crm}/tasks/${task.id}`, { status: next ? "done" : "open" });
           onDone(updated);
-          ui.toast({ kind: "success", title: done ? "Task reopened" : "Task completed", body: task.title });
+          ui.toast({ kind: "success", title: next ? "Task completed" : "Task reopened", body: task.title });
         } catch (e) {
           ui.toast({ kind: "error", title: "Couldn't update the task", body: describeError(e) });
         } finally {
+          setOptimistic(null);
           setBusy(false);
         }
       }}

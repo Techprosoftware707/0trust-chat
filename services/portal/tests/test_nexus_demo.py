@@ -58,6 +58,11 @@ def test_seed_creates_fictional_flagged_data_and_is_idempotent():
     # Second run: nothing duplicated, passwords untouched without --reset-passwords.
     out2 = seed(password="other-password-456")
     assert counts(ws) == first and "already present" in out2
+    # A partial loss (e.g. a reset that had to keep some rows) is filled in by the next seed.
+    m.Task.objects.filter(workspace=ws, is_demo=True).first().delete()
+    m.Contact.objects.filter(workspace=ws, is_demo=True, email="finley.sample@example.com").delete()
+    out3 = seed()
+    assert counts(ws) == first and "created" in out3
     assert User.objects.get(username="demo-avery").check_password("demo-password-123")
     assert Workspace.objects.filter(slug=demo.DEMO_SLUG).count() == 1
 
@@ -88,7 +93,7 @@ def test_reset_deletes_only_demo_rows_of_demo_workspaces():
     owner = User.objects.get(username="demo-avery")
     # Real records inside the demo workspace.
     real_contact = m.Contact.objects.create(workspace=ws, first_name="Real", owner=owner)
-    demo_contact = m.Contact.objects.filter(workspace=ws, is_demo=True).first()
+    demo_contact = m.Contact.objects.get(workspace=ws, is_demo=True, email="harper.sample@example.com")
     real_note = m.Activity.objects.create(workspace=ws, kind="note", summary="A real note on a demo contact", contact=demo_contact)
     pipeline = m.Pipeline.objects.filter(workspace=ws, is_demo=True).first()
     real_opp = m.Opportunity.objects.create(workspace=ws, name="Real deal", pipeline=pipeline, stage=pipeline.stages.first())
@@ -106,11 +111,14 @@ def test_reset_deletes_only_demo_rows_of_demo_workspaces():
     assert m.Contact.objects.filter(pk=demo_contact.pk).exists()  # kept: a real note depends on it
     assert m.Opportunity.objects.filter(pk=real_opp.pk).exists()
     assert m.Pipeline.objects.filter(pk=pipeline.pk).exists()  # kept: a real opportunity uses it
+    assert pipeline.stages.count() == 6  # ...and kept whole: its demo stages stay with it
+    kept_contact_notes = m.Activity.objects.filter(contact=demo_contact, is_demo=True).count()
+    assert kept_contact_notes >= 1  # the kept contact keeps its demo timeline
     assert m.Contact.objects.filter(pk=flagged_but_real.pk).exists()
     assert m.Contact.objects.filter(workspace=ws, is_demo=True).count() == 1
     assert not m.Task.objects.filter(workspace=ws, is_demo=True).exists()
     assert not m.CalendarEvent.objects.filter(workspace=ws, is_demo=True).exists()
-    assert "kept 1 crm.Contact" in text and "deleted" in text
+    assert "kept 1 crm.Contact" in text and "deleted" in text and "kept 6 crm.Stage" in text
     # Accounts, memberships and the workspace stay; a new seed refills it.
     assert User.objects.filter(username__startswith="demo-").count() == len(demo.TEAM)
     assert Membership.objects.filter(workspace=ws).count() == len(demo.TEAM)

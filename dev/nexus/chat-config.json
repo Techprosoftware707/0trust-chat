@@ -1,0 +1,11 @@
+{
+  "brand": { "name": "Nexus Office AI", "short_name": "Nexus" },
+  "homeserver": { "base_url": "http://127.0.0.1:28108", "server_name": "chatdev.test" },
+  "portal_url": "http://127.0.0.1:8710",
+  "allow_custom_homeserver": false,
+  "calls": { "enabled": false, "rtc_domain": null },
+  "workspace": { "api_url": "http://127.0.0.1:8710/api/v1", "client_id": "nexus-web" },
+  "environment": "test",
+  "privacy_url": "http://127.0.0.1:8710/privacy/",
+  "help_url": "http://127.0.0.1:8710/docs/"
+}

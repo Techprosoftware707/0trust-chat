@@ -27,3 +27,5 @@ playwright-report/
 test-results/
 # …but the raw outputs cited by docs/test-report.md are part of the repository
 !docs/test-results/
+# Nexus local test environment state (generated key, etc.)
+dev/nexus/.state/

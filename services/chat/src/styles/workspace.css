@@ -16,21 +16,31 @@ body[data-env-banner] #root > .app { height: auto; }
 /* ---- Frame and navigation rail ------------------------------------------------ */
 .nexus-frame { flex: 1; min-height: 0; display: flex; }
 .nexus-frame > .shell { flex: 1; min-width: 0; }
-.ws-rail { flex: none; width: 76px; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-3) 6px; background: var(--nexus-rail-bg, #0a1430); color: var(--nexus-rail-fg, #c9d4e8); overflow-y: auto; scrollbar-width: none; }
+.ws-rail { flex: none; width: 84px; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-3) 6px; background: var(--nexus-rail-bg, #0a1430); color: var(--nexus-rail-fg, #c9d4e8); overflow-y: auto; scrollbar-width: none; }
 .ws-rail-brand { display: grid; place-items: center; padding: 4px 0 var(--space-2); border-radius: var(--radius-sm); }
 .ws-rail-brand img { border-radius: 9px; }
 .ws-rail-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.ws-rail-item { position: relative; display: grid; justify-items: center; gap: 3px; padding: 7px 2px 6px; border-radius: var(--radius-sm); color: inherit; text-decoration: none; font-size: 0.6875rem; font-weight: 560; line-height: 1.15; text-align: center; transition: background var(--dur-fast), color var(--dur-fast); }
+.ws-rail-item { position: relative; display: grid; justify-items: center; gap: 3px; padding: 7px 2px 6px; border-radius: var(--radius-sm); color: inherit; text-decoration: none; font-size: 0.66rem; font-weight: 560; line-height: 1.15; letter-spacing: -0.01em; text-align: center; transition: background var(--dur-fast), color var(--dur-fast); }
 .ws-rail-item svg.lucide { width: 1.25rem; height: 1.25rem; }
 .ws-rail-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .ws-rail-item.active { background: var(--nexus-rail-active-bg, #1d3a7a); color: var(--nexus-rail-active-fg, #fff); }
 .ws-rail-item.soon .ws-rail-label { opacity: 0.85; }
 .ws-rail-item:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3b82f6; }
-.ws-rail-label { max-width: 100%; overflow-wrap: anywhere; }
+.ws-rail-label { max-width: 100%; overflow-wrap: normal; hyphens: manual; }
 .ws-rail-badge { position: absolute; top: 3px; right: 9px; min-width: 1.15rem; height: 1.15rem; padding: 0 4px; border-radius: var(--radius-pill); background: #e7efff; color: #0a1430; font-size: 0.65rem; font-weight: 750; display: grid; place-items: center; }
 .ws-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
 .ws-area { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ws-area-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-5) var(--space-6) var(--space-7); }
+/* Headings get focus programmatically after navigation (for screen readers); no ring. */
+.ws-area h1[tabindex="-1"]:focus, .ws-area h2[tabindex="-1"]:focus { box-shadow: none; outline: none; }
+/* Input types the chat stylesheet doesn't cover, styled like its text inputs. */
+.ws-area input[type="tel"], .ws-area input[type="number"], .ws-area input[type="date"], .ws-area input[type="datetime-local"],
+.ws-room-panel input[type="datetime-local"] {
+  width: 100%; font: inherit; color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 0.6rem 0.8rem; min-height: 2.7rem; transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.ws-area input[type="tel"]:focus, .ws-area input[type="number"]:focus, .ws-area input[type="date"]:focus, .ws-area input[type="datetime-local"]:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+.ws-area textarea { resize: vertical; }
 
 /* Extension room panels (CRM) get the same third column as the built-in ones. */
 .app[data-ext-panel="true"] .shell { grid-template-columns: 320px minmax(0, 1fr) 360px; }
@@ -142,7 +152,8 @@ body[data-env-banner] #root > .app { height: auto; }
 .ws-search.sm input { min-height: 2.1rem; width: min(16rem, 60vw); }
 .ws-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ws-filters select { width: auto; min-height: 2rem; padding: 0.2rem 1.6rem 0.2rem 0.6rem; font-size: var(--text-xs); border-radius: var(--radius-pill); }
-.ws-list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); }
+.ws-list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); transition: opacity var(--dur-fast); }
+.ws-list-scroll[data-loading="true"] .ws-records { opacity: 0.55; }
 .ws-records { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .ws-record { display: flex; gap: var(--space-3); align-items: center; padding: 0.55rem var(--space-3); border-radius: var(--radius-md); color: inherit; text-decoration: none; }
 .ws-record:hover { background: var(--surface-2); }
@@ -175,6 +186,11 @@ body[data-env-banner] #root > .app { height: auto; }
 .ws-kv dt { color: var(--text-muted); }
 .ws-kv dd { margin: 0; overflow-wrap: anywhere; }
 .ws-kv-row { display: contents; }
+/* In the narrow side column, labels sit above their values (long emails don't break). */
+.ws-detail-side .ws-kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.ws-detail-side .ws-kv dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 650; margin-top: var(--space-2); }
+.ws-detail-side .ws-kv > dt:first-child { margin-top: 0; }
+.ws-detail-side .ws-kv dd a { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
 .ws-side-block h3, .ws-section-header h3, .ws-section-title, .ws-room-block h3 { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); margin: 0 0 var(--space-2); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
 .ws-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4); display: grid; gap: var(--space-3); }
 .ws-section-header { display: flex; justify-content: space-between; align-items: center; }
@@ -218,6 +234,7 @@ body[data-env-banner] #root > .app { height: auto; }
 
 /* ---- Forms ------------------------------------------------------------------------------ */
 .ws-form { padding: var(--space-5) var(--space-6) var(--space-7); display: grid; gap: var(--space-4); max-width: 60rem; }
+.ws-form-grid .field { align-content: start; }
 .ws-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4); }
 .ws-legend { grid-column: 1 / -1; font-weight: 700; font-size: var(--text-sm); padding: 0; margin-bottom: var(--space-1); float: left; width: 100%; }
 .ws-chip-set { display: flex; flex-wrap: wrap; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4); }
@@ -232,6 +249,7 @@ body[data-env-banner] #root > .app { height: auto; }
 .ws-inline-fields input[type="text"] { flex: 1; min-width: 10rem; }
 .ws-inline-fields input, .ws-inline-fields select { min-height: 2.2rem; padding: 0.3rem 0.6rem; font-size: var(--text-sm); }
 .ws-inline-fields select { width: auto; }
+.ws-area .ws-inline-fields input[type="datetime-local"], .ws-room-panel .ws-inline-fields input[type="datetime-local"] { width: auto; flex: 0 1 14rem; min-height: 2.2rem; padding: 0.3rem 0.6rem; font-size: var(--text-sm); }
 .ws-add-activity { display: grid; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
 .ws-add-activity textarea { min-height: 3.2rem; font-size: var(--text-sm); }
 .ws-picker { list-style: none; margin: var(--space-2) 0 0; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); display: grid; }
@@ -277,6 +295,7 @@ body[data-env-banner] #root > .app { height: auto; }
 .ws-new-task label { font-size: var(--text-xs); }
 .ws-new-task input, .ws-new-task select { min-height: 2.3rem; padding: 0.35rem 0.6rem; font-size: var(--text-sm); }
 .ws-new-task select { width: auto; }
+.ws-area .ws-new-task input, .ws-area .ws-new-task select { min-height: 2.3rem; padding: 0.35rem 0.6rem; font-size: var(--text-sm); }
 .ws-new-task-error { flex-basis: 100%; }
 .ws-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; align-items: center; margin-bottom: var(--space-3); }
 .ws-task-group { margin-bottom: var(--space-4); }

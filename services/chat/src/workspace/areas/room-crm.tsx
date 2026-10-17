@@ -195,7 +195,7 @@ function ContactCard({ link, onUnlink }: { link: RoomLink; onUnlink: () => void 
                 </label>
                 <input id={`${uid}-t`} type="text" placeholder="Add a task…" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
                 <button type="submit" className="btn btn-sm" disabled={adding || !title.trim()}>
-                  <Plus aria-hidden="true" /> Add
+                  <Plus aria-hidden="true" /> Add task
                 </button>
               </form>
             ) : null}

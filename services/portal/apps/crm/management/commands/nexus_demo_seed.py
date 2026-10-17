@@ -30,7 +30,8 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from None
         ws = result["workspace"]
         self.stdout.write(f"demo workspace: {ws.name} ({ws.pk})")
-        self.stdout.write("business records: " + ("created" if result["created"] else "already present (run nexus_demo_reset to recreate)"))
+        n = result["created"]
+        self.stdout.write(f"business records: {n} created" if n else "business records: already present (nothing missing)")
         if result["users"]:
             self.stdout.write(f"demo accounts created: {', '.join(result['users'])}")
         if result["password"]:
