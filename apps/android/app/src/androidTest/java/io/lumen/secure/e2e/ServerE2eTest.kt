@@ -113,7 +113,9 @@ class ServerE2eTest {
             waitForTag("server_input", 30_000)
             compose.onNodeWithTag("server_input").performTextClearance()
             compose.onNodeWithTag("server_input").performTextInput(server)
-            compose.onNodeWithTag("server_continue").performClick()
+            // Scrolled into view first: on a small screen (the API 26/28 emulators are 320x640 px)
+            // the keyboard leaves the button outside the visible window, where a click misses.
+            compose.onNodeWithTag("server_continue").performScrollTo().performClick()
             waitForTag("sso_button", 60_000)
             compose.onNodeWithTag("sso_button").assertIsDisplayed()
         }
@@ -124,7 +126,7 @@ class ServerE2eTest {
                 // The browser is stubbed: the test plays the browser below.
                 intending(allOf(hasAction(Intent.ACTION_VIEW), hasData(hasScheme("https"))))
                     .respondWith(Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null))
-                compose.onNodeWithTag("sso_button").performClick()
+                compose.onNodeWithTag("sso_button").performScrollTo().performClick()
                 val opened = waitFor(90_000, "the app to open the browser") {
                     Intents.getIntents().lastOrNull { it.action == Intent.ACTION_VIEW && it.data?.scheme == "https" }
                 }
@@ -304,7 +306,15 @@ class ServerE2eTest {
 
     private fun waitUi(what: String, timeoutMs: Long, condition: () -> Boolean) {
         try {
-            compose.waitUntil(timeoutMs, condition)
+            compose.waitUntil(timeoutMs) {
+                try {
+                    condition()
+                } catch (e: IllegalStateException) {
+                    // While another activity is in front (the translucent SSO callback activity, for
+                    // a moment), the app may have no Compose hierarchy to query: keep waiting.
+                    if (e.message?.contains("No compose hierarchies") == true) false else throw e
+                }
+            }
         } catch (e: ComposeTimeoutException) {
             throw AssertionError("timed out after ${timeoutMs / 1000} s waiting for $what")
         }

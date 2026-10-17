@@ -267,9 +267,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { api: 35, version: "15" }
-          - { api: 28, version: "9" }
-          - { api: 26, version: "8.0" }
+          # Android 9 and 8.0 run on a phone-sized display (Pixel 3a); the image default there is
+          # 320x640 px, where the keyboard hides most of the sign-in screen.
+          - { api: 35, version: "15", profile: "" }
+          - { api: 28, version: "9", profile: "pixel_3a" }
+          - { api: 26, version: "8.0", profile: "pixel_3a" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Runner resources
@@ -349,6 +351,7 @@ jobs:
           api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
+          profile: ${{ matrix.profile }}
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim ${{ env.EMULATOR_DNS }}
           script: bash tests/apps/android-e2e/run.sh

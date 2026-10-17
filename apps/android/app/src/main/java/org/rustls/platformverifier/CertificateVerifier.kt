@@ -14,6 +14,21 @@
 // also accept user-installed CAs (res/xml/network_security_config.xml, debug-overrides), exactly
 // like the app's own HTTPS client. Upstream's test-only mock-root hooks are omitted.
 //
+// Second deliberate change: certificates that name no OCSP responder. Upstream asks Android's
+// PKIXRevocationChecker for OCSP first (CRL as fallback, SOFT_FAIL). For a certificate without an
+// OCSP responder URL, the OCSP attempt is a hard error ("Certificate does not specify OCSP
+// responder"), and SOFT_FAIL only forgives a check when *both* attempts fail softly: so whenever the
+// CRL could not be fetched, the certificate came back as Revoked. Let's Encrypt has issued
+// certificates without OCSP responder (CRL only) since May 2025, other public CAs too, so every SDK
+// connection to such a server failed while the platform HTTP client (no revocation check) worked
+// (rustls/rustls-platform-verifier#221). Such a certificate is now checked against its CRL only
+// (PREFER_CRLS + NO_FALLBACK, still SOFT_FAIL and end-entity only): listed in the CRL -> Revoked;
+// CRL not obtainable -> status undetermined, a soft failure, as an unreachable OCSP responder
+// always was. Certificates that name an OCSP responder, or come with a stapled response, are
+// checked exactly as upstream. So that the CRL can be fetched at all, the app's network security
+// config allows plain http to the CAs' CRL hosts only (CRLs are signed by the CA), as upstream's
+// 0.2.0 component does with its own config: see res/xml/network_security_config.xml.
+//
 // Lumen addition (no change to the decision): every verdict is also handed to
 // io.lumen.secure.net.TlsDiagnostics, so a refused connection can say why (the SDK itself only
 // reports "error sending request").
@@ -23,6 +38,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.http.X509TrustManagerExtensions
 import android.util.Log
+import io.lumen.secure.core.security.RevocationInfo
 import io.lumen.secure.net.TlsDiagnostics
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -182,26 +198,60 @@ internal object CertificateVerifier {
             return VerificationResult(StatusCode.Ok)
         }
         val keystore = systemKeystore ?: return VerificationResult(StatusCode.Ok)
+        checkRevocation(keystore, validChain, ocspResponse)?.let { e ->
+            return VerificationResult(StatusCode.Revoked, e.toString())
+        }
 
-        val parameters = PKIXBuilderParameters(keystore, null)
-        val validator = CertPathValidator.getInstance("PKIX")
-        val revocationChecker = validator.revocationChecker as PKIXRevocationChecker
-        revocationChecker.options = EnumSet.of(
+        return VerificationResult(StatusCode.Ok)
+    }
+
+    /**
+     * The revocation check of the end-entity certificate of [validChain] (end entity first) against
+     * the trust anchors in [anchors]: the exception that refuses it, or null. A certificate that
+     * names no OCSP responder and has no stapled response is checked against its CRL only (see the
+     * file header). Unit-tested on the JVM against a local CA and CRL (RevocationCheckTest).
+     */
+    internal fun checkRevocation(anchors: KeyStore, validChain: List<X509Certificate>, ocspResponse: ByteArray?): CertPathValidatorException? {
+        val crlOnly = ocspResponse == null &&
+            !RevocationInfo.namesOcspResponder(validChain[0].getExtensionValue(RevocationInfo.AIA_OID))
+        return checkRevocation(anchors, validChain, ocspResponse, revocationOptions(crlOnly))
+    }
+
+    /** Upstream's options; for [crlOnly] certificates the CRL, without the OCSP attempt. */
+    internal fun revocationOptions(crlOnly: Boolean): Set<PKIXRevocationChecker.Option> {
+        val options = EnumSet.of(
             PKIXRevocationChecker.Option.SOFT_FAIL,
             PKIXRevocationChecker.Option.ONLY_END_ENTITY,
         )
+        if (crlOnly) {
+            options += PKIXRevocationChecker.Option.PREFER_CRLS
+            options += PKIXRevocationChecker.Option.NO_FALLBACK
+        }
+        return options
+    }
+
+    internal fun checkRevocation(
+        anchors: KeyStore,
+        validChain: List<X509Certificate>,
+        ocspResponse: ByteArray?,
+        options: Set<PKIXRevocationChecker.Option>,
+    ): CertPathValidatorException? {
+        val endEntity = validChain[0]
+        val parameters = PKIXBuilderParameters(anchors, null)
+        val validator = CertPathValidator.getInstance("PKIX")
+        val revocationChecker = validator.revocationChecker as PKIXRevocationChecker
+        revocationChecker.options = options
         ocspResponse?.let { providedResponse ->
             revocationChecker.ocspResponses = mapOf(endEntity to providedResponse)
         }
         parameters.certPathCheckers = listOf(revocationChecker)
         parameters.isRevocationEnabled = false
-        try {
+        return try {
             validator.validate(certFactory.generateCertPath(validChain), parameters)
+            null
         } catch (e: CertPathValidatorException) {
-            return VerificationResult(StatusCode.Revoked, e.toString())
+            e
         }
-
-        return VerificationResult(StatusCode.Ok)
     }
 
     private fun verifyCertUsage(certificate: X509Certificate, allowedEkus: Array<String>): Boolean {

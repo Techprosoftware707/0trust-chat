@@ -1,0 +1,161 @@
+Android sign-in on Android 9: reproduction (CI run 1, before the fix)
+=====================================================================
+GitHub Actions run 39078879876 (workflow_dispatch, android.yml), commit 6f198ee, 2026-10-17
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/39078879876
+Code as the phone had it (no change to the certificate verifier's decision); this commit only added
+diagnostics (TlsDiagnostics, sign-in error Details) and the tests below. Emulators: google_apis
+x86_64, API 26 / 28 / 35. Excerpts copied from the job logs (timestamps removed).
+
+Report: a debug build on an Android 9 phone discovers the user's server (DuckDNS name, Let's
+Encrypt certificate, Caddy) and then shows "We couldn't start sign-in with this server"
+(SignInError.SSO_START_FAILED): AuthController.startSso -> SessionManager.startSso threw before
+Custom Tabs opened.
+
+Finding: on every Android version tested (8.0, 9, 15), the Rust SDK's certificate verifier refuses
+public certificates that name no OCSP responder and only a CRL. Let's Encrypt's current
+certificates (Gen Y chain YR1 <- Root YR) and matrix.org's (Google Trust Services WE1) are such
+certificates. The verifier reports them as Revoked with
+  java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+and the SDK turns that into ClientBuildException.ServerUnreachable "error sending request" while
+building the sign-in client: exactly SSO_START_FAILED. Discovery works because it uses the platform
+HTTP client, which does not check revocation. The CRL host (yr1.c.lencr.org) is blocked for plain
+http by the app's network security config, so the CRL fallback cannot help either.
+
+Not Android-9-specific: API 35 fails identically. The earlier API 35 end-to-end test signed in
+because its server uses a private test CA, for which the verifier skips revocation entirely.
+On Android 9 with that private CA, startSso itself works (Keystore, encrypted stores, SDK client,
+/versions, startSsoLogin): see the API 28 e2e excerpt below.
+
+=== Android 9 (API 28): job 'Installs, starts and passes the SDK TLS tests on Android 9' (117533197598) ===
+device: Android 9 (API 28), ABIs x86_64,x86
+PASS API 28: installed
+PASS API 28: started, still running and in front after 15 s, no crash
+LumenTls: CHAIN matrix-client.matrix.org: CN=matrix.org <- CN=WE1 <- CN=GTS Root R4; leaf issuer CN=WE1; OCSP responder: false; CRL: [http://c.pki.goog/we1/kYX9eQJM9Z0.crl]
+Lumen   : [tls] certificate refused: Revoked (java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder)
+LumenTls: RESULT verifier matrix-client.matrix.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+LumenTls: CHAIN revoked-isrgrootx1.letsencrypt.org: CN=revoked-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/44.crl]
+LumenTls: RESULT verifier revoked-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+LumenTls: CHAIN valid-isrgrootx1.letsencrypt.org: CN=valid-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/46.crl]
+LumenTls: RESULT verifier valid-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+Lumen   : [tls] certificate refused: UnknownCert (java.security.cert.CertificateException: java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.)
+LumenTls: RESULT sdk self-signed.badssl.com: verifier=UnknownCert; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://self-signed.badssl.com/…
+LumenTls: RESULT sdk valid-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://valid-isrgrootx1.letsencrypt.org/…
+LumenTls: RESULT crl hosts of valid-isrgrootx1.letsencrypt.org: yr1.c.lencr.org cleartext=false
+LumenTls: RESULT sdk revoked-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://revoked-isrgrootx1.letsencrypt.org/…
+Lumen   : [tls] certificate refused: InvalidEncoding
+FAIL io.lumen.secure.SdkTlsTest#verifierAcceptsMatrixOrgsCertificate: failed
+FAIL io.lumen.secure.SdkTlsTest#verifierRefusesARevokedLetsEncryptCertificateAsRevoked: failed
+FAIL io.lumen.secure.SdkTlsTest#verifierAcceptsALetsEncryptCertificate: failed
+FAIL io.lumen.secure.SdkTlsTest#sdkStartsSingleSignOnWithAPubliclyTrustedServer: failed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesASelfSignedCertificate: passed
+FAIL io.lumen.secure.SdkTlsTest#sdkGetsThroughTlsWithALetsEncryptServer: failed
+     org.junit.ComparisonFailure: verifier verdict for valid-isrgrootx1.letsencrypt.org (java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder) expected:<[Ok]> but was:<[Revoked]>
+FAIL io.lumen.secure.SdkTlsTest#crlsOfPublicCertificatesMayBeFetched: failed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesARevokedCertificate: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsACertificateNoTrustedCaIssued: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsGarbage: passed
+PASS io.lumen.secure.RustTlsTest#sdkGetsTheJvmAndContextForTlsVerification: passed
+PASS io.lumen.secure.KeystoreTest#sealOpenAndDelete: passed
+
+=== Android 8.0 (API 26): job 117533197636 ===
+device: Android 8.0.0 (API 26), ABIs x86_64,x86
+PASS API 26: installed
+PASS API 26: started, still running and in front after 15 s, no crash
+LumenTls: CHAIN matrix-client.matrix.org: CN=matrix.org <- CN=WE1 <- CN=GTS Root R4; leaf issuer CN=WE1; OCSP responder: false; CRL: [http://c.pki.goog/we1/kYX9eQJM9Z0.crl]
+Lumen   : [tls] certificate refused: Revoked (java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder)
+LumenTls: RESULT verifier matrix-client.matrix.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+LumenTls: CHAIN revoked-isrgrootx1.letsencrypt.org: CN=revoked-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/44.crl]
+LumenTls: RESULT verifier revoked-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+LumenTls: CHAIN valid-isrgrootx1.letsencrypt.org: CN=valid-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/46.crl]
+LumenTls: RESULT verifier valid-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+Lumen   : [tls] certificate refused: UnknownCert (java.security.cert.CertificateException: java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.)
+LumenTls: RESULT sdk self-signed.badssl.com: verifier=UnknownCert; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://self-signed.badssl.com/…
+LumenTls: RESULT sdk valid-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://valid-isrgrootx1.letsencrypt.org/…
+LumenTls: RESULT crl hosts of valid-isrgrootx1.letsencrypt.org: yr1.c.lencr.org cleartext=false
+LumenTls: RESULT sdk revoked-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://revoked-isrgrootx1.letsencrypt.org/…
+Lumen   : [tls] certificate refused: InvalidEncoding
+FAIL io.lumen.secure.SdkTlsTest#verifierAcceptsMatrixOrgsCertificate: failed
+FAIL io.lumen.secure.SdkTlsTest#verifierRefusesARevokedLetsEncryptCertificateAsRevoked: failed
+FAIL io.lumen.secure.SdkTlsTest#verifierAcceptsALetsEncryptCertificate: failed
+FAIL io.lumen.secure.SdkTlsTest#sdkStartsSingleSignOnWithAPubliclyTrustedServer: failed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesASelfSignedCertificate: passed
+FAIL io.lumen.secure.SdkTlsTest#sdkGetsThroughTlsWithALetsEncryptServer: failed
+     org.junit.ComparisonFailure: verifier verdict for valid-isrgrootx1.letsencrypt.org (java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder) expected:<[Ok]> but was:<[Revoked]>
+FAIL io.lumen.secure.SdkTlsTest#crlsOfPublicCertificatesMayBeFetched: failed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesARevokedCertificate: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsACertificateNoTrustedCaIssued: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsGarbage: passed
+PASS io.lumen.secure.RustTlsTest#sdkGetsTheJvmAndContextForTlsVerification: passed
+PASS io.lumen.secure.KeystoreTest#sealOpenAndDelete: passed
+
+=== Android 15 (API 35): job 'Instrumented tests (emulator)' (117533197690), LumenTls lines from the test logcat ===
+LumenTls: CHAIN matrix-client.matrix.org: CN=matrix.org <- CN=WE1 <- CN=GTS Root R4; leaf issuer CN=WE1; OCSP responder: false; CRL: [http://c.pki.goog/we1/kYX9eQJM9Z0.crl]
+LumenTls: CHAIN revoked-isrgrootx1.letsencrypt.org: CN=revoked-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/44.crl]
+LumenTls: CHAIN valid-isrgrootx1.letsencrypt.org: CN=valid-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/46.crl]
+LumenTls: RESULT crl hosts of valid-isrgrootx1.letsencrypt.org: yr1.c.lencr.org cleartext=false
+LumenTls: RESULT sdk revoked-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://revoked-isrgrootx1.letsencrypt.org/…
+LumenTls: RESULT sdk self-signed.badssl.com: verifier=UnknownCert; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://self-signed.badssl.com/…
+LumenTls: RESULT sdk valid-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://valid-isrgrootx1.letsencrypt.org/…
+LumenTls: RESULT verifier matrix-client.matrix.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+LumenTls: RESULT verifier revoked-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+LumenTls: RESULT verifier valid-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate does not specify OCSP responder
+PASS io.lumen.secure.KeystoreTest#sealOpenAndDelete
+PASS io.lumen.secure.LaunchTest#freshInstallShowsServerPicker
+SKIP io.lumen.secure.LaunchTest#discoversConfiguredTestServer
+PASS io.lumen.secure.LaunchTest#continueNeedsInputAndInvalidInputIsRejected
+PASS io.lumen.secure.ManifestAndPermissionsTest#notificationPermissionIsRuntimeOnAndroid13
+PASS io.lumen.secure.ManifestAndPermissionsTest#notificationChannelsExist
+PASS io.lumen.secure.ManifestAndPermissionsTest#callPermissionsCanBeGranted
+PASS io.lumen.secure.ManifestAndPermissionsTest#foregroundServiceTypesAreDeclared
+PASS io.lumen.secure.ManifestAndPermissionsTest#backupIsDisabled
+PASS io.lumen.secure.RustTlsTest#verifierRejectsACertificateNoTrustedCaIssued
+PASS io.lumen.secure.RustTlsTest#verifierRejectsGarbage
+PASS io.lumen.secure.RustTlsTest#sdkGetsTheJvmAndContextForTlsVerification
+FAIL io.lumen.secure.SdkTlsTest#verifierAcceptsMatrixOrgsCertificate
+FAIL io.lumen.secure.SdkTlsTest#verifierRefusesARevokedLetsEncryptCertificateAsRevoked
+FAIL io.lumen.secure.SdkTlsTest#verifierAcceptsALetsEncryptCertificate
+FAIL io.lumen.secure.SdkTlsTest#sdkStartsSingleSignOnWithAPubliclyTrustedServer
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesASelfSignedCertificate
+FAIL io.lumen.secure.SdkTlsTest#sdkGetsThroughTlsWithALetsEncryptServer
+FAIL io.lumen.secure.SdkTlsTest#crlsOfPublicCertificatesMayBeFetched
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesARevokedCertificate
+SKIP io.lumen.secure.e2e.ServerE2eTest#a_signInThroughPortalSso
+SKIP io.lumen.secure.e2e.ServerE2eTest#b_encryptedChatWithWebUser
+SKIP io.lumen.secure.e2e.ServerE2eTest#c_signOutEndsTheSession
+
+=== Android 9 (API 28) against a Lumen server with a private test CA: job 117533197614 ===
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droid6e2a5464) (1 s)
+    [device] STEP device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] STEP discovery: the server name leads to the sign-in screen with single sign-on
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] STEP single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] PASS single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] STEP the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] PASS the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] STEP portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] redirect chain: [302 matrix.10-1-0-173.sslip.io/_matrix/client/v3/login/sso/redirect/oidc-lumen, 302 10-1-0-173.sslip.io/identity/o/authorize, 302 matrix.10-1-0-173.sslip.io/_synapse/client/oidc/callback]
+    [device] PASS portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] STEP only the app's callback activity handles the callback URL
+    [device] PASS only the app's callback activity handles the callback URL
+    [device] STEP a callback with another nonce is ignored and its login token is not used
+    [device] FAIL a callback with another nonce is ignored and its login token is not used: IllegalStateException: No compose hierarchies found in the app. Possible reasons include: (1) the Activity that calls setContent did not launch; (2) setContent was not called; (3) setContent was called before the ComposeTestRule ran. If setContent is called by the Activity, make sure the Activity is launched after the ComposeTestRule runs
+android e2e: FAILED
+
+(The failure above is a test timing issue on the old emulator: ~90 ms after the forged callback
+ started the translucent SsoCallbackActivity, Compose's waitUntil threw 'No compose hierarchies
+ found' instead of waiting. Fixed in the test for run 2.)
+
+=== Android 8.0 (API 26), same: job 117533197609 ===
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droid1dab0a17) (2 s)
+    [device] STEP device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] STEP discovery: the server name leads to the sign-in screen with single sign-on
+    [device] FAIL discovery: the server name leads to the sign-in screen with single sign-on: AssertionError: timed out after 60 s waiting for 'sso_button' on screen
+android e2e: FAILED
+
+(Test issue: the API 26 image's default display is 320x640 px; with the keyboard open the
+ Continue button is outside the window, so the test's click missed and discovery never ran.
+ Fixed for run 2: scroll into view first, and a Pixel 3a display for the API 26/28 e2e.)
