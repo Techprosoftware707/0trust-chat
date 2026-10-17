@@ -33,6 +33,11 @@ up() {
   }
   local i=11 ns
   for ns in "${NSES[@]}"; do
+    # A host restart leaves the /run/netns entries behind without their namespaces
+    # ("Invalid argument" on entry): remove such stale names so they are recreated.
+    if ip netns list | grep -qw "$ns" && ! ip netns exec "$ns" true 2>/dev/null; then
+      ip netns del "$ns" 2>/dev/null || rm -f "/run/netns/$ns"
+    fi
     if ! ip netns list | grep -qw "$ns"; then
       ip netns add "$ns"
       ip link add "v-$ns" type veth peer name eth0 netns "$ns"

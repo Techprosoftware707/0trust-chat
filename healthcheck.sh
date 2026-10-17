@@ -94,9 +94,9 @@ if has_systemd; then
   for unit in lumen-agent.service lumen-backup.timer; do
     systemctl is-active --quiet "$unit" && add ok "$unit" active || add warn "$unit" "$(systemctl is-active "$unit" 2>/dev/null || true)"
   done
-  if truthy "$(conf_get WIREGUARD_ENABLED false)"; then
-    ip link show wg0 >/dev/null 2>&1 && add ok wireguard "wg0 up" || add fail wireguard "wg0 down"
-  fi
+fi
+if truthy "$(conf_get WIREGUARD_ENABLED false)"; then
+  ip link show wg0 >/dev/null 2>&1 && add ok wireguard "wg0 up" || add fail wireguard "wg0 down"
 fi
 
 summary="healthy"; ((worst == 1)) && summary="degraded"; ((worst == 2)) && summary="failed"
