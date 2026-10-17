@@ -35,6 +35,19 @@ class RequestContextMiddleware:
         return response
 
 
+class NexusEnvironmentMiddleware:
+    """Labels every response with the deployment's environment (production, test,
+    development) so API clients and people can tell a test build from a real one."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        response["X-Nexus-Environment"] = settings.NEXUS_ENVIRONMENT
+        return response
+
+
 class SurfaceGuardMiddleware:
     """Defence in depth: the public process never serves ops/internal paths."""
 

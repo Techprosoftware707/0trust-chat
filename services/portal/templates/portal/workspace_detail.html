@@ -16,8 +16,10 @@
         <div class="cluster">
           <span class="badge badge-plain">{{ m.get_role_display }}</span>
           <a class="btn btn-sm btn-ghost" href="{{ lumen.app_url }}/#/dm/{{ m.user.matrix_id|urlencode }}" title="Message">{% icon "message-circle" %}</a>
+          {% if membership.can_manage and m.role != "owner" and m.user != user %}{% if m.role != "admin" or membership.role == "owner" %}
+            <form class="role-form" method="post" action="{% url 'portal:workspace_member_role' ws.pk m.pk %}">{% csrf_token %}<label class="visually-hidden" for="role-{{ m.pk }}">Role for {{ m.user.name }}</label><select id="role-{{ m.pk }}" name="role">{% for v, l in roles %}<option value="{{ v }}" {% if v == m.role %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><button class="btn btn-sm" type="submit">Change role</button></form>
+          {% endif %}{% endif %}
           {% if membership.role == "owner" and m.role != "owner" %}
-            <form method="post" action="{% url 'portal:workspace_member_role' ws.pk m.pk %}">{% csrf_token %}<input type="hidden" name="role" value="{% if m.role == 'admin' %}member{% else %}admin{% endif %}"><button class="btn btn-sm" type="submit">Make {% if m.role == 'admin' %}member{% else %}admin{% endif %}</button></form>
             <form method="post" action="{% url 'portal:workspace_transfer' ws.pk m.pk %}" data-confirm="Make {{ m.user.name }} the owner? You will become an admin.">{% csrf_token %}<button class="btn btn-sm btn-ghost" type="submit">Make owner</button></form>
           {% endif %}
           {% if m.role != "owner" and membership.can_manage and m.user != user %}{% if m.role != "admin" or membership.role == "owner" %}
@@ -37,7 +39,7 @@
       <h2>Invite someone</h2>
       <form class="form" method="post" action="{% url 'portal:workspace_invite' ws.pk %}">{% csrf_token %}
         <div class="field"><label for="inv-email">Email address</label><input id="inv-email" type="email" name="email" required autocomplete="off"></div>
-        {% if membership.role == "owner" %}<div class="field"><label for="inv-role">Role</label><select id="inv-role" name="role">{% for v, l in roles %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>{% endif %}
+        {% if membership.can_manage %}<div class="field"><label for="inv-role">Role</label><select id="inv-role" name="role">{% for v, l in roles %}<option value="{{ v }}" {% if v == "member" %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><p class="xsmall muted mb-0">Managers see and change every business record; agents work on their own and shared records; team members read shared records and own their tasks; read-only people only read.</p></div>{% endif %}
         <div class="form-actions"><button class="btn btn-primary" type="submit" {% if seats >= limit %}disabled{% endif %}>{% icon "user-plus" %} Invite</button>{% if seats >= limit %}<span class="small muted">Seat limit reached — <a href="{% url 'portal:workspace_billing' ws.pk %}">upgrade</a>.</span>{% endif %}</div>
       </form>
       {% if not lumen.email_enabled %}<p class="xsmall subtle mb-0">Email delivery isn't configured on this server; you'll get a link to share yourself.</p>{% endif %}

@@ -33,9 +33,35 @@ class Workspace(models.Model):
 
 
 class Role(models.TextChoices):
+    """Workspace (organisation) roles, highest first.
+
+    ``owner``, ``admin`` and ``member`` are the original Lumen roles; ``manager``, ``agent``
+    and ``readonly`` were added for business workspaces (Nexus). What each role may do with
+    business records is decided in one place, ``apps.crm.access``; workspace administration
+    (members, settings, billing) stays with owner/admin (``Membership.can_manage``).
+    """
+
     OWNER = "owner", "Owner"
     ADMIN = "admin", "Admin"
-    MEMBER = "member", "Member"
+    MANAGER = "manager", "Manager"
+    AGENT = "agent", "Agent / Broker"
+    MEMBER = "member", "Team member"
+    READONLY = "readonly", "Read-only"
+
+
+#: Highest first; used to order members and to pick an owner's successor.
+ROLE_RANK = {Role.OWNER: 0, Role.ADMIN: 1, Role.MANAGER: 2, Role.AGENT: 3, Role.MEMBER: 4, Role.READONLY: 5}
+
+#: Roles each managing role may give through invitations or role changes. Nobody gives
+#: ``owner`` this way (ownership is transferred explicitly).
+ASSIGNABLE_ROLES = {
+    Role.OWNER: [Role.ADMIN, Role.MANAGER, Role.AGENT, Role.MEMBER, Role.READONLY],
+    Role.ADMIN: [Role.MANAGER, Role.AGENT, Role.MEMBER, Role.READONLY],
+}
+
+
+def assignable_roles(role: str) -> list[str]:
+    return list(ASSIGNABLE_ROLES.get(role, []))
 
 
 class Membership(models.Model):

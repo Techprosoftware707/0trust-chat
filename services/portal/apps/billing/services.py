@@ -136,6 +136,29 @@ def seed_plans(path: Path | None = None) -> list[str]:
     return created
 
 
+def backfill_entitlements(path: Path | None = None) -> dict[str, list[str]]:
+    """Adds entitlement keys that exist in the catalogue but not yet on a stored plan
+    (e.g. after an upgrade introduced new keys). Values an operator set are never
+    changed. Returns ``{plan_code: [added keys]}``."""
+    path = path or settings.PLANS_FILE
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    defaults = {e["code"]: e.get("entitlements", {}) for e in data.get("plans", [])}
+    added: dict[str, list[str]] = {}
+    for plan in Plan.objects.all():
+        ents = dict(plan.entitlements or {})
+        missing = [k for k in ENTITLEMENT_FIELDS if k not in ents]
+        if not missing:
+            continue
+        source = defaults.get(plan.code, {})
+        for key in missing:
+            cast = ENTITLEMENT_FIELDS[key]
+            ents[key] = source.get(key, False if cast is bool else 0)
+        plan.entitlements = validate_entitlements(ents)
+        plan.save(update_fields=["entitlements", "updated_at"])
+        added[plan.code] = missing
+    return added
+
+
 def ensure_subscription(workspace) -> Subscription:
     try:
         return workspace.subscription

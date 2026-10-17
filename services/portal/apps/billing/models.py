@@ -11,6 +11,11 @@ ENTITLEMENT_FIELDS: dict[str, type] = {
     "media_quota_mb_30d": int,
     "can_require_mfa": bool,
     "priority_support": bool,
+    # Nexus business workspace (apps.crm): contacts, pipelines, tasks, timeline, calendar.
+    "crm_enabled": bool,
+    "crm_max_contacts": int,
+    # Real-estate and lending business profiles (vertical workflows).
+    "vertical_profiles": bool,
 }
 
 ENTITLEMENT_LABELS = {
@@ -20,6 +25,9 @@ ENTITLEMENT_LABELS = {
     "media_quota_mb_30d": "Uploads per member / 30 days (MB)",
     "can_require_mfa": "Can require MFA for members",
     "priority_support": "Priority support",
+    "crm_enabled": "Business workspace (CRM, pipelines, tasks)",
+    "crm_max_contacts": "Contacts per workspace",
+    "vertical_profiles": "Real-estate and lending profiles",
 }
 
 

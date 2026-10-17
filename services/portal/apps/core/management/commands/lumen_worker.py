@@ -81,7 +81,7 @@ def job_account_deletions():
     from apps.accounts.models import AccountStatus, RetiredUsername, User, end_all_sessions
     from apps.core.audit import audit
     from apps.ops.synapse import SynapseAdmin, SynapseError
-    from apps.workspaces.models import Membership, Role
+    from apps.workspaces.models import ROLE_RANK, Membership, Role
 
     synapse = SynapseAdmin()
     due = User.objects.filter(status=AccountStatus.PENDING_DELETION, deletion_scheduled_for__lte=timezone.now())
@@ -101,7 +101,8 @@ def job_account_deletions():
             # 2. Workspaces: hand ownership to an admin, else the oldest member, else delete.
             for m in Membership.objects.filter(user=user, role=Role.OWNER).select_related("workspace"):
                 others = Membership.objects.filter(workspace=m.workspace).exclude(user=user).order_by("created_at")
-                successor = others.filter(role=Role.ADMIN).first() or others.first()
+                # Highest remaining role first (admin, manager, ...), then the longest-standing member.
+                successor = min(others, key=lambda o: (ROLE_RANK.get(o.role, 99), o.created_at), default=None)
                 if successor is None:
                     m.workspace.delete()
                 else:
@@ -178,6 +179,11 @@ class Command(BaseCommand):
             Job("reconcile_stripe", 3600, job_reconcile_stripe),
             Job("retention", 3600, job_retention),
         ]
+        # Nexus apps' jobs (apps/<app>/jobs.py: JOBS = [(name, interval, fn)]).
+        from apps.core.extensions import nexus_modules
+
+        for app, module in nexus_modules("jobs"):
+            jobs += [Job(f"{app.rsplit('.', 1)[-1]}.{name}", interval, fn) for name, interval, fn in getattr(module, "JOBS", [])]
         if opts["once"]:
             for job in jobs:
                 self._run(job)

@@ -1,7 +1,9 @@
 """Idempotent post-migration bootstrap.
 
 * seeds plans from config/plans.yml (only codes that do not exist yet)
+* adds entitlement keys that are new in config/plans.yml to existing plans (never overwrites)
 * registers/updates the homeserver's OIDC client from the environment
+* registers/updates the workspace SPA's public OAuth client (nexus-web)
 * gives every workspace a subscription row
 """
 
@@ -12,7 +14,7 @@ from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.billing.services import ensure_subscription, seed_plans
+from apps.billing.services import backfill_entitlements, ensure_subscription, seed_plans
 
 
 class Command(BaseCommand):
@@ -22,6 +24,9 @@ class Command(BaseCommand):
         call_command("createcachetable", verbosity=0)
         created = seed_plans()
         self.stdout.write(f"plans: created {created or 'none'}")
+        filled = backfill_entitlements()
+        if filled:
+            self.stdout.write(f"plans: added missing entitlements {filled}")
         if settings.SURFACE in {"public", "test"}:
             if not settings.SYNAPSE_OIDC_CLIENT_SECRET:
                 raise CommandError("SYNAPSE_OIDC_CLIENT_SECRET is not configured")
@@ -42,6 +47,13 @@ class Command(BaseCommand):
             client.skip_consent = True  # first-party client; the user signs in to our own homeserver
             client.save()
             self.stdout.write(f"oidc client: {'created' if was_created else 'updated'} ({client.id} -> {redirect})")
+            from apps.api.oauth import ensure_nexus_web_client
+
+            web, web_created = ensure_nexus_web_client()
+            self.stdout.write(
+                f"oauth client: {'created' if web_created else 'updated'} ({web.id}, public, PKCE -> "
+                f"{', '.join(web.get_redirect_uris())})"
+            )
         from apps.workspaces.models import Workspace
 
         for ws in Workspace.objects.filter(subscription__isnull=True):

@@ -32,5 +32,8 @@ def lumen(request):
             "announcement": announcement,
             "brand_asset_url": settings.BRAND_ASSET_URL,
             "public_status_page": settings.PUBLIC_STATUS_PAGE,
+            # Nexus: "" in production, else "Test"/"Development" (banner + title prefix).
+            "environment": settings.NEXUS_ENVIRONMENT,
+            "environment_label": settings.NEXUS_ENVIRONMENT_LABEL,
         },
     }

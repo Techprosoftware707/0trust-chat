@@ -16,7 +16,7 @@ from django.utils.text import slugify
 from apps.billing import services as billing
 from apps.billing.models import Subscription
 
-from .models import Invitation, Membership, Role, Workspace
+from .models import Invitation, Membership, Role, Workspace, assignable_roles
 
 
 def membership_for(user, workspace_id) -> Membership:
@@ -79,10 +79,12 @@ def invite(actor, workspace_id, email: str, role: str = Role.MEMBER) -> tuple[In
     ws = Workspace.objects.select_for_update().get(pk=membership.workspace_id)
     if not membership.can_manage and not (ws.allow_member_invites and role == Role.MEMBER):
         raise PermissionDenied("You are not allowed to invite people to this workspace.")
-    if role not in {Role.ADMIN, Role.MEMBER}:
+    if role not in set(Role.values) - {Role.OWNER}:
         raise PermissionDenied("Invalid role")
     if role == Role.ADMIN and membership.role != Role.OWNER:
         raise PermissionDenied("Only the owner can invite admins.")
+    if membership.can_manage and role not in assignable_roles(membership.role):
+        raise PermissionDenied("You can't give that role.")
     email = email.strip().lower()
     if Membership.objects.filter(workspace=ws, user__email__iexact=email).exists():
         raise ValueError("That person is already a member.")
@@ -131,10 +133,12 @@ def revoke_invitation(actor, workspace_id, invitation_id) -> Invitation:
 
 @transaction.atomic
 def change_role(actor, workspace_id, member_id, new_role: str) -> Membership:
+    """The owner may give any role but owner; an admin may move people who are not
+    owner/admin between manager, agent, team member and read-only."""
     membership = membership_for(actor, workspace_id)
-    if membership.role != Role.OWNER:
-        raise PermissionDenied("Only the owner can change roles.")
-    if new_role not in {Role.ADMIN, Role.MEMBER}:
+    if not membership.can_manage:
+        raise PermissionDenied("Only the owner and admins can change roles.")
+    if new_role not in set(Role.values) - {Role.OWNER}:
         raise PermissionDenied("Invalid role")
     try:
         target = Membership.objects.select_for_update().get(pk=member_id, workspace_id=membership.workspace_id)
@@ -142,6 +146,10 @@ def change_role(actor, workspace_id, member_id, new_role: str) -> Membership:
         raise Http404() from None
     if target.role == Role.OWNER:
         raise PermissionDenied("The owner's role cannot be changed here.")
+    if membership.role != Role.OWNER and (target.role == Role.ADMIN or new_role not in assignable_roles(membership.role)):
+        raise PermissionDenied("Only the owner can change admins or make someone an admin.")
+    if target.pk == membership.pk:
+        raise PermissionDenied("You can't change your own role.")
     target.role = new_role
     target.save(update_fields=["role"])
     return target

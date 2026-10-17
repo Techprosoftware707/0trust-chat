@@ -29,7 +29,7 @@ from apps.core import ratelimit
 from apps.core.audit import audit, security_event
 from apps.core.models import SecurityEvent, SupportTicket
 from apps.workspaces import services as ws_services
-from apps.workspaces.models import Invitation, Membership, Role, Workspace, hash_token
+from apps.workspaces.models import Invitation, Membership, Role, Workspace, assignable_roles, hash_token
 
 from .adapter import INVITE_SESSION_KEY
 from .forms import DeleteAccountForm, DisplayNameForm
@@ -360,7 +360,8 @@ def workspace_detail(request, workspace_id):
             "seats": ws_services.seats_used(ws),
             "limit": plan.entitlement("max_members"),
             "new_invite": new_invite,
-            "roles": [(Role.MEMBER, "Member"), (Role.ADMIN, "Admin")],
+            # Roles this person may give (invitations and role changes), labelled.
+            "roles": [(r, Role(r).label) for r in assignable_roles(membership.role)],
         },
     )
 

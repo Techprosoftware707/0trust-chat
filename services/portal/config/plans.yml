@@ -11,6 +11,12 @@
 #   media_quota_mb_30d  total uploads per member per rolling 30 days (homeserver module)
 #   can_require_mfa     workspace admins may require MFA for chat sign-in (portal + OIDC)
 #   priority_support    support requests from members are queued as high priority
+#   crm_enabled         business workspace: contacts, pipelines, tasks, timeline (Nexus API)
+#   crm_max_contacts    contacts per workspace (Nexus API)
+#   vertical_profiles   real-estate and lending business profiles may be enabled (Nexus API)
+#
+# New keys are added to plans that already exist in the database by lumen_bootstrap
+# (never overwriting values an operator changed).
 #
 # Prices are in the smallest currency unit (cents). `null` means "contact us".
 # Paid plans are purchasable only when BILLING_PROVIDER=stripe and the
@@ -31,6 +37,9 @@ plans:
       media_quota_mb_30d: 1024
       can_require_mfa: false
       priority_support: false
+      crm_enabled: true
+      crm_max_contacts: 250
+      vertical_profiles: false
     features:
       - End-to-end encrypted direct and group chats
       - Device verification and encrypted key backup
@@ -54,6 +63,9 @@ plans:
       media_quota_mb_30d: 10240
       can_require_mfa: true
       priority_support: false
+      crm_enabled: true
+      crm_max_contacts: 25000
+      vertical_profiles: true
     features:
       - Everything in Free
       - Up to 50 members
@@ -76,6 +88,9 @@ plans:
       media_quota_mb_30d: 51200
       can_require_mfa: true
       priority_support: true
+      crm_enabled: true
+      crm_max_contacts: 250000
+      vertical_profiles: true
     features:
       - Everything in Pro
       - Up to 500 members
@@ -96,6 +111,9 @@ plans:
       media_quota_mb_30d: 512000
       can_require_mfa: true
       priority_support: true
+      crm_enabled: true
+      crm_max_contacts: 1000000
+      vertical_profiles: true
     features:
       - Dedicated or self-hosted deployment
       - Custom limits and federation policy

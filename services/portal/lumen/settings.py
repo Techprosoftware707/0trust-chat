@@ -58,10 +58,12 @@ ALLOWED_HOSTS += env_list("LUMEN_EXTRA_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = [PUBLIC_BASE_URL, OPS_BASE_URL]
 
 # --- Branding (all user-visible names come from here) -------------------------
+# "Nexus Office AI" is a TEMPORARY test brand of the test/unified-business-workspace
+# branch (docs/nexus/IMPLEMENTATION-NOTES.md); the BRAND_* variables still override it.
 BRAND = {
-    "name": env("BRAND_NAME", "Lumen Secure"),
-    "short_name": env("BRAND_SHORT_NAME", "Lumen"),
-    "tagline": env("BRAND_TAGLINE", "Private conversations on an open, federated network."),
+    "name": env("BRAND_NAME", "Nexus Office AI"),
+    "short_name": env("BRAND_SHORT_NAME", "Nexus"),
+    "tagline": env("BRAND_TAGLINE", "Your encrypted business workspace: chat, calls, CRM and AI in one place."),
     "legal_name": env("BRAND_LEGAL_NAME", "The Lumen Secure operator"),
     "jurisdiction": env("BRAND_JURISDICTION", ""),
     "support_email": env("SUPPORT_EMAIL", f"support@{PRIMARY_DOMAIN}"),
@@ -69,7 +71,25 @@ BRAND = {
     "privacy_email": env("PRIVACY_EMAIL", f"privacy@{PRIMARY_DOMAIN}"),
 }
 
+# --- Nexus environment ------------------------------------------------------------
+# production | test | development. Anything but production shows a persistent
+# "Test environment · synthetic demo data" banner in the portal and the chat app, prefixes
+# page titles, and is sent on every response as X-Nexus-Environment. The demo-data commands
+# (nexus_demo_seed / nexus_demo_reset) refuse to run in production.
+NEXUS_ENVIRONMENT = env("NEXUS_ENVIRONMENT", "production").strip().lower()
+if NEXUS_ENVIRONMENT not in {"production", "test", "development"}:
+    raise ImproperlyConfigured("NEXUS_ENVIRONMENT must be production, test or development")
+NEXUS_ENVIRONMENT_LABEL = {"production": "", "test": "Test", "development": "Development"}[NEXUS_ENVIRONMENT]
+
 # --- Applications --------------------------------------------------------------
+# Nexus business apps. Each owns its models and migrations, and may provide (all optional):
+#   urls.py      -> mounted at /<app>/ on the public surface (webhooks, OAuth callbacks)
+#   api_urls.py  -> mounted at /api/v1/workspaces/<workspace_id>/<app>/ (bearer API)
+#   jobs.py      -> JOBS = [Job(...)] picked up by the worker
+#   features.py  -> FEATURES = {key: fn(workspace, plan, settings) -> bool} for the SPA
+# Registration is already done here and in lumen/urls_public.py; teams only fill the modules.
+NEXUS_APPS = ["apps.crm", "apps.integrations", "apps.assistant", "apps.mcp", "apps.automation"]
+
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -88,12 +108,16 @@ INSTALLED_APPS = [
     "apps.billing",
     "apps.oidc",
     "apps.ops",
+    "apps.api",
+    *NEXUS_APPS,
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "apps.core.middleware.RequestContextMiddleware",
+    "apps.core.middleware.NexusEnvironmentMiddleware",
+    "apps.api.cors.ApiCorsMiddleware",
     "apps.core.middleware.SurfaceGuardMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -218,7 +242,7 @@ ACCOUNT_CHANGE_EMAIL = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_CONFIRM_EMAIL_ON_GET = False
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http" if INSECURE_DEV else "https"
-ACCOUNT_EMAIL_SUBJECT_PREFIX = f"[{BRAND['short_name']}] "
+ACCOUNT_EMAIL_SUBJECT_PREFIX = f"[{BRAND['short_name']}{' · ' + NEXUS_ENVIRONMENT_LABEL if NEXUS_ENVIRONMENT_LABEL else ''}] "
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_REAUTHENTICATION_TIMEOUT = 300
 ACCOUNT_LOGOUT_ON_GET = False
@@ -254,12 +278,51 @@ IDP_OIDC_ID_TOKEN_EXPIRES_IN = 300
 IDP_OIDC_ACCESS_TOKEN_EXPIRES_IN = 300
 IDP_OIDC_AUTHORIZATION_CODE_EXPIRES_IN = 60
 IDP_OIDC_RP_INITIATED_LOGOUT_ASKS_FOR_OP_LOGOUT = True
-# Only confidential clients posting their secret. (client_secret_basic is not
-# offered: with oauthlib's OIDC dispatcher it yields token responses without an
-# id_token, because the code lookup needs client_id in the request body.)
-IDP_OIDC_AUTH_METHODS = ["client_secret_post"]
+# Confidential clients post their secret. (client_secret_basic is not offered: with
+# oauthlib's OIDC dispatcher it yields token responses without an id_token, because the
+# code lookup needs client_id in the request body.) "none" is for registered PUBLIC
+# clients only (the first-party SPA "nexus-web"): oauthlib still requires the secret of
+# every confidential client such as the homeserver, and PKCE is mandatory for public ones.
+IDP_OIDC_AUTH_METHODS = ["client_secret_post", "none"]
 SYNAPSE_OIDC_CLIENT_ID = env("SYNAPSE_OIDC_CLIENT_ID", "lumen-synapse")
 SYNAPSE_OIDC_CLIENT_SECRET = secret("SYNAPSE_OIDC_CLIENT_SECRET") if SURFACE in {"public", "test"} else ""
+# Refresh tokens (only the SPA client is granted refresh_token) expire after this long and
+# rotate on every use; access tokens live IDP_OIDC_ACCESS_TOKEN_EXPIRES_IN (5 minutes).
+IDP_OIDC_REFRESH_TOKEN_EXPIRES_IN = env_int("NEXUS_REFRESH_TOKEN_SECONDS", 12 * 3600)
+IDP_OIDC_ROTATE_REFRESH_TOKEN = True
+
+
+def _origin(url: str) -> str:
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+# --- Nexus API (/api/v1/, bearer tokens from this portal's OAuth server) ---------------
+# First-party public client for the workspace SPA (registered by lumen_bootstrap).
+NEXUS_WEB_CLIENT_ID = env("NEXUS_WEB_CLIENT_ID", "nexus-web")
+NEXUS_WEB_REDIRECT_URIS = env_list("NEXUS_WEB_REDIRECT_URIS", [f"{APP_BASE_URL.rstrip('/')}/oauth/callback"])
+# Browser origins allowed to call /api/v1/ and the token/revoke endpoints (CORS, no cookies).
+NEXUS_CORS_ORIGINS = env_list("NEXUS_CORS_ORIGINS", [_origin(APP_BASE_URL)])
+# The protected resource identifier of the API (RFC 8707 audience). Tokens that carry
+# resources must name it; tokens without resources must come from NEXUS_API_CLIENT_IDS.
+NEXUS_API_RESOURCE = env("NEXUS_API_RESOURCE", f"{PUBLIC_BASE_URL.rstrip('/')}/api/v1")
+NEXUS_API_CLIENT_IDS = env_list("NEXUS_API_CLIENT_IDS", [NEXUS_WEB_CLIENT_ID])
+# Scopes understood by /api/v1/. Other teams add theirs here (e.g. mcp:*) next to their policy.
+NEXUS_API_SCOPES = {
+    "workspace:read": "Read the business records of your workspaces",
+    "workspace:write": "Create and change business records in your workspaces",
+}
+NEXUS_API_RATE_LIMITS = {
+    # (requests, window seconds) per authenticated user
+    "read": (env_int("NEXUS_API_READS_PER_MINUTE", 600), 60),
+    "write": (env_int("NEXUS_API_WRITES_PER_MINUTE", 120), 60),
+    # failed bearer authentications per client IP
+    "auth_failures": (30, 60),
+}
+# Record a hash-chained audit event for reads of sensitive data (contact details, exports).
+NEXUS_AUDIT_SENSITIVE_READS = env_bool("NEXUS_AUDIT_SENSITIVE_READS", True)
 
 # --- Sessions, cookies, CSRF ------------------------------------------------------------
 _cookie_prefix = "" if INSECURE_DEV else "__Host-"
@@ -323,6 +386,10 @@ DESIGN_DIR = Path(env("LUMEN_DESIGN_DIR", str(BASE_DIR.parent.parent / "design")
 if DESIGN_DIR.is_dir():
     STATICFILES_DIRS.append(("design", DESIGN_DIR))
 BRANDING_DIR = Path(env("LUMEN_BRANDING_DIR", str(BASE_DIR.parent.parent / "branding")))
+# The bundled brand is also a static prefix, so a dev server without Caddy can use
+# BRAND_ASSET_URL=/static/brand/ (in production Caddy serves the operator's /brand/).
+if BRANDING_DIR.is_dir():
+    STATICFILES_DIRS.append(("brand", BRANDING_DIR))
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},

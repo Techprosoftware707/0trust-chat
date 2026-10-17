@@ -1,14 +1,26 @@
 """URLs served by the public `portal` process (website, portal, IdP, webhooks)."""
 
-from django.urls import include, path
+from django.conf import settings
+from django.urls import include, path, re_path
 
 from apps.accounts import views as account_views
+from apps.api.decorators import not_found_view as api_not_found
 from apps.billing import views as billing_views
 from apps.core import views as core_views
+from apps.core.extensions import app_label, has_module
 from apps.oidc import views as oidc_views
+
+# Nexus apps' non-API routes (webhooks, OAuth callbacks) at /<app>/, if the app has urls.py.
+nexus_patterns = [
+    path(f"{app_label(app)}/", include(f"{app}.urls")) for app in settings.NEXUS_APPS if has_module(app, "urls")
+]
 
 urlpatterns = [
     path("healthz", core_views.healthz, name="healthz"),
+    # Nexus JSON API (bearer tokens only; see apps/api and docs/nexus/ARCHITECTURE.md).
+    path("api/v1/", include("apps.api.urls")),
+    re_path(r"^api/", api_not_found),
+    *nexus_patterns,
     path(".well-known/security.txt", core_views.security_txt, name="security_txt"),
     path("robots.txt", core_views.robots_txt, name="robots_txt"),
     # OIDC: our policy gate shadows allauth's authorization endpoint.

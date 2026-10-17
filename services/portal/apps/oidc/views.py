@@ -31,7 +31,10 @@ def authorize(request, *args, **kwargs):
             )
     response = allauth_authorization(request, *args, **kwargs)
     if user.is_authenticated and response.status_code in (301, 302) and "code=" in response.get("Location", ""):
-        security_event(request, "oidc_granted", user=user, detail={"client": request.GET.get("client_id", "")[:60]})
+        client_id = request.GET.get("client_id", "")[:60]
+        security_event(request, "oidc_granted", user=user, detail={"client": client_id})
+        if client_id != settings.SYNAPSE_OIDC_CLIENT_ID:
+            return response  # e.g. the workspace SPA (nexus-web): not a chat sign-in
         now = timezone.now()
         fields = ["chat_last_login_at"]
         user.chat_last_login_at = now

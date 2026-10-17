@@ -3,7 +3,8 @@
 Tests run against PostgreSQL (the audit-log trigger, advisory locks and the
 atomic rate limiter are PostgreSQL features). Point POSTGRES_* at a disposable
 server, e.g. `docker run -d -p 127.0.0.1:55432:5432 -e POSTGRES_USER=lumen_app
--e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=lumen postgres:17-alpine`.
+-e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=lumen postgres:17-alpine`
+(the Nexus test environment uses its own server on 55433: docs/nexus/DEVELOPMENT.md).
 """
 
 
@@ -28,6 +29,7 @@ os.environ.update(
         "LUMEN_SIMPLE_STATIC": "1",
         "LUMEN_TEST_EMAIL_LOCMEM": "1",
         "SYNAPSE_ADMIN_TOKEN": "",
+        "NEXUS_ENVIRONMENT": "test",
     }
 )
 os.environ.setdefault("POSTGRES_HOST", "127.0.0.1")

@@ -47,7 +47,9 @@ def token(code, verifier, **extra):
 def test_discovery_and_jwks():
     d = Client().get("/.well-known/openid-configuration").json()
     assert d["issuer"] == "https://lumen.test"
-    assert d["token_endpoint_auth_methods_supported"] == ["client_secret_post"]
+    # "none" exists for registered PUBLIC clients (the workspace SPA, PKCE-only); every
+    # confidential client still has to post its secret (test_confidential_client_needs_secret).
+    assert d["token_endpoint_auth_methods_supported"] == ["client_secret_post", "none"]
     assert "S256" in d["code_challenge_methods_supported"]
     keys = Client().get("/.well-known/jwks.json").json()["keys"]
     assert keys and "d" not in keys[0]  # no private material
@@ -135,3 +137,28 @@ def test_pending_deletion_blocks_chat_signin():
     c = Client(); c.force_login(u)
     r, _ = authorize(c)
     assert r.status_code == 403
+
+
+def test_confidential_client_needs_secret():
+    """Offering "none" for public clients must not let the homeserver's confidential
+    client redeem a code without its secret."""
+    u = make_user()
+    c = Client(); c.force_login(u)
+    r, v = authorize(c)
+    code = parse_qs(urlparse(r["Location"]).query)["code"][0]
+    data = {"grant_type": "authorization_code", "code": code, "redirect_uri": REDIRECT, "code_verifier": v, "client_id": "lumen-synapse"}
+    assert Client().post("/identity/o/api/token", data).status_code == 401
+    assert token(code, v).status_code == 200  # the code is still unused, and works with the secret
+
+
+def test_chat_login_times_only_for_homeserver_client():
+    """Authorizing the workspace SPA (nexus-web) is not a chat sign-in."""
+    u = make_user()
+    c = Client(); c.force_login(u)
+    verifier = secrets.token_urlsafe(48)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    r = c.get("/identity/o/authorize", {"response_type": "code", "client_id": "nexus-web", "redirect_uri": "https://app.lumen.test/oauth/callback",
+                                        "scope": "workspace:read workspace:write", "state": "s", "code_challenge_method": "S256", "code_challenge": challenge})
+    assert r.status_code == 302 and "code=" in r["Location"]
+    u.refresh_from_db()
+    assert u.chat_last_login_at is None
