@@ -14,6 +14,8 @@ import { areaHash, defineRoomPanel, type RoomPanelProps } from "../define";
 import type { Contact, ContactSummary, Opportunity, RoomLink, Task } from "../types";
 import { ConnectionGate, EmptyState, ErrorState, KindBadge, LoadingState, PriorityBadge, UserLabel, formatMoney, formatWhen } from "../ui";
 import { TaskCheck } from "./home";
+import { AskAiPanel } from "../assistant/components";
+import { SaveToRecordSection } from "../assistant/SaveToRecord";
 
 function LinkPicker({ roomId, onLinked }: { roomId: string; onLinked: (l: RoomLink) => void }) {
   const ws = useWorkspace();
@@ -90,7 +92,7 @@ function LinkPicker({ roomId, onLinked }: { roomId: string; onLinked: (l: RoomLi
   );
 }
 
-function ContactCard({ link, onUnlink }: { link: RoomLink; onUnlink: () => void }) {
+function ContactCard({ link, roomId, onUnlink }: { link: RoomLink; roomId: string; onUnlink: () => void }) {
   const ws = useWorkspace();
   const ui = useUi();
   const id = link.contact!.id;
@@ -200,6 +202,7 @@ function ContactCard({ link, onUnlink }: { link: RoomLink; onUnlink: () => void 
               </form>
             ) : null}
           </div>
+          <AskAiPanel context={{ room_id: roomId, contact_id: id }} prompts={["Summarise this contact", "Prepare me for my next meeting"]} />
           {s.open_opportunities.length ? (
             <div className="ws-room-block">
               <h3>Open deals</h3>
@@ -280,7 +283,7 @@ function RoomCrmPanel({ roomId, onClose }: RoomPanelProps) {
         ) : null}
         {rows.map((l) =>
           l.contact ? (
-            <ContactCard key={l.id} link={l} onUnlink={() => void unlink(l)} />
+            <ContactCard key={l.id} link={l} roomId={roomId} onUnlink={() => void unlink(l)} />
           ) : l.opportunity ? (
             <DealCardLink key={l.id} link={l} onUnlink={() => void unlink(l)} />
           ) : null,
@@ -300,6 +303,7 @@ function RoomCrmPanel({ roomId, onClose }: RoomPanelProps) {
             </button>
           ) : null
         ) : null}
+        {links.data ? <SaveToRecordSection roomId={roomId} links={rows} /> : null}
         <p className="ws-e2ee-note xsmall subtle">
           <Lock aria-hidden="true" className="inline-icon" /> Only this conversation's room ID is saved with the record. Messages stay end-to-end
           encrypted and are never sent to the workspace server.

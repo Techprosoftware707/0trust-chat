@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   ShieldAlert,
+  Sparkles,
   StickyNote,
   Tag as TagIcon,
   Trash2,
@@ -45,6 +46,7 @@ import {
   toLocalInput,
 } from "../ui";
 import { TaskCheck } from "./home";
+import { AskAiPanel } from "../assistant/components";
 
 // --- timeline -----------------------------------------------------------------------------
 
@@ -239,8 +241,9 @@ function customValue(def: FieldDefinition | undefined, value: unknown): string {
 }
 
 function ContactDetail({ id, fields, onDeleted }: { id: string; fields: FieldDefinition[]; onDeleted: (id: string) => void }) {
-  const { api, crm } = useWorkspace();
+  const { api, crm, hasFeature } = useWorkspace();
   const ui = useUi();
+  const [askOpen, setAskOpen] = useState(false);
   const contact = useApiResource((a, signal) => a.get<Contact>(`${crm}/contacts/${id}`, undefined, signal), [crm, id]);
   const timeline = useApiResource((a, signal) => a.list<Activity>(`${crm}/activities`, { contact: id, limit: 50 }, signal), [crm, id]);
   const tasks = useApiResource((a, signal) => a.list<Task>(`${crm}/tasks`, { contact: id, scope: "team", status: "open" }, signal), [crm, id]);
@@ -286,6 +289,11 @@ function ContactDetail({ id, fields, onDeleted }: { id: string; fields: FieldDef
           </div>
         </div>
         <div className="ws-detail-actions">
+          {hasFeature("assistant") ? (
+            <button type="button" className="btn btn-sm" aria-expanded={askOpen} onClick={() => setAskOpen((o) => !o)}>
+              <Sparkles aria-hidden="true" /> Ask AI
+            </button>
+          ) : null}
           {c.permissions.change ? (
             <a className="btn btn-sm" href={areaHash("contacts", c.id, "edit")}>
               <Pencil aria-hidden="true" /> Edit
@@ -312,6 +320,11 @@ function ContactDetail({ id, fields, onDeleted }: { id: string; fields: FieldDef
         </div>
       </header>
 
+      {askOpen ? (
+        <div className="ws-detail-ask">
+          <AskAiPanel context={{ contact_id: c.id }} prompts={["Summarise this contact", "Prepare me for my next meeting"]} />
+        </div>
+      ) : null}
       <div className="ws-detail-grid">
         <div className="ws-detail-main">
           <Section title="Open tasks" icon={UserRound}>

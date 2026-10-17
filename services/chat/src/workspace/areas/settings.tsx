@@ -6,12 +6,15 @@ import { useUi } from "../../components/UiContext";
 import { useWorkspace } from "../context";
 import { defineArea } from "../define";
 import { PageHeader } from "../ui";
+import { AiSettingsCard, ConnectedAppsCard } from "../assistant/SettingsCards";
 
 const FEATURE_LABEL: Record<string, string> = {
   crm: "Business workspace (contacts, pipelines, tasks)",
   real_estate: "Real-estate profile",
   lending: "Lending profile",
   save_to_record: "“Save to record” from chat (copies selected text out of end-to-end encryption)",
+  assistant: "AI assistant",
+  mcp: "Claude connector (MCP)",
 };
 
 function SettingsPage() {
@@ -102,6 +105,13 @@ function SettingsPage() {
             </div>
           ) : null}
         </section>
+
+        {ws.status === "ready" ? (
+          <>
+            <AiSettingsCard />
+            <ConnectedAppsCard />
+          </>
+        ) : null}
 
         <section className="ws-card" aria-labelledby="set-sec">
           <header className="ws-card-header">

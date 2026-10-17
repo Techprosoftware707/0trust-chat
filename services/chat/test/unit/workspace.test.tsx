@@ -77,7 +77,7 @@ describe("route and feature registry", () => {
       if (a.status === "ready") expect(a.component, a.id).toBeTypeOf("function");
       expect(a.summary.length, a.id).toBeGreaterThan(10);
     }
-    expect(allAreas().filter((a) => a.status === "coming_soon").map((a) => a.id)).toEqual(["inbox", "calls", "calendar", "assistant", "reports", "integrations"]);
+    expect(allAreas().filter((a) => a.status === "coming_soon").map((a) => a.id)).toEqual(["inbox", "calls", "calendar", "reports", "integrations"]);
     expect(allRoomPanels().map((p) => p.id)).toEqual(["crm"]);
     for (const p of allRoomPanels()) expect(BUILTIN_PANELS.has(p.id)).toBe(false);
   });

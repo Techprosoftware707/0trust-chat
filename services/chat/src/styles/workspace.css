@@ -370,3 +370,67 @@ body[data-env-banner] .incoming-calls { top: calc(var(--env-banner-h) + var(--sp
 @media (prefers-reduced-motion: reduce) {
   .ws-sheet { animation: none; }
 }
+
+/* --- AI assistant (workspace/assistant, areas/assistant.tsx) ------------------------------- */
+.ai-page { display: flex; flex-direction: column; }
+.ai-chat { display: grid; gap: var(--space-4); max-width: 54rem; width: 100%; margin-inline: auto; }
+.ai-welcome { display: grid; justify-items: center; gap: var(--space-2); text-align: center; padding: var(--space-6) var(--space-4); background: var(--brand-wash); border-radius: var(--radius-lg); }
+.ai-quick { gap: var(--space-2); justify-content: center; }
+.ai-turns { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-5); }
+.ai-turn { display: grid; gap: var(--space-3); }
+.ai-question { justify-self: end; max-width: min(36rem, 92%); margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--accent-soft); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-answer { display: grid; gap: var(--space-3); padding: var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); min-width: 0; }
+.ai-answer.compact { padding: var(--space-3); box-shadow: none; }
+.ai-kicker { display: flex; align-items: center; gap: var(--space-1); margin: 0; font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-muted); }
+.ai-kicker svg.lucide { width: 0.95rem; height: 0.95rem; }
+.ai-mode { display: flex; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--info-soft); color: var(--text); font-size: var(--text-sm); font-weight: 650; }
+.ai-mode svg.lucide { color: var(--info); flex: none; }
+.ai-facts { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--surface-2); border-left: 3px solid var(--success); }
+.ai-facts ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 4px; font-size: var(--text-sm); }
+.ai-fact-title { margin: 0; font-size: var(--text-sm); font-weight: 650; }
+.ai-suggestion { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); border: 1px dashed var(--border-strong, var(--border)); }
+.ai-suggestion .ai-kicker { color: var(--accent); }
+.ai-dev-note .ai-text { color: var(--text-muted); font-size: var(--text-sm); }
+.ai-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-untrusted { display: flex; gap: var(--space-2); align-items: flex-start; margin: 0; color: var(--text-muted); }
+.ai-untrusted svg.lucide { color: var(--warning); flex: none; width: 1rem; height: 1rem; }
+.ai-sources { display: grid; gap: var(--space-1); }
+.ai-sources ul { list-style: none; margin: 0; padding: 0; gap: var(--space-2); }
+.ai-sources a { font-size: var(--text-sm); }
+.ai-action { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--accent); background: var(--surface); }
+.ai-action-confirmed { border-color: var(--success); }
+.ai-action-canceled, .ai-action-failed { border-color: var(--border); opacity: 0.85; }
+.ai-action-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ai-action-header strong { flex: 1 1 12rem; min-width: 0; }
+.ai-changes { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.ai-changes th, .ai-changes td { text-align: left; padding: 4px var(--space-2); border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.ai-changes thead th { color: var(--text-muted); font-weight: 600; font-size: var(--text-xs); }
+.ai-fields .ai-field { display: contents; }
+.ai-action-buttons { align-items: center; gap: var(--space-2); }
+.ai-composer { position: sticky; bottom: 0; display: grid; gap: var(--space-2); padding: var(--space-3); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); }
+.ai-composer-row { display: flex; gap: var(--space-2); align-items: flex-end; }
+.ai-composer textarea { flex: 1; min-width: 0; resize: vertical; min-height: 2.6rem; max-height: 12rem; }
+.ai-context { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.ai-privacy { margin: 0; }
+.ai-ask { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-2); }
+.ai-ask-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.ai-ask-header h3 { display: flex; align-items: center; gap: var(--space-1); margin: 0; font-size: var(--text-sm); }
+.ai-ask-header h3 svg.lucide { color: var(--accent); width: 1rem; height: 1rem; }
+.ai-ask .ai-quick { justify-content: flex-start; }
+.ai-ask-result { display: grid; gap: var(--space-2); }
+.ws-detail-ask { padding: 0 var(--space-6) var(--space-4); }
+.ai-save { display: grid; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface); }
+.ai-save-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 18rem; overflow-y: auto; }
+.ai-save-list .checkbox > span { display: grid; gap: 2px; min-width: 0; }
+.ai-save-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.ai-save-off { margin: 0; }
+.ai-toggle .checkbox > span { display: grid; gap: 2px; }
+.ai-toggle-help { display: block; }
+.ai-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; }
+.ai-url { padding: 2px var(--space-2); border-radius: var(--radius-sm, 6px); background: var(--surface-2); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.ai-connection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding-block: var(--space-2); }
+@media (max-width: 720px) {
+  .ws-detail-ask { padding: 0 var(--space-3) var(--space-3); }
+  .ai-answer { padding: var(--space-3); }
+  .ai-question { max-width: 100%; }
+}
