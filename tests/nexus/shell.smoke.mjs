@@ -7,7 +7,7 @@
  *
  * Signs in to the portal and to chat as demo people, lets the SPA obtain its API token
  * through the silent OAuth code + PKCE flow, and walks Home, Contacts (create, note),
- * CRM, Pipelines (keyboard move), Tasks (complete), the coming-soon areas, the CRM panel
+ * CRM, Pipelines (keyboard move), Tasks (complete), the Inbox and Integrations pages, the CRM panel
  * next to a conversation, role-based navigation, light/dark and phone widths. Checks for
  * console errors, horizontal overflow and the environment banner on every page.
  * Screenshots: docs/nexus/screenshots/foundation/.
@@ -181,18 +181,19 @@ await test("Home dashboard shows real data", async () => {
   await shot(app, "home--desktop-light");
 });
 
-await test("navigation lists every area; coming-soon areas say so", async () => {
+await test("navigation lists every area; none is a placeholder", async () => {
   const labels = await app.locator(".ws-rail-label").allInnerTexts();
   for (const l of ["Home", "Notifications", "Inbox", "Chat", "Calls & Meetings", "Contacts", "CRM", "Pipelines", "Properties", "Lending", "Tasks", "Calendar",
     "AI Assistant", "Reports", "Integrations", "Automations", "Settings"]) {
     assert.ok(labels.includes(l), `missing nav entry ${l}`);
   }
-  // Calendar, Calls & Meetings and Reports are real now (tests/nexus/verticals.smoke.mjs).
-  for (const id of ["inbox", "integrations"]) {
+  // Every area is real now: Calendar, Calls & Meetings and Reports (tests/nexus/verticals.smoke.mjs),
+  // Inbox and Integrations (tests/nexus/integrations.smoke.mjs). None may show a placeholder.
+  for (const [id, heading] of [["inbox", "Inbox"], ["integrations", "Integrations"]]) {
     await go(app, `#/${id}`);
-    await app.getByText("Coming in this test build").waitFor();
+    await app.getByRole("heading", { level: 1, name: heading }).waitFor();
+    assert.equal(await app.getByText("Coming in this test build").count(), 0, `#/${id} is still a placeholder`);
   }
-  await shot(app, "coming-soon-assistant--desktop-light");
   await go(app, "#/");
   await app.locator(".sidebar").waitFor();
   assert.ok(await app.locator(".ws-rail-item.active", { hasText: "Chat" }).isVisible());
