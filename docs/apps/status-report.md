@@ -67,7 +67,7 @@ The short version:
 | Notifications | FCM push via Sygnal (`event_id_only`) is implemented and optional at build time. Delivery is **not verified**: it needs a Firebase project, `PUSH_ENABLED` on the server and a device. |
 | Signing | Release APKs and the AAB are **unsigned** without the `ANDROID_KEYSTORE_*` secrets. The debug APK is signed with a debug key and is for testing only. |
 | Store | Not published. Play needs a developer account, Play App Signing, a Data safety form and review. |
-| Remaining | Re-run the emulator jobs once the GitHub Actions billing is fixed (SSO, encrypted DM, sign-out, the TLS verifier test); verification and a call against a server; FCM delivery; a TalkBack pass; release signing. |
+| Remaining | Re-run the emulator jobs once the GitHub Actions billing is fixed (SSO, encrypted DM, sign-out; the no-server TLS verifier test already passed, 3/3, in run 38990967219); verification and a call against a server; FCM delivery; a TalkBack pass; release signing. |
 
 ## iOS and iPadOS
 
