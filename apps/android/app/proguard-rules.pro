@@ -8,6 +8,10 @@
 -dontwarn com.sun.jna.**
 -keep class org.matrix.rustcomponents.sdk.** { *; }
 -keep class uniffi.** { *; }
+# JNI from libmatrix_sdk_ffi.so: the SDK's Android init entry point, and rustls-platform-verifier's
+# JVM half (looked up by class, method and field name from native code).
+-keep class org.matrix.rustsdk.Android { *; }
+-keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }
 
 # ---- Kotlin coroutines / serialization -----------------------------------------------------
 -dontwarn kotlinx.coroutines.debug.**

@@ -283,7 +283,7 @@ class SessionManager(
     // ---- helpers ----------------------------------------------------------------------------------
 
     private suspend fun buildClient(homeserverUrl: String, storeDir: String, key: ByteArray, discoverSlidingSync: Boolean = true): Client {
-        RustPlatform.ensureInitialised()
+        RustPlatform.ensureInitialised(context)
         val data = File(sessionsDataDir, storeDir).apply { mkdirs() }
         val cache = File(sessionsCacheDir, storeDir).apply { mkdirs() }
         return ClientBuilder()

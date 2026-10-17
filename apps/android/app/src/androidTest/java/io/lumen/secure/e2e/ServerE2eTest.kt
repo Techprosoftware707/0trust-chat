@@ -328,18 +328,31 @@ class ServerE2eTest {
                 )
     }
 
+    /**
+     * Polls [probe] about once a second until it returns non-null. Waits through the Compose test
+     * clock, so the UI keeps recomposing meanwhile (a plain sleep would freeze it).
+     */
     private fun <T : Any> waitFor(timeoutMs: Long, what: String, probe: () -> T?): T {
-        val end = SystemClock.uptimeMillis() + timeoutMs
+        var result: T? = null
         var last: Exception? = null
-        while (SystemClock.uptimeMillis() < end) {
-            try {
-                probe()?.let { return it }
-            } catch (e: Exception) {
-                last = e
+        var lastProbe = 0L
+        try {
+            compose.waitUntil(timeoutMs) {
+                val now = SystemClock.uptimeMillis()
+                if (now - lastProbe >= 1_000) {
+                    lastProbe = now
+                    try {
+                        result = probe()
+                    } catch (e: Exception) {
+                        last = e
+                    }
+                }
+                result != null
             }
-            SystemClock.sleep(1_000)
+        } catch (e: ComposeTimeoutException) {
+            throw AssertionError("timed out after ${timeoutMs / 1000} s waiting for $what" + (last?.let { " (last error: ${it.javaClass.simpleName}: ${it.message?.lineSequence()?.firstOrNull()})" } ?: ""))
         }
-        throw AssertionError("timed out after ${timeoutMs / 1000} s waiting for $what" + (last?.let { " (last error: ${it.javaClass.simpleName})" } ?: ""))
+        return result!!
     }
 
     /** As a browser hands a URL to the app: implicit VIEW intent, browsable, new task. */
