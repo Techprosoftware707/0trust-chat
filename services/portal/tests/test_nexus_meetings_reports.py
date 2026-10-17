@@ -208,18 +208,39 @@ def test_home_sections_and_connected_services_slot(org, monkeypatch):
     p = m.Pipeline.objects.get(workspace=org["ws"], kind="real_estate")
     deal = m.Opportunity.objects.create(workspace=org["ws"], name="Deal", pipeline=p, stage=p.stages.first(), owner=org["people"][Role.AGENT])
     m.Milestone.objects.create(workspace=org["ws"], opportunity=deal, title="Appraisal", due_date=timezone.localdate() + timedelta(days=2))
+    # The connected-services slot must never reach out to a provider while Home loads.
+    import socket
+
+    def no_network(*a, **k):
+        raise AssertionError("Home made a network call")
+
+    monkeypatch.setattr(socket, "create_connection", no_network)
+    monkeypatch.setattr(socket.socket, "connect", no_network)
     d = body(agent.get(url(org, "dashboard")))["data"]
     assert str(today_event.pk) in {e["id"] for e in d["meetings_today"]}
     assert [x["title"] for x in d["approaching_deadlines"]] == ["Appraisal"] and d["approaching_deadlines"][0]["urgency"] == "due_soon"
-    assert d["applications_missing_documents"] == [] and d["connected_services"] is None
+    assert d["applications_missing_documents"] == []
     assert d["pipeline_summary"]["pipeline"]["name"] != "Lending"
+    # The integrations team's provider (apps/integrations/health.py) fills the slot: one row
+    # per service, in the agreed shape, from stored connection states only.
+    rows = d["connected_services"]
+    assert isinstance(rows, list) and rows
+    keys = {"service", "label", "status", "status_label", "detail", "checked_at", "link", "mock", "mock_label"}
+    for row in rows:
+        assert set(row) == keys, row
+        assert row["status"] in {"connected", "needs_reauth", "error", "not_connected", "not_configured"}
+        assert row["link"] == "#/integrations" and isinstance(row["mock"], bool)
+        assert (row["mock_label"] is None) == (not row["mock"])
+    assert {r["service"] for r in rows} >= {"gmail", "gohighlevel", "slack"}
     # Team members have no lending access: no section at all (not an empty one).
     assert body(api(org, Role.MEMBER).get(url(org, "dashboard")))["data"]["applications_missing_documents"] is None
-    # The extension point: an app's health.service_health(actor) fills the slot.
-    provider = SimpleNamespace(__name__="fake.health", service_health=lambda actor: [{"service": "x", "label": "X", "status": "ok"}])
+    # Without any provider the slot is None (nothing invented).
+    monkeypatch.setattr(home, "nexus_modules", lambda name: [])
+    assert body(agent.get(url(org, "dashboard")))["data"]["connected_services"] is None
+    # Any app's health.service_health(actor) is picked up; a broken one doesn't break Home.
+    provider = SimpleNamespace(__name__="fake.health", service_health=lambda actor: [{"service": "x", "label": "X", "status": "connected"}])
     monkeypatch.setattr(home, "nexus_modules", lambda name: [("apps.fake", provider)] if name == "health" else [])
-    d = body(agent.get(url(org, "dashboard")))["data"]
-    assert d["connected_services"] == [{"service": "x", "label": "X", "status": "ok"}]
+    assert body(agent.get(url(org, "dashboard")))["data"]["connected_services"] == [{"service": "x", "label": "X", "status": "connected"}]
     broken = SimpleNamespace(__name__="broken.health", service_health=lambda actor: 1 / 0)
     monkeypatch.setattr(home, "nexus_modules", lambda name: [("apps.broken", broken)])
     assert body(agent.get(url(org, "dashboard")))["data"]["connected_services"] == []

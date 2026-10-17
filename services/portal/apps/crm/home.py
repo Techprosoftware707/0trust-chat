@@ -3,11 +3,13 @@ lending applications missing documents, suggested next steps waiting for review,
 connected-service health slot.
 
 Connected-service health is an EXTENSION POINT, not data of its own: any Nexus app may ship
-``health.py`` with ``def service_health(actor) -> list[dict]`` returning items like
-``{"service": "gmail", "label": "Gmail", "status": "ok|degraded|error|disconnected",
-"detail": "...", "checked_at": <datetime>, "link": "#/integrations"}`` for what *this actor*
-may know about. Home shows the items, or nothing when no app provides any (the integrations
-team fills it). Never invent a status.
+``health.py`` with ``def service_health(actor) -> list[dict]`` returning, for what *this
+actor* may know about, items of the shape the integrations team's provider uses
+(``apps/integrations/health.py``): ``{"service", "label", "status" (connected | needs_reauth |
+error | not_connected | not_configured), "status_label", "detail", "checked_at", "link",
+"mock", "mock_label"}``. Providers must not call the network (stored states only). Home shows
+the items (with the mock label when ``mock``), or nothing when no app provides the hook.
+Never invent a status.
 """
 
 from __future__ import annotations
