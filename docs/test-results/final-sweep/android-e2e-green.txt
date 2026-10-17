@@ -1,0 +1,85 @@
+Android app against a real Lumen server, GitHub Actions run 39005995744 (commit e5174e9), API 35 google_apis x86_64 emulator.
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/39005995744
+Server: install.sh --test on the runner; test CA installed as a user CA on the emulator.
+Debug APKs signed with the fixed test key (certificate SHA-256 b4711e6d106c54feb770d29f5853e1f6279241b5b8fa48c3d7e4f7c5e1c1fc3e).
+Same run, job 'Instrumented tests (emulator)': 15 tests, 0 failures, 4 skipped (the server tests, run by this job instead).
+
+
+==> Device trusts the server's test CA as a user CA
+PASS test CA installed in the device's user CA store (as Settings > Install a certificate does)
+
+==> Install the debug app and its instrumentation
+PASS installed app-x86_64-debug.apk and app-debug-androidTest.apk
+
+==> Portal account for the Android user
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droidd37ae638) (1 s)
+PASS portal account @droidd37ae638:10-1-0-184.sslip.io created (password generated at runtime, not printed)
+
+==> Phase a: discovery and single sign-on in the app
+    [device] STEP device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] STEP discovery: the server name leads to the sign-in screen with single sign-on
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] STEP single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] PASS single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] STEP the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] PASS the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] STEP portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] redirect chain: [302 matrix.10-1-0-184.sslip.io/_matrix/client/v3/login/sso/redirect/oidc-lumen, 302 10-1-0-184.sslip.io/identity/o/authorize, 302 matrix.10-1-0-184.sslip.io/_synapse/client/oidc/callback]
+    [device] PASS portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] STEP only the app's callback activity handles the callback URL
+    [device] PASS only the app's callback activity handles the callback URL
+    [device] STEP a callback with another nonce is ignored and its login token is not used
+    [device] PASS a callback with another nonce is ignored and its login token is not used
+    [device] STEP the browser's callback signs in: nonce check, m.login.token in the Rust SDK, first sync
+    [device] signed in as @droidd37ae638:10-1-0-184.sslip.io on device LCVULOIZVU
+    [device] PASS the browser's callback signs in: nonce check, m.login.token in the Rust SDK, first sync
+    [device] STEP the server has this device's identity and one-time keys, and the device is named
+    [device] server view: device keys=true, one-time keys=50, name='Lumen on sdk_gphone64_x86_64'
+    [device] PASS the server has this device's identity and one-time keys, and the device is named
+PASS io.lumen.secure.e2e.ServerE2eTest#a_signInThroughPortalSso: passed
+PASS phase a: the app signed in through the portal's SSO and synced
+PASS server database: device 'Lumen on sdk_gphone64_x86_64' with published device keys
+
+==> Phase b: encrypted direct chat with a web user
+PASS web user @webpeer8a47ae94:10-1-0-184.sslip.io invited the Android user to an encrypted DM and wrote in it
+    [device] STEP after the app process restarted, the session is restored and syncs
+    [device] PASS after the app process restarted, the session is restored and syncs
+    [device] STEP the web user's invitation appears in the room list
+    [device] PASS the web user's invitation appears in the room list
+    [device] STEP accepting the invitation in the room list joins the chat
+    [device] PASS accepting the invitation in the room list joins the chat
+    [device] STEP the chat is end-to-end encrypted and shows the web user's message decrypted
+    [device] PASS the chat is end-to-end encrypted and shows the web user's message decrypted
+    [device] STEP a reply typed in the composer is sent and confirmed by the server
+    [device] PASS a reply typed in the composer is sent and confirmed by the server
+PASS io.lumen.secure.e2e.ServerE2eTest#b_encryptedChatWithWebUser: passed
+PASS phase b: the app accepted, decrypted the web user's message and replied
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS web user signs up on the portal (@webpeer8a47ae94:10-1-0-184.sslip.io) (1 s)
+    [web] PASS web user signs in to the deployed web app through SSO (3 s)
+    [web]      device keys: 1, one-time keys: 50, fallback keys: 1
+    [web] PASS server: the Android device has published its identity and one-time keys (1 s)
+    [web] PASS web user opens an encrypted direct chat with the Android user and writes (2 s)
+    [web] PASS web user sees the Android user's reply, decrypted (11 s)
+    [web]      event types in the room: {"m.room.create":"1","m.room.encrypted":"2","m.room.encryption":"1","m.room.guest_access":"1","m.room.history_visibility":"1","m.room.join_rules":"1","m.room.member":"3","m.room.power_levels":"1"}
+    [web] PASS server database: the room holds only m.room.encrypted message events (0 s)
+    [web] PASS server database: neither message text appears anywhere in the event store (1 s)
+PASS web user: reply from Android decrypted; database holds only ciphertext for the room
+
+==> Phase c: sign-out
+    [device] STEP after another restart, the session is restored
+    [device] PASS after another restart, the session is restored
+    [device] STEP the access token is valid before signing out
+    [device] PASS the access token is valid before signing out
+    [device] STEP Settings → Sign out → confirm returns to the server picker
+    [device] PASS Settings → Sign out → confirm returns to the server picker
+    [device] STEP the server no longer accepts the old access token
+    [device] PASS the server no longer accepts the old access token
+    [device] STEP local data is gone: stores, sealed session and its Keystore key
+    [device] PASS local data is gone: stores, sealed session and its Keystore key
+PASS io.lumen.secure.e2e.ServerE2eTest#c_signOutEndsTheSession: passed
+PASS phase c: sign-out invalidated the token and deleted the local data
+PASS server database: no device and no access token left for @droidd37ae638:10-1-0-184.sslip.io (account's cross-signing keys kept: 3)
+android e2e: all steps passed

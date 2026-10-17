@@ -17,10 +17,11 @@ The short version:
   real server (2026-10-17) found that **neither app could have signed in**: on Android every HTTPS
   request of the SDK failed (its certificate verifier was never initialised), and on iOS the SDK
   refused to build the sign-in client (no session delegate with the multi-process lock). Both are
-  fixed. iOS now builds its sign-in client against a real server in CI; Android's SDK reached a
-  real Lumen server in the emulator, but the full sign-in → encrypted DM → sign-out run has not
-  completed yet (the last run was blocked by the GitHub account's Actions billing). Their call path
-  was proven in a real encrypted call outside the apps.
+  fixed. **Android now passes end to end on the emulator against a real Lumen server**: SSO sign-in,
+  an encrypted chat with a web user in both directions, sign-out (CI run 39005995744). iOS builds
+  its sign-in client against a real server in CI, but has not signed in to a Lumen server from the
+  app (macOS runners can't host one). Their call path was proven in a real encrypted call outside
+  the apps.
 - **Nothing is signed for distribution, nothing has run on a physical device, and nothing has been
   published to a store.** All of that needs the operator's own certificates and accounts.
 
@@ -62,12 +63,12 @@ The short version:
 | Build | Green on GitHub Actions `ubuntu-24.04`: run 38707281536 (round 3; round 2, 38704288600, also green). JDK 21, AGP 8.13.2, Gradle 8.14.3, compile/target SDK 36, min SDK 26. |
 | Package | Release: per-ABI APKs (`arm64-v8a` 69 MB, `armeabi-v7a`, `x86_64`, `x86`), universal APK and `app-release.aab` (106 MB), all **unsigned**; debug universal APK (debug key, for testing). SHA-256 in `docs/test-results/android-ci.txt`. The size is mostly the Rust SDK (`libmatrix_sdk_ffi.so`, 61 MiB on arm64; 16 KB page-aligned as Play requires). |
 | Functional tests | Unit 64/64 (shared vectors: URL policy, well-known, deep links incl. room-version-12 IDs; native SFU-token/transport handling; delivery mapping; preview policy; app-lock timer…). Lint: 0 errors, 0 warnings. On an API 35 emulator: 8 passed, 1 skipped (it needs a test server): launch and server picker, offline input validation, real Keystore seal/open/wipe, backup disabled, foreground-service types, notification channels, permissions. |
-| Messaging / encryption | Implemented against the Rust SDK (the timeline, encrypted send/receive, verification, recovery). An emulator test against a real Lumen server (CI job "App against a real Lumen server") found that the SDK could make no HTTPS request at all; fixed (verifier initialised; its trust anchors follow the app's network security config: release = system CAs only). With the fix the SDK reached the server (run 38990967219); **sign-in, the encrypted DM and sign-out have not completed in a test yet** (`docs/test-results/final-sweep/android-e2e.txt`). |
+| Messaging / encryption | **End to end on an API 35 emulator against a real Lumen server** (CI job "App against a real Lumen server", run 39005995744, 42/42): SSO through the portal (foreign-nonce link ignored with a message), first sync, device keys published, session restored after process restarts, an encrypted DM with a web user (decrypted on the phone, reply decrypted in the browser, database holds only ciphertext), sign-out (token refused, local data and Keystore key gone). The test found that the SDK could make no HTTPS request at all; fixed (verifier initialised; trust anchors follow the app's network security config: release = system CAs only). Verification, recovery and groups are implemented but not in this test (`final-sweep/android-e2e-green.txt`). |
 | Calling | The bundled call widget, the native SFU-token and transport handling, Core-Telecom and the call notification are implemented. The same call path (Rust SDK widget driver + Lumen widget + native handling) passed a real encrypted call in the Linux harness (`apps-widget-call.txt`, 12/12). The app's WebView call is **not run**. |
 | Notifications | FCM push via Sygnal (`event_id_only`) is implemented and optional at build time. Delivery is **not verified**: it needs a Firebase project, `PUSH_ENABLED` on the server and a device. |
-| Signing | Release APKs and the AAB are **unsigned** without the `ANDROID_KEYSTORE_*` secrets. The debug APK is signed with a debug key and is for testing only. |
+| Signing | Release APKs and the AAB are **unsigned** without the `ANDROID_KEYSTORE_*` secrets. Debug (test) APKs are signed with the fixed test key when the `ANDROID_TEST_KEYSTORE_*` secrets are set (they are), so a new test build installs over the previous one; for testing only. |
 | Store | Not published. Play needs a developer account, Play App Signing, a Data safety form and review. |
-| Remaining | Re-run the emulator jobs once the GitHub Actions billing is fixed (SSO, encrypted DM, sign-out; the no-server TLS verifier test already passed, 3/3, in run 38990967219); verification and a call against a server; FCM delivery; a TalkBack pass; release signing. |
+| Remaining | A physical phone (install reported failing on an Android 9 phone with the 64-bit build; the universal build is the next step); verification and a call against a server from the app; FCM delivery; a TalkBack pass; release signing. |
 
 ## iOS and iPadOS
 
