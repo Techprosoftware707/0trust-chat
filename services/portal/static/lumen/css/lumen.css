@@ -300,8 +300,10 @@ dl.kv dd .badge { white-space: normal; margin: 0 0.25rem 0.25rem 0; }
   dl.kv dd { margin-bottom: var(--space-3); }
 }
 .check-list { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
-.check-list li { display: flex; gap: 0.65rem; align-items: flex-start; font-size: var(--text-sm); }
-.check-list li .icon { color: var(--success); margin-top: 0.15rem; }
+.check-list li { position: relative; padding-left: 1.8rem; font-size: var(--text-sm); }
+.check-list li > .icon:first-child { position: absolute; left: 0; top: 0.2em; }
+.check-list li .icon { color: var(--success); }
+.check-list li .icon.danger-icon { color: var(--danger); }
 .x-list li .icon { color: var(--text-subtle); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
@@ -614,7 +616,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: var(--text-sm);
 .auth-switch { font-size: var(--text-sm); color: var(--text-muted); }
 .auth-switch a { font-weight: 600; }
 .auth-points { color: #cfe0f2; }
-.auth-points .icon { color: var(--lm-teal-300); }
+.auth-points li .icon { color: var(--lm-teal-300); }
 .auth-mobile-brand { display: none; margin-bottom: var(--space-4); }
 @media (max-width: 880px) {
   .auth-layout { grid-template-columns: minmax(0, 1fr); }
