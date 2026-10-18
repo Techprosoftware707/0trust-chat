@@ -1,0 +1,268 @@
+Android sign-in on Android 9: final CI run (run 3)
+==================================================
+GitHub Actions run 39081831503 (workflow_dispatch, android.yml), commit 98be0dd, 2026-10-18
+https://github.com/Techprosoftware707/0trust-chat/actions/runs/39081831503
+Code: the fix of ceeebec (CRL-only certificates checked against their CRL; CRL hosts allowed over
+plain http) plus 98be0dd (e2e waits up to 180 s for join and sign-out, server logs on failure,
+background-task details in the log). Excerpts copied from the job logs (timestamps removed).
+
+Job results:
+  success  Build, test, package: unit tests (app 13 incl. RevocationCheckTest 5/5; :core 62 incl.
+           RevocationInfoTest), lint 0 errors / 2 warnings (both older InlinedApi, unchanged),
+           checkNoTlsBypass, debug + release APKs and AAB
+  success  Screenshots (every screen, sizes, themes, large text)
+  success  Instrumented tests (emulator), API 35: 19 passed, 4 skipped (tests that need a test
+           server), 0 failed; includes SdkTlsTest 8/8 against public servers
+  success  App against a real Lumen server (emulator), API 35: 42/42
+  success  Installs, starts and passes the SDK TLS tests on Android 9 (API 28): 12/12
+  success  App against a real Lumen server (emulator, Android 9): 42/42
+  success  Installs, starts and passes the SDK TLS tests on Android 8.0 (API 26): 12/12
+  failure  App against a real Lumen server (emulator, Android 8.0): 26 PASS, 6 FAIL. Sign-in
+           (phase a) passed; phase b stopped at "shows the web user's message decrypted" (180 s).
+           Synapse's log (kept by run.sh): the app's last request arrived at 00:25:54, then none
+           for 3 minutes, while the web user's requests kept arriving; on the device the room
+           timeline never opened ("[room] open failed (JobCancellationException)" when the test
+           ended). The same job passed 42/42 in run 2 on the fix commit.
+
+Open finding (not TLS, not Android-version specific): in 3 of the 9 e2e jobs of runs 2 and 3
+(API 35 phase c, API 28 phase b, API 26 phase b) the Rust SDK's syncing stopped for a minute or
+more after a session restore or a join: requests stopped reaching the server, or got no answer,
+while the platform HTTP client still worked. The server is the CI runner's own install with a
+private CA, so the certificate verifier skips revocation there and the fix is not on that path.
+Not yet explained; to investigate with the SDK's own logs (API 26/28 emulators write none).
+
+Debug APKs from this run (artifact lumen-android, zip SHA-256 8aaf8b65...31ac21 = GitHub's digest):
+  ac6db1a29ba13ed2e3ea9f1e3fbff91d671aaea8f69b67d6d8c6ba6c8296f391  app-universal-debug.apk
+  fe283fbd0ec743adbc3fd9787b8e994929d1e1f0a75c275fca8161dec3b7b6bf  app-arm64-v8a-debug.apk
+  both match SHA256SUMS-android.txt; apksigner: v2+v3 verified, signer CN=Lumen test builds,
+  certificate SHA-256 b4711e6d106c54feb770d29f5853e1f6279241b5b8fa48c3d7e4f7c5e1c1fc3e (the fixed
+  test key, as before: installs over the previous test build). io.lumen.secure 1.0.0 (versionCode
+  1), minSdk 26; res/xml/network_security_config.xml in the APK carries the CRL host block.
+
+=== Android 9 (API 28): SDK TLS tests (job 117541727093) ===
+device: Android 9 (API 28), ABIs x86_64,x86
+PASS API 28: installed
+PASS API 28: started, still running and in front after 15 s, no crash
+LumenTls: CHAIN matrix-client.matrix.org: CN=matrix.org <- CN=WE1 <- CN=GTS Root R4; leaf issuer CN=WE1; OCSP responder: false; CRL: [http://c.pki.goog/we1/kYX9eQJM9Z0.crl]
+LumenTls: RESULT verifier matrix-client.matrix.org: code=0 
+LumenTls: CHAIN revoked-isrgrootx1.letsencrypt.org: CN=revoked-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/44.crl]
+Lumen   : [tls] certificate refused: Revoked (java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: [])
+LumenTls: RESULT verifier revoked-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: []
+LumenTls: CHAIN valid-isrgrootx1.letsencrypt.org: CN=valid-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/46.crl]
+LumenTls: RESULT verifier valid-isrgrootx1.letsencrypt.org: code=0 
+LumenTls: RESULT sdk matrix-client.matrix.org: single sign-on URL on matrix-client.matrix.org
+Lumen   : [tls] certificate refused: UnknownCert (java.security.cert.CertificateException: java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.)
+LumenTls: RESULT sdk self-signed.badssl.com: verifier=UnknownCert; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://self-signed.badssl.com/…
+LumenTls: RESULT sdk valid-isrgrootx1.letsencrypt.org: verifier=Ok ; sdk error=ClientBuildException.ServerUnreachable: the server returned an error: [404] <non-json bytes>
+LumenTls: RESULT crl hosts of valid-isrgrootx1.letsencrypt.org: yr1.c.lencr.org cleartext=true
+LumenTls: RESULT crl hosts of matrix-client.matrix.org: c.pki.goog cleartext=true
+LumenTls: RESULT sdk revoked-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: []; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://revoked-isrgrootx1.letsencrypt.org/…
+Lumen   : [tls] certificate refused: InvalidEncoding
+PASS io.lumen.secure.SdkTlsTest#verifierAcceptsMatrixOrgsCertificate: passed
+PASS io.lumen.secure.SdkTlsTest#verifierRefusesARevokedLetsEncryptCertificateAsRevoked: passed
+PASS io.lumen.secure.SdkTlsTest#verifierAcceptsALetsEncryptCertificate: passed
+PASS io.lumen.secure.SdkTlsTest#sdkStartsSingleSignOnWithAPubliclyTrustedServer: passed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesASelfSignedCertificate: passed
+PASS io.lumen.secure.SdkTlsTest#sdkGetsThroughTlsWithALetsEncryptServer: passed
+PASS io.lumen.secure.SdkTlsTest#crlsOfPublicCertificatesMayBeFetched: passed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesARevokedCertificate: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsACertificateNoTrustedCaIssued: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsGarbage: passed
+PASS io.lumen.secure.RustTlsTest#sdkGetsTheJvmAndContextForTlsVerification: passed
+PASS io.lumen.secure.KeystoreTest#sealOpenAndDelete: passed
+PASS API 28: SDK TLS, verifier and Keystore tests
+
+=== Android 8.0 (API 26): SDK TLS tests (job 117541727035) ===
+device: Android 8.0.0 (API 26), ABIs x86_64,x86
+PASS API 26: installed
+PASS API 26: started, still running and in front after 15 s, no crash
+LumenTls: CHAIN matrix-client.matrix.org: CN=matrix.org <- CN=WE1 <- CN=GTS Root R4; leaf issuer CN=WE1; OCSP responder: false; CRL: [http://c.pki.goog/we1/kYX9eQJM9Z0.crl]
+LumenTls: RESULT verifier matrix-client.matrix.org: code=0 
+LumenTls: CHAIN revoked-isrgrootx1.letsencrypt.org: CN=revoked-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/44.crl]
+Lumen   : [tls] certificate refused: Revoked (java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: [])
+LumenTls: RESULT verifier revoked-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: []
+LumenTls: CHAIN valid-isrgrootx1.letsencrypt.org: CN=valid-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/46.crl]
+LumenTls: RESULT verifier valid-isrgrootx1.letsencrypt.org: code=0 
+LumenTls: RESULT sdk matrix-client.matrix.org: single sign-on URL on matrix-client.matrix.org
+Lumen   : [tls] certificate refused: UnknownCert (java.security.cert.CertificateException: java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.)
+LumenTls: RESULT sdk self-signed.badssl.com: verifier=UnknownCert; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://self-signed.badssl.com/…
+LumenTls: RESULT sdk valid-isrgrootx1.letsencrypt.org: verifier=Ok ; sdk error=ClientBuildException.ServerUnreachable: the server returned an error: [404] <non-json bytes>
+LumenTls: RESULT crl hosts of valid-isrgrootx1.letsencrypt.org: yr1.c.lencr.org cleartext=true
+LumenTls: RESULT crl hosts of matrix-client.matrix.org: c.pki.goog cleartext=true
+LumenTls: RESULT sdk revoked-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: []; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://revoked-isrgrootx1.letsencrypt.org/…
+Lumen   : [tls] certificate refused: InvalidEncoding
+PASS io.lumen.secure.SdkTlsTest#verifierAcceptsMatrixOrgsCertificate: passed
+PASS io.lumen.secure.SdkTlsTest#verifierRefusesARevokedLetsEncryptCertificateAsRevoked: passed
+PASS io.lumen.secure.SdkTlsTest#verifierAcceptsALetsEncryptCertificate: passed
+PASS io.lumen.secure.SdkTlsTest#sdkStartsSingleSignOnWithAPubliclyTrustedServer: passed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesASelfSignedCertificate: passed
+PASS io.lumen.secure.SdkTlsTest#sdkGetsThroughTlsWithALetsEncryptServer: passed
+PASS io.lumen.secure.SdkTlsTest#crlsOfPublicCertificatesMayBeFetched: passed
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesARevokedCertificate: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsACertificateNoTrustedCaIssued: passed
+PASS io.lumen.secure.RustTlsTest#verifierRejectsGarbage: passed
+PASS io.lumen.secure.RustTlsTest#sdkGetsTheJvmAndContextForTlsVerification: passed
+PASS io.lumen.secure.KeystoreTest#sealOpenAndDelete: passed
+PASS API 26: SDK TLS, verifier and Keystore tests
+
+=== Android 15 (API 35): instrumented tests (job 117541727045) ===
+LumenTls: CHAIN matrix-client.matrix.org: CN=matrix.org <- CN=WE1 <- CN=GTS Root R4; leaf issuer CN=WE1; OCSP responder: false; CRL: [http://c.pki.goog/we1/kYX9eQJM9Z0.crl]
+LumenTls: CHAIN revoked-isrgrootx1.letsencrypt.org: CN=revoked-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/44.crl]
+LumenTls: CHAIN valid-isrgrootx1.letsencrypt.org: CN=valid-isrgrootx1.letsencrypt.org <- CN=YR1 <- CN=Root YR; leaf issuer CN=YR1; OCSP responder: false; CRL: [http://yr1.c.lencr.org/46.crl]
+LumenTls: RESULT crl hosts of matrix-client.matrix.org: c.pki.goog cleartext=true
+LumenTls: RESULT crl hosts of valid-isrgrootx1.letsencrypt.org: yr1.c.lencr.org cleartext=true
+LumenTls: RESULT sdk matrix-client.matrix.org: single sign-on URL on matrix-client.matrix.org
+LumenTls: RESULT sdk revoked-isrgrootx1.letsencrypt.org: verifier=Revoked java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: []; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://revoked-isrgrootx1.letsencrypt.org/…
+LumenTls: RESULT sdk self-signed.badssl.com: verifier=UnknownCert; sdk error=ClientBuildException.ServerUnreachable: error sending request for url (https://self-signed.badssl.com/…
+LumenTls: RESULT sdk valid-isrgrootx1.letsencrypt.org: verifier=Ok ; sdk error=ClientBuildException.ServerUnreachable: the server returned an error: [404] <non-json bytes>
+LumenTls: RESULT verifier matrix-client.matrix.org: code=0
+LumenTls: RESULT verifier revoked-isrgrootx1.letsencrypt.org: code=4 java.security.cert.CertPathValidatorException: Certificate has been revoked, reason: UNSPECIFIED, revocation date: Wed Oct 07 18:37:19 UTC 2026, authority: CN=YR1, O=Let's Encrypt, C=US, extension OIDs: []
+LumenTls: RESULT verifier valid-isrgrootx1.letsencrypt.org: code=0
+PASS io.lumen.secure.KeystoreTest#sealOpenAndDelete
+PASS io.lumen.secure.LaunchTest#freshInstallShowsServerPicker
+SKIP io.lumen.secure.LaunchTest#discoversConfiguredTestServer
+PASS io.lumen.secure.LaunchTest#continueNeedsInputAndInvalidInputIsRejected
+PASS io.lumen.secure.ManifestAndPermissionsTest#notificationPermissionIsRuntimeOnAndroid13
+PASS io.lumen.secure.ManifestAndPermissionsTest#notificationChannelsExist
+PASS io.lumen.secure.ManifestAndPermissionsTest#callPermissionsCanBeGranted
+PASS io.lumen.secure.ManifestAndPermissionsTest#foregroundServiceTypesAreDeclared
+PASS io.lumen.secure.ManifestAndPermissionsTest#backupIsDisabled
+PASS io.lumen.secure.RustTlsTest#verifierRejectsACertificateNoTrustedCaIssued
+PASS io.lumen.secure.RustTlsTest#verifierRejectsGarbage
+PASS io.lumen.secure.RustTlsTest#sdkGetsTheJvmAndContextForTlsVerification
+PASS io.lumen.secure.SdkTlsTest#verifierAcceptsMatrixOrgsCertificate
+PASS io.lumen.secure.SdkTlsTest#verifierRefusesARevokedLetsEncryptCertificateAsRevoked
+PASS io.lumen.secure.SdkTlsTest#verifierAcceptsALetsEncryptCertificate
+PASS io.lumen.secure.SdkTlsTest#sdkStartsSingleSignOnWithAPubliclyTrustedServer
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesASelfSignedCertificate
+PASS io.lumen.secure.SdkTlsTest#sdkGetsThroughTlsWithALetsEncryptServer
+PASS io.lumen.secure.SdkTlsTest#crlsOfPublicCertificatesMayBeFetched
+PASS io.lumen.secure.SdkTlsTest#sdkRefusesARevokedCertificate
+SKIP io.lumen.secure.e2e.ServerE2eTest#a_signInThroughPortalSso
+SKIP io.lumen.secure.e2e.ServerE2eTest#b_encryptedChatWithWebUser
+SKIP io.lumen.secure.e2e.ServerE2eTest#c_signOutEndsTheSession
+
+=== Android 9 (API 28) against a Lumen server (private test CA): job 117541726980 (summary.txt) ===
+PASS test CA installed in the device's user CA store (as Settings > Install a certificate does)
+PASS installed app-x86_64-debug.apk and app-debug-androidTest.apk
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droide809159b) (2 s)
+PASS portal account @droide809159b:10-1-0-201.sslip.io created (password generated at runtime, not printed)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] PASS single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] PASS the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] PASS portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] PASS only the app's callback activity handles the callback URL
+    [device] PASS a callback with another nonce is ignored and its login token is not used
+    [device] PASS the browser's callback signs in: nonce check, m.login.token in the Rust SDK, first sync
+    [device] PASS the server has this device's identity and one-time keys, and the device is named
+PASS io.lumen.secure.e2e.ServerE2eTest#a_signInThroughPortalSso: passed
+PASS phase a: the app signed in through the portal's SSO and synced
+PASS server database: device 'Lumen on Android SDK built for x86_64' with published device keys
+PASS web user @webpeerad6db1fe:10-1-0-201.sslip.io invited the Android user to an encrypted DM and wrote in it
+    [device] PASS after the app process restarted, the session is restored and syncs
+    [device] PASS the web user's invitation appears in the room list
+    [device] PASS accepting the invitation in the room list joins the chat
+    [device] PASS the chat is end-to-end encrypted and shows the web user's message decrypted
+    [device] PASS a reply typed in the composer is sent and confirmed by the server
+PASS io.lumen.secure.e2e.ServerE2eTest#b_encryptedChatWithWebUser: passed
+PASS phase b: the app accepted, decrypted the web user's message and replied
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS web user signs up on the portal (@webpeerad6db1fe:10-1-0-201.sslip.io) (0 s)
+    [web] PASS web user signs in to the deployed web app through SSO (2 s)
+    [web] PASS server: the Android device has published its identity and one-time keys (0 s)
+    [web] PASS web user opens an encrypted direct chat with the Android user and writes (2 s)
+    [web] PASS web user sees the Android user's reply, decrypted (12 s)
+    [web] PASS server database: the room holds only m.room.encrypted message events (0 s)
+    [web] PASS server database: neither message text appears anywhere in the event store (1 s)
+PASS web user: reply from Android decrypted; database holds only ciphertext for the room
+    [device] PASS after another restart, the session is restored
+    [device] PASS the access token is valid before signing out
+    [device] PASS Settings → Sign out → confirm returns to the server picker
+    [device] PASS the server no longer accepts the old access token
+    [device] PASS local data is gone: stores, sealed session and its Keystore key
+PASS io.lumen.secure.e2e.ServerE2eTest#c_signOutEndsTheSession: passed
+PASS phase c: sign-out invalidated the token and deleted the local data
+PASS server database: no device and no access token left for @droide809159b:10-1-0-201.sslip.io (account's cross-signing keys kept: 3)
+android e2e: all steps passed
+
+=== Android 15 (API 35) against a Lumen server: job 117541727087 (summary.txt) ===
+PASS test CA installed in the device's user CA store (as Settings > Install a certificate does)
+PASS installed app-x86_64-debug.apk and app-debug-androidTest.apk
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droid73f8dc1e) (1 s)
+PASS portal account @droid73f8dc1e:10-1-0-64.sslip.io created (password generated at runtime, not printed)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] PASS single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] PASS the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] PASS portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] PASS only the app's callback activity handles the callback URL
+    [device] PASS a callback with another nonce is ignored and its login token is not used
+    [device] PASS the browser's callback signs in: nonce check, m.login.token in the Rust SDK, first sync
+    [device] PASS the server has this device's identity and one-time keys, and the device is named
+PASS io.lumen.secure.e2e.ServerE2eTest#a_signInThroughPortalSso: passed
+PASS phase a: the app signed in through the portal's SSO and synced
+PASS server database: device 'Lumen on sdk_gphone64_x86_64' with published device keys
+PASS web user @webpeer4b91ffcb:10-1-0-64.sslip.io invited the Android user to an encrypted DM and wrote in it
+    [device] PASS after the app process restarted, the session is restored and syncs
+    [device] PASS the web user's invitation appears in the room list
+    [device] PASS accepting the invitation in the room list joins the chat
+    [device] PASS the chat is end-to-end encrypted and shows the web user's message decrypted
+    [device] PASS a reply typed in the composer is sent and confirmed by the server
+PASS io.lumen.secure.e2e.ServerE2eTest#b_encryptedChatWithWebUser: passed
+PASS phase b: the app accepted, decrypted the web user's message and replied
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS web user signs up on the portal (@webpeer4b91ffcb:10-1-0-64.sslip.io) (2 s)
+    [web] PASS web user signs in to the deployed web app through SSO (2 s)
+    [web] PASS server: the Android device has published its identity and one-time keys (1 s)
+    [web] PASS web user opens an encrypted direct chat with the Android user and writes (2 s)
+    [web] PASS web user sees the Android user's reply, decrypted (14 s)
+    [web] PASS server database: the room holds only m.room.encrypted message events (0 s)
+    [web] PASS server database: neither message text appears anywhere in the event store (1 s)
+PASS web user: reply from Android decrypted; database holds only ciphertext for the room
+    [device] PASS after another restart, the session is restored
+    [device] PASS the access token is valid before signing out
+    [device] PASS Settings → Sign out → confirm returns to the server picker
+    [device] PASS the server no longer accepts the old access token
+    [device] PASS local data is gone: stores, sealed session and its Keystore key
+PASS io.lumen.secure.e2e.ServerE2eTest#c_signOutEndsTheSession: passed
+PASS phase c: sign-out invalidated the token and deleted the local data
+PASS server database: no device and no access token left for @droid73f8dc1e:10-1-0-64.sslip.io (account's cross-signing keys kept: 3)
+android e2e: all steps passed
+
+=== Android 8.0 (API 26) against a Lumen server: job 117541726974 (summary.txt) ===
+PASS test CA installed in the device's user CA store (as Settings > Install a certificate does)
+PASS installed app-x86_64-debug.apk and app-debug-androidTest.apk
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS portal sign-up for the Android user (droid9b4c879c) (1 s)
+PASS portal account @droid9b4c879c:10-1-0-150.sslip.io created (password generated at runtime, not printed)
+    [device] PASS device trusts the server's test CA as a user CA (not a system CA)
+    [device] PASS discovery: the server name leads to the sign-in screen with single sign-on
+    [device] PASS single sign-on opens the homeserver's SSO URL in Custom Tabs
+    [device] PASS the SSO URL carries the app's redirect with a fresh per-attempt nonce
+    [device] PASS portal sign-in and the SSO redirect chain over HTTPS end at the app's callback
+    [device] PASS only the app's callback activity handles the callback URL
+    [device] PASS a callback with another nonce is ignored and its login token is not used
+    [device] PASS the browser's callback signs in: nonce check, m.login.token in the Rust SDK, first sync
+    [device] PASS the server has this device's identity and one-time keys, and the device is named
+PASS io.lumen.secure.e2e.ServerE2eTest#a_signInThroughPortalSso: passed
+PASS phase a: the app signed in through the portal's SSO and synced
+PASS server database: device 'Lumen on Android SDK built for x86_64' with published device keys
+PASS web user @webpeerd8ecd436:10-1-0-150.sslip.io invited the Android user to an encrypted DM and wrote in it
+    [device] PASS after the app process restarted, the session is restored and syncs
+    [device] PASS the web user's invitation appears in the room list
+    [device] PASS accepting the invitation in the room list joins the chat
+    [device] FAIL the chat is end-to-end encrypted and shows the web user's message decrypted: AssertionError: timed out after 180 s waiting for the web user's message to be shown decrypted
+FAIL io.lumen.secure.e2e.ServerE2eTest#b_encryptedChatWithWebUser: failed
+FAIL phase b (encrypted chat) failed
+    [web] PASS browser trusts the server's test CA (0 s)
+    [web] PASS web user signs up on the portal (@webpeerd8ecd436:10-1-0-150.sslip.io) (1 s)
+    [web] PASS web user signs in to the deployed web app through SSO (2 s)
+    [web] PASS server: the Android device has published its identity and one-time keys (0 s)
+    [web] PASS web user opens an encrypted direct chat with the Android user and writes (2 s)
+    [web] FAIL web user sees the Android user's reply, decrypted
+FAIL web user side failed (see web/peer.log)
+android e2e: FAILED
+

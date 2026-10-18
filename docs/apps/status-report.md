@@ -1,6 +1,6 @@
 # Client apps: status report
 
-State of the four apps on 2026-10-17, with the evidence behind each line. Feature-level detail
+State of the four apps on 2026-10-18, with the evidence behind each line. Feature-level detail
 is in [feature-matrix.md](feature-matrix.md); raw outputs are in
 [docs/test-results/](../test-results/).
 
@@ -22,6 +22,14 @@ The short version:
   its sign-in client against a real server in CI, but has not signed in to a Lumen server from the
   app (macOS runners can't host one). Their call path was proven in a real encrypted call outside
   the apps.
+- **Android against servers with a public certificate (2026-10-18):** a tester's Android 9 phone
+  discovered a Let's Encrypt server and then could not start sign-in. The cause was in the SDK's
+  certificate check, on every Android version: certificates that name a CRL and no OCSP responder
+  (Let's Encrypt's since 2025, Google Trust Services', e.g. matrix.org) were refused as "revoked".
+  CI had not seen it because its test server uses a private CA, for which that check is skipped.
+  Fixed, and the SDK's own TLS is now tested against public servers on Android 8.0, 9 and 15; the
+  sign-in, chat and sign-out test passes on Android 9 and 15 in the final run (39081831503) and on
+  8.0 in the run before (39080198652). Details: `test-results/android-sso-tls/`.
 - **Nothing is signed for distribution, nothing has run on a physical device, and nothing has been
   published to a store.** All of that needs the operator's own certificates and accounts.
 
@@ -60,15 +68,16 @@ The short version:
 | | Status |
 |---|---|
 | Source | `apps/android/`: Kotlin and Jetpack Compose, on the Matrix Rust SDK (`org.matrix.rustcomponents:sdk-android:26.09.28`). Module `:core` holds pure logic, `:app` the UI and Android integration. |
-| Build | Green on GitHub Actions `ubuntu-24.04`: run 38707281536 (round 3; round 2, 38704288600, also green). JDK 21, AGP 8.13.2, Gradle 8.14.3, compile/target SDK 36, min SDK 26. |
+| Build | Green on GitHub Actions `ubuntu-24.04`: latest run 39081831503 (2026-10-18; build, unit, lint, screenshots, instrumented, SDK TLS on API 26/28, e2e on API 28/35 green; the API 26 e2e hit the sync stall noted below); earlier run 38707281536. JDK 21, AGP 8.13.2, Gradle 8.14.3, compile/target SDK 36, min SDK 26. |
 | Package | Release: per-ABI APKs (`arm64-v8a` 69 MB, `armeabi-v7a`, `x86_64`, `x86`), universal APK and `app-release.aab` (106 MB), all **unsigned**; debug universal APK (debug key, for testing). SHA-256 in `docs/test-results/android-ci.txt`. The size is mostly the Rust SDK (`libmatrix_sdk_ffi.so`, 61 MiB on arm64; 16 KB page-aligned as Play requires). |
-| Functional tests | Unit 64/64 (shared vectors: URL policy, well-known, deep links incl. room-version-12 IDs; native SFU-token/transport handling; delivery mapping; preview policy; app-lock timer…). Lint: 0 errors, 0 warnings. On an API 35 emulator: 8 passed, 1 skipped (it needs a test server): launch and server picker, offline input validation, real Keystore seal/open/wipe, backup disabled, foreground-service types, notification channels, permissions. |
-| Messaging / encryption | **End to end on an API 35 emulator against a real Lumen server** (CI job "App against a real Lumen server", run 39005995744, 42/42): SSO through the portal (foreign-nonce link ignored with a message), first sync, device keys published, session restored after process restarts, an encrypted DM with a web user (decrypted on the phone, reply decrypted in the browser, database holds only ciphertext), sign-out (token refused, local data and Keystore key gone). The test found that the SDK could make no HTTPS request at all; fixed (verifier initialised; trust anchors follow the app's network security config: release = system CAs only). Verification, recovery and groups are implemented but not in this test (`final-sweep/android-e2e-green.txt`). |
+| Functional tests | Unit tests: `:core` 62 and `:app` 13 (shared vectors: URL policy, well-known, deep links incl. room-version-12 IDs; native SFU-token/transport handling; delivery mapping; preview policy; app-lock timer; certificate revocation info; the revocation check against a local CA and CRL…). Lint: 0 errors, 2 warnings (InlinedApi, guarded at runtime). On an API 35 emulator: 19 passed, 4 skipped (they need a test server): launch and server picker, offline input validation, real Keystore seal/open/wipe, backup disabled, foreground-service types, notification channels, permissions, and the SDK TLS tests below. Run 39081831503. |
+| TLS (the SDK's own connections) | The Rust SDK checks certificates through Android (chain, expiry, server use, host name) and checks revocation for public CAs. `SdkTlsTest` against public servers, on API 26, 28 and 35 emulators (run 39081831503, 12/12 with the verifier and Keystore tests on 26 and 28): Let's Encrypt and matrix.org (Google Trust Services) accepted and single sign-on started; Let's Encrypt's revoked test certificate refused as revoked (its CRL lists it); a self-signed certificate refused. Before the fix the first two were refused as "revoked" on all three versions (run 39078879876): certificates without an OCSP responder failed the platform's OCSP-first check, and the CRL could not be fetched. Now such certificates are checked against their CRL only (unobtainable CRL = soft failure, like an unreachable OCSP responder), and plain http is allowed to the CAs' CRL hosts only (`app/crl-hosts.txt`). A sign-in error shows "Details" in debug builds (error class, TLS refusal, Android version). |
+| Messaging / encryption | **End to end on emulators against a real Lumen server** (CI job "App against a real Lumen server": API 35 runs 39005995744 and 39081831503, 42/42; Android 9 (API 28) run 39081831503, 42/42; Android 8.0 (API 26) run 39080198652, 42/42): SSO through the portal (foreign-nonce link ignored with a message), first sync, device keys published, session restored after process restarts, an encrypted DM with a web user (decrypted on the phone, reply decrypted in the browser, database holds only ciphertext), sign-out (token refused, local data and Keystore key gone). The test found that the SDK could make no HTTPS request at all; fixed (verifier initialised; trust anchors follow the app's network security config: release = system CAs only). Verification, recovery and groups are implemented but not in this test (`final-sweep/android-e2e-green.txt`). The test server uses a private CA; public certificates are covered by the TLS tests above. Open: in 3 of 9 runs of this job (2026-10-18, API 26, 28 and 35) the SDK stopped syncing for a minute or more after a session restore or a join (`android-sso-tls/run3-final.txt`), not yet explained. |
 | Calling | The bundled call widget, the native SFU-token and transport handling, Core-Telecom and the call notification are implemented. The same call path (Rust SDK widget driver + Lumen widget + native handling) passed a real encrypted call in the Linux harness (`apps-widget-call.txt`, 12/12). The app's WebView call is **not run**. |
 | Notifications | FCM push via Sygnal (`event_id_only`) is implemented and optional at build time. Delivery is **not verified**: it needs a Firebase project, `PUSH_ENABLED` on the server and a device. |
 | Signing | Release APKs and the AAB are **unsigned** without the `ANDROID_KEYSTORE_*` secrets. Debug (test) APKs are signed with the fixed test key when the `ANDROID_TEST_KEYSTORE_*` secrets are set (they are), so a new test build installs over the previous one; for testing only. |
 | Store | Not published. Play needs a developer account, Play App Signing, a Data safety form and review. |
-| Remaining | A physical phone (a tester's Android 9 phone refused the 64-bit build; the app installs and starts on Android 8.0 and 9 emulators, run 39007257465, so the next step there is the universal build for 32-bit phones); verification and a call against a server from the app; FCM delivery; a TalkBack pass; release signing. |
+| Remaining | A physical phone: the tester's Android 9 phone discovered its Let's Encrypt server but could not start sign-in (fixed above, the fixed build is not yet confirmed on that phone); verification and a call against a server from the app; the intermittent sync stall in the e2e job; FCM delivery; a TalkBack pass; release signing. |
 
 ## iOS and iPadOS
 

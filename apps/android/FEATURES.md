@@ -14,7 +14,8 @@ Legend:
   emulator (no KVM) and no device, and the CI emulator tests do not sign in to a server.
 - **Not implemented** — said plainly.
 
-Nothing below has been exercised against a live Lumen server from this app. The call path
+Sign-in, an encrypted chat with a web user and sign-out run against a live Lumen server on
+emulators in CI (job "App against a real Lumen server"); rows not marked so have not. The call path
 (widget driver + the native MSC4533/MSC4515 answers) was proven separately by the Rust widget
 harness in `tests/apps/widget-harness`, not by this app.
 
@@ -24,7 +25,9 @@ harness in `tests/apps/widget-harness`, not by this app.
 | Config | URL policy: https only, no user-info, loopback http only in debug | Tested | `core/config/UrlPolicy.kt`, `url-validation.json` (21 cases), `UrlPolicyTest` |
 | Config | `/.well-known/matrix/client` + `io.lumen.app` (version 1 only; bad links dropped; idp id pattern) | Tested | `WellKnownParser`, `wellknown.json` (7 cases) |
 | Config | Discovery: well-known → `/versions` → `/login` flows; server name, Matrix ID or URL input | Tested (fake HTTP) / Builds, unverified (real network) | `ServerDiscovery`, `DiscoveryTest` |
-| Auth | SSO via Custom Tabs, `startSsoLogin(redirectUrl, idpId)` → `SsoHandler.finish` | Builds, unverified | `SessionManager.startSso/finishSso`, `SsoCallbackActivity` |
+| Auth | SSO via Custom Tabs, `startSsoLogin(redirectUrl, idpId)` → `SsoHandler.finish` | Tested on emulator against a real Lumen server (CI job "App against a real Lumen server": API 35, 28, 26; private test CA) | `SessionManager.startSso/finishSso`, `SsoCallbackActivity`; `ServerE2eTest`, `docs/test-results/android-sso-tls/` |
+| Auth | The SDK's TLS: certificates checked by Android (chain, expiry, server use; host name by rustls); revocation for public CAs, a certificate that names only a CRL (Let's Encrypt since 2025) checked against its CRL, unobtainable CRL = soft failure; plain http only to the CAs' CRL hosts (`app/crl-hosts.txt`) | Tested on emulator (`SdkTlsTest` on API 26, 28, 35: Let's Encrypt and matrix.org accepted, revoked and self-signed refused) / Tested (`RevocationCheckTest`, local CA and CRL; `RevocationInfoTest`) | `org.rustls.platformverifier.CertificateVerifier`, `res/xml/network_security_config.xml`, `checkNoTlsBypass` |
+| Auth | Sign-in errors: redacted detail (error class with causes, TLS refusal, Android version), shown under "Details" in debug builds; TLS refusals logged (`Lumen` tag, status and reason) | Tested (redaction) / Builds, unverified (UI) | `SignInDiagnostics`, `TlsDiagnostics`, `AuthScreens` |
 | Auth | Per-attempt nonce in the redirect (`io.lumen.secure:/sso-callback?n=<nonce>`), stray/replayed callbacks ignored, single use, 15 min expiry, survives process death | Tested (routing, nonce, expiry) / Builds, unverified (end-to-end) | `DeepLinkRouter`, `SsoRedirect`, `deeplinks.json` (19 cases) |
 | Auth | Password login only when the server offers it and no SSO | Builds, unverified | `AuthScreens.PasswordForm` |
 | Auth | Sign-up button → `signup_url`; "Manage account" → `account_url`; "Delete account…" → `account_delete_url` (browser, shown only when the server advertises it) | Tested (parsing/validation, incl. shared vectors) / Builds, unverified (UI) | `SettingsScreen` |

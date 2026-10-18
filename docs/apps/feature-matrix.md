@@ -1,6 +1,6 @@
 # Feature matrix: web, Windows, macOS, Android, iOS/iPadOS
 
-Status of every feature on every platform, with the evidence behind it. Updated 2026-10-17.
+Status of every feature on every platform, with the evidence behind it. Updated 2026-10-18.
 Each app keeps a finer-grained list: [desktop](../../apps/desktop/FEATURES.md),
 [Android](../../apps/android/FEATURES.md), [iOS](../../apps/ios/FEATURES.md). Raw test output is
 in [docs/test-results/](../test-results/), summarised in [test-report.md](../test-report.md).
@@ -17,7 +17,7 @@ None of them has its own user database or message protocol.
 | **E2E** | Passed end to end against a running Lumen server (the dev stack), with real accounts. |
 | **E2E (Linux build)** | Desktop only. Passed end to end on the Linux build of the desktop app, which runs the same main-process, preload and web-client code as Windows and macOS. The Windows- or macOS-specific layer was not exercised. |
 | **Same as web** | Desktop only. The feature is the bundled web client's own code, unchanged; the web evidence applies. It wasn't re-run inside the desktop app. |
-| **E2E (emulator)** | Android only. Passed end to end in the app on an API 35 emulator against a real Lumen server installed by `install.sh --test` on the CI runner (`final-sweep/android-e2e-green.txt`). |
+| **E2E (emulator)** | Android only. Passed end to end in the app on emulators against a real Lumen server installed by `install.sh --test` on the CI runner: Android 15 (API 35) and, since 2026-10-18, Android 9 (API 28) and 8.0 (API 26) (`final-sweep/android-e2e-green.txt`, `android-sso-tls/`). That server uses a private test CA; servers with public certificates are covered by the SDK TLS tests (row "TLS of the app's own connections"). |
 | **E2E (harness)** | Mobile calls only. The call path both mobile apps use passed a real end-to-end encrypted call against the dev stack in `tests/apps/widget-harness`: the Matrix Rust SDK's widget driver at the SDK revision the apps pin, the Lumen call widget, and a port of the apps' native MSC4533/MSC4515 handling. The app's own WebView and OS call integration were not run. |
 | **CI** | Automated tests passed on that platform without a server: the packaged-app smoke test on Windows/macOS runners, iOS simulator tests (iPhone and iPad), Android emulator (API 35) tests, or unit tests of the feature's logic (JVM / Swift / Node). The note says which. |
 | **Built** | Implemented and compiles for that platform, but never run there. Needs a device, credentials or a test that doesn't exist yet. |
@@ -31,9 +31,10 @@ distribution, and nothing has been published to a store.
 
 | Feature | Web | Windows | macOS | Android | iOS/iPadOS |
 |---|---|---|---|---|---|
-| Server discovery (`/.well-known/matrix/client` with `io.lumen.app`, `/versions`, `/login`) | N/A (served by the server, configured by `config.json`) | E2E (Linux build); CI: picker renders | E2E (Linux build); CI: picker renders | CI (unit, shared vectors, fake HTTP; emulator: picker shown, bad input rejected offline); Built (real network) | CI (simulator unit, shared vectors; launch UI test); Built (real network) |
-| SSO through the Lumen portal | E2E | E2E (Linux build): system browser, `io.lumen.secure` return with nonce, stray/replayed callbacks ignored; Built: Windows scheme registration | Built: `open-url` return | E2E (emulator): portal SSO, nonce checked, a foreign-nonce link ignored with a message (browser step played by the test) | Built: `ASWebAuthenticationSession`. Server side: E2E (same test) |
+| Server discovery (`/.well-known/matrix/client` with `io.lumen.app`, `/versions`, `/login`) | N/A (served by the server, configured by `config.json`) | E2E (Linux build); CI: picker renders | E2E (Linux build); CI: picker renders | E2E (emulator, API 35, 28, 26); CI (unit, shared vectors, fake HTTP; emulator: picker shown, bad input rejected offline) | CI (simulator unit, shared vectors; launch UI test); Built (real network) |
+| SSO through the Lumen portal | E2E | E2E (Linux build): system browser, `io.lumen.secure` return with nonce, stray/replayed callbacks ignored; Built: Windows scheme registration | Built: `open-url` return | E2E (emulator, Android 15, 9 and 8.0): portal SSO, nonce checked, a foreign-nonce link ignored with a message (browser step played by the test). Against a server with a public certificate (Let's Encrypt): failed before 2026-10-18 on every Android version (fixed; see the TLS row); not yet re-confirmed on a phone | Built: `ASWebAuthenticationSession`. Server side: E2E (same test) |
 | Sign out: token revoked on the server, local data and keys wiped | E2E | E2E (Linux build) | E2E (Linux build) | E2E (emulator): token refused afterwards, stores and Keystore key gone, no device left | Built |
+| TLS of the app's own connections: certificate chain, host name, revocation for public CAs; no way to turn checks off | N/A (the browser's own checks) | N/A (Chromium's own checks, in Electron) | N/A (Chromium's own checks, in Electron) | CI (emulator, API 26, 28, 35): the Rust SDK accepts Let's Encrypt and matrix.org, starts single sign-on, refuses Let's Encrypt's revoked certificate (CRL) and a self-signed one (`SdkTlsTest`); revocation logic CI (JVM, local CA and CRL). Debug builds show the TLS refusal under "Details" on a sign-in error | CI (simulator): the Rust SDK accepts matrix.org, refuses a self-signed certificate (`SdkTlsTests`) |
 | Sessions list, rename, sign out other devices | E2E | Same as web | Same as web | Built (removal via the SSO fallback page) | Built (removal via the SSO fallback page) |
 | Verified state of your other devices | E2E | Same as web | Same as web | Partial: this device only (the SDK FFI has no per-device trust API) | Partial: this device only |
 | Account deletion | Portal (linked from Settings → About) | Same as web | Same as web | Built: "Delete account…" opens `account_delete_url` | Built: same |
