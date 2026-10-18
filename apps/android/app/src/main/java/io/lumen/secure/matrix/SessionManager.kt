@@ -124,7 +124,13 @@ class SessionManager(
                 }
 
                 override fun onBackgroundTaskErrorReport(taskName: String, error: BackgroundTaskFailureReason) {
-                    LumenLog.w("session", "background task error")
+                    // Task name and failure kind (the redacting logger scrubs the SDK's message).
+                    val detail = when (error) {
+                        is BackgroundTaskFailureReason.Panic -> "panic: " + error.message?.take(200)
+                        is BackgroundTaskFailureReason.Error -> "error: " + error.error.take(200)
+                        else -> "ended early"
+                    }
+                    LumenLog.w("session", "background task error: $taskName, $detail")
                 }
             },
         )

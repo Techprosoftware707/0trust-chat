@@ -220,7 +220,9 @@ class ServerE2eTest {
 
         val roomName = step("accepting the invitation in the room list joins the chat") {
             compose.onAllNodesWithTag("invite_accept")[0].performClick()
-            waitUi("the chat to be joined", 60_000) {
+            // 180 s: on a loaded CI runner the SDK's connection to the server has been seen to
+            // stall for about a minute (sync and requests alike) before it recovers.
+            waitUi("the chat to be joined", 180_000) {
                 graph.roomList.value?.visible?.value?.any { it.id == roomId && !it.isInvite } == true &&
                     compose.onAllNodesWithTag("invite_accept").fetchSemanticsNodes().isEmpty()
             }
@@ -268,7 +270,7 @@ class ServerE2eTest {
             waitForTag("sign_out_row", 15_000)
             compose.onNodeWithTag("sign_out_row").performScrollTo().performClick()
             compose.onNodeWithTag("sign_out_confirm").performClick()
-            waitForTag("server_input", 60_000)
+            waitForTag("server_input", 180_000) // the server logout first; see the join step
             val state = graph.sessions.state.value
             assertTrue("signed out by the user ($state)", state is AuthState.SignedOut && state.reason == SignOutReason.USER)
         }

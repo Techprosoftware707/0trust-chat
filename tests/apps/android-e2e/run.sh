@@ -55,6 +55,14 @@ sql() {
 # shellcheck disable=SC2317  # invoked through the EXIT trap
 finish() {
   [[ -n "$PEER_PID" ]] && kill "$PEER_PID" 2>/dev/null
+  if ((FAILED)); then
+    # The server's side of a failure (requests that stalled or failed), for the artifact.
+    local svc
+    for svc in synapse caddy; do
+      if [[ $EUID -eq 0 ]]; then "$LUMENCTL" compose logs --no-color --timestamps --tail 400 "$svc"; else sudo -n "$LUMENCTL" compose logs --no-color --timestamps --tail 400 "$svc"; fi \
+        >"$OUT/server-$svc.log" 2>&1 || true
+    done
+  fi
   adb pull "/sdcard/Android/data/$PKG/files/e2e" "$OUT/screenshots/in-test" >/dev/null 2>&1 || true
   [[ -n "$LOGCAT_PID" ]] && kill "$LOGCAT_PID" 2>/dev/null
   # Secret check on everything that becomes an artifact: the only secret held here is A's password.
